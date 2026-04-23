@@ -23,7 +23,7 @@ export class OrderService {
     private payment: IPaymentProcessor
   ) {}
 
-  async placeOrder(userId: string, shippingAddress: Address): Promise<Order> {
+  async placeOrder(userId: string, shippingAddress: Address, paymentMethodId?: string): Promise<Order> {
     const cart = await this.cartRepo.getByUserId(userId);
     if (!cart || cart.items.length === 0) {
       throw new CartEmptyError();
@@ -67,10 +67,11 @@ export class OrderService {
       paymentTransactionId: null,
     });
 
-    // Process mock payment
+    // Process payment
     const paymentResult = await this.payment.processPayment({
       amount: total,
       orderId: order.id,
+      paymentMethodId,
     });
 
     if (paymentResult.success && paymentResult.transactionId) {

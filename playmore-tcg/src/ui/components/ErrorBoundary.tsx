@@ -7,7 +7,7 @@
  * Does not catch asynchronous errors or caught errors in event handlers.
  */
 
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 interface Props {

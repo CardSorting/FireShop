@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useServices } from '../../hooks/useServices';
-import type { ProductCategory, CardRarity } from '@domain/models';
+import type { Product, ProductCategory, CardRarity } from '@domain/models';
 import { Save, ArrowLeft } from 'lucide-react';
 
 const CATEGORIES: ProductCategory[] = ['booster', 'single', 'deck', 'accessory', 'box'];
@@ -13,6 +13,7 @@ const RARITIES: CardRarity[] = ['common', 'uncommon', 'rare', 'holo', 'secret'];
 export function AdminProductForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const services = useServices();
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState({
@@ -29,7 +30,7 @@ export function AdminProductForm() {
 
   useEffect(() => {
     if (!id) return;
-    productService.getProduct(id).then((p) => {
+      services.productService.getProduct(id).then((p: Product) => {
       setForm({
         name: p.name,
         description: p.description,
@@ -67,9 +68,9 @@ export function AdminProductForm() {
 
     try {
       if (isEdit && id) {
-        await productService.updateProduct(id, data);
+        await services.productService.updateProduct(id, data);
       } else {
-        await productService.createProduct(data);
+        await services.productService.createProduct(data);
       }
       navigate('/admin/products');
     } finally {

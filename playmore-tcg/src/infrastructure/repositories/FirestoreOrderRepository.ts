@@ -14,14 +14,13 @@ import {
   limit,
   startAfter,
   serverTimestamp,
-  type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { getDB } from '../FirebaseInitializer';
 import { COLLECTIONS } from '@utils/constants';
 import type { IOrderRepository } from '@domain/repositories';
 import type { Order, OrderStatus } from '@domain/models';
 
-function docToOrder(docSnap: QueryDocumentSnapshot): Order {
+function docToOrder(docSnap: any): Order {
   const data = docSnap.data();
   return {
     id: docSnap.id,
@@ -36,8 +35,9 @@ function docToOrder(docSnap: QueryDocumentSnapshot): Order {
   };
 }
 
-class FirestoreOrderRepository implements IOrderRepository {
-  private db: ReturnType<typeof getDB> | null = null;
+import { Firestore } from 'firebase/firestore';
+export class FirestoreOrderRepository implements IOrderRepository {
+  private db: Firestore | null = null;
   private coll: any | null = null;
 
   /**
@@ -47,19 +47,10 @@ class FirestoreOrderRepository implements IOrderRepository {
     if (!this.db) {
       this.db = await getDB();
     }
-    return this.db;
+    return this.db!;
   }
 
-  /**
-   * Get or create the collection reference
-   */
-  private async getCollection() {
-    if (!this.coll) {
-      const db = await this.getDBInstance();
-      this.coll = collection(db, COLLECTIONS.ORDERS);
-    }
-    return this.coll;
-  }
+
 
   async create(
     order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>

@@ -17,6 +17,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function OrdersPage() {
   const { user } = useAuth();
+  const services = useServices();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +29,7 @@ export function OrdersPage() {
   async function loadOrders() {
     if (!user) return;
     setLoading(true);
-    const result = await orderService.getOrders(user.id);
+    const result = await services.orderService.getOrders(user.id);
     setOrders(result);
     setLoading(false);
   }

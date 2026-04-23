@@ -19,10 +19,8 @@
 
 import {
   Firestore,
-  initializeFirestore,
-  getFirestore,
-  type FirestoreDataConverter,
 } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { ensureFirebaseInitialized } from './services/AuthAdapter';
 
 // Singleton instances
@@ -45,7 +43,7 @@ export async function getDB(): Promise<Firestore> {
 
   const { db } = await ensureFirebaseInitialized();
   _dbInstance = db;
-  return _dbInstance;
+  return _dbInstance!;
 }
 
 /**
@@ -80,7 +78,7 @@ export function clearInstances(): void {
  */
 export async function getCollections(path: string): Promise<any> {
   const db = await getDB();
-  return db.collection(path);
+  return collection(db, path);
 }
 
 /**
@@ -102,7 +100,7 @@ export async function getCollections(path: string): Promise<any> {
  */
 export const convertToFirestore = (
   obj: any
-): Record<string, unknown> | FirebaseFirestore.FieldValue => {
+): Record<string, unknown> | any => {
   return obj;
 };
 

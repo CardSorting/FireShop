@@ -2,9 +2,9 @@
  * [LAYER: INFRASTRUCTURE]
  */
 import type { Product } from '@domain/models';
-import { FirestoreProductRepository } from '../repositories/FirestoreProductRepository';
 
-const MOCK_PRODUCTS: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
+
+const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
   {
     name: 'Scarlet & Violet Booster Box',
     description:
@@ -108,13 +108,16 @@ const MOCK_PRODUCTS: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
   },
 ];
 
+import { getInitialServices } from '../../core/container';
+
+
 export async function seedProducts(): Promise<number> {
-  const repo = new FirestoreProductRepository();
+  const services = getInitialServices();
   let created = 0;
 
-  for (const product of MOCK_PRODUCTS) {
+  for (const product of INITIAL_CATALOG) {
     try {
-      await repo.create(product);
+      await services.productService.createProduct(product);
       created++;
     } catch (err) {
       console.error(`Failed to seed ${product.name}:`, err);
@@ -125,6 +128,6 @@ export async function seedProducts(): Promise<number> {
   return created;
 }
 
-export function getMockProductData(): typeof MOCK_PRODUCTS {
-  return [...MOCK_PRODUCTS];
+export function getInitialProductData(): typeof INITIAL_CATALOG {
+  return [...INITIAL_CATALOG];
 }

@@ -27,7 +27,7 @@ export function ProductsPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await services.productService.getAll({
+      const result = await services.productService.getProducts({
         category: category === 'all' ? undefined : category,
         limit: 20,
         cursor,
@@ -50,10 +50,10 @@ export function ProductsPage() {
     if (value.trim()) {
       setLoading(true);
       try {
-        const result = await services.productService.getAll({
+        const result = await services.productService.getProducts({
           limit: 20,
         });
-        const filtered = result.products.filter((p) =>
+        const filtered = result.products.filter((p: Product) =>
           p.name.toLowerCase().includes(value.toLowerCase())
         );
         setProducts(filtered);

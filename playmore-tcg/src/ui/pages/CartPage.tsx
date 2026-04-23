@@ -4,6 +4,8 @@
 import { useEffect, useState } from 'react';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
+import { Link } from 'react-router-dom';
+import { getInitialServices } from '../../core/container';
 import { Trash2, ChevronRight } from 'lucide-react';
 
 export function CartPage() {
@@ -21,14 +23,14 @@ export function CartPage() {
       try {
         // Get current user
         const authServices = getInitialServices();
-        const user = await authServices.authService.getUser();
+        const user = await authServices.authService.getCurrentUser();
         if (!user) {
           setCart(null);
           return;
         }
 
         // Load cart
-        const userCart = await services.cartService.getByUserId(user.id);
+        const userCart = await services.cartService.getCart(user.id);
         setCart(userCart);
       } catch (err) {
         console.error('Failed to load cart:', err);
@@ -42,10 +44,10 @@ export function CartPage() {
       const loadProducts = async () => {
         const productIds = cart.items.map((item) => item.productId);
         const results = await Promise.all(
-          productIds.map((id) => services.productService.getById(id))
+          productIds.map((id) => services.productService.getProduct(id).catch(() => null))
         );
         const productMap: Record<string, Product> = {};
-        results.forEach((product) => {
+        results.forEach((product: Product | null) => {
           if (product) {
             productMap[product.id] = product;
           }
@@ -56,31 +58,28 @@ export function CartPage() {
     }
   }, [cart, services]);
 
-  const removeFromCart = async (productId: string) => {
+  const handleRemoveFromCart = async (productId: string) => {
     if (!cart) return;
-    const updatedCart = {
-      ...cart,
-      items: cart.items.filter((item) => item.productId !== productId),
-    };
-    await services.cartService.save(updatedCart);
+    const authServices = getInitialServices();
+    const user = await authServices.authService.getCurrentUser();
+    if (!user) return;
+    
+    const updatedCart = await services.cartService.removeFromCart(user.id, productId);
     setCart(updatedCart);
   };
 
-  const updateQuantity = async (productId: string, quantity: number) => {
-    if (!cart || quantity <= 0) {
-      removeFromCart(productId);
+  const handleUpdateQuantity = async (productId: string, quantity: number) => {
+    if (!cart) return;
+    const authServices = getInitialServices();
+    const user = await authServices.authService.getCurrentUser();
+    if (!user) return;
+
+    if (quantity <= 0) {
+      handleRemoveFromCart(productId);
       return;
     }
 
-    const updatedCart = {
-      ...cart,
-      items: cart.items.map((item) =>
-        item.productId === productId
-          ? { ...item, quantity }
-          : item
-      ),
-    };
-    await services.cartService.save(updatedCart);
+    const updatedCart = await services.cartService.updateQuantity(user.id, productId, quantity);
     setCart(updatedCart);
   };
 
@@ -126,21 +125,21 @@ export function CartPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={() => handleUpdateQuantity(item.productId, item.quantity - 1)}
                             className="px-3 py-1 border rounded hover:bg-gray-50"
                           >
                             -
                           </button>
                           <span className="w-8 text-center">{item.quantity}</span>
                           <button
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
                             className="px-3 py-1 border rounded hover:bg-gray-50"
                           >
                             +
                           </button>
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.productId)}
+                          onClick={() => handleRemoveFromCart(item.productId)}
                           className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="w-5 h-5" />
@@ -170,10 +169,10 @@ export function CartPage() {
                     <span>${((total + 599) / 100).toFixed(2)}</span>
                   </div>
                 </div>
-                <button className="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition flex items-center justify-center gap-2">
+                <Link to="/checkout" className="w-full bg-primary-600 text-white py-3 rounded-lg font-medium hover:bg-primary-700 transition flex items-center justify-center gap-2">
                   Proceed to Checkout
                   <ChevronRight className="w-4 h-4" />
-                </button>
+                </Link>
               </div>
             </div>
           </div>

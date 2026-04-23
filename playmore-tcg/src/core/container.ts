@@ -57,22 +57,49 @@
 import { FirestoreProductRepository } from '@infrastructure/repositories/FirestoreProductRepository';
 import { FirestoreCartRepository } from '@infrastructure/repositories/FirestoreCartRepository';
 import { FirestoreOrderRepository } from '@infrastructure/repositories/FirestoreOrderRepository';
+import { SQLiteProductRepository } from '@infrastructure/repositories/sqlite/SQLiteProductRepository';
+import { SQLiteCartRepository } from '@infrastructure/repositories/sqlite/SQLiteCartRepository';
+import { SQLiteOrderRepository } from '@infrastructure/repositories/sqlite/SQLiteOrderRepository';
+import { getSelectedProvider } from '@infrastructure/dbProvider';
 import { AuthAdapter } from '@infrastructure/services/AuthAdapter';
-import { MockPaymentProcessor } from '@infrastructure/services/MockPaymentProcessor';
+import { SQLiteAuthAdapter } from '@infrastructure/services/SQLiteAuthAdapter';
+import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
 import { AuthService } from './AuthService';
+import type { IProductRepository, ICartRepository, IOrderRepository, IAuthProvider } from '@domain/repositories';
 
 // Singleton caches for production (Pattern 2 - getInitialServices)
-// These ensure single instances while maintaining lazy loading
 let authServiceInstance: AuthService | null = null;
-let authProviderInstance: AuthAdapter | null = null;
+let authProviderInstance: IAuthProvider | null = null;
 
 // Repository singletons - cached globally (shared across all services)
-let productRepoInstance: FirestoreProductRepository | null = null;
-let cartRepoInstance: FirestoreCartRepository | null = null;
-let orderRepoInstance: FirestoreOrderRepository | null = null;
+let productRepoInstance: IProductRepository | null = null;
+let cartRepoInstance: ICartRepository | null = null;
+let orderRepoInstance: IOrderRepository | null = null;
+
+/**
+ * Helper to create the correct repository based on provider
+ */
+function createRepositories() {
+  const provider = getSelectedProvider();
+  
+  if (provider === 'sqlite') {
+    // DB is initialized synchronously before React boots via main.tsx
+    return {
+      productRepo: new SQLiteProductRepository(),
+      cartRepo: new SQLiteCartRepository(),
+      orderRepo: new SQLiteOrderRepository(),
+    };
+  }
+
+  return {
+    productRepo: new FirestoreProductRepository(),
+    cartRepo: new FirestoreCartRepository(),
+    orderRepo: new FirestoreOrderRepository(),
+  };
+}
 
 /**
  * FACTORY PATTERN: Creates fresh service instances
@@ -83,13 +110,11 @@ let orderRepoInstance: FirestoreOrderRepository | null = null;
  * @returns Container with fresh repository instances
  */
 export function getServiceContainer() {
-  // Always create new instances - no caching
-  const productRepo = new FirestoreProductRepository();
-  const cartRepo = new FirestoreCartRepository();
-  const orderRepo = new FirestoreOrderRepository();
+  const { productRepo, cartRepo, orderRepo } = createRepositories();
+  const provider = getSelectedProvider();
   
-  // Auth always singleton
-  const authProvider = new AuthAdapter();
+  // Auth selection
+  const authProvider = provider === 'sqlite' ? new SQLiteAuthAdapter() : new AuthAdapter();
   const authService = new AuthService(authProvider);
   
   return {
@@ -101,7 +126,7 @@ export function getServiceContainer() {
       orderRepo,
       productRepo,
       cartRepo,
-      new MockPaymentProcessor()
+      new StripePaymentProcessor()
     ),
   };
 }
@@ -113,51 +138,35 @@ export function getServiceContainer() {
  * Repositories are cached and retained across function calls.
  * 
  * @returns Container with cached singleton instances
- * 
- * IMPORTANT:
- * - CartRepository remains in memory for seamless cart persistence
- * - ProductRepository stays cached for performance
- * - Other services reuse the same instances
  */
 export function getInitialServices() {
-  // Use cached repository instances if available (singleton pattern)
-  const productRepo = productRepoInstance ?? new FirestoreProductRepository();
-  const cartRepo = cartRepoInstance ?? new FirestoreCartRepository();
-  const orderRepo = orderRepoInstance ?? new FirestoreOrderRepository();
-  
-  // Cache cart repository to maintain state for persistence
-  if (!cartRepoInstance) {
-    cartRepoInstance = cartRepo;
-  }
-  
-  // Cache other repositories for performance
-  if (!productRepoInstance) {
+  if (!productRepoInstance || !cartRepoInstance || !orderRepoInstance) {
+    const { productRepo, cartRepo, orderRepo } = createRepositories();
     productRepoInstance = productRepo;
-  }
-  
-  if (!orderRepoInstance) {
+    cartRepoInstance = cartRepo;
     orderRepoInstance = orderRepo;
   }
   
-  // Auth always singleton
+  // Auth selection
   if (!authProviderInstance) {
-    authProviderInstance = new AuthAdapter();
+    const provider = getSelectedProvider();
+    authProviderInstance = provider === 'sqlite' ? new SQLiteAuthAdapter() : new AuthAdapter();
   }
   
   if (!authServiceInstance) {
-    authServiceInstance = new AuthService(authProviderInstance);
+    authServiceInstance = new AuthService(authProviderInstance!);
   }
   
   return {
-    authProvider: authProviderInstance,
+    authProvider: authProviderInstance!,
     authService: authServiceInstance,
-    productService: new ProductService(productRepo),
-    cartService: new CartService(cartRepo, productRepo),
+    productService: new ProductService(productRepoInstance!),
+    cartService: new CartService(cartRepoInstance!, productRepoInstance!),
     orderService: new OrderService(
-      orderRepo,
-      productRepo,
-      cartRepo,
-      new MockPaymentProcessor()
+      orderRepoInstance!,
+      productRepoInstance!,
+      cartRepoInstance!,
+      new StripePaymentProcessor()
     ),
   };
 }

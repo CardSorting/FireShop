@@ -8,6 +8,7 @@ import type { Product } from '@domain/models';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 
 export function AdminProducts() {
+  const services = useServices();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,14 +18,14 @@ export function AdminProducts() {
 
   async function loadProducts() {
     setLoading(true);
-    const result = await productService.getProducts({ limit: 100 });
+    const result = await services.productService.getProducts({ limit: 100 });
     setProducts(result.products);
     setLoading(false);
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this product?')) return;
-    await productService.deleteProduct(id);
+    await services.productService.deleteProduct(id);
     await loadProducts();
   }
 

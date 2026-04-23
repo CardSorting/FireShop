@@ -7,13 +7,13 @@ import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { ArrowRight, Sparkles, Shield, Truck } from 'lucide-react';
 
-function HomePage() {
+export function HomePage() {
   const services = useServices();
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    services.productService.getAll({ limit: 4 }).then((result) => {
+    services.productService.getProducts({ limit: 4 }).then((result) => {
       setFeatured(result.products);
       setLoading(false);
     });

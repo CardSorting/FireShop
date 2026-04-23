@@ -15,6 +15,7 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 };
 
 export function AdminOrders() {
+  const services = useServices();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -25,14 +26,14 @@ export function AdminOrders() {
 
   async function loadOrders() {
     setLoading(true);
-    const result = await orderService.getAllOrders({ limit: 100 });
+    const result = await services.orderService.getAllOrders({ limit: 100 });
     setOrders(result.orders);
     setLoading(false);
   }
 
   async function handleStatusChange(id: string, status: OrderStatus) {
     setUpdating(id);
-    await orderService.updateOrderStatus(id, status);
+    await services.orderService.updateOrderStatus(id, status);
     setUpdating(null);
     await loadOrders();
   }

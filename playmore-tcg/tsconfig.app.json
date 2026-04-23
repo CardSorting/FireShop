@@ -16,13 +16,12 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
     "paths": {
-      "@domain/*": ["src/domain/*"],
-      "@core/*": ["src/core/*"],
-      "@infrastructure/*": ["src/infrastructure/*"],
-      "@ui/*": ["src/ui/*"],
-      "@utils/*": ["src/utils/*"]
+      "@domain/*": ["./src/domain/*"],
+      "@core/*": ["./src/core/*"],
+      "@infrastructure/*": ["./src/infrastructure/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
   "include": ["src"]

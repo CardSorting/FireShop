@@ -46,5 +46,6 @@ export interface IPaymentProcessor {
   processPayment(params: {
     amount: number;
     orderId: string;
+    paymentMethodId?: string;
   }): Promise<{ success: boolean; transactionId: string | null }>;
 }

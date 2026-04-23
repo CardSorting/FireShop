@@ -15,7 +15,7 @@ import {
   startAfter,
   runTransaction,
   serverTimestamp,
-  type QueryDocumentSnapshot,
+  orderBy,
 } from 'firebase/firestore';
 import { getDB } from '../FirebaseInitializer';
 import { COLLECTIONS } from '@utils/constants';
@@ -23,7 +23,7 @@ import type { IProductRepository } from '@domain/repositories';
 import type { Product } from '@domain/models';
 import { ProductNotFoundError } from '@domain/errors';
 
-function docToProduct(docSnap: QueryDocumentSnapshot): Product {
+function docToProduct(docSnap: any): Product {
   const data = docSnap.data();
   return {
     id: docSnap.id,
@@ -40,8 +40,9 @@ function docToProduct(docSnap: QueryDocumentSnapshot): Product {
   };
 }
 
-class FirestoreProductRepository implements IProductRepository {
-  private db: ReturnType<typeof getDB> | null = null;
+import { Firestore } from 'firebase/firestore';
+export class FirestoreProductRepository implements IProductRepository {
+  private db: Firestore | null = null;
   private coll: any | null = null;
 
   /**
@@ -52,20 +53,10 @@ class FirestoreProductRepository implements IProductRepository {
     if (!this.db) {
       this.db = await getDB();
     }
-    return this.db;
+    return this.db!;
   }
 
-  /**
-   * Get or create the collection reference
-   * Lazy-loaded to prevent premature Firebase initialization
-   */
-  private async getCollection() {
-    if (!this.coll) {
-      const db = await this.getDBInstance();
-      this.coll = collection(db, COLLECTIONS.PRODUCTS);
-    }
-    return this.coll;
-  }
+
 
   async getAll(options?: {
     category?: string;

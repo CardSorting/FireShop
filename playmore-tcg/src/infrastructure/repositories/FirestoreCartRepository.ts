@@ -24,8 +24,9 @@ function docToCart(docSnap: QueryDocumentSnapshot): Cart {
   };
 }
 
-class FirestoreCartRepository implements ICartRepository {
-  private db: ReturnType<typeof getDB> | null = null;
+import { Firestore } from 'firebase/firestore';
+export class FirestoreCartRepository implements ICartRepository {
+  private db: Firestore | null = null;
   private coll: any | null = null;
 
   /**
@@ -35,19 +36,10 @@ class FirestoreCartRepository implements ICartRepository {
     if (!this.db) {
       this.db = await getDB();
     }
-    return this.db;
+    return this.db!;
   }
 
-  /**
-   * Get or create the collection reference
-   */
-  private async getCollection() {
-    if (!this.coll) {
-      const db = await this.getDBInstance();
-      this.coll = collection(db, COLLECTIONS.CARTS);
-    }
-    return this.coll;
-  }
+
 
   async getByUserId(userId: string): Promise<Cart | null> {
     const db = await this.getDBInstance();

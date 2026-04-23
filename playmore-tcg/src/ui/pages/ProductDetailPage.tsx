@@ -3,6 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import type { Product } from '@domain/models';
 import { ShoppingCart, ArrowLeft, Check } from 'lucide-react';
@@ -10,6 +11,7 @@ import { ShoppingCart, ArrowLeft, Check } from 'lucide-react';
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const services = useServices();
   const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
@@ -17,13 +19,13 @@ export function ProductDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    productService.getProduct(id).then(setProduct);
+    services.productService.getProduct(id).then(setProduct);
   }, [id]);
 
   async function handleAddToCart() {
     if (!user || !product) return;
     setAdding(true);
-    await cartService.addToCart(user.id, product.id, quantity);
+    await services.cartService.addToCart(user.id, product.id, quantity);
     setAdding(false);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);

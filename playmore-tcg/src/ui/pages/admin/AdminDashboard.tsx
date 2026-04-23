@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { useServices } from '../../hooks/useServices';
 import type { Product, Order } from '@domain/models';
 import { Package, ShoppingBag, AlertTriangle, DollarSign } from 'lucide-react';
+import { DatabaseMigration } from '../../components/admin/DatabaseMigration';
 
-function AdminDashboard() {
+export function AdminDashboard() {
   const services = useServices();
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -15,8 +16,8 @@ function AdminDashboard() {
   useEffect(() => {
     async function load() {
       const [prodResult, orderResult] = await Promise.all([
-        services.productService.getAll({ limit: 100 }),
-        services.orderService.getAll({ limit: 100 }),
+        services.productService.getProducts({ limit: 100 }),
+        services.orderService.getAllOrders({ limit: 100 }),
       ]);
       setProducts(prodResult.products);
       setOrders(orderResult.orders);
@@ -77,6 +78,8 @@ function AdminDashboard() {
           </ul>
         </div>
       )}
+
+      <DatabaseMigration />
     </div>
   );
 }

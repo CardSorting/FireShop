@@ -19,10 +19,9 @@ import {
   updateProfile,
   getIdTokenResult,
   type User as FirebaseUser,
-  initializeAuth,
-  initializeApp,
   getAuth,
 } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
 import {
   initializeFirestore,
   getFirestore,
@@ -30,6 +29,8 @@ import {
 } from 'firebase/firestore';
 import type { IAuthProvider } from '@domain/repositories';
 import type { User } from '@domain/models';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
 
 // Lazy-initialized Firebase instances
 // These are created only when AuthService calls them
@@ -41,7 +42,7 @@ let _dbInstance: ReturnType<typeof getFirestore> | null = null;
  * Initialize Firebase lazily - only when first needed
  * This prevents app from blocking during module load
  */
-function ensureFirebaseInitialized(): Promise<{ auth: typeof _authInstance, db: typeof _dbInstance }> {
+export function ensureFirebaseInitialized(): Promise<{ auth: Auth, db: Firestore }> {
   return new Promise((resolve, reject) => {
     // If already initialized, return immediately
     if (_authInstance && _dbInstance) {
@@ -120,7 +121,7 @@ function firebaseUserToDomain(user: FirebaseUser, isAdmin: boolean = false): Use
  * Authentication Adapter
  * Implements IAuthProvider while keeping all Firebase dependencies internal
  */
-class AuthAdapter implements IAuthProvider {
+export class AuthAdapter implements IAuthProvider {
   async getCurrentUser(): Promise<User | null> {
     try {
       const { auth } = await ensureFirebaseInitialized();
@@ -165,7 +166,7 @@ class AuthAdapter implements IAuthProvider {
   async signOut(): Promise<void> {
     try {
       const { auth } = await ensureFirebaseInitialized();
-      await firebaseSignOut(auth);
+      await firebaseSignOut(auth!);
     } catch (error) {
       console.error('Error signing out:', error);
       throw new Error('Failed to sign out');
@@ -174,7 +175,7 @@ class AuthAdapter implements IAuthProvider {
 
   onAuthStateChanged(callback: (user: User | null) => void): () => void {
     ensureFirebaseInitialized().then(({ auth }) => {
-      return firebaseOnAuthStateChanged(auth, async (fbUser) => {
+      return firebaseOnAuthStateChanged(auth!, async (fbUser) => {
         if (!fbUser) {
           callback(null);
           return;
