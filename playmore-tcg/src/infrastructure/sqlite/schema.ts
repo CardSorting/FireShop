@@ -46,9 +46,25 @@ export interface OrderTable {
   updatedAt: string;
 }
 
+export interface HiveClaimTable {
+  id: string; // The resource being locked (e.g., 'checkout_user123' or 'stock_prod1')
+  owner: string; // The agent/process owning the lock
+  expiresAt: string; // ISO date string for TTL
+  createdAt: string;
+}
+
+export interface HiveAuditTable {
+  id: string;
+  action: string;
+  details: string;
+  timestamp: string;
+}
+
 export interface Database {
   products: ProductTable;
   users: UserTable;
   carts: CartTable;
   orders: OrderTable;
+  hive_claims: HiveClaimTable;
+  hive_audit: HiveAuditTable;
 }

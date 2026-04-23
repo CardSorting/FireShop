@@ -60,7 +60,7 @@ import { FirestoreOrderRepository } from '@infrastructure/repositories/Firestore
 import { SQLiteProductRepository } from '@infrastructure/repositories/sqlite/SQLiteProductRepository';
 import { SQLiteCartRepository } from '@infrastructure/repositories/sqlite/SQLiteCartRepository';
 import { SQLiteOrderRepository } from '@infrastructure/repositories/sqlite/SQLiteOrderRepository';
-import { getSelectedProvider } from '@infrastructure/dbProvider';
+import { getSelectedProvider, registerShutdownHook } from '@infrastructure/dbProvider';
 import { AuthAdapter } from '@infrastructure/services/AuthAdapter';
 import { SQLiteAuthAdapter } from '@infrastructure/services/SQLiteAuthAdapter';
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
@@ -87,9 +87,20 @@ function createRepositories() {
   
   if (provider === 'sqlite') {
     // DB is initialized synchronously before React boots via main.tsx
+    const productRepo = new SQLiteProductRepository();
+    const cartRepo = new SQLiteCartRepository();
+    
+    // BroccoliQ Level 9: Register Sovereign Shutdown
+    registerShutdownHook(async () => {
+      await cartRepo.shutdown();
+    });
+    
+    // BroccoliQ Level 9: Sovereign Warmup (Fire and Forget)
+    productRepo.warmup().catch(e => console.error('[Hive] Warmup failed:', e));
+
     return {
-      productRepo: new SQLiteProductRepository(),
-      cartRepo: new SQLiteCartRepository(),
+      productRepo,
+      cartRepo,
       orderRepo: new SQLiteOrderRepository(),
     };
   }

@@ -84,4 +84,24 @@ export async function initDatabase() {
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .addColumn('updatedAt', 'text', (col) => col.notNull())
     .execute();
+
+  // BroccoliQ Level 5: Sovereign Locking Table
+  await db.schema
+    .createTable('hive_claims')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey()) // The locked resource
+    .addColumn('owner', 'text', (col) => col.notNull())
+    .addColumn('expiresAt', 'text', (col) => col.notNull())
+    .addColumn('createdAt', 'text', (col) => col.notNull())
+    .execute();
+
+  // BroccoliQ Level 9: Autonomous Integrity Audit Log
+  await db.schema
+    .createTable('hive_audit')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('action', 'text', (col) => col.notNull())
+    .addColumn('details', 'text', (col) => col.notNull())
+    .addColumn('timestamp', 'text', (col) => col.notNull())
+    .execute();
 }

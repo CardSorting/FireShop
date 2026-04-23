@@ -14,6 +14,7 @@ export interface IProductRepository {
   update(id: string, updates: Partial<Product>): Promise<Product>;
   delete(id: string): Promise<void>;
   updateStock(id: string, delta: number): Promise<void>;
+  batchUpdateStock?(updates: { id: string; delta: number }[]): Promise<void>;
 }
 
 export interface ICartRepository {

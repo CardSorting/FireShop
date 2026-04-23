@@ -141,4 +141,26 @@ export class FirestoreProductRepository implements IProductRepository {
       transaction.update(ref, { stock: currentStock + delta });
     });
   }
+
+  async batchUpdateStock(updates: { id: string; delta: number }[]): Promise<void> {
+    if (updates.length === 0) return;
+
+    const db = await this.getDBInstance();
+    const coll = this.coll || collection(db, COLLECTIONS.PRODUCTS);
+    
+    await runTransaction(db, async (transaction) => {
+      // Step 1: Read all documents
+      const docs = await Promise.all(
+        updates.map(update => transaction.get(doc(coll, update.id)))
+      );
+
+      // Step 2: Write all updates
+      updates.forEach((update, index) => {
+        const docSnap = docs[index];
+        if (!docSnap.exists()) throw new ProductNotFoundError(update.id);
+        const currentStock = docSnap.data().stock as number;
+        transaction.update(doc(coll, update.id), { stock: currentStock + update.delta });
+      });
+    });
+  }
 }

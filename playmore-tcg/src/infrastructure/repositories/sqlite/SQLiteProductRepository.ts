@@ -11,6 +11,13 @@ import { ProductNotFoundError } from '@domain/errors';
 
 export class SQLiteProductRepository implements IProductRepository {
   private db: Kysely<Database>;
+  
+  // BroccoliQ Level 7: Memory-First Auth-Index
+  private authIndex: Map<string, Product> | null = null;
+  
+  // BroccoliQ Level 11: Hardened Memory Limit
+  private readonly MAX_INDEX_SIZE = 10000;
+  private isCatalogTooLarge = false;
 
   constructor() {
     this.db = getSQLiteDB();
@@ -32,45 +39,113 @@ export class SQLiteProductRepository implements IProductRepository {
     };
   }
 
+  // BroccoliQ Level 7 & 11: Ensure the index is warmed into RAM, but safely.
+  // Exposed publicly as Level 9 Sovereign Warmup
+  public async warmup(): Promise<void> {
+    return this.ensureIndexWarm();
+  }
+
+  private async ensureIndexWarm(): Promise<void> {
+    if (this.authIndex !== null || this.isCatalogTooLarge) return;
+    
+    // Check catalog size first to prevent OOM
+    const countResult = await this.db
+      .selectFrom('products')
+      .select(({ fn }) => fn.count<number>('id').as('total_count'))
+      .executeTakeFirst();
+      
+    if (countResult && countResult.total_count > this.MAX_INDEX_SIZE) {
+      console.warn(`[Hive] Level 11 Alert: Product catalog (${countResult.total_count}) exceeds safe memory limit (${this.MAX_INDEX_SIZE}). Falling back to physical disk reads.`);
+      this.isCatalogTooLarge = true;
+      return;
+    }
+
+    const results = await this.db.selectFrom('products').selectAll().execute();
+    this.authIndex = new Map();
+    for (const row of results) {
+      this.authIndex.set(row.id, this.mapTableToProduct(row));
+    }
+  }
+
+  private invalidateIndex() {
+    this.authIndex = null;
+    this.isCatalogTooLarge = false; // Level 11 Fix: Re-evaluate safe limits after mutations
+  }
+
   async getAll(options?: {
     category?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
-    let query = this.db.selectFrom('products').selectAll();
+    // BroccoliQ Level 7: O(1) Reactive Lookups from RAM
+    await this.ensureIndexWarm();
+    
+    // Level 11 Fallback: If catalog is too large, use standard SQL
+    if (this.isCatalogTooLarge || !this.authIndex) {
+      let query = this.db.selectFrom('products').selectAll();
+
+      if (options?.category) {
+        query = query.where('category', '=', options.category);
+      }
+
+      if (options?.cursor) {
+        query = query.where('id', '>', options.cursor);
+      }
+
+      const limitCount = options?.limit ?? 20;
+      const results = await query
+        .orderBy('createdAt', 'desc')
+        .orderBy('id', 'asc')
+        .limit(limitCount)
+        .execute();
+
+      const products = results.map((row) => this.mapTableToProduct(row));
+      const nextCursor = products.length === limitCount ? products[products.length - 1].id : undefined;
+      return { products, nextCursor };
+    }
+    
+    let allProducts = Array.from(this.authIndex.values());
+    
+    // Sort deterministically like the DB would
+    allProducts.sort((a, b) => {
+      const timeDiff = b.createdAt.getTime() - a.createdAt.getTime();
+      if (timeDiff !== 0) return timeDiff;
+      return a.id.localeCompare(b.id);
+    });
 
     if (options?.category) {
-      query = query.where('category', '=', options.category);
+      allProducts = allProducts.filter(p => p.category === options.category);
     }
 
     if (options?.cursor) {
-      // In a production app, cursor-based pagination on non-unique fields (like createdAt)
-      // should use a tuple comparison or deterministic sort order.
-      // For now, we stick to ID-based pagination for simplicity.
-      query = query.where('id', '>', options.cursor);
+      const cursorIndex = allProducts.findIndex(p => p.id === options.cursor);
+      if (cursorIndex !== -1) {
+        allProducts = allProducts.slice(cursorIndex + 1);
+      }
     }
 
     const limitCount = options?.limit ?? 20;
-    const results = await query
-      .orderBy('createdAt', 'desc')
-      .orderBy('id', 'asc') // Secondary sort for deterministic pagination
-      .limit(limitCount)
-      .execute();
-
-    const products = results.map(this.mapTableToProduct);
+    const products = allProducts.slice(0, limitCount);
     const nextCursor = products.length === limitCount ? products[products.length - 1].id : undefined;
 
     return { products, nextCursor };
   }
 
   async getById(id: string): Promise<Product | null> {
-    const result = await this.db
-      .selectFrom('products')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
-
-    return result ? this.mapTableToProduct(result) : null;
+    // BroccoliQ Level 7: Instant Memory-First Lookup
+    await this.ensureIndexWarm();
+    
+    // Level 11 Fallback
+    if (this.isCatalogTooLarge || !this.authIndex) {
+      const result = await this.db
+        .selectFrom('products')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+      return result ? this.mapTableToProduct(result) : null;
+    }
+    
+    return this.authIndex.get(id) || null;
   }
 
   async create(
@@ -95,6 +170,8 @@ export class SQLiteProductRepository implements IProductRepository {
         updatedAt: now,
       })
       .execute();
+
+    this.invalidateIndex(); // Level 7: Flush the buffer so it reconstructs
 
     const created = await this.getById(id);
     if (!created) throw new Error('Failed to create product');
@@ -122,6 +199,8 @@ export class SQLiteProductRepository implements IProductRepository {
       .where('id', '=', id)
       .execute();
 
+    this.invalidateIndex(); // Level 7: Buffer flush
+
     const updated = await this.getById(id);
     if (!updated) throw new ProductNotFoundError(id);
     return updated;
@@ -130,6 +209,7 @@ export class SQLiteProductRepository implements IProductRepository {
 
   async delete(id: string): Promise<void> {
     await this.db.deleteFrom('products').where('id', '=', id).execute();
+    this.invalidateIndex();
   }
 
   async updateStock(id: string, delta: number): Promise<void> {
@@ -148,5 +228,36 @@ export class SQLiteProductRepository implements IProductRepository {
         .where('id', '=', id)
         .execute();
     });
+    this.invalidateIndex();
+  }
+
+  /**
+   * BroccoliQ Level 6: Builder's Punch
+   * Merges multiple consecutive stock updates into a single atomic transaction 
+   * to bypass sequential IO latency.
+   */
+  async batchUpdateStock(updates: { id: string, delta: number }[]): Promise<void> {
+    if (updates.length === 0) return;
+
+    await this.db.transaction().execute(async (trx) => {
+      // We lock rows or simply read current state and write
+      for (const update of updates) {
+        const product = await trx
+          .selectFrom('products')
+          .select('stock')
+          .where('id', '=', update.id)
+          .executeTakeFirst();
+
+        if (!product) throw new ProductNotFoundError(update.id);
+
+        await trx
+          .updateTable('products')
+          .set({ stock: product.stock + update.delta })
+          .where('id', '=', update.id)
+          .execute();
+      }
+    });
+
+    this.invalidateIndex(); // Ensure RAM stays synchronous with physical state
   }
 }
