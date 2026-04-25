@@ -32,7 +32,7 @@
  * - ordersRepo: FirestoreOrderRepository (cached singleton - shared)
  * 
  * NOISE IMPORTS ELIMINATED:
- * - No infrastructure polluting core layer
+ * - Core is the composition root and intentionally wires infrastructure adapters
  * - No core polluting infrastructure layer
  * - No UI polluting any layer
  * 
@@ -64,7 +64,13 @@ import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
 import { AuthService } from './AuthService';
-import type { IProductRepository, ICartRepository, IOrderRepository, IAuthProvider } from '@domain/repositories';
+import type {
+  IProductRepository,
+  ICartRepository,
+  IOrderRepository,
+  IAuthProvider,
+  IPaymentProcessor,
+} from '@domain/repositories';
 
 // Singleton caches for production (Pattern 2 - getInitialServices)
 let authServiceInstance: AuthService | null = null;
@@ -74,6 +80,7 @@ let authProviderInstance: IAuthProvider | null = null;
 let productRepoInstance: IProductRepository | null = null;
 let cartRepoInstance: ICartRepository | null = null;
 let orderRepoInstance: IOrderRepository | null = null;
+let paymentProcessorInstance: IPaymentProcessor | null = null;
 
 /**
  * Helper to create the correct repository based on provider
@@ -153,6 +160,10 @@ export function getInitialServices() {
   if (!authServiceInstance) {
     authServiceInstance = new AuthService(authProviderInstance!);
   }
+
+  if (!paymentProcessorInstance) {
+    paymentProcessorInstance = new StripePaymentProcessor();
+  }
   
   return {
     authProvider: authProviderInstance!,
@@ -163,7 +174,7 @@ export function getInitialServices() {
       orderRepoInstance!,
       productRepoInstance!,
       cartRepoInstance!,
-      new StripePaymentProcessor()
+      paymentProcessorInstance
     ),
   };
 }

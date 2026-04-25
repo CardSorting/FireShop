@@ -98,12 +98,11 @@ export class FirestoreOrderRepository implements IOrderRepository {
     const db = await this.getDBInstance();
     const coll = this.coll || collection(db, COLLECTIONS.ORDERS);
     
+    const cursorDoc = options?.cursor ? await getDoc(doc(coll, options.cursor)) : null;
     const constraints = [
       orderBy('createdAt', 'desc'),
       ...(options?.status ? [where('status', '==', options.status)] : []),
-      ...(options?.cursor
-        ? [startAfter(await getDoc(doc(coll, options.cursor)))]
-        : []),
+      ...(cursorDoc?.exists() ? [startAfter(cursorDoc)] : []),
       limit(options?.limit ?? 50),
     ];
     const q = query(coll, ...constraints);

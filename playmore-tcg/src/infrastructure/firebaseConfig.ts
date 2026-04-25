@@ -13,6 +13,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
+import { logger } from '@utils/logger';
 
 // Firebase configuration accessed from environment variables
 // These variables are populated from .env (or .env.local for development)
@@ -28,7 +29,7 @@ const firebaseConfig = {
 
 // Validate configuration before initialization
 if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-  console.error('Firebase configuration is missing. Please check your .env file.');
+  logger.error('Firebase configuration is missing. Please check your .env file.');
 }
 
 // Initialize Firebase
@@ -39,6 +40,6 @@ export const db = getFirestore(app);
 // Enable offline persistence
 enableMultiTabIndexedDbPersistence(db).catch((err) => {
   if (err.code !== 'failed-precondition') {
-    console.warn('Firestore persistence error:', err);
+    logger.warn('Firestore persistence error.', err);
   }
 });

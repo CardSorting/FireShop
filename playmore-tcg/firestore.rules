@@ -48,6 +48,12 @@ service cloud.firestore {
         (data.paymentTransactionId == null || data.paymentTransactionId is string);
     }
 
+    function isPendingClientOrder(data) {
+      return isValidOrder(data) &&
+        data.status == 'pending' &&
+        data.paymentTransactionId == null;
+    }
+
     // Products: anyone can read, only admins can write
     match /products/{productId} {
       allow read: if true;
@@ -72,7 +78,7 @@ service cloud.firestore {
         (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() &&
         request.resource.data.userId == request.auth.uid &&
-        isValidOrder(request.resource.data);
+        isPendingClientOrder(request.resource.data);
       allow update: if isAdmin() &&
         request.resource.data.diff(resource.data).changedKeys().hasOnly(['status', 'updatedAt']) &&
         request.resource.data.status in ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];

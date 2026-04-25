@@ -1,7 +1,7 @@
 /**
  * [LAYER: DOMAIN]
  */
-import type { Product, Cart, Order, OrderStatus, User } from './models';
+import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User } from './models';
 
 export interface IProductRepository {
   getAll(options?: {
@@ -10,8 +10,8 @@ export interface IProductRepository {
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }>;
   getById(id: string): Promise<Product | null>;
-  create(product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>): Promise<Product>;
-  update(id: string, updates: Partial<Product>): Promise<Product>;
+  create(product: ProductDraft): Promise<Product>;
+  update(id: string, updates: ProductUpdate): Promise<Product>;
   delete(id: string): Promise<void>;
   updateStock(id: string, delta: number): Promise<void>;
   batchUpdateStock?(updates: { id: string; delta: number }[]): Promise<void>;

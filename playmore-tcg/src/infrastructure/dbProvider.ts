@@ -5,6 +5,8 @@
 
 export type DBProvider = 'firebase' | 'sqlite';
 
+import { logger } from '@utils/logger';
+
 export function getSelectedProvider(): DBProvider {
   const override = import.meta.env.VITE_DB_PROVIDER as DBProvider | undefined;
   return override === 'sqlite' ? 'sqlite' : 'firebase';
@@ -25,12 +27,12 @@ function ensureHooksRegistered() {
   // Node.js graceful shutdown
   if (typeof process !== 'undefined' && process.on) {
     const handleShutdown = async () => {
-      console.log('[Hive] Initiating Level 9 Final Sovereign Flush (Shutdown)...');
+      logger.info('[Hive] Initiating Level 9 Final Sovereign Flush (Shutdown)...');
       for (const hook of shutdownHooks) {
         try {
           await hook();
         } catch (e) {
-          console.error('[Hive] Shutdown hook failed:', e);
+          logger.error('[Hive] Shutdown hook failed.', e);
         }
       }
       process.exit(0);

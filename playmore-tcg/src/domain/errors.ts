@@ -15,6 +15,13 @@ export class ProductNotFoundError extends DomainError {
   }
 }
 
+export class InvalidProductError extends DomainError {
+  constructor(message: string = 'Product data is incomplete or invalid') {
+    super(message);
+    this.name = 'InvalidProductError';
+  }
+}
+
 export class InsufficientStockError extends DomainError {
   constructor(productId: string, requested: number, available: number) {
     super(

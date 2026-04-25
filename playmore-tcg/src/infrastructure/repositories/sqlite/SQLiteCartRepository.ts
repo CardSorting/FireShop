@@ -8,6 +8,7 @@ import type { Database } from '../../sqlite/schema';
 import type { CartTable } from '../../sqlite/schema';
 import type { ICartRepository } from '@domain/repositories';
 import type { Cart } from '@domain/models';
+import { logger } from '@utils/logger';
 
 export class SQLiteCartRepository implements ICartRepository {
   private db: Kysely<Database>;
@@ -120,7 +121,7 @@ export class SQLiteCartRepository implements ICartRepository {
         }
       });
     } catch (err) {
-      console.error('[Hive] Level 11 Alert: Cart Buffer Flush failed. Re-queuing ops to prevent data loss:', err);
+      logger.error('[Hive] Level 11 Alert: Cart Buffer Flush failed. Re-queuing ops to prevent data loss.', err);
       // Safely merge failed ops back into activeBuffer WITHOUT overwriting newer ops
       for (const [failedUserId, failedCart] of this.inFlightBuffer.entries()) {
         if (!this.activeBuffer.has(failedUserId)) {

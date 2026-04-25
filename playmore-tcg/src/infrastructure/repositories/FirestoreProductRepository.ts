@@ -24,7 +24,7 @@ import {
 import { getDB } from '../FirebaseInitializer';
 import { COLLECTIONS } from '@utils/constants';
 import type { IProductRepository } from '@domain/repositories';
-import type { Product } from '@domain/models';
+import type { Product, ProductDraft, ProductUpdate } from '@domain/models';
 import { InsufficientStockError, ProductNotFoundError } from '@domain/errors';
 
 function docToProduct(docSnap: QueryDocumentSnapshot<DocumentData>): Product {
@@ -42,6 +42,21 @@ function docToProduct(docSnap: QueryDocumentSnapshot<DocumentData>): Product {
     createdAt: data.createdAt?.toDate() ?? new Date(),
     updatedAt: data.updatedAt?.toDate() ?? new Date(),
   };
+}
+
+function sanitizeProductUpdate(updates: ProductUpdate): ProductUpdate {
+  const sanitized: ProductUpdate = {
+    ...(updates.name !== undefined ? { name: updates.name } : {}),
+    ...(updates.description !== undefined ? { description: updates.description } : {}),
+    ...(updates.price !== undefined ? { price: updates.price } : {}),
+    ...(updates.category !== undefined ? { category: updates.category } : {}),
+    ...(updates.stock !== undefined ? { stock: updates.stock } : {}),
+    ...(updates.imageUrl !== undefined ? { imageUrl: updates.imageUrl } : {}),
+    ...('set' in updates ? { set: updates.set } : {}),
+    ...('rarity' in updates ? { rarity: updates.rarity } : {}),
+  };
+
+  return sanitized;
 }
 
 export class FirestoreProductRepository implements IProductRepository {
@@ -69,13 +84,13 @@ export class FirestoreProductRepository implements IProductRepository {
     const db = await this.getDBInstance();
     const coll = this.coll || collection(db, COLLECTIONS.PRODUCTS);
 
+    const cursorDoc = options?.cursor ? await getDoc(doc(coll, options.cursor)) : null;
+
     const q = query(
       coll,
       orderBy('createdAt', 'desc'),
       ...(options?.category ? [where('category', '==', options.category)] : []),
-      ...(options?.cursor
-        ? [startAfter(await getDoc(doc(coll, options.cursor)))]
-        : []),
+      ...(cursorDoc?.exists() ? [startAfter(cursorDoc)] : []),
       limit(options?.limit ?? 20)
     );
 
@@ -99,7 +114,7 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async create(
-    product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
+    product: ProductDraft
   ): Promise<Product> {
     const db = await this.getDBInstance();
     const coll = this.coll || collection(db, COLLECTIONS.PRODUCTS);
@@ -112,13 +127,14 @@ export class FirestoreProductRepository implements IProductRepository {
     return this.getById(ref.id) as Promise<Product>;
   }
 
-  async update(id: string, updates: Partial<Product>): Promise<Product> {
+  async update(id: string, updates: ProductUpdate): Promise<Product> {
     const db = await this.getDBInstance();
     const coll = this.coll || collection(db, COLLECTIONS.PRODUCTS);
     const ref = doc(coll, id);
+    const sanitized = sanitizeProductUpdate(updates);
     
     await updateDoc(ref, {
-      ...updates,
+      ...sanitized,
       updatedAt: serverTimestamp(),
     });
     const updated = await this.getById(id);
@@ -143,7 +159,7 @@ export class FirestoreProductRepository implements IProductRepository {
       const currentStock = docSnap.data().stock as number;
       const nextStock = currentStock + delta;
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), currentStock);
-      transaction.update(ref, { stock: nextStock });
+      transaction.update(ref, { stock: nextStock, updatedAt: serverTimestamp() });
     });
   }
 
@@ -166,7 +182,7 @@ export class FirestoreProductRepository implements IProductRepository {
         const currentStock = docSnap.data().stock as number;
         const nextStock = currentStock + update.delta;
         if (nextStock < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), currentStock);
-        transaction.update(doc(coll, update.id), { stock: nextStock });
+        transaction.update(doc(coll, update.id), { stock: nextStock, updatedAt: serverTimestamp() });
       });
     });
   }

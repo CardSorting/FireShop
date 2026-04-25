@@ -5,8 +5,8 @@ import { useEffect, useState } from 'react';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { Link } from 'react-router-dom';
-import { getInitialServices } from '../../core/container';
 import { Trash2, ChevronRight } from 'lucide-react';
+import { logger } from '@utils/logger';
 
 export function CartPage() {
   const services = useServices();
@@ -22,8 +22,7 @@ export function CartPage() {
     async function loadCart() {
       try {
         // Get current user
-        const authServices = getInitialServices();
-        const user = await authServices.authService.getCurrentUser();
+        const user = await services.authService.getCurrentUser();
         if (!user) {
           setCart(null);
           return;
@@ -33,7 +32,7 @@ export function CartPage() {
         const userCart = await services.cartService.getCart(user.id);
         setCart(userCart);
       } catch (err) {
-        console.error('Failed to load cart:', err);
+        logger.error('Failed to load cart.', err);
       }
     }
     loadCart();
@@ -60,8 +59,7 @@ export function CartPage() {
 
   const handleRemoveFromCart = async (productId: string) => {
     if (!cart) return;
-    const authServices = getInitialServices();
-    const user = await authServices.authService.getCurrentUser();
+    const user = await services.authService.getCurrentUser();
     if (!user) return;
     
     const updatedCart = await services.cartService.removeFromCart(user.id, productId);
@@ -70,8 +68,7 @@ export function CartPage() {
 
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
     if (!cart) return;
-    const authServices = getInitialServices();
-    const user = await authServices.authService.getCurrentUser();
+    const user = await services.authService.getCurrentUser();
     if (!user) return;
 
     if (quantity <= 0) {

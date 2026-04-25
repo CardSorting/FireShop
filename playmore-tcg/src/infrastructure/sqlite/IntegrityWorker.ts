@@ -10,6 +10,7 @@
 import { Kysely } from 'kysely';
 import { getSQLiteDB } from './database';
 import type { Database } from './schema';
+import { logger } from '@utils/logger';
 
 export class IntegrityWorker {
   private db: Kysely<Database>;
@@ -66,9 +67,9 @@ export class IntegrityWorker {
   start(intervalMs: number = 60000) {
     if (this.intervalId) return;
     // Run immediately, then on interval
-    this.runAudit().catch(console.error);
+    this.runAudit().catch((error) => logger.error('Integrity audit failed.', error));
     this.intervalId = setInterval(() => {
-      this.runAudit().catch(console.error);
+      this.runAudit().catch((error) => logger.error('Integrity audit failed.', error));
     }, intervalMs);
   }
 

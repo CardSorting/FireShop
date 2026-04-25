@@ -9,6 +9,7 @@
 
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { logger } from '@utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -31,8 +32,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console (in production, this should be sent to error tracking service)
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logger.error('ErrorBoundary caught an error.', { error, errorInfo });
   }
 
   handleReset = () => {
@@ -58,12 +58,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <p className="text-gray-600 mb-6">
               We're sorry, but an unexpected error occurred. The application may need to be refreshed.
             </p>
-            <div className="bg-gray-50 rounded-md p-4 mb-6 text-left">
-              <p className="text-sm font-medium text-gray-700 mb-2">Error details:</p>
-              <p className="text-sm text-gray-600 font-mono break-all">
-                {this.state.error?.message || 'Unknown error'}
-              </p>
-            </div>
+            {import.meta.env.DEV && (
+              <div className="bg-gray-50 rounded-md p-4 mb-6 text-left">
+                <p className="text-sm font-medium text-gray-700 mb-2">Error details:</p>
+                <p className="text-sm text-gray-600 font-mono break-all">
+                  {this.state.error?.message || 'Unknown error'}
+                </p>
+              </div>
+            )}
             <button
               onClick={this.handleReset}
               className="w-full bg-primary-600 text-white py-2.5 rounded-md font-medium hover:bg-primary-700 transition-colors"

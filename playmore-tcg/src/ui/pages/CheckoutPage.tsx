@@ -1,101 +1,15 @@
 /**
  * [LAYER: UI]
  */
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { CheckCircle, ArrowLeft } from 'lucide-react';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { stripePromise } from '../../infrastructure/services/StripePaymentProcessor';
+import { isStripeConfigured } from '../checkout/stripeClient';
 import type { Address } from '@domain/models';
-import { validateAddress } from '@utils/validators';
 
-interface CheckoutFormProps {
-  address: Address;
-  onSuccess: (paymentMethodId: string) => Promise<void>;
-  onPlaceOrder: (isPlacing: boolean) => void;
-  isPlacing: boolean;
-}
-
-function CheckoutForm({ address, onSuccess, onPlaceOrder, isPlacing }: CheckoutFormProps) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!stripe || !elements) {
-      return;
-    }
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
-
-    onPlaceOrder(true);
-    setError(null);
-
-    try {
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: cardElement,
-        billing_details: {
-          address: {
-            line1: address.street,
-            city: address.city,
-            state: address.state,
-            postal_code: address.zip,
-            country: address.country || 'US',
-          },
-        },
-      });
-
-      if (error) {
-        setError(error.message || 'Payment failed');
-        onPlaceOrder(false);
-      } else {
-        await onSuccess(paymentMethod.id);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      onPlaceOrder(false);
-    }
-  };
-
-  const isAddressValid = validateAddress(address).valid;
-
-  return (
-    <form onSubmit={handleSubmit} className="border-t pt-6">
-      <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-        <span className="w-6 h-6 rounded-full bg-primary-600 text-white text-xs flex items-center justify-center">2</span>
-        Payment Details
-      </h2>
-      <div className="bg-gray-50 rounded-md p-4 border border-gray-200 mb-6">
-        <CardElement options={{
-          style: {
-            base: {
-              fontSize: '16px',
-              color: '#424770',
-              '::placeholder': { color: '#aab7c4' },
-            },
-            invalid: { color: '#9e2146' },
-          },
-        }} />
-      </div>
-
-      {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-
-      <button
-        type="submit"
-        disabled={!stripe || isPlacing || !isAddressValid}
-        className="w-full bg-primary-600 text-white py-3 rounded-md font-medium hover:bg-primary-700 disabled:opacity-50"
-      >
-        {isPlacing ? 'Processing...' : 'Place Order'}
-      </button>
-    </form>
-  );
-}
+const StripeCheckoutForm = lazy(() => import('../checkout/StripeCheckoutForm').then((module) => ({ default: module.StripeCheckoutForm })));
 
 export function CheckoutPage() {
   const { user } = useAuth();
@@ -111,15 +25,18 @@ export function CheckoutPage() {
   });
   const [placing, setPlacing] = useState(false);
   const [orderId, setOrderId] = useState<string>('');
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   async function handleSuccess(paymentMethodId: string) {
     if (!user) return;
+    setCheckoutError(null);
     try {
-      const order = await services.orderService.placeOrder(user.id, address, paymentMethodId);
+      const normalizedAddress = { ...address, country: address.country.trim().toUpperCase() };
+      const order = await services.orderService.placeOrder(user.id, normalizedAddress, paymentMethodId);
       setOrderId(order.id);
       setStep('success');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to place order');
+      setCheckoutError(err instanceof Error ? err.message : 'Failed to place order');
     } finally {
       setPlacing(false);
     }
@@ -153,6 +70,11 @@ export function CheckoutPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Checkout</h1>
 
       <div className="bg-white rounded-lg border p-6 space-y-6">
+        {!isStripeConfigured && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            Checkout is temporarily unavailable because Stripe is not configured for this deployment.
+          </div>
+        )}
         <div>
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-primary-600 text-white text-xs flex items-center justify-center">1</span>
@@ -193,21 +115,29 @@ export function CheckoutPage() {
               <input
                 placeholder="Country (e.g. US)"
                 value={address.country}
-                onChange={(e) => setAddress({ ...address, country: e.target.value })}
+                onChange={(e) => setAddress({ ...address, country: e.target.value.toUpperCase() })}
                 className="w-full px-3 py-2 border rounded-md text-sm"
               />
             </div>
           </div>
         </div>
 
-        <Elements stripe={stripePromise}>
-          <CheckoutForm 
-            address={address} 
-            onSuccess={handleSuccess} 
-            onPlaceOrder={setPlacing} 
-            isPlacing={placing} 
-          />
-        </Elements>
+        {checkoutError && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {checkoutError}
+          </div>
+        )}
+
+        {isStripeConfigured && (
+          <Suspense fallback={<div className="border-t pt-6 text-sm text-gray-500">Loading secure payment form...</div>}>
+            <StripeCheckoutForm
+              address={address} 
+              onSuccess={handleSuccess} 
+              onPlaceOrder={setPlacing} 
+              isPlacing={placing} 
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   );

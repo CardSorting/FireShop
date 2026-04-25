@@ -15,6 +15,10 @@ export interface Product {
   updatedAt: Date;
 }
 
+export type ProductDraft = Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+
+export type ProductUpdate = Partial<ProductDraft>;
+
 export type ProductCategory =
   | 'booster'
   | 'single'

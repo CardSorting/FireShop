@@ -31,6 +31,7 @@ import type { IAuthProvider } from '@domain/repositories';
 import type { User } from '@domain/models';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
+import { logger } from '@utils/logger';
 
 // Lazy-initialized Firebase instances
 // These are created only when AuthService calls them
@@ -93,7 +94,7 @@ export function ensureFirebaseInitialized(): Promise<{ auth: Auth, db: Firestore
       // Enable offline persistence
       enableMultiTabIndexedDbPersistence(_dbInstance).catch((err) => {
         if (err.code !== 'failed-precondition') {
-          console.warn('Firestore persistence error:', err);
+          logger.warn('Firestore persistence error.', err);
         }
       });
 
@@ -133,7 +134,7 @@ export class AuthAdapter implements IAuthProvider {
       const isAdmin = token.claims.admin === true;
       return firebaseUserToDomain(user, isAdmin);
     } catch (error) {
-      console.error('Error getting current user:', error);
+      logger.error('Error getting current user.', error);
       throw new Error('Failed to authenticate user');
     }
   }
@@ -146,7 +147,7 @@ export class AuthAdapter implements IAuthProvider {
       const isAdmin = token.claims.admin === true;
       return firebaseUserToDomain(cred.user, isAdmin);
     } catch (error) {
-      console.error('Error signing in:', error);
+      logger.error('Error signing in.', error);
       throw new Error('Failed to sign in');
     }
   }
@@ -158,7 +159,7 @@ export class AuthAdapter implements IAuthProvider {
       await updateProfile(cred.user, { displayName });
       return firebaseUserToDomain(cred.user, false);
     } catch (error) {
-      console.error('Error signing up:', error);
+      logger.error('Error signing up.', error);
       throw new Error('Failed to create account');
     }
   }
@@ -168,7 +169,7 @@ export class AuthAdapter implements IAuthProvider {
       const { auth } = await ensureFirebaseInitialized();
       await firebaseSignOut(auth!);
     } catch (error) {
-      console.error('Error signing out:', error);
+      logger.error('Error signing out.', error);
       throw new Error('Failed to sign out');
     }
   }
@@ -185,12 +186,12 @@ export class AuthAdapter implements IAuthProvider {
           const isAdmin = token.claims.admin === true;
           callback(firebaseUserToDomain(fbUser, isAdmin));
         } catch (error) {
-          console.error('Error in auth state change:', error);
+          logger.error('Error in auth state change.', error);
           callback(null);
         }
       });
     }).catch((error) => {
-      console.error('Firebase not ready, auth state changes unavailable:', error);
+      logger.error('Firebase not ready, auth state changes unavailable.', error);
       callback(null);
     });
 

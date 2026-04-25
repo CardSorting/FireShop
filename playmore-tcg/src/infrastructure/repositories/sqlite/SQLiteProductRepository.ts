@@ -6,8 +6,9 @@ import { Kysely } from 'kysely';
 import { getSQLiteDB } from '../../sqlite/database';
 import type { Database, ProductTable } from '../../sqlite/schema';
 import type { IProductRepository } from '@domain/repositories';
-import type { Product, ProductCategory, CardRarity } from '@domain/models';
-import { ProductNotFoundError } from '@domain/errors';
+import type { Product, ProductCategory, CardRarity, ProductDraft, ProductUpdate } from '@domain/models';
+import { InsufficientStockError, ProductNotFoundError } from '@domain/errors';
+import { logger } from '@utils/logger';
 
 export class SQLiteProductRepository implements IProductRepository {
   private db: Kysely<Database>;
@@ -55,7 +56,10 @@ export class SQLiteProductRepository implements IProductRepository {
       .executeTakeFirst();
       
     if (countResult && countResult.total_count > this.MAX_INDEX_SIZE) {
-      console.warn(`[Hive] Level 11 Alert: Product catalog (${countResult.total_count}) exceeds safe memory limit (${this.MAX_INDEX_SIZE}). Falling back to physical disk reads.`);
+      logger.warn('[Hive] Level 11 Alert: Product catalog exceeds safe memory limit. Falling back to physical disk reads.', {
+        count: countResult.total_count,
+        max: this.MAX_INDEX_SIZE,
+      });
       this.isCatalogTooLarge = true;
       return;
     }
@@ -148,9 +152,7 @@ export class SQLiteProductRepository implements IProductRepository {
     return this.authIndex.get(id) || null;
   }
 
-  async create(
-    product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>
-  ): Promise<Product> {
+  async create(product: ProductDraft): Promise<Product> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -178,11 +180,11 @@ export class SQLiteProductRepository implements IProductRepository {
     return created;
   }
 
-  async update(id: string, updates: Partial<Product>): Promise<Product> {
+  async update(id: string, updates: ProductUpdate): Promise<Product> {
     const now = new Date().toISOString();
     
     // Whitelist updates to prevent SQL injection or accidental schema corruption
-    const validFields: (keyof typeof updates)[] = [
+    const validFields: (keyof ProductUpdate)[] = [
       'name', 'description', 'price', 'category', 'stock', 'imageUrl', 'set', 'rarity'
     ];
 
@@ -223,11 +225,11 @@ export class SQLiteProductRepository implements IProductRepository {
       if (!product) throw new ProductNotFoundError(id);
 
       const nextStock = product.stock + delta;
-      if (nextStock < 0) throw new ProductNotFoundError(id);
+      if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), product.stock);
 
       await trx
         .updateTable('products')
-        .set({ stock: nextStock })
+        .set({ stock: nextStock, updatedAt: new Date().toISOString() })
         .where('id', '=', id)
         .execute();
     });
@@ -254,11 +256,11 @@ export class SQLiteProductRepository implements IProductRepository {
         if (!product) throw new ProductNotFoundError(update.id);
 
         const nextStock = product.stock + update.delta;
-        if (nextStock < 0) throw new ProductNotFoundError(update.id);
+        if (nextStock < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
 
         await trx
           .updateTable('products')
-          .set({ stock: nextStock })
+          .set({ stock: nextStock, updatedAt: new Date().toISOString() })
           .where('id', '=', update.id)
           .execute();
       }

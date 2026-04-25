@@ -109,6 +109,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
 ];
 
 import { getInitialServices } from '../../core/container';
+import { logger } from '@utils/logger';
 
 
 export async function seedProducts(): Promise<number> {
@@ -120,11 +121,11 @@ export async function seedProducts(): Promise<number> {
       await services.productService.createProduct(product);
       created++;
     } catch (err) {
-      console.error(`Failed to seed ${product.name}:`, err);
+      logger.error(`Failed to seed ${product.name}.`, err);
     }
   }
 
-  console.log(`Seeded ${created} products`);
+  logger.info(`Seeded ${created} products.`);
   return created;
 }
 
