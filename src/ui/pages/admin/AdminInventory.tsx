@@ -21,7 +21,8 @@ import {
   Minus,
   Plus,
   Check,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { formatCurrency, humanizeCategory, normalizeSearch } from '@utils/formatters';
@@ -48,7 +49,23 @@ export function AdminInventory() {
   const [editValue, setEditValue] = useState('');
   const [savingStock, setSavingStock] = useState(false);
 
+  async function handleExport() {
+    toast('info', 'Generating stock report...');
+    await new Promise(r => setTimeout(r, 1000));
+    const headers = 'Product ID,Name,Category,Stock,Health\n';
+    const csv = (overview?.products ?? []).map(p => `${p.id},${p.name},${p.category},${p.stock},${p.inventoryHealth}`).join('\n');
+    const blob = new Blob([headers + csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inventory-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast('success', 'Report downloaded');
+  }
+
   const loadInventory = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
       setOverview(await services.productService.getInventoryOverview());
     } catch (err) {
@@ -94,9 +111,20 @@ export function AdminInventory() {
   if (loading) return <SkeletonPage />;
   if (error) return (
     <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-      <div className="flex items-center gap-3">
-        <AlertTriangle className="h-5 w-5 text-red-600" />
-        <p className="text-sm text-red-700">{error}</p>
+      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100">
+          <AlertTriangle className="h-6 w-6 text-red-600" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-red-900">Failed to load inventory</p>
+          <p className="mt-0.5 text-sm text-red-700">{error}</p>
+        </div>
+        <button
+          onClick={loadInventory}
+          className="shrink-0 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95"
+        >
+          Try again
+        </button>
       </div>
     </div>
   );
@@ -119,6 +147,15 @@ export function AdminInventory() {
       <AdminPageHeader 
         title="Inventory" 
         subtitle="Track stock levels and manage availability."
+        actions={
+          <button 
+            onClick={handleExport}
+            className="flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+          >
+            <Download className="h-4 w-4 text-gray-400" />
+            Export
+          </button>
+        }
       />
 
       {/* ── KPIs ── */}

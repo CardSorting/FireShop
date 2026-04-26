@@ -6,8 +6,8 @@
  * ⌘K command palette, and notification badges.
  */
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   Package, 
   ClipboardList, 
@@ -22,7 +22,7 @@ import {
   Command,
   Bell,
 } from 'lucide-react';
-import { AdminBreadcrumb, ToastProvider } from '../components/admin/AdminComponents';
+import { AdminBreadcrumb, ToastProvider, ShortcutsHelp } from '../components/admin/AdminComponents';
 import { CommandPalette } from '../components/admin/CommandPalette';
 
 /* ── Nav Configuration ── */
@@ -47,22 +47,55 @@ const FOOTER_NAV: NavItem[] = [
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('admin-sidebar-collapsed') === 'true';
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const chordRef = useRef<string | null>(null);
+
+  // Persist sidebar state
+  useEffect(() => {
+    localStorage.setItem('admin-sidebar-collapsed', String(collapsed));
+  }, [collapsed]);
 
   // Close mobile nav on route change
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
 
-  // Close mobile nav on escape
+  // Global hotkeys
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMobileOpen(false);
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if (e.key === '?') {
+        setShowShortcuts(true);
+      }
+
+      if (e.key === 'Escape') {
+        setMobileOpen(false);
+        setShowShortcuts(false);
+      }
+
+      // Navigation chords (G + ...)
+      if (e.key.toLowerCase() === 'g') {
+        chordRef.current = 'g';
+        setTimeout(() => { chordRef.current = null; }, 1000); // 1s window
+      } else if (chordRef.current === 'g') {
+        const key = e.key.toLowerCase();
+        chordRef.current = null;
+        if (key === 'h') router.push('/admin');
+        if (key === 'o') router.push('/admin/orders');
+        if (key === 'p') router.push('/admin/products');
+        if (key === 'i') router.push('/admin/inventory');
+      }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [router]);
 
   const isActive = useCallback((href: string) => {
     if (href === '/admin') return pathname === '/admin';
@@ -293,6 +326,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
         {/* ── Command Palette ── */}
         <CommandPalette />
+
+        {/* ── Shortcuts Help ── */}
+        {showShortcuts && <ShortcutsHelp onClose={() => setShowShortcuts(false)} />}
       </div>
     </ToastProvider>
   );

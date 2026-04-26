@@ -41,10 +41,13 @@ const STATIC_ITEMS: PaletteItem[] = [
   { id: 'storefront', label: 'View storefront', description: 'Open customer-facing store', icon: ExternalLink, href: '/', group: 'Actions' },
 ];
 
+const RECENT_KEY = 'admin-palette-recent';
+
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -63,9 +66,11 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Auto-focus input
+  // Load recent
   useEffect(() => {
     if (open) {
+      const stored = localStorage.getItem(RECENT_KEY);
+      if (stored) setRecentIds(JSON.parse(stored));
       setQuery('');
       setActiveIndex(0);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -73,6 +78,11 @@ export function CommandPalette() {
   }, [open]);
 
   const needle = query.trim().toLowerCase();
+  
+  const recentItems = recentIds
+    .map(id => STATIC_ITEMS.find(item => item.id === id))
+    .filter((item): item is PaletteItem => !!item);
+
   const filtered = STATIC_ITEMS.filter(
     (item) =>
       !needle ||
@@ -80,20 +90,30 @@ export function CommandPalette() {
       item.description?.toLowerCase().includes(needle)
   );
 
-  const grouped = filtered.reduce<Record<string, PaletteItem[]>>((acc, item) => {
-    (acc[item.group] ??= []).push(item);
-    return acc;
-  }, {});
+  const grouped: Record<string, PaletteItem[]> = {};
+  
+  if (!needle && recentItems.length > 0) {
+    grouped['Recent'] = recentItems.slice(0, 3);
+  }
+
+  filtered.forEach(item => {
+    (grouped[item.group] ??= []).push(item);
+  });
 
   const flatList = Object.values(grouped).flat();
 
   const executeItem = useCallback(
     (item: PaletteItem) => {
       setOpen(false);
+      
+      // Update recent
+      const nextRecent = [item.id, ...recentIds.filter(id => id !== item.id)].slice(0, 5);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(nextRecent));
+      
       if (item.href) router.push(item.href);
       if (item.action) item.action();
     },
-    [router]
+    [router, recentIds]
   );
 
   function handleKeyDown(e: React.KeyboardEvent) {

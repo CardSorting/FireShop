@@ -531,3 +531,65 @@ export function AdminTopBar({ onToggleSidebar }: { onToggleSidebar?: () => void 
     </header>
   );
 }
+
+/* ═══════════════════════════════════════════════════════
+   SHORTCUTS HELP — Keyboard shortcuts overview
+   ═══════════════════════════════════════════════════════ */
+
+export function ShortcutsHelp({ onClose }: { onClose: () => void }) {
+  const sections = [
+    {
+      title: 'Global',
+      shortcuts: [
+        { keys: ['⌘', 'K'], label: 'Open command palette' },
+        { keys: ['?'], label: 'Show this help' },
+        { keys: ['ESC'], label: 'Close modals/drawers' },
+      ],
+    },
+    {
+      title: 'Navigation',
+      shortcuts: [
+        { keys: ['G', 'H'], label: 'Go to Home' },
+        { keys: ['G', 'O'], label: 'Go to Orders' },
+        { keys: ['G', 'P'], label: 'Go to Products' },
+        { keys: ['G', 'I'], label: 'Go to Inventory' },
+      ],
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm backdrop-enter" onClick={onClose} />
+      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-in zoom-in-95 fade-in duration-200">
+        <div className="border-b bg-gray-50 px-6 py-4">
+          <h3 className="text-sm font-bold text-gray-900">Keyboard shortcuts</h3>
+        </div>
+        <div className="p-6 space-y-8">
+          {sections.map((section) => (
+            <div key={section.title}>
+              <h4 className="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400">{section.title}</h4>
+              <div className="space-y-3">
+                {section.shortcuts.map((s) => (
+                  <div key={s.label} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">{s.label}</span>
+                    <div className="flex gap-1">
+                      {s.keys.map((key) => (
+                        <kbd key={key} className="flex h-6 min-w-[24px] items-center justify-center rounded border bg-gray-50 px-1.5 font-mono text-[10px] font-bold text-gray-500 shadow-xs">
+                          {key}
+                        </kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="border-t bg-gray-50 px-6 py-3 text-center">
+          <p className="text-[10px] text-gray-400">Press <kbd className="font-bold">ESC</kbd> to close</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+

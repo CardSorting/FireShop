@@ -59,6 +59,20 @@ export function AdminProducts() {
   const [deleting, setDeleting] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  async function handleExport() {
+    toast('info', 'Generating catalog export...');
+    await new Promise(r => setTimeout(r, 1000));
+    const headers = 'Product ID,Name,Price,Stock,Category\n';
+    const csv = products.map(p => `${p.id},${p.name},${p.price},${p.stock},${p.category}`).join('\n');
+    const blob = new Blob([headers + csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `products-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast('success', 'Export downloaded');
+  }
+
   const loadProducts = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -169,11 +183,17 @@ export function AdminProducts() {
         subtitle="Manage your catalog, pricing, and availability."
         actions={
           <div className="flex items-center gap-2">
-            <button className="hidden sm:flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50">
+            <button 
+              onClick={() => toast('info', 'Import CSV coming soon')}
+              className="hidden sm:flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+            >
               <Upload className="h-4 w-4 text-gray-400" />
               Import
             </button>
-            <button className="hidden sm:flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50">
+            <button 
+              onClick={handleExport}
+              className="hidden sm:flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+            >
               <Download className="h-4 w-4 text-gray-400" />
               Export
             </button>
@@ -182,7 +202,7 @@ export function AdminProducts() {
               className="flex items-center gap-2 rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
             >
               <Plus className="h-4 w-4" />
-              Add product
+              Add Product
             </Link>
           </div>
         }

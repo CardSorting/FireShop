@@ -20,9 +20,13 @@ import {
   RotateCcw,
   X,
   MapPin,
-  CreditCard
+  CreditCard,
+  Copy,
+  Check,
+  Calendar,
+  Download
 } from 'lucide-react';
-import { formatCurrency, formatShortDate, humanizeOrderStatus, normalizeSearch } from '@utils/formatters';
+import { formatCurrency, formatShortDate, humanizeOrderStatus, normalizeSearch, formatRelativeTime } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
 import { 
   AdminPageHeader, 
@@ -58,6 +62,7 @@ export function AdminOrders() {
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [cursor, setCursor] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | '30' | '90'>('all');
   const [query, setQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +70,16 @@ export function AdminOrders() {
   const [batchUpdating, setBatchUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
+
+  // Status counts for tabs
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: orders.length };
+    orders.forEach(o => {
+      map[o.status] = (map[o.status] || 0) + 1;
+    });
+    return map;
+  }, [orders]);
 
   // Close slide-over on Escape
   useEffect(() => {
@@ -132,18 +147,48 @@ export function AdminOrders() {
     }
   }
 
+  async function handleExport() {
+    toast('info', 'Generating CSV export...');
+    // Simulate a delay
+    await new Promise(r => setTimeout(r, 1000));
+    
+    const headers = 'Order ID,Date,Customer ID,Total,Status\n';
+    const csv = orders.map(o => `${o.id},${o.createdAt.toISOString()},${o.userId},${o.total},${o.status}`).join('\n');
+    const blob = new Blob([headers + csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `orders-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast('success', 'Export downloaded');
+  }
+
   const filteredOrders = useMemo(() => {
+    let result = orders;
+    
+    // Search filter
     const needle = normalizeSearch(query);
-    if (!needle) return orders;
-    return orders.filter((order) => {
-      return [
-        order.id,
-        order.userId,
-        order.paymentTransactionId ?? '',
-        ...order.items.map((item) => item.name),
-      ].some((value) => normalizeSearch(value).includes(needle));
-    });
-  }, [orders, query]);
+    if (needle) {
+      result = result.filter((order) => {
+        return [
+          order.id,
+          order.userId,
+          order.paymentTransactionId ?? '',
+          ...order.items.map((item) => item.name),
+        ].some((value) => normalizeSearch(value).includes(needle));
+      });
+    }
+
+    // Date filter
+    if (dateFilter !== 'all') {
+      const days = parseInt(dateFilter);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      result = result.filter(o => o.createdAt >= cutoff);
+    }
+
+    return result;
+  }, [orders, query, dateFilter]);
 
   const toggleSelect = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -168,8 +213,11 @@ export function AdminOrders() {
         subtitle={`${filteredOrders.length} order${filteredOrders.length !== 1 ? 's' : ''}`}
         actions={
           <div className="flex items-center gap-2">
-            <button className="hidden sm:flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50">
-              <FileText className="h-4 w-4 text-gray-400" />
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
+            >
+              <Download className="h-4 w-4 text-gray-400" />
               Export
             </button>
           </div>
@@ -183,32 +231,56 @@ export function AdminOrders() {
       {/* ── Filter tabs ── */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-1 overflow-x-auto rounded-xl border bg-white p-1 shadow-sm no-scrollbar">
-          {FULFILLMENT_TABS.map((tab) => (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setStatusFilter(tab.value as OrderStatus | 'all');
-                setCursor(undefined);
-              }}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
-                statusFilter === tab.value 
-                  ? 'bg-gray-900 text-white shadow-sm' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {FULFILLMENT_TABS.map((tab) => {
+            const count = tab.value === 'all' ? orders.length : counts[tab.value] || 0;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setStatusFilter(tab.value as OrderStatus | 'all');
+                  setCursor(undefined);
+                }}
+                className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
+                  statusFilter === tab.value 
+                    ? 'bg-gray-900 text-white shadow-sm' 
+                    : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <tab.icon className={`h-4 w-4 ${statusFilter === tab.value ? 'text-white' : 'text-gray-400'}`} />
+                {tab.label}
+                <span className={`ml-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                  statusFilter === tab.value ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="relative lg:w-72">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search orders…"
-            className="w-full rounded-xl border bg-white py-2 pl-9 pr-3 text-sm shadow-sm transition focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
+        <div className="flex flex-1 items-center gap-2">
+          <div className="relative flex-1 lg:max-w-xs">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="Search orders…" 
+              className="w-full rounded-xl border bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" 
+            />
+          </div>
+          <div className="relative">
+            <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as any)}
+              className="appearance-none rounded-xl border bg-white py-2 pl-9 pr-8 text-sm shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent cursor-pointer"
+            >
+              <option value="all">All time</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          </div>
         </div>
       </div>
 
@@ -256,8 +328,8 @@ export function AdminOrders() {
                       />
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="font-mono text-xs font-semibold text-gray-900">#{o.id.slice(0, 8).toUpperCase()}</p>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{o.userId.slice(0, 16)}…</p>
+                      <p className="font-mono text-xs font-bold text-gray-900">#{o.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{formatRelativeTime(o.createdAt)}</p>
                     </td>
                     <td className="px-4 py-3.5">
                       <p className="text-sm text-gray-600">{formatShortDate(o.createdAt)}</p>
@@ -437,9 +509,24 @@ export function AdminOrders() {
               <div>
                 <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Payment</h3>
                 <div className="rounded-xl border bg-white p-4">
-                  <div className="flex items-center gap-3">
-                    <CreditCard className="h-4 w-4 text-gray-400" />
-                    <p className="font-mono text-xs text-gray-600">{selectedOrder.paymentTransactionId || 'Manual / Test'}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-4 w-4 text-gray-400" />
+                      <p className="font-mono text-xs text-gray-600">{selectedOrder.paymentTransactionId || 'Manual / Test'}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-[10px] text-gray-400">#{selectedOrder.id.slice(0, 8).toUpperCase()}</p>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedOrder.id);
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="rounded-md p-1 hover:bg-gray-100 transition"
+                      >
+                        {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3 text-gray-400" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

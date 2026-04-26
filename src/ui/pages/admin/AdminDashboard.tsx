@@ -22,7 +22,7 @@ import {
   Truck,
   ExternalLink
 } from 'lucide-react';
-import { formatCurrency, formatShortDate } from '@utils/formatters';
+import { formatCurrency, formatShortDate, formatRelativeTime } from '@utils/formatters';
 import { AdminPageHeader, AdminMetricCard, AdminActionPanel, AdminStatusBadge, SkeletonPage, useAdminPageTitle } from '../../components/admin/AdminComponents';
 
 function getGreeting(): string {
@@ -39,29 +39,42 @@ export function AdminDashboard() {
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  async function loadDashboard() {
+    setLoading(true);
+    setError(null);
+    try {
+      setSummary(await services.orderService.getAdminDashboardSummary());
+      setLastUpdated(new Date());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        setSummary(await services.orderService.getAdminDashboardSummary());
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    void loadDashboard();
   }, [services]);
 
   if (loading) return <SkeletonPage />;
   if (error) return (
     <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-      <div className="flex items-center gap-3">
-        <AlertTriangle className="h-5 w-5 text-red-600" />
-        <div>
-          <p className="text-sm font-semibold text-red-900">Failed to load dashboard</p>
-          <p className="text-sm text-red-700">{error}</p>
+      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100">
+          <AlertTriangle className="h-6 w-6 text-red-600" />
         </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-red-900">Failed to load dashboard</p>
+          <p className="mt-0.5 text-sm text-red-700">{error}</p>
+        </div>
+        <button
+          onClick={loadDashboard}
+          className="shrink-0 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95"
+        >
+          Try again
+        </button>
       </div>
     </div>
   );
@@ -282,14 +295,17 @@ export function AdminDashboard() {
           </section>
 
           {/* Quick links */}
-          <div className="rounded-2xl border bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">Quick Links</h2>
-            <div className="space-y-2">
+          <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b">
+              <h2 className="text-sm font-semibold text-gray-900">Quick links</h2>
+            </div>
+            <div className="p-2 space-y-1">
               {[
-                { label: 'Add new product', href: '/admin/products/new', icon: Package },
-                { label: 'View storefront', href: '/', icon: ExternalLink },
-              ].map(link => (
-                <Link key={link.href} href={link.href} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-gray-600 transition hover:bg-gray-50 hover:text-gray-900">
+                { label: 'Storefront', href: '/', icon: ExternalLink },
+                { label: 'Catalog', href: '/admin/products', icon: Package },
+                { label: 'Stock', href: '/admin/inventory', icon: Boxes },
+              ].map((link) => (
+                <Link key={link.label} href={link.href} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-gray-600 transition hover:bg-gray-50 hover:text-gray-900">
                   <link.icon className="h-4 w-4 text-gray-400" />
                   {link.label}
                   <ArrowRight className="ml-auto h-3.5 w-3.5 text-gray-300" />
@@ -299,6 +315,16 @@ export function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Footer / Last Updated ── */}
+      {lastUpdated && (
+        <div className="flex items-center justify-center gap-2 py-4">
+          <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+          <p className="text-[10px] font-medium text-gray-400">
+            Last updated at {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
