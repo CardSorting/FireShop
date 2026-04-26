@@ -57,9 +57,12 @@ export interface HiveClaimTable {
 
 export interface HiveAuditTable {
   id: string;
+  userId: string;
+  userEmail: string;
   action: string;
-  details: string;
-  timestamp: string;
+  targetId: string;
+  details: string; // JSON string
+  createdAt: string; // ISO string
 }
 
 export interface DiscountTable {

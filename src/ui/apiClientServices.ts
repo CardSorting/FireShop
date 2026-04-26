@@ -54,10 +54,10 @@ export function createApiClientServices() {
             },
             getProduct: (id: string) => request<Product>(`/api/products/${id}`),
             getInventoryOverview: () => request<InventoryOverview>('/api/admin/inventory'),
-            createProduct: (data: ProductDraft) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
-            updateProduct: (id: string, data: ProductUpdate) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-            deleteProduct: (id: string) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
-            batchDeleteProducts: async (ids: string[]) => { for (const id of ids) await request<void>(`/api/products/${id}`, { method: 'DELETE' }); },
+            createProduct: (data: ProductDraft, _actor: { id: string; email: string }) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
+            updateProduct: (id: string, data: ProductUpdate, _actor: { id: string; email: string }) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+            deleteProduct: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
+            batchDeleteProducts: async (ids: string[], _actor: { id: string; email: string }) => { for (const id of ids) await request<void>(`/api/products/${id}`, { method: 'DELETE' }); },
         },
         cartService: {
             getCart: (userId: string) => (sessionScoped(userId), request<Cart | null>('/api/cart')),
@@ -79,8 +79,8 @@ export function createApiClientServices() {
                 if (options?.cursor) qs.set('cursor', options.cursor);
                 return request<{ orders: Order[]; nextCursor?: string }>(`/api/admin/orders?${qs}`);
             },
-            updateOrderStatus: (id: string, status: OrderStatus) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-            batchUpdateOrderStatus: async (ids: string[], status: OrderStatus) => { for (const id of ids) await request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); },
+            updateOrderStatus: (id: string, status: OrderStatus, _actor: { id: string; email: string }) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+            batchUpdateOrderStatus: async (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => { for (const id of ids) await request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); },
             getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
         },
         discountService: {
@@ -96,6 +96,9 @@ export function createApiClientServices() {
         transferService: {
             getAllTransfers: () => request<import('@domain/models').Transfer[]>('/api/admin/inventory/transfers'),
             receiveTransfer: (id: string) => request<void>('/api/admin/inventory/transfers', { method: 'POST', body: JSON.stringify({ id, action: 'receive' }) }),
+        },
+        auditService: {
+            getRecentLogs: () => request<any[]>('/api/admin/audit'),
         },
     };
 }

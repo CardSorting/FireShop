@@ -46,7 +46,7 @@ export class IntegrityWorker {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const deletedLogs = await this.db
       .deleteFrom('hive_audit')
-      .where('timestamp', '<', thirtyDaysAgo)
+      .where('createdAt', '<', thirtyDaysAgo)
       .execute();
       
     const logsCleared = Number(deletedLogs[0].numDeletedRows || 0);
@@ -56,9 +56,12 @@ export class IntegrityWorker {
         .insertInto('hive_audit')
         .values({
           id: crypto.randomUUID(),
+          userId: 'system',
+          userEmail: 'system@playmore.tcg',
           action: 'autonomous_audit',
+          targetId: 'internal',
           details: JSON.stringify({ locksCleared, cartsCleared, logsCleared }),
-          timestamp: nowIso,
+          createdAt: nowIso,
         })
         .execute();
     }

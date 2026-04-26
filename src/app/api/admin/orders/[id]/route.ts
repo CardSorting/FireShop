@@ -5,13 +5,13 @@ import { DomainError } from '@domain/errors';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        await requireAdminSession();
+        const user = await requireAdminSession();
         const { id } = await params;
         const { status } = await readJsonObject(request);
         const parsedStatus = parseOrderStatus(status);
         if (!parsedStatus) throw new DomainError('status is required.');
         const services = await getServerServices();
-        await services.orderService.updateOrderStatus(id, parsedStatus);
+        await services.orderService.updateOrderStatus(id, parsedStatus, { id: user.id, email: user.email });
         return NextResponse.json({ ok: true });
     } catch (error) {
         return jsonError(error, 'Failed to update order status');

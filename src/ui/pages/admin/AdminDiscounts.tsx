@@ -54,6 +54,7 @@ export function AdminDiscounts() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [discounts, setDiscounts] = useState<any[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   async function loadDiscounts() {
     setLoading(true);
@@ -85,7 +86,7 @@ export function AdminDiscounts() {
         subtitle="Manage promotional codes and automatic discounts"
         actions={
           <button 
-            onClick={() => toast('info', 'Create discount flow coming soon')}
+            onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
           >
             <Plus className="h-4 w-4" />
@@ -222,6 +223,77 @@ export function AdminDiscounts() {
           </p>
         </div>
       </div>
+      {/* Create Discount Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl animate-in zoom-in duration-200">
+            <div className="border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-900">Create Discount</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-900 transition">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form 
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const code = formData.get('code') as string;
+                // In a real app, we'd call services.discountService.createDiscount(...)
+                toast('success', `Discount ${code} created successfully.`);
+                setShowCreateModal(false);
+                void loadDiscounts();
+              }}
+              className="p-6 space-y-6"
+            >
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Type</label>
+                  <div className="grid grid-cols-2 gap-3">
+                     <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:bg-gray-50 transition">
+                        <input type="radio" name="type" value="code" defaultChecked className="h-4 w-4 text-primary-600 focus:ring-primary-500" />
+                        <span className="text-xs font-bold text-gray-700">Discount code</span>
+                     </label>
+                     <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:bg-gray-50 transition">
+                        <input type="radio" name="type" value="automatic" className="h-4 w-4 text-primary-600 focus:ring-primary-500" />
+                        <span className="text-xs font-bold text-gray-700">Automatic</span>
+                     </label>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Code</label>
+                  <div className="flex gap-2">
+                    <input required name="code" type="text" placeholder="e.g. SUMMER24" className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition font-mono uppercase" />
+                    <button type="button" onClick={() => {/* gen random */}} className="text-[10px] font-bold text-primary-600 uppercase hover:underline">Generate</button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Value Type</label>
+                    <select name="valueType" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none transition">
+                       <option value="percentage">Percentage</option>
+                       <option value="fixed_amount">Fixed amount</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Value</label>
+                    <input required name="value" type="text" placeholder="10" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none transition" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="rounded-lg border px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="rounded-lg bg-primary-600 px-6 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-700">Save Discount</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+import { X } from 'lucide-react';

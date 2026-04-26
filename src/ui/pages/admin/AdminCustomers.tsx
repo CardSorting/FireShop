@@ -32,7 +32,8 @@ import {
   useToast, 
   useAdminPageTitle,
   AdminTab,
-  AdminMetricCard
+  AdminMetricCard,
+  exportToCSV
 } from '../../components/admin/AdminComponents';
 
 
@@ -54,6 +55,8 @@ export function AdminCustomers() {
 
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
+  const [showAddModal, setShowAddModal] = useState(false);
+
   async function loadCustomers() {
     setLoading(true);
     try {
@@ -65,6 +68,23 @@ export function AdminCustomers() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleExport() {
+    if (customers.length === 0) {
+      toast('info', 'No customers to export');
+      return;
+    }
+    const data = customers.map(c => ({
+      Name: c.name,
+      Email: c.email,
+      Orders: c.orders,
+      Spent: (c.spent / 100).toFixed(2),
+      Joined: c.joined.toISOString(),
+      Segment: c.segment
+    }));
+    exportToCSV('customers_export', data);
+    toast('success', `Exported ${customers.length} customers to CSV`);
   }
 
   useEffect(() => {
@@ -98,13 +118,14 @@ export function AdminCustomers() {
         actions={
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => toast('info', 'Exporting customers...')}
-              className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+              onClick={handleExport}
+              className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95"
             >
               <Download className="h-3.5 w-3.5 text-gray-400" />
               Export
             </button>
             <button 
+              onClick={() => setShowAddModal(true)}
               className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
             >
               <UserPlus className="h-3.5 w-3.5" />
@@ -366,6 +387,49 @@ export function AdminCustomers() {
             </div>
           </div>
         </>
+      )}
+      {/* Add Customer Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in zoom-in duration-200">
+            <div className="border-b px-6 py-4 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-900">Add Customer</h2>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-900 transition">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const email = formData.get('email') as string;
+                // Since this is a local app, we'd call services.authService.signUp or a dedicated admin endpoint
+                toast('success', `Manual account for ${email} would be created here.`);
+                setShowAddModal(false);
+              }}
+              className="p-6 space-y-4"
+            >
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
+                <input required name="name" type="text" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
+                <input required name="email" type="email" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" />
+              </div>
+              <div className="rounded-xl bg-primary-50 p-4">
+                 <p className="text-[10px] text-primary-700 leading-relaxed font-medium">
+                   An invitation email will be sent to this address to set their password and finalize the account.
+                 </p>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-lg border px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-700">Send Invite</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

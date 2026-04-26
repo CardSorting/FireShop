@@ -167,13 +167,13 @@ export function AdminOrders() {
     }));
     exportToCSV('orders_export', exportData);
     toast('success', `Exported ${orders.length} orders to CSV`);
-  }
-
-  async function handleStatusChange(id: string, status: OrderStatus) {
+  }  async function handleStatusChange(id: string, status: OrderStatus) {
     setUpdating(id);
     setError(null);
     try {
-      await services.orderService.updateOrderStatus(id, status);
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.orderService.updateOrderStatus(id, status, actor);
       toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
       if (selectedOrder?.id === id) {
         setSelectedOrder(prev => prev ? { ...prev, status } : null);
@@ -191,7 +191,9 @@ export function AdminOrders() {
     setBatchUpdating(true);
     setError(null);
     try {
-      await services.orderService.batchUpdateOrderStatus(Array.from(selectedIds), status);
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.orderService.batchUpdateOrderStatus(Array.from(selectedIds), status, actor);
       toast('success', `${selectedIds.size} order${selectedIds.size > 1 ? 's' : ''} updated to ${humanizeOrderStatus(status)}`);
       setSelectedIds(new Set());
       await loadOrders();

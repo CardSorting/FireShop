@@ -3,11 +3,15 @@
  */
 import type { IProductRepository } from '@domain/repositories';
 import type { InventoryOverview, Product, ProductDraft, ProductUpdate } from '@domain/models';
+import { AuditService } from './AuditService';
 import { ProductNotFoundError } from '@domain/errors';
 import { assertValidProductDraft, assertValidProductUpdate, classifyInventoryHealth } from '@domain/rules';
 
 export class ProductService {
-  constructor(private repo: IProductRepository) {}
+  constructor(
+    private repo: IProductRepository,
+    private audit: AuditService
+  ) {}
 
   async getProducts(options?: {
     category?: string;
@@ -48,18 +52,40 @@ export class ProductService {
     return product;
   }
 
-  async createProduct(data: ProductDraft): Promise<Product> {
+  async createProduct(data: ProductDraft, actor: { id: string, email: string }): Promise<Product> {
     assertValidProductDraft(data);
-    return this.repo.create(data);
+    const product = await this.repo.create(data);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'product_created',
+      targetId: product.id,
+      details: { name: product.name }
+    });
+    return product;
   }
 
-  async updateProduct(id: string, updates: ProductUpdate): Promise<Product> {
+  async updateProduct(id: string, updates: ProductUpdate, actor: { id: string, email: string }): Promise<Product> {
     assertValidProductUpdate(updates);
-    return this.repo.update(id, updates);
+    const product = await this.repo.update(id, updates);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'product_updated',
+      targetId: id,
+      details: updates
+    });
+    return product;
   }
 
-  async deleteProduct(id: string): Promise<void> {
-    return this.repo.delete(id);
+  async deleteProduct(id: string, actor: { id: string, email: string }): Promise<void> {
+    await this.repo.delete(id);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'product_deleted',
+      targetId: id
+    });
   }
 
   async batchUpdateProducts(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {

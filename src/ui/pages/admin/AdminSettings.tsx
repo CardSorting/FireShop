@@ -34,7 +34,8 @@ import {
   AdminPageHeader, 
   useToast, 
   useAdminPageTitle,
-  AdminTab 
+  AdminTab,
+  AdminAuditLogs
 } from '../../components/admin/AdminComponents';
 import type { User } from '@domain/models';
 
@@ -84,6 +85,7 @@ export function AdminSettings() {
 
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [users, setUsers] = useState<User[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const loadProgress = useCallback(async () => {
     try {
@@ -109,10 +111,30 @@ export function AdminSettings() {
     }
   }, [services]);
 
+  const loadAuditLogs = useCallback(async () => {
+    try {
+      const logs = await services.auditService.getRecentLogs();
+      setAuditLogs(logs);
+    } catch (err) {
+      console.error('Failed to load audit logs', err);
+    }
+  }, [services.auditService]);
+
+  const loadUsers = useCallback(async () => {
+    try {
+      const allUsers = await services.authService.getAllUsers();
+      setUsers(allUsers);
+    } catch (err) {
+      console.error('Failed to load users', err);
+    }
+  }, [services.authService]);
+
   useEffect(() => {
     void loadProgress();
     void loadSettings();
-  }, [loadProgress, loadSettings]);
+    void loadUsers();
+    void loadAuditLogs();
+  }, [loadProgress, loadSettings, loadUsers, loadAuditLogs]);
 
   const saveSetting = async (key: string, value: any) => {
     try {
@@ -431,7 +453,28 @@ export function AdminSettings() {
                        </p>
                     </div>
                   </>
-                ) : (
+                 ) : activeSection === 'security' ? (
+                   <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                         <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Security Audit Trail</h3>
+                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{auditLogs.length} entries recorded</span>
+                      </div>
+                      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+                         <AdminAuditLogs logs={auditLogs} />
+                      </div>
+                      <div className="rounded-xl bg-gray-50 border p-4">
+                         <div className="flex gap-3">
+                            <Shield className="h-4 w-4 text-primary-600 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                               <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Forensic Integrity</p>
+                               <p className="text-xs text-gray-500 leading-relaxed font-medium">
+                                 Audit logs are cryptographically sealed and immutable. They provide a definitive source of truth for administrative actions.
+                               </p>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+                 ) : (
                   <div className="text-center py-20">
                      <div className="mx-auto h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 mb-4">
                         <Settings className="h-8 w-8" />

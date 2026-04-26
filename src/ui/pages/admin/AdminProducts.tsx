@@ -116,7 +116,9 @@ export function AdminProducts() {
     if (!deleteCandidate) return;
     setDeleting(true);
     try {
-      await services.productService.deleteProduct(deleteCandidate.id);
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.productService.deleteProduct(deleteCandidate.id, actor);
       toast('success', `"${deleteCandidate.name}" deleted`);
       setDeleteCandidate(null);
       await loadProducts();
@@ -131,7 +133,9 @@ export function AdminProducts() {
     if (selectedIds.size === 0) return;
     setDeleting(true);
     try {
-      await services.productService.batchDeleteProducts(Array.from(selectedIds));
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.productService.batchDeleteProducts(Array.from(selectedIds), actor);
       toast('success', `${selectedIds.size} product${selectedIds.size > 1 ? 's' : ''} deleted`);
       setSelectedIds(new Set());
       await loadProducts();
@@ -150,7 +154,9 @@ export function AdminProducts() {
         setIsBulkEditing(false);
         return;
       }
-      await Promise.all(entries.map(([id, changes]) => services.productService.updateProduct(id, changes)));
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await Promise.all(entries.map(([id, changes]) => services.productService.updateProduct(id, changes, actor)));
       toast('success', `Updated ${entries.length} products`);
       setIsBulkEditing(false);
       setBulkChanges({});

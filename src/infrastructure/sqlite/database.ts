@@ -116,10 +116,23 @@ export async function initDatabase() {
     .createTable('hive_audit')
     .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('userId', 'text', (col) => col.notNull())
+    .addColumn('userEmail', 'text', (col) => col.notNull())
     .addColumn('action', 'text', (col) => col.notNull())
+    .addColumn('targetId', 'text', (col) => col.notNull())
     .addColumn('details', 'text', (col) => col.notNull())
-    .addColumn('timestamp', 'text', (col) => col.notNull())
+    .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute();
+
+  // Migration for hive_audit if it was created with the old schema
+  try {
+    await db.schema.alterTable('hive_audit').addColumn('userId', 'text', (col) => col.notNull().defaultTo('system')).execute();
+    await db.schema.alterTable('hive_audit').addColumn('userEmail', 'text', (col) => col.notNull().defaultTo('system@playmore.tcg')).execute();
+    await db.schema.alterTable('hive_audit').addColumn('targetId', 'text', (col) => col.notNull().defaultTo('unknown')).execute();
+    await db.schema.alterTable('hive_audit').renameColumn('timestamp', 'createdAt').execute();
+  } catch (err) {
+    // Columns might already exist
+  }
 
   await db.schema
     .createTable('discounts')

@@ -28,6 +28,7 @@ import {
   Bell,
   ShoppingBag,
   DollarSign,
+  Shield,
   type LucideIcon
 } from 'lucide-react';
 
@@ -974,6 +975,68 @@ export function AdminPackingSlip({ order }: { order: Order }) {
       <div className="border-t pt-8 text-center">
         <p className="text-xs font-bold text-gray-400 italic">Thank you for shopping with PlayMore TCG!</p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * PRODUCTION COMPONENT: Audit Log Table
+ */
+export function AdminAuditLogs({ logs }: { logs: any[] }) {
+  if (logs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Shield className="h-12 w-12 text-gray-100 mb-4" />
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No audit logs found</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 border-b">
+          <tr>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Timestamp</th>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Actor</th>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Action</th>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Target</th>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Details</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {logs.map((log) => (
+            <tr key={log.id} className="hover:bg-gray-50 transition">
+              <td className="px-4 py-3.5 whitespace-nowrap text-gray-500 font-medium tabular-nums">
+                {new Date(log.createdAt).toLocaleString()}
+              </td>
+              <td className="px-4 py-3.5">
+                <div className="flex flex-col">
+                  <span className="text-sm font-bold text-gray-900">{log.userEmail.split('@')[0]}</span>
+                  <span className="text-[10px] text-gray-400 uppercase font-medium">{log.userEmail}</span>
+                </div>
+              </td>
+              <td className="px-4 py-3.5">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${
+                  log.action.includes('delete') ? 'bg-red-50 text-red-600' :
+                  log.action.includes('create') ? 'bg-green-50 text-green-600' :
+                  'bg-blue-50 text-blue-600'
+                }`}>
+                  {log.action.replace(/_/g, ' ')}
+                </span>
+              </td>
+              <td className="px-4 py-3.5 font-mono text-[10px] text-gray-400">
+                {log.targetId.slice(0, 8)}...
+              </td>
+              <td className="px-4 py-3.5">
+                <p className="text-[10px] font-medium text-gray-500 max-w-xs truncate">
+                  {log.details}
+                </p>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

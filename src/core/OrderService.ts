@@ -10,6 +10,7 @@ import type {
   ICheckoutGateway,
 } from '@domain/repositories';
 import type { AdminDashboardSummary, Order, OrderStatus, Address } from '@domain/models';
+import { AuditService } from './AuditService';
 import {
   assertValidOrderItems,
   assertValidOrderStatusTransition,
@@ -50,6 +51,7 @@ export class OrderService {
     private productRepo: IProductRepository,
     private cartRepo: ICartRepository,
     private payment: IPaymentProcessor,
+    private audit: AuditService,
     private locker: ILockProvider = new InMemoryLockProvider(),
     private checkoutGateway?: ICheckoutGateway
   ) {}
@@ -306,23 +308,41 @@ export class OrderService {
     };
   }
 
-  async updateOrderStatus(id: string, status: OrderStatus): Promise<void> {
+  async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
-    return this.orderRepo.updateStatus(id, status);
+    await this.orderRepo.updateStatus(id, status);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: id,
+      details: { from: order.status, to: status }
+    });
   }
 
-  async batchUpdateOrderStatus(ids: string[], status: OrderStatus): Promise<void> {
+  async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
     const orders = await Promise.all(ids.map((id) => this.orderRepo.getById(id)));
     for (const order of orders) {
       if (order) assertValidOrderStatusTransition(order.status, status);
     }
 
     if (this.orderRepo.batchUpdateStatus) {
-      return this.orderRepo.batchUpdateStatus(ids, status);
+      await this.orderRepo.batchUpdateStatus(ids, status);
+    } else {
+      await Promise.all(ids.map((id) => this.orderRepo.updateStatus(id, status)));
     }
-    await Promise.all(ids.map((id) => this.orderRepo.updateStatus(id, status)));
+
+    await Promise.all(ids.map(id => 
+      this.audit.record({
+        userId: actor.id,
+        userEmail: actor.email,
+        action: 'order_status_changed',
+        targetId: id,
+        details: { to: status, batch: true }
+      })
+    ));
   }
 
   async getCustomerSummaries(users: import('@domain/models').User[]): Promise<any[]> {

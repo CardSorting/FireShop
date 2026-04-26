@@ -81,8 +81,14 @@ export function AdminInventory() {
 
     setSavingBulk(true);
     try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { 
+        id: user?.id || 'unknown', 
+        email: user?.email || 'system' 
+      };
+
       await Promise.all(
-        entries.map(([id, stock]) => services.productService.updateProduct(id, { stock }))
+        entries.map(([id, stock]) => services.productService.updateProduct(id, { stock }, actor))
       );
       toast('success', `Updated stock for ${entries.length} items`);
       setIsBulkEditing(false);

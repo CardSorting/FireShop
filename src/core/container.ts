@@ -70,6 +70,7 @@ import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
 import { SettingsService } from './SettingsService';
 import { TransferService } from './TransferService';
+import { AuditService } from './AuditService';
 import type {
   IProductRepository,
   ICartRepository,
@@ -96,6 +97,7 @@ let lockProviderInstance: ILockProvider | null = null;
 let checkoutGatewayInstance: ICheckoutGateway | null = null;
 let settingsRepoInstance: ISettingsRepository | null = null;
 let transferServiceInstance: TransferService | null = null;
+let auditServiceInstance: AuditService | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -130,19 +132,21 @@ export function getServiceContainer() {
   return {
     authProvider,
     authService,
-    productService: new ProductService(productRepo),
+    productService: new ProductService(productRepo, new AuditService()),
     cartService: new CartService(cartRepo, productRepo),
     orderService: new OrderService(
       orderRepo,
       productRepo,
       cartRepo,
       new StripePaymentProcessor(),
+      new AuditService(),
       new SovereignLocker(),
       createCheckoutGateway()
     ),
     discountService: new DiscountService(new SQLiteDiscountRepository()),
     settingsService: new SettingsService(new SQLiteSettingsRepository(), productRepo, new SQLiteDiscountRepository()),
     transferService: new TransferService(),
+    auditService: new AuditService(),
   };
 }
 
@@ -188,13 +192,20 @@ export function getInitialServices() {
   return {
     authProvider: authProviderInstance!,
     authService: authServiceInstance,
-    productService: new ProductService(productRepoInstance!),
+    productService: new ProductService(productRepoInstance!, (function() {
+      if (!auditServiceInstance) auditServiceInstance = new AuditService();
+      return auditServiceInstance;
+    })()),
     cartService: new CartService(cartRepoInstance!, productRepoInstance!),
     orderService: new OrderService(
       orderRepoInstance!,
       productRepoInstance!,
       cartRepoInstance!,
       paymentProcessorInstance,
+      (function() {
+        if (!auditServiceInstance) auditServiceInstance = new AuditService();
+        return auditServiceInstance;
+      })(),
       lockProviderInstance,
       checkoutGatewayInstance ?? undefined
     ),
@@ -203,6 +214,10 @@ export function getInitialServices() {
     transferService: (function() {
       if (!transferServiceInstance) transferServiceInstance = new TransferService();
       return transferServiceInstance;
+    })(),
+    auditService: (function() {
+      if (!auditServiceInstance) auditServiceInstance = new AuditService();
+      return auditServiceInstance;
     })(),
   };
 }

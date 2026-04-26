@@ -129,11 +129,14 @@ export function AdminProductForm() {
     };
 
     try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+
       if (isEdit && id) {
-        await services.productService.updateProduct(id, data);
+        await services.productService.updateProduct(id, data, actor);
         toast('success', 'Product updated successfully');
       } else {
-        await services.productService.createProduct(data);
+        await services.productService.createProduct(data, actor);
         toast('success', 'Product created successfully');
       }
       setUnsaved(false);

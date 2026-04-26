@@ -128,7 +128,7 @@ export async function seedProducts(): Promise<number> {
 
   for (const product of INITIAL_CATALOG) {
     try {
-      await services.productService.createProduct(product);
+      await services.productService.createProduct(product, { id: 'system', email: 'system@playmore.tcg' });
       created++;
     } catch (err) {
       logger.error(`Failed to seed ${product.name}.`, err);
