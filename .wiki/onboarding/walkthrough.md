@@ -36,10 +36,12 @@ Session-owned customer routes:
 - `src/app/api/orders/route.ts`
 
 Admin-protected routes:
-- `src/app/api/admin/orders/route.ts`
-- `src/app/api/admin/orders/[id]/route.ts`
-- `src/app/api/products/route.ts` for product creation
-- `src/app/api/products/[id]/route.ts` for product update/delete
+- `src/app/api/admin/dashboard/route.ts` - Aggregate store metrics
+- `src/app/api/admin/inventory/route.ts` - Inventory health and stock levels
+- `src/app/api/admin/orders/route.ts` - Global order management
+- `src/app/api/admin/orders/[id]/route.ts` - Status updates and order detail
+- `src/app/api/products/route.ts` - Product creation and bulk listing
+- `src/app/api/products/[id]/route.ts` - Product updates and deletion
 
 ## 4. UI layer: `src/ui/`
 

@@ -15,6 +15,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - [Schemas](./architecture/schemas.md) — domain models, repository contracts, service interfaces, API guard behavior.
 - [Decisions](./architecture/decisions.md) — ADRs protecting architectural intent.
 - [Risk Map](./architecture/risk-map.md) — fragile surfaces, blast radius, and mandatory tests.
+- [Admin Panel](./architecture/admin-panel.md) — features, merchant operations, and technical implementation.
 
 ### Agent
 - [Agent Memory](./agent/agent-memory.md) — condensed strict constraints for future autonomous agents.
@@ -117,6 +118,7 @@ graph TD
 
 ## Modified documentation files in this synchronization
 
+- [Admin Panel](./architecture/admin-panel.md)
 - `.wiki/index.md`
 - `.wiki/changelog.md`
 - `.wiki/onboarding/getting-started.md`

@@ -24,10 +24,15 @@ A full-stack ecommerce application for trading card game products, built with **
 - Account creation & login
 
 ### Admin
-- Dashboard with stats, revenue, low-stock alerts
-- CRUD product management
-- Order list with status updates (pending → confirmed → shipped → delivered)
-- Role-based access control (`admin` vs `customer`)
+- **Unified Dashboard**: Real-time stats, revenue charts, fulfillment pipeline, and priority action items.
+- **Order Management**: Fulfillment tracking, status transitions, and detailed order insights.
+- **Inventory Health**: Automated stock classification (Healthy, Low, Out) and restock recommendations.
+- **Bulk Product Editor**: High-speed spreadsheet-style interface for mass price and stock updates.
+- **Customer CRM**: LTV tracking, automated segmentation (Big Spenders, New, etc.), and CSV exports.
+- **Analytics**: Conversion rates, AOV, live visitor view, and channel-based sales analysis.
+- **Discounts**: Manage automatic and code-based promotions with usage metrics.
+- **Command Palette**: Global `Cmd+K` interface for rapid navigation across the admin panel.
+- **Role-based Access Control**: Hardened session-based protection for all administrative routes.
 
 ## Tech Stack
 

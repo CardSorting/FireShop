@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-04-26 — Comprehensive Admin Documentation Update
+
+### Problem verified
+
+- The admin panel had grown significantly in complexity (Analytics, CRM, Bulk Editing, Discounts, Inventory Health) but the documentation was scattered or minimal.
+- `README.md` listed only a few basic admin features.
+- `.wiki` lacked a dedicated architectural and functional deep-dive into the merchant-operations layer.
+
+### Remediation performed
+
+- Created `.wiki/architecture/admin-panel.md` providing a comprehensive overview of:
+  - **Unified Dashboard**: KPI tracking, fulfillment pipeline, and priority items.
+  - **Order Management**: Status tracking and operator controls.
+  - **Inventory Health**: Classification systems and bulk editing tools.
+  - **Customer CRM**: Segmentation, LTV tracking, and exports.
+  - **Analytics**: Performance visualization and live store view.
+  - **Discounts**: Promotional strategy and usage tracking.
+  - **Technical implementation**: Authorization guards, specialized UI components, and state management.
+- Updated `README.md` with an expanded Admin features list to better reflect the platform's power.
+- Updated `.wiki/index.md` to link the new Admin Panel documentation under the Architecture section.
+- Updated `.wiki/onboarding/walkthrough.md` to include specific administrative API routes and their responsibilities.
+
+### Verification evidence
+
+- All new and modified documentation files verified for link integrity and formatting.
+- `README.md` now accurately reflects the current state of the admin suite.
+
+### Files intentionally changed in this pass
+
+- `README.md`
+- `.wiki/index.md`
+- `.wiki/onboarding/walkthrough.md`
+- `.wiki/architecture/admin-panel.md` (New)
+- `.wiki/changelog.md`
+
 ## 2026-04-26 — Admin panel merchant-operations UX upgrade
 
 ### Problem verified
