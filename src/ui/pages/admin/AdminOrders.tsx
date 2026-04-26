@@ -2,23 +2,38 @@
 
 /**
  * [LAYER: UI]
+ * Admin order management — Shopify fulfillment-style with slide-over detail.
  */
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { useServices } from '../../hooks/useServices';
 import type { Order, OrderStatus } from '@domain/models';
-import { ChevronDown, PackageCheck, Search } from 'lucide-react';
+import { 
+  ChevronDown, 
+  PackageCheck, 
+  Search, 
+  ChevronRight, 
+  Clock, 
+  CheckCircle2, 
+  Truck, 
+  PackageSearch,
+  Printer,
+  FileText,
+  MoreHorizontal,
+  X,
+  MapPin,
+  CreditCard
+} from 'lucide-react';
 import { formatCurrency, formatShortDate, humanizeOrderStatus, normalizeSearch } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
+import { 
+  AdminPageHeader, 
+  AdminStatusBadge, 
+  AdminEmptyState,
+  BulkActionBar,
+  SkeletonRow,
+  useToast
+} from '../../components/admin/AdminComponents';
 
-const STATUS_COLORS: Record<OrderStatus, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
-  confirmed: 'bg-blue-100 text-blue-700',
-  shipped: 'bg-purple-100 text-purple-700',
-  delivered: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-};
-
-const ORDER_STATUSES: Array<OrderStatus | 'all'> = ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   pending: ['pending', 'confirmed', 'cancelled'],
   confirmed: ['confirmed', 'shipped', 'cancelled'],
@@ -27,17 +42,28 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   cancelled: ['cancelled'],
 };
 
+const FULFILLMENT_TABS = [
+  { label: 'All orders', value: 'all', icon: PackageCheck },
+  { label: 'To review', value: 'pending', icon: Clock },
+  { label: 'Ready to ship', value: 'confirmed', icon: PackageCheck },
+  { label: 'In transit', value: 'shipped', icon: Truck },
+  { label: 'Delivered', value: 'delivered', icon: CheckCircle2 },
+];
+
 export function AdminOrders() {
   const services = useServices();
+  const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [cursor, setCursor] = useState<string | undefined>();
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'all'>('all');
   const [query, setQuery] = useState('');
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [batchUpdating, setBatchUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const loadOrders = useCallback(async () => {
     setLoading(true);
@@ -50,6 +76,7 @@ export function AdminOrders() {
       });
       setOrders(result.orders);
       setNextCursor(result.nextCursor);
+      setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
@@ -66,149 +93,384 @@ export function AdminOrders() {
     setError(null);
     try {
       await services.orderService.updateOrderStatus(id, status);
+      toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
       await loadOrders();
+      // Update selected order if detail panel is open
+      if (selectedOrder?.id === id) {
+        setSelectedOrder(prev => prev ? { ...prev, status } : null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update order status');
+      toast('error', err instanceof Error ? err.message : 'Failed to update order status');
     } finally {
       setUpdating(null);
     }
   }
 
-  const filteredOrders = orders.filter((order) => {
+  async function bulkUpdateStatus(status: OrderStatus) {
+    if (selectedIds.size === 0) return;
+    setBatchUpdating(true);
+    setError(null);
+    try {
+      await services.orderService.batchUpdateOrderStatus(Array.from(selectedIds), status);
+      toast('success', `${selectedIds.size} order${selectedIds.size > 1 ? 's' : ''} updated to ${humanizeOrderStatus(status)}`);
+      setSelectedIds(new Set());
+      await loadOrders();
+    } catch (err) {
+      toast('error', err instanceof Error ? err.message : 'Failed to update multiple orders');
+    } finally {
+      setBatchUpdating(false);
+    }
+  }
+
+  const filteredOrders = useMemo(() => {
     const needle = normalizeSearch(query);
-    if (!needle) return true;
-    return [
-      order.id,
-      order.userId,
-      order.paymentTransactionId ?? '',
-      ...order.items.map((item) => item.name),
-    ].some((value) => normalizeSearch(value).includes(needle));
-  });
+    if (!needle) return orders;
+    return orders.filter((order) => {
+      return [
+        order.id,
+        order.userId,
+        order.paymentTransactionId ?? '',
+        ...order.items.map((item) => item.name),
+      ].some((value) => normalizeSearch(value).includes(needle));
+    });
+  }, [orders, query]);
+
+  const toggleSelect = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === filteredOrders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredOrders.map(o => o.id)));
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm font-medium uppercase tracking-wide text-primary-600">Order operations</p>
-        <h1 className="text-3xl font-bold text-gray-900">Order Processing</h1>
-        <p className="mt-1 text-sm text-gray-500">Triage, inspect, and advance customer orders through fulfillment.</p>
-      </div>
-
-      {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
-
-      <div className="rounded-lg border bg-white p-4 shadow-sm">
-        <div className="grid gap-3 md:grid-cols-[220px_1fr]">
-          <select
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value as OrderStatus | 'all');
-              setCursor(undefined);
-            }}
-            className="rounded-md border px-3 py-2 text-sm"
-          >
-            {ORDER_STATUSES.map((status) => (
-              <option key={status} value={status}>{status === 'all' ? 'All statuses' : humanizeOrderStatus(status)}</option>
-            ))}
-          </select>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search order ID, customer ID, transaction, or item"
-              className="w-full rounded-md border py-2 pl-9 pr-3 text-sm"
-            />
+    <div className="space-y-6 pb-20">
+      <AdminPageHeader 
+        title="Orders" 
+        subtitle={`${filteredOrders.length} order${filteredOrders.length !== 1 ? 's' : ''}`}
+        actions={
+          <div className="flex items-center gap-2">
+            <button className="hidden sm:flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50">
+              <FileText className="h-4 w-4 text-gray-400" />
+              Export
+            </button>
           </div>
+        }
+      />
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+      )}
+
+      {/* ── Filter tabs ── */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-1 overflow-x-auto rounded-xl border bg-white p-1 shadow-sm no-scrollbar">
+          {FULFILLMENT_TABS.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => {
+                setStatusFilter(tab.value as OrderStatus | 'all');
+                setCursor(undefined);
+              }}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
+                statusFilter === tab.value 
+                  ? 'bg-gray-900 text-white shadow-sm' 
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative lg:w-72">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search orders…"
+            className="w-full rounded-xl border bg-white py-2 pl-9 pr-3 text-sm shadow-sm transition focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
         </div>
       </div>
 
-      {loading ? <div className="p-4">Loading...</div> : null}
-
-      <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Order ID</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Items</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Total</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Next action</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.map((o) => (
-              <Fragment key={o.id}>
-                <tr className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <button className="font-mono text-xs text-primary-700 hover:underline" onClick={() => setExpandedOrderId(expandedOrderId === o.id ? null : o.id)}>
-                      {o.id.slice(0, 12)}...
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <ul className="space-y-0.5">
-                      {o.items.slice(0, 3).map((item) => (
-                        <li key={item.productId} className="text-xs text-gray-600">
-                          {item.name} x{item.quantity}
-                        </li>
-                      ))}
-                    </ul>
-                  </td>
-                  <td className="px-4 py-3 font-medium">{formatCurrency(o.total)}</td>
-                  <td className="px-4 py-3">
-                    <div className="relative inline-block">
-                      <select
-                        value={o.status}
-                        onChange={(e) => handleStatusChange(o.id, e.target.value as OrderStatus)}
-                        disabled={updating === o.id || NEXT_STATUSES[o.status].length === 1}
-                        className={`appearance-none px-3 py-1 pr-8 rounded-full text-xs font-medium border-0 cursor-pointer disabled:cursor-not-allowed ${STATUS_COLORS[o.status]}`}
-                      >
-                        {NEXT_STATUSES[o.status].map((status) => <option key={status} value={status}>{status === o.status ? nextOrderActionLabel(status) : nextOrderActionLabel(o.status)}</option>)}
-                      </select>
-                      <ChevronDown className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" />
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {formatShortDate(o.createdAt)}
-                  </td>
-                </tr>
-                {expandedOrderId === o.id && (
-                  <tr className="border-b bg-gray-50">
-                    <td colSpan={5} className="px-4 py-4">
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div>
-                          <h3 className="mb-2 flex items-center gap-2 font-semibold text-gray-900"><PackageCheck className="h-4 w-4" /> Fulfillment</h3>
-                          <p className="text-xs text-gray-600">Customer: {o.userId}</p>
-                          <p className="text-xs text-gray-600">Payment: {o.paymentTransactionId ?? 'Not captured'}</p>
-                          <p className="text-xs text-gray-600">Updated: {formatShortDate(o.updatedAt)}</p>
-                        </div>
-                        <div>
-                          <h3 className="mb-2 font-semibold text-gray-900">Shipping address</h3>
-                          <p className="text-xs text-gray-600">{o.shippingAddress.street}</p>
-                          <p className="text-xs text-gray-600">{o.shippingAddress.city}, {o.shippingAddress.state} {o.shippingAddress.zip}</p>
-                          <p className="text-xs text-gray-600">{o.shippingAddress.country}</p>
-                        </div>
-                        <div>
-                          <h3 className="mb-2 font-semibold text-gray-900">Items</h3>
-                          {o.items.map((item) => (
-                            <p key={item.productId} className="text-xs text-gray-600">{item.name} — {item.quantity} × {formatCurrency(item.unitPrice)}</p>
-                          ))}
-                        </div>
-                      </div>
+      {/* ── Order Table ── */}
+      <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
+        <div className="overflow-x-auto styled-scrollbar">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-gray-50/80">
+              <tr>
+                <th className="w-10 px-4 py-3">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.size > 0 && selectedIds.size === filteredOrders.length}
+                    ref={input => {
+                      if (input) input.indeterminate = selectedIds.size > 0 && selectedIds.size < filteredOrders.length;
+                    }}
+                    onChange={toggleAll}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Order</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Items</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {loading && [1,2,3,4,5].map(i => <SkeletonRow key={i} columns={6} />)}
+              {!loading && filteredOrders.map((o) => {
+                const isSelected = selectedIds.has(o.id);
+                return (
+                  <tr 
+                    key={o.id}
+                    onClick={() => setSelectedOrder(o)}
+                    className={`cursor-pointer transition hover:bg-gray-50 ${isSelected ? 'bg-primary-50/40' : ''}`}
+                  >
+                    <td className="px-4 py-3.5">
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onClick={(e) => toggleSelect(o.id, e)}
+                        onChange={() => {}}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="font-mono text-xs font-semibold text-gray-900">#{o.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">{o.userId.slice(0, 16)}…</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm text-gray-600">{formatShortDate(o.createdAt)}</p>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <AdminStatusBadge status={o.status} type="order" />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <p className="text-sm text-gray-600">{o.items.length} item{o.items.length !== 1 ? 's' : ''}</p>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(o.total)}</p>
                     </td>
                   </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-        {filteredOrders.length === 0 && !loading && (
-          <div className="p-8 text-center text-gray-400 text-sm">No orders yet</div>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {!loading && filteredOrders.length === 0 && (
+          <AdminEmptyState 
+            title="No orders found" 
+            description={statusFilter === 'all' ? "You haven't received any orders yet." : `No orders are currently "${humanizeOrderStatus(statusFilter)}".`}
+            icon={PackageSearch}
+            action={statusFilter !== 'all' ? (
+              <button onClick={() => setStatusFilter('all')} className="text-sm font-semibold text-primary-600 hover:underline">
+                View all orders
+              </button>
+            ) : undefined}
+          />
         )}
       </div>
 
-      <div className="flex justify-end gap-3">
-        <button className="rounded-md border px-4 py-2 text-sm disabled:opacity-50" disabled={!cursor} onClick={() => setCursor(undefined)}>First page</button>
-        <button className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50" disabled={!nextCursor} onClick={() => setCursor(nextCursor)}>Next page</button>
+      {/* ── Pagination ── */}
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-500">
+          Showing {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''}
+        </p>
+        <div className="flex gap-2">
+          <button 
+            className="rounded-xl border bg-white px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50" 
+            disabled={!cursor} 
+            onClick={() => setCursor(undefined)}
+          >
+            Previous
+          </button>
+          <button 
+            className="rounded-xl border bg-white px-4 py-2 text-xs font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 disabled:opacity-50" 
+            disabled={!nextCursor} 
+            onClick={() => setCursor(nextCursor)}
+          >
+            Next
+          </button>
+        </div>
       </div>
+
+      {/* ── Bulk Action Bar ── */}
+      <BulkActionBar 
+        selectedCount={selectedIds.size}
+        onClear={() => setSelectedIds(new Set())}
+        actions={
+          <>
+            <button 
+              onClick={() => bulkUpdateStatus('confirmed')}
+              disabled={batchUpdating}
+              className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              Confirm
+            </button>
+            <button 
+              onClick={() => bulkUpdateStatus('shipped')}
+              disabled={batchUpdating}
+              className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 disabled:opacity-50"
+            >
+              <Truck className="h-3.5 w-3.5 text-blue-400" />
+              Ship
+            </button>
+          </>
+        }
+      />
+
+      {/* ── Order Detail Slide-Over (Shopify-style) ── */}
+      {selectedOrder && (
+        <>
+          <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm backdrop-enter" onClick={() => setSelectedOrder(null)} />
+          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-right duration-300 styled-scrollbar">
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+              <div>
+                <p className="font-mono text-xs text-gray-400">Order</p>
+                <h2 className="text-lg font-bold text-gray-900">#{selectedOrder.id.slice(0, 8).toUpperCase()}</h2>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6 p-6">
+              {/* Status + action */}
+              <div className="flex items-center justify-between">
+                <AdminStatusBadge status={selectedOrder.status} type="order" />
+                <p className="text-xs text-gray-500">{formatShortDate(selectedOrder.createdAt)}</p>
+              </div>
+
+              {/* Timeline */}
+              <div className="rounded-xl border bg-gray-50 p-4">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Timeline</h3>
+                <div className="space-y-3">
+                  {(['pending', 'confirmed', 'shipped', 'delivered'] as OrderStatus[]).map((step, i) => {
+                    const statusOrder = ['pending', 'confirmed', 'shipped', 'delivered'];
+                    const currentIndex = statusOrder.indexOf(selectedOrder.status);
+                    const isActive = i <= currentIndex && selectedOrder.status !== 'cancelled';
+                    const labels: Record<OrderStatus, string> = { pending: 'Order placed', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' };
+                    return (
+                      <div key={step} className="flex items-center gap-3">
+                        <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
+                          isActive ? 'border-primary-600 bg-primary-600' : 'border-gray-200 bg-white'
+                        }`}>
+                          {isActive && <CheckCircle2 className="h-3 w-3 text-white" />}
+                        </div>
+                        <p className={`text-sm ${isActive ? 'font-medium text-gray-900' : 'text-gray-400'}`}>
+                          {labels[step]}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  {selectedOrder.status === 'cancelled' && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-red-300 bg-red-100">
+                        <X className="h-3 w-3 text-red-600" />
+                      </div>
+                      <p className="text-sm font-medium text-red-600">Cancelled</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Items */}
+              <div>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Items</h3>
+                <div className="rounded-xl border bg-white">
+                  <div className="divide-y divide-gray-50">
+                    {selectedOrder.items.map((item) => (
+                      <div key={item.productId} className="flex items-center justify-between px-4 py-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-gray-900">{item.name}</p>
+                          <p className="text-xs text-gray-500">Qty: {item.quantity} × {formatCurrency(item.unitPrice)}</p>
+                        </div>
+                        <p className="shrink-0 text-sm font-semibold text-gray-900">{formatCurrency(item.unitPrice * item.quantity)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-between border-t bg-gray-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-gray-900">Total</p>
+                    <p className="text-lg font-bold text-gray-900">{formatCurrency(selectedOrder.total)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipping */}
+              <div>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Shipping Address</h3>
+                <div className="rounded-xl border bg-white p-4">
+                  <div className="flex items-start gap-3">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                    <div className="text-sm text-gray-700 leading-relaxed">
+                      <p>{selectedOrder.shippingAddress.street}</p>
+                      <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.zip}</p>
+                      <p>{selectedOrder.shippingAddress.country}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment */}
+              <div>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Payment</h3>
+                <div className="rounded-xl border bg-white p-4">
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-4 w-4 text-gray-400" />
+                    <p className="font-mono text-xs text-gray-600">{selectedOrder.paymentTransactionId || 'Manual / Test'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              {NEXT_STATUSES[selectedOrder.status].length > 1 && (
+                <div className="space-y-3">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</h3>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <select
+                        value={selectedOrder.status}
+                        onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value as OrderStatus)}
+                        disabled={updating === selectedOrder.id}
+                        className="w-full appearance-none rounded-xl border bg-white px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                      >
+                        {NEXT_STATUSES[selectedOrder.status].map((status) => (
+                          <option key={status} value={status}>
+                            {status === selectedOrder.status ? `Current: ${humanizeOrderStatus(status)}` : humanizeOrderStatus(status)}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    </div>
+                    <button 
+                      className="rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 active:scale-95 disabled:opacity-50"
+                      disabled={updating === selectedOrder.id}
+                      onClick={() => {
+                        const next = NEXT_STATUSES[selectedOrder.status].find(s => s !== selectedOrder.status);
+                        if (next) handleStatusChange(selectedOrder.id, next);
+                      }}
+                    >
+                      {updating === selectedOrder.id ? 'Updating…' : nextOrderActionLabel(selectedOrder.status)}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

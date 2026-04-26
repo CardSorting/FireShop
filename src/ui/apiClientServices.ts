@@ -56,6 +56,7 @@ export function createApiClientServices() {
             createProduct: (data: ProductDraft) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
             updateProduct: (id: string, data: ProductUpdate) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
             deleteProduct: (id: string) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
+            batchDeleteProducts: async (ids: string[]) => { for (const id of ids) await request<void>(`/api/products/${id}`, { method: 'DELETE' }); },
         },
         cartService: {
             getCart: (userId: string) => (sessionScoped(userId), request<Cart | null>('/api/cart')),
@@ -78,6 +79,7 @@ export function createApiClientServices() {
                 return request<{ orders: Order[]; nextCursor?: string }>(`/api/admin/orders?${qs}`);
             },
             updateOrderStatus: (id: string, status: OrderStatus) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+            batchUpdateOrderStatus: async (ids: string[], status: OrderStatus) => { for (const id of ids) await request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); },
         },
     };
 }

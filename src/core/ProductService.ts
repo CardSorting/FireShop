@@ -61,4 +61,19 @@ export class ProductService {
   async deleteProduct(id: string): Promise<void> {
     return this.repo.delete(id);
   }
+
+  async batchUpdateProducts(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {
+    updates.forEach(({ updates: u }) => assertValidProductUpdate(u));
+    if (this.repo.batchUpdate) {
+      return this.repo.batchUpdate(updates);
+    }
+    return Promise.all(updates.map(({ id, updates: u }) => this.repo.update(id, u)));
+  }
+
+  async batchDeleteProducts(ids: string[]): Promise<void> {
+    if (this.repo.batchDelete) {
+      return this.repo.batchDelete(ids);
+    }
+    await Promise.all(ids.map((id) => this.repo.delete(id)));
+  }
 }

@@ -43,7 +43,7 @@ export function Footer() {
   return (
     <footer className="bg-white pt-24 pb-8 relative overflow-hidden">
       {/* Decorative Gradient Top Border */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-500/30 to-transparent"></div>
+      <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-primary-500/30 to-transparent"></div>
 
       {/* Back to Top Button - Redesigned */}
       <button
@@ -174,8 +174,8 @@ export function Footer() {
 
         {/* Newsletter Section - High Performance CTA */}
         <div className="bg-gray-900 rounded-[2.5rem] p-10 md:p-16 mb-20 relative overflow-hidden group border border-white/5 shadow-2xl">
-          <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-primary-500/20 rounded-full blur-[100px] -mr-64 -mt-64 group-hover:bg-primary-500/30 transition-all duration-700"></div>
-          <div className="absolute bottom-0 left-0 w-[30rem] h-[30rem] bg-primary-600/10 rounded-full blur-[80px] -ml-48 -mb-48 group-hover:bg-primary-600/20 transition-all duration-700"></div>
+          <div className="absolute top-0 right-0 w-160 h-160 bg-primary-500/20 rounded-full blur-[100px] -mr-64 -mt-64 group-hover:bg-primary-500/30 transition-all duration-700"></div>
+          <div className="absolute bottom-0 left-0 w-120 h-120 bg-primary-600/10 rounded-full blur-[80px] -ml-48 -mb-48 group-hover:bg-primary-600/20 transition-all duration-700"></div>
           
           <div className="relative z-10 grid grid-cols-1 xl:grid-cols-5 gap-12 items-center">
             <div className="xl:col-span-3 space-y-6">

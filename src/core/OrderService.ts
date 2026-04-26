@@ -107,86 +107,82 @@ export class OrderService {
 
       assertValidOrderItems(cart.items);
 
-    // Build stock map and verify availability
-    const stockMap = new Map<string, number>();
-    for (const item of cart.items) {
-      const product = await this.productRepo.getById(item.productId);
-      if (!product) throw new ProductNotFoundError(item.productId);
-      stockMap.set(item.productId, product.stock);
-    }
-
-    if (!canPlaceOrder(cart.items, stockMap)) {
-      throw new InsufficientStockError(
-        'multiple',
-        0,
-        0
-      );
-    }
-
-    // BroccoliQ Level 6: Builder's Punch (Coalescing)
-    const stockDeductions = coalesceCartStockDeductions(cart.items);
-
-    if (this.productRepo.batchUpdateStock) {
-      await this.productRepo.batchUpdateStock(stockDeductions);
-    } else {
-      // Deduct stock iteratively (fallback)
-      for (const update of stockDeductions) {
-        await this.productRepo.updateStock(update.id, update.delta);
+      // Build stock map and verify availability
+      const stockMap = new Map<string, number>();
+      for (const item of cart.items) {
+        const product = await this.productRepo.getById(item.productId);
+        if (!product) throw new ProductNotFoundError(item.productId);
+        stockMap.set(item.productId, product.stock);
       }
-    }
 
-    const total = calculateCartTotal(cart.items);
+      if (!canPlaceOrder(cart.items, stockMap)) {
+        throw new InsufficientStockError('multiple', 0, 0);
+      }
 
-    // Process payment (External boundary)
-    const paymentResult = await this.payment.processPayment({
-      amount: total,
-      orderId: checkoutAttemptId,
-      paymentMethodId,
-      idempotencyKey: checkoutIdempotencyKey,
-    });
+      // BroccoliQ Level 6: Builder's Punch (Coalescing)
+      const stockDeductions = coalesceCartStockDeductions(cart.items);
 
-    if (!paymentResult.success || !paymentResult.transactionId) {
-      // BroccoliDB Agent Shadow: Rollback the unit of work (Compensating Transaction)
       if (this.productRepo.batchUpdateStock) {
-        await this.productRepo.batchUpdateStock(
-          stockDeductions.map(update => ({ id: update.id, delta: -update.delta }))
-        );
+        await this.productRepo.batchUpdateStock(stockDeductions);
       } else {
+        // Deduct stock iteratively (fallback)
         for (const update of stockDeductions) {
-          await this.productRepo.updateStock(update.id, -update.delta);
+          await this.productRepo.updateStock(update.id, update.delta);
         }
       }
-      throw new PaymentFailedError();
-    }
 
-    // Agent Shadow: Commit phase (Atomic Flush equivalent)
-    // Create order only after successful payment
-    try {
-      const order = await this.orderRepo.create({
-        userId,
-        items: cart.items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.priceSnapshot,
-        })),
-        total,
-        status: 'confirmed', // Created directly as confirmed
-        shippingAddress,
-        paymentTransactionId: paymentResult.transactionId,
+      const total = calculateCartTotal(cart.items);
+
+      // Process payment (External boundary)
+      const paymentResult = await this.payment.processPayment({
+        amount: total,
+        orderId: checkoutAttemptId,
+        paymentMethodId,
+        idempotencyKey: checkoutIdempotencyKey,
       });
 
-      // Clear cart
-      await this.cartRepo.clear(userId);
+      if (!paymentResult.success || !paymentResult.transactionId) {
+        // BroccoliDB Agent Shadow: Rollback the unit of work (Compensating Transaction)
+        if (this.productRepo.batchUpdateStock) {
+          await this.productRepo.batchUpdateStock(
+            stockDeductions.map((update) => ({ id: update.id, delta: -update.delta }))
+          );
+        } else {
+          for (const update of stockDeductions) {
+            await this.productRepo.updateStock(update.id, -update.delta);
+          }
+        }
+        throw new PaymentFailedError();
+      }
 
-      return order;
-    } catch (err) {
-      throw new CheckoutReconciliationError(
-        err instanceof Error
-          ? `Payment ${paymentResult.transactionId} succeeded, but checkout finalization failed: ${err.message}`
-          : `Payment ${paymentResult.transactionId} succeeded, but checkout finalization failed.`
-      );
-    }
+      // Agent Shadow: Commit phase (Atomic Flush equivalent)
+      // Create order only after successful payment
+      try {
+        const order = await this.orderRepo.create({
+          userId,
+          items: cart.items.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.priceSnapshot,
+          })),
+          total,
+          status: 'confirmed', // Created directly as confirmed
+          shippingAddress,
+          paymentTransactionId: paymentResult.transactionId,
+        });
+
+        // Clear cart
+        await this.cartRepo.clear(userId);
+
+        return order;
+      } catch (err) {
+        throw new CheckoutReconciliationError(
+          err instanceof Error
+            ? `Payment ${paymentResult.transactionId} succeeded, but checkout finalization failed: ${err.message}`
+            : `Payment ${paymentResult.transactionId} succeeded, but checkout finalization failed.`
+        );
+      }
     } finally {
       await this.locker.releaseLock(lockId, userId);
     }
@@ -240,29 +236,43 @@ export class OrderService {
       .filter((product) => classifyInventoryHealth(product.stock) !== 'healthy')
       .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name))
       .slice(0, 8);
-    const outOfStockCount = products.filter((product) => classifyInventoryHealth(product.stock) === 'out_of_stock').length;
+    const outOfStockCount = products.filter(
+      (product) => classifyInventoryHealth(product.stock) === 'out_of_stock'
+    ).length;
     const attentionItems: AdminDashboardSummary['attentionItems'] = [
-      ...(fulfillmentCounts.to_review > 0 ? [{
-        id: 'orders-to-review',
-        label: `${fulfillmentCounts.to_review} orders need review`,
-        description: 'Confirm paid orders so staff know what to prepare next.',
-        href: '/admin/orders',
-        priority: 'high' as const,
-      }] : []),
-      ...(fulfillmentCounts.ready_to_ship > 0 ? [{
-        id: 'orders-ready-to-ship',
-        label: `${fulfillmentCounts.ready_to_ship} orders ready to ship`,
-        description: 'Pack these orders and advance them to shipped.',
-        href: '/admin/orders',
-        priority: 'high' as const,
-      }] : []),
-      ...(lowStockProducts.length > 0 ? [{
-        id: 'inventory-low-stock',
-        label: `${lowStockProducts.length} products need stock attention`,
-        description: 'Review products that are unavailable or close to selling out.',
-        href: '/admin/inventory',
-        priority: outOfStockCount > 0 ? 'high' as const : 'medium' as const,
-      }] : []),
+      ...(fulfillmentCounts.to_review > 0
+        ? [
+            {
+              id: 'orders-to-review',
+              label: `${fulfillmentCounts.to_review} orders need review`,
+              description: 'Confirm paid orders so staff know what to prepare next.',
+              href: '/admin/orders',
+              priority: 'high' as const,
+            },
+          ]
+        : []),
+      ...(fulfillmentCounts.ready_to_ship > 0
+        ? [
+            {
+              id: 'orders-ready-to-ship',
+              label: `${fulfillmentCounts.ready_to_ship} orders ready to ship`,
+              description: 'Pack these orders and advance them to shipped.',
+              href: '/admin/orders',
+              priority: 'high' as const,
+            },
+          ]
+        : []),
+      ...(lowStockProducts.length > 0
+        ? [
+            {
+              id: 'inventory-low-stock',
+              label: `${lowStockProducts.length} products need stock attention`,
+              description: 'Review products that are unavailable or close to selling out.',
+              href: '/admin/inventory',
+              priority: outOfStockCount > 0 ? ('high' as const) : ('medium' as const),
+            },
+          ]
+        : []),
     ];
 
     return {
@@ -270,7 +280,8 @@ export class OrderService {
       lowStockCount: products.filter((product) => classifyInventoryHealth(product.stock) === 'low_stock').length,
       outOfStockCount,
       totalRevenue,
-      averageOrderValue: revenueOrders.length > 0 ? Math.round(totalRevenue / revenueOrders.length) : 0,
+      averageOrderValue:
+        revenueOrders.length > 0 ? Math.round(totalRevenue / revenueOrders.length) : 0,
       orderCountsByStatus,
       fulfillmentCounts,
       attentionItems,
@@ -284,5 +295,17 @@ export class OrderService {
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
     return this.orderRepo.updateStatus(id, status);
+  }
+
+  async batchUpdateOrderStatus(ids: string[], status: OrderStatus): Promise<void> {
+    const orders = await Promise.all(ids.map((id) => this.orderRepo.getById(id)));
+    for (const order of orders) {
+      if (order) assertValidOrderStatusTransition(order.status, status);
+    }
+
+    if (this.orderRepo.batchUpdateStatus) {
+      return this.orderRepo.batchUpdateStatus(ids, status);
+    }
+    await Promise.all(ids.map((id) => this.orderRepo.updateStatus(id, status)));
   }
 }

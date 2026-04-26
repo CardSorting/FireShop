@@ -11,9 +11,11 @@
 - `src/core/OrderService.ts::getAdminDashboardSummary()` did not yet include fulfillment pipeline counts, out-of-stock counts, or explicit action items for staff.
 - No protected `/api/admin/inventory` backend endpoint or `/admin/inventory` admin page existed.
 - `src/ui/pages/admin/AdminProductForm.tsx` was a single technical form rather than a guided merchant setup experience with preview/help copy.
+- The admin pages lacked a unified component library, leading to inconsistent layouts and non-standard merchant UI patterns.
 
 ### Remediation performed
 
+- Created a reusable admin UI library in `src/ui/components/admin/AdminComponents.tsx` featuring premium cards, headers, status badges, and empty states.
 - Extended `src/domain/models.ts` with pure admin operations types: `InventoryHealth`, `FulfillmentBucket`, `AdminActionItem`, expanded `AdminDashboardSummary`, and `InventoryOverview`.
 - Extended `src/domain/rules.ts` with pure classification helpers: `classifyInventoryHealth()`, `classifyFulfillmentBucket()`, and `nextOrderActionLabel()`.
 - Added `ProductService.getInventoryOverview()` in `src/core/ProductService.ts`; Core now derives inventory health counts, total units, inventory value, and sorted restock-priority products from the product repository.
@@ -23,8 +25,9 @@
 - Added `/admin/inventory` through `src/app/admin/inventory/page.tsx` and `src/ui/pages/admin/AdminInventory.tsx`, with stock health filtering, search, plain-language restock actions, inventory KPI cards, and edit-product links.
 - Reworked `src/ui/layouts/AdminLayout.tsx` into a more approachable store-manager shell with Home, Orders, Inventory, Products, plus disabled/coming-soon Insights and Help cards.
 - Upgraded `src/ui/pages/admin/AdminDashboard.tsx` into a “Today’s work” command center with action cards, fulfillment pipeline, out-of-stock KPI, ready-to-ship KPI, and clearer staff guidance.
-- Updated `src/ui/pages/admin/AdminOrders.tsx` to label the status column as a next-action workflow and use Domain-derived plain-language order action labels.
-- Upgraded `src/ui/pages/admin/AdminProductForm.tsx` with merchant guidance copy, sectioned layout, customer preview card, and staff tip copy.
+- Upgraded `src/ui/pages/admin/AdminOrders.tsx` with a timeline-style status tracker for expanded orders, fulfillment status tabs, and better visual grouping.
+- Upgraded `src/ui/pages/admin/AdminProductForm.tsx` with merchant guidance copy, sectioned layout, sticky customer preview card, and staff tip panel.
+- Unified admin navigation in `src/ui/layouts/AdminLayout.tsx` with active link state detection and a global quick-action button.
 
 ### Verification evidence
 
@@ -76,6 +79,10 @@
 - Rebuilt `src/ui/pages/admin/AdminDashboard.tsx` into an admin command center using the dedicated summary endpoint, KPI cards, recent order activity, low-stock watchlist, and controlled loading/error states.
 - Upgraded `src/ui/pages/admin/AdminOrders.tsx` with status filtering, client search across order/customer/transaction/item values, cursor-based next-page controls, safe next-status dropdown options aligned with the Domain state machine, expanded order detail rows, and status-mutation error handling.
 - Upgraded `src/ui/pages/admin/AdminProducts.tsx` with catalog search, category filtering, low/healthy stock filtering, product/low-stock/filtered KPI cards, formatted prices/categories, empty-state messaging, and delete/load error banners.
+- Admin order processing now labels the status workflow as “Next action” and uses Domain-derived plain-language action labels from `nextOrderActionLabel()`, plus a timeline-style status tracker in the expanded view.
+- Reusable admin UI library verified in `src/ui/components/admin/AdminComponents.tsx`; it provides `AdminPageHeader`, `AdminMetricCard`, `AdminActionPanel`, `AdminStatusBadge`, and `AdminEmptyState` for consistent, premium merchant experiences.
+- Admin shell navigation in `src/ui/layouts/AdminLayout.tsx` now uses `usePathname` for active highlighting and includes a “Quick Action” product creation button.
+- Formatting/search plumbing verified in `src/utils/formatters.ts`; stateless helpers format USD cents, short dates, status/category labels, and normalized search strings without importing app-specific layers.
 
 ### Verification evidence
 

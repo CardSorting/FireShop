@@ -15,6 +15,8 @@ export interface IProductRepository {
   delete(id: string): Promise<void>;
   updateStock(id: string, delta: number): Promise<void>;
   batchUpdateStock?(updates: { id: string; delta: number }[]): Promise<void>;
+  batchDelete?(ids: string[]): Promise<void>;
+  batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
 }
 
 export interface ICartRepository {
@@ -33,6 +35,7 @@ export interface IOrderRepository {
     cursor?: string;
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
+  batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
 }
 
 export interface IAuthProvider {
