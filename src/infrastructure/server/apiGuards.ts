@@ -40,7 +40,12 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
         throw new DomainError('Request body is too large.');
     }
 
-    const body = rawBody ? JSON.parse(rawBody) as unknown : null;
+    let body: unknown;
+    try {
+        body = rawBody ? JSON.parse(rawBody) as unknown : null;
+    } catch {
+        throw new DomainError('Request body must be valid JSON.');
+    }
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         throw new DomainError('Request body must be a JSON object.');
     }

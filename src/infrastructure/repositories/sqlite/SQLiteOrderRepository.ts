@@ -7,7 +7,60 @@ import { getSQLiteDB } from '../../sqlite/database';
 import type { Database } from '../../sqlite/schema';
 import type { OrderTable } from '../../sqlite/schema';
 import type { IOrderRepository } from '@domain/repositories';
-import type { Order, OrderStatus } from '@domain/models';
+import type { Address, Order, OrderItem, OrderStatus } from '@domain/models';
+import { DomainError } from '@domain/errors';
+
+function isOrderItem(value: unknown): value is OrderItem {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<OrderItem>;
+  return typeof candidate.productId === 'string'
+    && typeof candidate.name === 'string'
+    && Number.isInteger(candidate.quantity)
+    && Number.isInteger(candidate.unitPrice);
+}
+
+function isAddress(value: unknown): value is Address {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<Address>;
+  return typeof candidate.street === 'string'
+    && typeof candidate.city === 'string'
+    && typeof candidate.state === 'string'
+    && typeof candidate.zip === 'string'
+    && typeof candidate.country === 'string';
+}
+
+function parseOrderItems(value: string): OrderItem[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value) as unknown;
+  } catch {
+    throw new DomainError('Stored order item data is invalid JSON.');
+  }
+  if (!Array.isArray(parsed) || !parsed.every(isOrderItem)) {
+    throw new DomainError('Stored order item data is invalid.');
+  }
+  return parsed;
+}
+
+function parseAddress(value: string): Address {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value) as unknown;
+  } catch {
+    throw new DomainError('Stored order address data is invalid JSON.');
+  }
+  if (!isAddress(parsed)) {
+    throw new DomainError('Stored order address data is invalid.');
+  }
+  return parsed;
+}
+
+function parseOrderStatus(value: string): OrderStatus {
+  if (value === 'pending' || value === 'confirmed' || value === 'shipped' || value === 'delivered' || value === 'cancelled') {
+    return value;
+  }
+  throw new DomainError('Stored order status is invalid.');
+}
 
 export class SQLiteOrderRepository implements IOrderRepository {
   private db: Kysely<Database>;
@@ -20,10 +73,10 @@ export class SQLiteOrderRepository implements IOrderRepository {
     return {
       id: row.id,
       userId: row.userId,
-      items: JSON.parse(row.items),
+      items: parseOrderItems(row.items),
       total: row.total,
-      status: row.status as OrderStatus,
-      shippingAddress: JSON.parse(row.shippingAddress),
+      status: parseOrderStatus(row.status),
+      shippingAddress: parseAddress(row.shippingAddress),
       paymentTransactionId: row.paymentTransactionId,
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),

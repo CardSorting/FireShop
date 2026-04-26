@@ -82,7 +82,21 @@ export class TrustedCheckoutGateway implements ICheckoutGateway {
       );
     }
 
-    const endpointUrl = new URL(this.endpoint);
+    let endpointUrl: URL;
+    try {
+      endpointUrl = new URL(this.endpoint);
+    } catch {
+      throw new PaymentFailedError('Trusted checkout endpoint is invalid.');
+    }
+
+    if (endpointUrl.protocol !== 'https:' && endpointUrl.protocol !== 'http:') {
+      throw new PaymentFailedError('Trusted checkout endpoint protocol is not supported.');
+    }
+
+    if (endpointUrl.username || endpointUrl.password) {
+      throw new PaymentFailedError('Trusted checkout endpoint must not include credentials.');
+    }
+
     if (process.env.NODE_ENV === 'production' && endpointUrl.protocol !== 'https:') {
       throw new PaymentFailedError('Trusted checkout endpoint must use HTTPS in production.');
     }
@@ -90,18 +104,33 @@ export class TrustedCheckoutGateway implements ICheckoutGateway {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), CHECKOUT_TIMEOUT_MS);
 
-    const response = await fetch(endpointUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': params.idempotencyKey,
-      },
-      body: JSON.stringify(params),
-      signal: controller.signal,
-    }).finally(() => clearTimeout(timeout));
+    let response: Response;
+    try {
+      response = await fetch(endpointUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': params.idempotencyKey,
+        },
+        body: JSON.stringify(params),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new PaymentFailedError('Trusted checkout finalization timed out. Please try again.');
+      }
+      throw new PaymentFailedError('Trusted checkout finalization could not be reached. Please try again.');
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new PaymentFailedError('Trusted checkout finalization failed. Please try again.');
+    }
+
+    const responseType = response.headers.get('content-type') ?? '';
+    if (!responseType.toLowerCase().includes('application/json')) {
+      throw new PaymentFailedError('Trusted checkout returned an invalid response type.');
     }
 
     return parseTrustedOrder(await response.json().catch(() => null));

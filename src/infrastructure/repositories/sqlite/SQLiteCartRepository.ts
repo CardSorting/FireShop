@@ -7,8 +7,32 @@ import { getSQLiteDB } from '../../sqlite/database';
 import type { Database } from '../../sqlite/schema';
 import type { CartTable } from '../../sqlite/schema';
 import type { ICartRepository } from '@domain/repositories';
-import type { Cart } from '@domain/models';
+import type { Cart, CartItem } from '@domain/models';
+import { DomainError } from '@domain/errors';
 import { logger } from '@utils/logger';
+
+function isCartItem(value: unknown): value is CartItem {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<CartItem>;
+  return typeof candidate.productId === 'string'
+    && typeof candidate.name === 'string'
+    && Number.isInteger(candidate.priceSnapshot)
+    && Number.isInteger(candidate.quantity)
+    && typeof candidate.imageUrl === 'string';
+}
+
+function parseCartItems(value: string): CartItem[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value) as unknown;
+  } catch {
+    throw new DomainError('Stored cart data is invalid JSON.');
+  }
+  if (!Array.isArray(parsed) || !parsed.every(isCartItem)) {
+    throw new DomainError('Stored cart data is invalid.');
+  }
+  return parsed;
+}
 
 export class SQLiteCartRepository implements ICartRepository {
   private db: Kysely<Database>;
@@ -31,7 +55,7 @@ export class SQLiteCartRepository implements ICartRepository {
     return {
       id: row.id,
       userId: row.userId,
-      items: JSON.parse(row.items),
+      items: parseCartItems(row.items),
       updatedAt: new Date(row.updatedAt),
     };
   }
@@ -62,6 +86,7 @@ export class SQLiteCartRepository implements ICartRepository {
       throw new Error('[Hive] Level 11 Backpressure: Active buffer saturated. System throttling writes to prevent OOM.');
     }
     this.activeBuffer.set(cart.userId, { ...cart, updatedAt: new Date() });
+    await this.flushBufferToDisk();
   }
 
   async clear(userId: string): Promise<void> {
@@ -69,6 +94,7 @@ export class SQLiteCartRepository implements ICartRepository {
       throw new Error('[Hive] Level 11 Backpressure: Active buffer saturated. System throttling writes to prevent OOM.');
     }
     this.activeBuffer.set(userId, null);
+    await this.flushBufferToDisk();
   }
 
   // BroccoliQ Level 4: Atomic Flush Synchronization
@@ -77,7 +103,12 @@ export class SQLiteCartRepository implements ICartRepository {
   }
 
   private async flushBufferToDisk() {
-    if (this.isFlushing || this.activeBuffer.size === 0) return;
+    if (this.isFlushing) {
+      while (this.isFlushing) {
+        await new Promise(r => setTimeout(r, 10));
+      }
+    }
+    if (this.activeBuffer.size === 0) return;
     
     this.isFlushing = true;
     

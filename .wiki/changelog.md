@@ -1,5 +1,105 @@
 # Changelog
 
+## 2026-04-26 — Sixth deep audit pass: cart flush wait semantics, persisted JSON parse containment, and stock compare-and-swap
+
+### Problem verified
+
+- `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts::flushBufferToDisk()` returned immediately when another flush was already running, so a concurrent `save()` / `clear()` could acknowledge before the caller's write-through flush actually persisted.
+- `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts` and `src/infrastructure/repositories/sqlite/SQLiteOrderRepository.ts` added shape validation, but invalid JSON syntax in persisted fields could still escape as raw `SyntaxError` instead of controlled `DomainError` messages.
+- `src/infrastructure/repositories/sqlite/SQLiteProductRepository.ts::updateStock()` and `batchUpdateStock()` performed read-then-write stock updates without checking that the row's stock value was unchanged at update time, leaving a lost-update risk under concurrent writers.
+
+### Remediation performed
+
+- Updated `SQLiteCartRepository.ts::flushBufferToDisk()` to wait while a flush is in progress instead of returning immediately, then re-check the active buffer before exiting.
+- Wrapped persisted cart JSON parsing in `SQLiteCartRepository.ts` with controlled `DomainError('Stored cart data is invalid JSON.')` handling.
+- Wrapped persisted order item/address JSON parsing in `SQLiteOrderRepository.ts` with controlled `DomainError` handling for invalid JSON syntax.
+- Updated `SQLiteProductRepository.ts::updateStock()` and `batchUpdateStock()` to add a `where('stock', '=', product.stock)` compare-and-swap predicate and verify exactly one row was updated; failed compare-and-swap attempts now surface as `InsufficientStockError` rather than silently overwriting concurrent stock changes.
+
+### Verification evidence
+
+- `npm run lint && npm run build` completed successfully after this pass.
+- The successful build completed Next.js production compilation, TypeScript validation, page-data collection, static generation for 22 app routes, and retained dynamic API routes for cart, order, and product flows.
+
+### Files intentionally changed in this pass
+
+- `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts`
+- `src/infrastructure/repositories/sqlite/SQLiteOrderRepository.ts`
+- `src/infrastructure/repositories/sqlite/SQLiteProductRepository.ts`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Domain remained unchanged; Infrastructure now applies stronger adapter-level concurrency and persistence safeguards before exposing data to Core.
+- The stock compare-and-swap checks preserve repository contract behavior while reducing oversell/lost-update risk in SQLite writes.
+
+## 2026-04-26 — Fifth deep audit pass: cart write-through durability and stored JSON shape validation
+
+### Problem verified
+
+- `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts` acknowledged `save()` and `clear()` after staging cart mutations in memory; persistence depended on a later one-second flush loop, leaving a crash/window risk for cart writes and checkout cart clearing.
+- `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts` parsed stored cart item JSON with an unchecked `JSON.parse(row.items)` result.
+- `src/infrastructure/repositories/sqlite/SQLiteOrderRepository.ts` parsed stored `items` and `shippingAddress` JSON with unchecked `JSON.parse(...)` and cast `row.status as OrderStatus`, allowing corrupted persisted rows to hydrate into Domain models without shape validation.
+
+### Remediation performed
+
+- Updated `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts` so `save()` and `clear()` call `flushBufferToDisk()` before returning, converting cart write acknowledgement into write-through persistence while keeping the existing buffer/flush loop as a coalescing fallback.
+- Added cart item runtime guards in `SQLiteCartRepository.ts`; stored cart items must be an array of objects with string `productId`, string `name`, integer `priceSnapshot`, integer `quantity`, and string `imageUrl`, otherwise a controlled `DomainError` is thrown.
+- Added order item, address, and order-status runtime guards in `SQLiteOrderRepository.ts`; stored order rows now validate item arrays, shipping address shape, and allowed order status strings before returning a Domain `Order`.
+
+### Verification evidence
+
+- `npm run lint && npm run build` completed successfully after this pass.
+- The successful build completed Next.js production compilation, TypeScript validation, page-data collection, static generation for 22 app routes, and retained dynamic API routes for `/api/cart`, `/api/cart/items`, and `/api/orders`.
+
+### Files intentionally changed in this pass
+
+- `src/infrastructure/repositories/sqlite/SQLiteCartRepository.ts`
+- `src/infrastructure/repositories/sqlite/SQLiteOrderRepository.ts`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Domain remained unchanged; Infrastructure performs defensive hydration validation before returning persisted JSON as Domain models.
+- Cart persistence remains inside the SQLite repository adapter; UI and Core service contracts did not change.
+
+## 2026-04-26 — Fourth deep audit pass: trusted checkout wiring, durable checkout locks, and malformed JSON containment
+
+### Problem verified
+
+- `src/core/container.ts` still constructed `OrderService` without `TrustedCheckoutGateway`, so the trusted checkout adapter was hardened but not wired into the production singleton/factory service graph when `CHECKOUT_ENDPOINT` was configured.
+- `src/core/container.ts` also relied on the `OrderService` default in-memory lock provider, which does not coordinate checkout mutual exclusion across server processes even though `src/infrastructure/sqlite/SovereignLocker.ts` implements the Domain `ILockProvider` contract against SQLite.
+- `src/infrastructure/server/apiGuards.ts::readJsonObject()` bounded request size but `JSON.parse()` exceptions could still escape as unexpected errors rather than a controlled `DomainError` response for malformed JSON.
+- `src/infrastructure/services/TrustedCheckoutGateway.ts` accepted endpoint strings without explicit URL parse error handling, protocol allow-listing, credential rejection, network/timeout error normalization, or response content-type validation.
+
+### Remediation performed
+
+- Updated `src/core/container.ts` to import and wire `TrustedCheckoutGateway` when `process.env.CHECKOUT_ENDPOINT` is present.
+- Updated `src/core/container.ts` to inject `SovereignLocker` into both factory-created and singleton-created `OrderService` instances, replacing the fallback in-memory checkout lock for composed services with a SQLite-backed `ILockProvider`.
+- Added singleton caches in `src/core/container.ts` for `ILockProvider` and optional `ICheckoutGateway` to keep production service composition stable across requests.
+- Updated `src/infrastructure/server/apiGuards.ts` so malformed JSON parse failures are converted into `DomainError('Request body must be valid JSON.')`.
+- Further hardened `src/infrastructure/services/TrustedCheckoutGateway.ts` by validating endpoint URL construction, allowing only `http:`/`https:` protocols, rejecting embedded URL credentials, mapping aborts to timeout-specific `PaymentFailedError`, mapping other fetch failures to a generic reachability error, and requiring an `application/json` response before order parsing.
+
+### Verification evidence
+
+- `npm run lint && npm run build` completed successfully after this pass.
+- The successful build completed Next.js production compilation, TypeScript validation, page-data collection, static generation for 22 app routes, and retained `/api/orders` as a dynamic route.
+
+### Files intentionally changed in this pass
+
+- `src/core/container.ts`
+- `src/infrastructure/server/apiGuards.ts`
+- `src/infrastructure/services/TrustedCheckoutGateway.ts`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Domain contracts remained unchanged; existing `ILockProvider` and `ICheckoutGateway` contracts were used rather than adding Infrastructure concerns to Domain.
+- Core remains the composition root and wires Infrastructure adapters through dependency injection.
+- Infrastructure owns durable SQLite locking, transport parsing, outbound trusted checkout I/O, and external response validation.
+
 ## 2026-04-26 — Third deep audit pass: checkout idempotency propagation, bounded JSON bodies, origin checks, and trusted checkout response validation
 
 ### Problem verified

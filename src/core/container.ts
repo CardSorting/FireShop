@@ -59,6 +59,8 @@ import { SQLiteCartRepository } from '@infrastructure/repositories/sqlite/SQLite
 import { SQLiteOrderRepository } from '@infrastructure/repositories/sqlite/SQLiteOrderRepository';
 import { SQLiteAuthAdapter } from '@infrastructure/services/SQLiteAuthAdapter';
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
+import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
+import { SovereignLocker } from '@infrastructure/sqlite/SovereignLocker';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
@@ -69,6 +71,8 @@ import type {
   IOrderRepository,
   IAuthProvider,
   IPaymentProcessor,
+  ILockProvider,
+  ICheckoutGateway,
 } from '@domain/repositories';
 
 // Singleton caches for production (Pattern 2 - getInitialServices)
@@ -80,6 +84,12 @@ let productRepoInstance: IProductRepository | null = null;
 let cartRepoInstance: ICartRepository | null = null;
 let orderRepoInstance: IOrderRepository | null = null;
 let paymentProcessorInstance: IPaymentProcessor | null = null;
+let lockProviderInstance: ILockProvider | null = null;
+let checkoutGatewayInstance: ICheckoutGateway | null = null;
+
+function createCheckoutGateway(): ICheckoutGateway | undefined {
+  return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
+}
 
 /**
  * Helper to create the correct repository based on provider
@@ -114,7 +124,9 @@ export function getServiceContainer() {
       orderRepo,
       productRepo,
       cartRepo,
-      new StripePaymentProcessor()
+      new StripePaymentProcessor(),
+      new SovereignLocker(),
+      createCheckoutGateway()
     ),
   };
 }
@@ -148,6 +160,14 @@ export function getInitialServices() {
     paymentProcessorInstance = new StripePaymentProcessor();
   }
 
+  if (!lockProviderInstance) {
+    lockProviderInstance = new SovereignLocker();
+  }
+
+  if (!checkoutGatewayInstance && process.env.CHECKOUT_ENDPOINT) {
+    checkoutGatewayInstance = new TrustedCheckoutGateway();
+  }
+
   return {
     authProvider: authProviderInstance!,
     authService: authServiceInstance,
@@ -157,7 +177,9 @@ export function getInitialServices() {
       orderRepoInstance!,
       productRepoInstance!,
       cartRepoInstance!,
-      paymentProcessorInstance
+      paymentProcessorInstance,
+      lockProviderInstance,
+      checkoutGatewayInstance ?? undefined
     ),
   };
 }

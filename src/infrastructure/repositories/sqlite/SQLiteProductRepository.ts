@@ -228,11 +228,16 @@ export class SQLiteProductRepository implements IProductRepository {
       const nextStock = product.stock + delta;
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), product.stock);
 
-      await trx
+      const result = await trx
         .updateTable('products')
         .set({ stock: nextStock, updatedAt: new Date().toISOString() })
         .where('id', '=', id)
+        .where('stock', '=', product.stock)
         .execute();
+
+      if (Number(result[0]?.numUpdatedRows ?? 0) !== 1) {
+        throw new InsufficientStockError(id, Math.abs(delta), product.stock);
+      }
     });
     this.invalidateIndex();
   }
@@ -260,11 +265,16 @@ export class SQLiteProductRepository implements IProductRepository {
         const nextStock = product.stock + update.delta;
         if (nextStock < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
 
-        await trx
+        const result = await trx
           .updateTable('products')
           .set({ stock: nextStock, updatedAt: new Date().toISOString() })
           .where('id', '=', update.id)
+          .where('stock', '=', product.stock)
           .execute();
+
+        if (Number(result[0]?.numUpdatedRows ?? 0) !== 1) {
+          throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
+        }
       }
     });
 
