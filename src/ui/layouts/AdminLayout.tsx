@@ -60,12 +60,20 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   },
   {
+    title: 'Insights',
+    items: [
+      { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+    ]
+  },
+  {
     title: 'Marketing',
     items: [
       { href: '/admin/discounts', label: 'Discounts', icon: Megaphone },
     ]
   }
 ];
+
+import { BarChart3 } from 'lucide-react';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();

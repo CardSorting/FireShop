@@ -58,6 +58,8 @@ export function AdminCustomers() {
   const [segment, setSegment] = useState('all');
   const [loading] = useState(false);
 
+  const [selectedCustomer, setSelectedCustomer] = useState<typeof MOCK_CUSTOMERS[0] | null>(null);
+
   const filtered = useMemo(() => {
     const needle = normalizeSearch(query);
     return MOCK_CUSTOMERS.filter(c => {
@@ -83,13 +85,21 @@ export function AdminCustomers() {
         title="Customers" 
         subtitle="Manage your customer base and track lifetime value"
         actions={
-          <button 
-            onClick={() => toast('info', 'Exporting customers...')}
-            className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
-          >
-            <Download className="h-3.5 w-3.5 text-gray-400" />
-            Export CSV
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => toast('info', 'Exporting customers...')}
+              className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+            >
+              <Download className="h-3.5 w-3.5 text-gray-400" />
+              Export
+            </button>
+            <button 
+              className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Add Customer
+            </button>
+          </div>
         }
       />
 
@@ -105,98 +115,244 @@ export function AdminCustomers() {
         <AdminMetricCard label="New this week" value={1} icon={UserPlus} color="primary" />
       </div>
 
-      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-        {/* ── Tabs ── */}
-        <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
+      <div className="flex flex-col lg:flex-row gap-6">
+        {/* ── Segments Sidebar (Shopify Style) ── */}
+        <aside className="w-full lg:w-64 shrink-0 space-y-1">
+          <p className="px-3 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Segments</p>
           {SEGMENT_TABS.map((tab) => (
-            <AdminTab
+            <button
               key={tab.value}
-              label={tab.label}
-              count={tab.value === 'all' ? MOCK_CUSTOMERS.length : (counts[tab.value] || 0)}
-              active={segment === tab.value}
               onClick={() => setSegment(tab.value)}
-            />
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-colors ${segment === tab.value ? 'bg-primary-50 text-primary-700' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}`}
+            >
+              <div className="flex items-center gap-2">
+                <tab.icon className="h-4 w-4" />
+                {tab.label}
+              </div>
+              <span className="text-[10px] opacity-60">{counts[tab.value] || 0}</span>
+            </button>
           ))}
-        </div>
-
-        {/* ── Search & Filter Bar ── */}
-        <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input 
-              value={query} 
-              onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Search by name or email…" 
-              className="w-full rounded-lg border bg-gray-50 py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" 
-            />
+          <div className="pt-4 px-3">
+             <button className="flex items-center gap-2 text-[10px] font-bold text-primary-600 uppercase hover:underline">
+               <Plus className="h-3 w-3" />
+               Create Segment
+             </button>
           </div>
-          <button className="flex items-center gap-2 rounded-lg border bg-white px-3.5 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
-            <Filter className="h-3.5 w-3.5 text-gray-400" />
-            Advanced
-          </button>
-        </div>
+        </aside>
 
-        {/* ── Table ── */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Customer</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Status</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Orders</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Spent</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">Last Active</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((customer) => (
-                <tr key={customer.id} className="group cursor-pointer transition hover:bg-gray-50">
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold text-xs uppercase">
-                        {customer.name.slice(0, 2)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-gray-900">{customer.name}</p>
-                        <p className="truncate text-[10px] font-medium text-gray-500 uppercase tracking-wider">{customer.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      customer.segment === 'big_spender' ? 'bg-purple-100 text-purple-700' :
-                      customer.segment === 'active' ? 'bg-green-100 text-green-700' :
-                      customer.segment === 'new' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-600'
-                    }`}>
-                      {customer.segment.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 font-bold text-gray-900">
-                    {customer.orders}
-                  </td>
-                  <td className="px-4 py-3.5 font-bold text-gray-900 tracking-tight">
-                    {formatCurrency(customer.spent)}
-                  </td>
-                  <td className="px-4 py-3.5 text-right font-medium text-gray-500">
-                    <div className="flex items-center justify-end gap-2">
-                      <span>{customer.lastOrder ? formatShortDate(customer.lastOrder) : 'Never'}</span>
-                      <ChevronRight className="h-4 w-4 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <AdminEmptyState 
-              title="No customers found" 
-              description="Adjust your search or segment to find other customers." 
-              icon={User} 
-            />
-          )}
+        <div className="flex-1 space-y-4">
+          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+            {/* ── Search Bar ── */}
+            <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center border-b">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input 
+                  value={query} 
+                  onChange={(e) => setQuery(e.target.value)} 
+                  placeholder="Search customers by name, email, or tag…" 
+                  className="w-full rounded-lg border bg-gray-50 py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" 
+                />
+              </div>
+              <button className="flex items-center gap-2 rounded-lg border bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+                <Filter className="h-3.5 w-3.5 text-gray-400" />
+                Filters
+              </button>
+            </div>
+
+            {/* ── Table ── */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="w-12 px-4 py-3">
+                      <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Customer</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Status</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Orders</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Spent</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">Last Active</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map((customer) => (
+                    <tr 
+                      key={customer.id} 
+                      onClick={() => setSelectedCustomer(customer)}
+                      className="group cursor-pointer transition hover:bg-gray-50"
+                    >
+                      <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold text-[10px] uppercase shadow-sm border border-primary-200">
+                            {customer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-gray-900">{customer.name}</p>
+                            <p className="truncate text-[10px] font-medium text-gray-500 uppercase tracking-widest">{customer.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                          customer.segment === 'big_spender' ? 'bg-purple-100 text-purple-700' :
+                          customer.segment === 'active' ? 'bg-green-100 text-green-700' :
+                          customer.segment === 'new' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          <div className={`h-1 w-1 rounded-full ${
+                            customer.segment === 'big_spender' ? 'bg-purple-500' :
+                            customer.segment === 'active' ? 'bg-green-500' :
+                            customer.segment === 'new' ? 'bg-blue-500' : 'bg-gray-400'
+                          }`} />
+                          {customer.segment.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-bold text-gray-900">
+                        {customer.orders}
+                      </td>
+                      <td className="px-4 py-3.5 font-bold text-gray-900 tracking-tight">
+                        {formatCurrency(customer.spent)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-medium text-gray-500">
+                        <div className="flex items-center justify-end gap-2">
+                          <span>{customer.lastOrder ? formatShortDate(customer.lastOrder) : 'Never'}</span>
+                          <ChevronRight className="h-4 w-4 text-gray-300 transition-transform group-hover:translate-x-0.5" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <AdminEmptyState title="No customers found" description="Try a different search or segment." icon={User} />
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* ── Customer Detail Slide-over ── */}
+      {selectedCustomer && (
+        <>
+          <div className="fixed inset-0 z-60 bg-gray-900/40 backdrop-blur-sm" onClick={() => setSelectedCustomer(null)} />
+          <div className="fixed inset-y-0 right-0 z-70 w-full max-w-lg overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-right duration-300 border-l">
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold text-lg uppercase border border-primary-200">
+                  {selectedCustomer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 leading-tight">{selectedCustomer.name}</h2>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">{selectedCustomer.email}</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedCustomer(null)}
+                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-8">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl border bg-gray-50/50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Lifetime Spent</p>
+                  <p className="text-xl font-bold text-gray-900">{formatCurrency(selectedCustomer.spent)}</p>
+                </div>
+                <div className="rounded-xl border bg-gray-50/50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total Orders</p>
+                  <p className="text-xl font-bold text-gray-900">{selectedCustomer.orders}</p>
+                </div>
+              </div>
+
+              {/* Customer Details */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">About Customer</h3>
+                <div className="space-y-3 rounded-xl border p-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 font-medium">Customer ID</span>
+                    <span className="font-mono text-gray-900">{selectedCustomer.id}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 font-medium">Customer Since</span>
+                    <span className="text-gray-900">{formatShortDate(selectedCustomer.joined)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 font-medium">Last Ordered</span>
+                    <span className="text-gray-900">{selectedCustomer.lastOrder ? formatShortDate(selectedCustomer.lastOrder) : 'Never'}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 font-medium">Marketing Status</span>
+                    <span className="inline-flex items-center gap-1 text-green-600 font-bold">
+                      <Check className="h-3 w-3" /> Subscribed
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity simulated */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Recent Activity</h3>
+                <div className="relative space-y-6 pl-6">
+                  <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-gray-100" />
+                  
+                  {selectedCustomer.orders > 0 && (
+                    <div className="relative">
+                      <div className="absolute left-[-1.35rem] mt-1 h-3 w-3 rounded-full border-2 border-white bg-primary-500" />
+                      <p className="text-sm font-bold text-gray-900">Placed order #1042</p>
+                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">{selectedCustomer.lastOrder ? formatShortDate(selectedCustomer.lastOrder) : ''}</p>
+                      <div className="mt-2 rounded-lg border bg-gray-50 p-2.5 flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                           <ShoppingBag className="h-3.5 w-3.5 text-gray-400" />
+                           <span className="text-xs font-medium text-gray-700">3 items · {formatCurrency(selectedCustomer.spent / (selectedCustomer.orders || 1))}</span>
+                         </div>
+                         <ChevronRight className="h-3 w-3 text-gray-300" />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="relative">
+                    <div className="absolute left-[-1.35rem] mt-1 h-3 w-3 rounded-full border-2 border-white bg-gray-300" />
+                    <p className="text-sm font-bold text-gray-900">Customer account created</p>
+                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">{formatShortDate(selectedCustomer.joined)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes Section */}
+              <div className="space-y-4 pt-4 border-t">
+                 <div className="flex items-center justify-between">
+                   <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Admin Notes</h3>
+                   <button className="text-[10px] font-bold text-primary-600 uppercase tracking-widest hover:underline">Edit</button>
+                 </div>
+                 <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-4">
+                   <p className="text-xs text-amber-800 leading-relaxed italic">
+                     "Prefer standard shipping over express. Collecting vintage base set booster boxes."
+                   </p>
+                 </div>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex gap-3">
+              <button className="flex-1 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-100">
+                Send Email
+              </button>
+              <button className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-gray-800">
+                View Full Profile
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
+
+import { X, Check, Plus } from 'lucide-react';

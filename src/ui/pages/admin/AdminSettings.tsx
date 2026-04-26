@@ -78,6 +78,42 @@ export function AdminSettings() {
         <AdminTab label="Advanced" active={activeTab === 'advanced'} onClick={() => setActiveTab('advanced')} />
       </div>
 
+      {/* ── Setup Checklist ── */}
+      <section className="rounded-2xl border border-primary-100 bg-linear-to-br from-primary-50/50 to-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Setup Guide</h2>
+            <p className="mt-1 text-xs text-gray-500 font-medium">Complete these steps to launch your store successfully.</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs font-bold text-primary-600 uppercase">2 of 5 completed</p>
+            <div className="mt-1.5 h-1.5 w-32 rounded-full bg-primary-100 overflow-hidden">
+              <div className="h-full bg-primary-600 transition-all duration-1000" style={{ width: '40%' }} />
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            { label: 'Add your first product', completed: true },
+            { label: 'Configure store name', completed: true },
+            { label: 'Connect a payment provider', completed: false },
+            { label: 'Set up shipping rates', completed: false },
+            { label: 'Choose a custom domain', completed: false },
+          ].map((task, i) => (
+            <div key={i} className="flex items-center gap-3 rounded-lg border bg-white p-3 transition hover:shadow-sm">
+              {task.completed ? (
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              ) : (
+                <Circle className="h-4 w-4 text-gray-300" />
+              )}
+              <span className={`text-xs font-bold ${task.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                {task.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="grid gap-12">
         {/* ── Store Group ── */}
         {(activeTab === 'all' || activeTab === 'store') && (

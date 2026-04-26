@@ -15,7 +15,8 @@ import {
   XCircle,
   RotateCcw,
   Search,
-  Plus
+  Plus,
+  Truck
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { formatCurrency, normalizeSearch } from '@utils/formatters';
@@ -97,6 +98,8 @@ export function AdminInventory() {
     });
   }, [health, overview, query]);
 
+  const [activeSubTab, setActiveSubTab] = useState<'inventory' | 'transfers'>('inventory');
+
   if (loading) return <SkeletonPage />;
   
   const HEALTH_TABS = [
@@ -118,13 +121,20 @@ export function AdminInventory() {
         subtitle="Track stock levels and manage availability"
         actions={
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => toast('info', 'Creating Purchase Order...')}
+              className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+            >
+              <Truck className="h-3.5 w-3.5 text-gray-400" />
+              Create Transfer
+            </button>
             {!isBulkEditing ? (
               <button 
                 onClick={() => setIsBulkEditing(true)}
-                className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Bulk update
+                Update Stock
               </button>
             ) : (
               <>
@@ -139,7 +149,7 @@ export function AdminInventory() {
                   disabled={savingBulk || Object.keys(bulkChanges).length === 0}
                   className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50"
                 >
-                  {savingBulk ? 'Saving...' : 'Save changes'}
+                  {savingBulk ? 'Saving...' : 'Apply changes'}
                 </button>
               </>
             )}
@@ -147,128 +157,198 @@ export function AdminInventory() {
         }
       />
 
-      {/* ── KPI Grid ── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <AdminMetricCard label="Units on Hand" value={overview?.totalUnits ?? 0} icon={Activity} color="primary" />
-        <AdminMetricCard label="Inventory Value" value={formatCurrency(overview?.inventoryValue ?? 0)} icon={DollarSign} color="success" />
-        <AdminMetricCard label="Stock Health" value={`${healthyPct}%`} icon={CheckCircle2} color="success" description="Overall health score" />
-        <AdminMetricCard label="Needs Attention" value={(overview?.healthCounts.out_of_stock ?? 0) + (overview?.healthCounts.low_stock ?? 0)} icon={AlertTriangle} color="warning" />
+      {/* ── Sub Navigation ── */}
+      <div className="flex items-center gap-4 border-b">
+         <button 
+           onClick={() => setActiveSubTab('inventory')}
+           className={`pb-3 text-sm font-bold transition-colors relative ${activeSubTab === 'inventory' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-900'}`}
+         >
+           Inventory
+           {activeSubTab === 'inventory' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full" />}
+         </button>
+         <button 
+           onClick={() => setActiveSubTab('transfers')}
+           className={`pb-3 text-sm font-bold transition-colors relative ${activeSubTab === 'transfers' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-900'}`}
+         >
+           Transfers
+           {activeSubTab === 'transfers' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full" />}
+           <span className="ml-2 rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] text-primary-700">1</span>
+         </button>
       </div>
 
-      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-        {/* ── Tabs ── */}
-        <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
-          {HEALTH_TABS.map((tab) => (
-            <AdminTab
-              key={tab.value}
-              label={tab.label}
-              count={tab.count}
-              active={health === tab.value}
-              onClick={() => setHealth(tab.value as HealthFilter)}
-              icon={tab.icon}
-            />
-          ))}
-        </div>
-
-        {/* ── Distribution Bar ── */}
-        <div className="p-4 bg-gray-50/50 border-b">
-          <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-200">
-            <div className="bg-green-500 transition-all" style={{ width: `${healthyPct}%` }} />
-            <div className="bg-amber-500 transition-all" style={{ width: `${lowPct}%` }} />
-            <div className="bg-red-500 transition-all" style={{ width: `${oosPct}%` }} />
+      {activeSubTab === 'inventory' ? (
+        <>
+          {/* ── KPI Grid ── */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <AdminMetricCard label="Units on Hand" value={overview?.totalUnits ?? 0} icon={Activity} color="primary" />
+            <AdminMetricCard label="Inventory Value" value={formatCurrency(overview?.inventoryValue ?? 0)} icon={DollarSign} color="success" />
+            <AdminMetricCard label="Stock Health" value={`${healthyPct}%`} icon={CheckCircle2} color="success" description="Overall health score" />
+            <AdminMetricCard label="Needs Attention" value={(overview?.healthCounts.out_of_stock ?? 0) + (overview?.healthCounts.low_stock ?? 0)} icon={AlertTriangle} color="warning" />
           </div>
-          <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            <div className="flex gap-3">
-              <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-green-500" /> {healthyPct}% Healthy</span>
-              <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {lowPct}% Low</span>
-              <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-red-500" /> {oosPct}% Out</span>
+
+          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+            {/* ── Tabs ── */}
+            <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
+              {HEALTH_TABS.map((tab) => (
+                <AdminTab
+                  key={tab.value}
+                  label={tab.label}
+                  count={tab.count}
+                  active={health === tab.value}
+                  onClick={() => setHealth(tab.value as HealthFilter)}
+                  icon={tab.icon}
+                />
+              ))}
             </div>
-            <span>{overview?.totalUnits} units total</span>
-          </div>
-        </div>
 
-        {/* ── Search Bar ── */}
-        <div className="p-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input 
-              value={query} 
-              onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Search products by name or category…" 
-              className="w-full rounded-lg border bg-gray-50 py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" 
-            />
-          </div>
-        </div>
+            {/* ── Distribution Bar ── */}
+            <div className="p-4 bg-gray-50/50 border-b">
+              <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-200">
+                <div className="bg-green-500 transition-all" style={{ width: `${healthyPct}%` }} />
+                <div className="bg-amber-500 transition-all" style={{ width: `${lowPct}%` }} />
+                <div className="bg-red-500 transition-all" style={{ width: `${oosPct}%` }} />
+              </div>
+              <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                <div className="flex gap-3">
+                  <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-green-500" /> {healthyPct}% Healthy</span>
+                  <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {lowPct}% Low</span>
+                  <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-red-500" /> {oosPct}% Out</span>
+                </div>
+                <span>{overview?.totalUnits} units total</span>
+              </div>
+            </div>
 
-        {/* ── Table ── */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Product</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Health</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Quantity</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">Retail Value</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {products.map((p) => {
-                const currentStock = bulkChanges[p.id] !== undefined ? bulkChanges[p.id] : p.stock;
-                const isChanged = bulkChanges[p.id] !== undefined && bulkChanges[p.id] !== p.stock;
+            {/* ── Search & Bulk Context Bar ── */}
+            <div className="p-4 flex items-center justify-between gap-4">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input 
+                  value={query} 
+                  onChange={(e) => setQuery(e.target.value)} 
+                  placeholder="Search products by name or category…" 
+                  className="w-full rounded-lg border bg-gray-50 py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" 
+                />
+              </div>
+              {isBulkEditing && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Reason:</span>
+                  <select className="rounded-lg border bg-gray-50 px-3 py-1.5 text-[10px] font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary-500">
+                    <option>Cycle Count</option>
+                    <option>Damaged</option>
+                    <option>Correction</option>
+                    <option>Received from Supplier</option>
+                  </select>
+                </div>
+              )}
+            </div>
 
-                return (
-                  <tr key={p.id} className="group transition hover:bg-gray-50">
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-3">
-                        <img src={p.imageUrl} alt="" className="h-10 w-10 rounded border object-cover bg-gray-50" />
-                        <div className="min-w-0">
-                          <p className="font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
-                          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{p.category}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <AdminStatusBadge status={p.inventoryHealth} type="inventory" />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      {isBulkEditing ? (
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number"
-                            value={currentStock}
-                            onChange={(e) => setBulkChanges({ ...bulkChanges, [p.id]: parseInt(e.target.value) || 0 })}
-                            className={`w-20 rounded border bg-white px-2 py-1 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${isChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
-                          />
-                          {isChanged && <button onClick={() => {
-                            const next = { ...bulkChanges };
-                            delete next[p.id];
-                            setBulkChanges(next);
-                          }} className="text-primary-600 hover:text-primary-700"><RotateCcw className="h-3.5 w-3.5" /></button>}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${p.stock < 5 ? 'text-amber-600' : 'text-gray-900'}`}>{p.stock}</span>
-                          <span className="text-[10px] text-gray-400 font-bold uppercase">Units</span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
-                      {formatCurrency(currentStock * p.price)}
-                    </td>
+            {/* ── Table ── */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Product</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Health</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Quantity</th>
+                    <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">Retail Value</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {products.length === 0 && (
-            <AdminEmptyState 
-              title="No products found" 
-              description="Adjust your search or filters to see more inventory items."
-              icon={Boxes}
-            />
-          )}
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {products.map((p) => {
+                    const currentStock = bulkChanges[p.id] !== undefined ? bulkChanges[p.id] : p.stock;
+                    const isChanged = bulkChanges[p.id] !== undefined && bulkChanges[p.id] !== p.stock;
+
+                    return (
+                      <tr key={p.id} className="group transition hover:bg-gray-50">
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <img src={p.imageUrl} alt="" className="h-10 w-10 rounded border object-cover bg-gray-50" />
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
+                              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{p.category}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <AdminStatusBadge status={p.inventoryHealth} type="inventory" />
+                        </td>
+                        <td className="px-4 py-3.5">
+                          {isBulkEditing ? (
+                            <div className="flex items-center gap-2">
+                              <input 
+                                type="number"
+                                value={currentStock}
+                                onChange={(e) => setBulkChanges({ ...bulkChanges, [p.id]: parseInt(e.target.value) || 0 })}
+                                className={`w-20 rounded border bg-white px-2 py-1 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${isChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
+                              />
+                              {isChanged && <button onClick={() => {
+                                const next = { ...bulkChanges };
+                                delete next[p.id];
+                                setBulkChanges(next);
+                              }} className="text-primary-600 hover:text-primary-700"><RotateCcw className="h-3.5 w-3.5" /></button>}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold ${p.stock < 5 ? 'text-amber-600' : 'text-gray-900'}`}>{p.stock}</span>
+                              <span className="text-[10px] text-gray-400 font-bold uppercase">Units</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
+                          {formatCurrency(currentStock * p.price)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {products.length === 0 && (
+                <AdminEmptyState 
+                  title="No products found" 
+                  description="Adjust your search or filters to see more inventory items."
+                  icon={Boxes}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      ) : (
+        /* ── Transfers View ── */
+        <div className="rounded-xl border bg-white p-12 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary-50 text-primary-600 mb-4">
+             <Truck className="h-8 w-8" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">Incoming Stock</h3>
+          <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto">
+            You have **1 transfer** arriving soon from "Kanto Distribution". 
+            Track and receive incoming inventory here.
+          </p>
+          <div className="mt-8 overflow-hidden rounded-xl border max-w-2xl mx-auto text-left">
+             <div className="flex items-center justify-between border-b bg-gray-50 px-6 py-4">
+               <div>
+                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Transfer #TR-8042</p>
+                 <p className="text-sm font-bold text-gray-900">Kanto Distribution</p>
+               </div>
+               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700 uppercase">In Transit</span>
+             </div>
+             <div className="p-6 flex items-center justify-between">
+                <div className="flex gap-4">
+                   <div className="text-center">
+                     <p className="text-xl font-bold text-gray-900">120</p>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase">Ordered</p>
+                   </div>
+                   <div className="text-center">
+                     <p className="text-xl font-bold text-gray-400">0</p>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase">Received</p>
+                   </div>
+                </div>
+                <button className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-gray-800 transition">
+                  Receive Items
+                </button>
+             </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

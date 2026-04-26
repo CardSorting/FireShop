@@ -427,11 +427,100 @@ export function AdminProducts() {
         onClear={() => setSelectedIds(new Set())}
         actions={
           <>
-            <button onClick={() => toast('info', 'Bulk update coming soon')} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition">Edit prices</button>
+            <button 
+              onClick={() => setIsBulkEditing(true)} 
+              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition"
+            >
+              Update prices
+            </button>
             <button onClick={bulkDelete} className="rounded-lg bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-200 hover:bg-red-500/30 transition border border-red-500/30">Delete</button>
           </>
         }
       />
+
+      {/* ── Bulk Price Editor Slide-over ── */}
+      {isBulkEditing && (
+        <>
+          <div className="fixed inset-0 z-60 bg-gray-900/40 backdrop-blur-sm" onClick={() => setIsBulkEditing(false)} />
+          <div className="fixed inset-y-0 right-0 z-70 w-full max-w-2xl overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-right duration-300 border-l">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Bulk Price Editor</h2>
+                <p className="text-xs text-gray-500">Updating {selectedIds.size} products</p>
+              </div>
+              <button 
+                onClick={() => setIsBulkEditing(false)}
+                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-0">
+               <table className="w-full text-sm">
+                 <thead className="bg-gray-50 border-b sticky top-[68px] z-10">
+                   <tr>
+                     <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Product</th>
+                     <th className="px-6 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400 w-32">New Price</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-gray-100">
+                   {products.filter(p => selectedIds.has(p.id)).map(p => {
+                     const currentPrice = bulkChanges[p.id]?.price ?? p.price;
+                     const isChanged = bulkChanges[p.id]?.price !== undefined;
+                     
+                     return (
+                       <tr key={p.id} className="group hover:bg-gray-50/50">
+                         <td className="px-6 py-4">
+                           <div className="flex items-center gap-3">
+                             <img src={p.imageUrl} alt="" className="h-8 w-8 rounded border object-cover" />
+                             <span className="text-xs font-bold text-gray-900 truncate max-w-[240px]">{p.name}</span>
+                           </div>
+                         </td>
+                         <td className="px-6 py-4">
+                           <div className="relative">
+                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                             <input 
+                               type="number"
+                               value={currentPrice}
+                               onChange={(e) => setBulkChanges({
+                                 ...bulkChanges,
+                                 [p.id]: { stock: p.stock, price: parseFloat(e.target.value) || 0 }
+                               })}
+                               className={`w-full rounded-lg border bg-white py-1.5 pl-6 pr-2 text-xs font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${isChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
+                             />
+                           </div>
+                         </td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex items-center justify-between">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                {Object.keys(bulkChanges).length} items changed
+              </p>
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => { setIsBulkEditing(false); setBulkChanges({}); }}
+                  className="rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleBulkSave}
+                  disabled={savingBulk || Object.keys(bulkChanges).length === 0}
+                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {savingBulk ? 'Saving...' : 'Apply changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <AdminConfirmDialog
         open={!!deleteCandidate}

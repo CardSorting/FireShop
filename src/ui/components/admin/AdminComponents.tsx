@@ -754,3 +754,63 @@ export function AdminNotificationBell() {
   );
 }
 
+
+/* ═══════════════════════════════════════════════════════
+   AREA CHART — High-fidelity data visualization
+   ═══════════════════════════════════════════════════════ */
+
+export function AdminAreaChart({ data, height = 200, color = 'primary' }: { data: { label: string; value: number }[], height?: number, color?: 'primary' | 'success' | 'info' }) {
+  const max = Math.max(...data.map(d => d.value));
+  const min = Math.min(...data.map(d => d.value));
+  const range = max - min;
+  const width = 1000;
+  
+  const points = data.map((d, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((d.value - min) / (range || 1)) * height;
+    return `${x},${y}`;
+  }).join(' ');
+
+  const colors = {
+    primary: 'stroke-primary-500 fill-primary-500 text-primary-500/20',
+    success: 'stroke-green-500 fill-green-500 text-green-500/20',
+    info: 'stroke-blue-500 fill-blue-500 text-blue-500/20',
+  };
+
+  return (
+    <div className="relative w-full overflow-hidden" style={{ height }}>
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" className="h-full w-full overflow-visible">
+        <defs>
+          <linearGradient id={`gradient-${color}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" className={color === 'primary' ? 'text-primary-500/20' : color === 'success' ? 'text-green-500/20' : 'text-blue-500/20'} />
+            <stop offset="100%" stopColor="currentColor" className={color === 'primary' ? 'text-primary-500/0' : color === 'success' ? 'text-green-500/0' : 'text-blue-500/0'} />
+          </linearGradient>
+        </defs>
+        <path 
+          d={`M 0,${height} L ${points} L ${width},${height} Z`} 
+          fill={`url(#gradient-${color})`}
+          className={colors[color]}
+        />
+        <polyline 
+          fill="none" 
+          strokeWidth="3" 
+          strokeLinecap="round" 
+          strokeLinejoin="round" 
+          points={points} 
+          className={colors[color].split(' ')[0]} 
+        />
+      </svg>
+      <div className="absolute inset-0 flex">
+        {data.map((d, i) => (
+          <div key={i} className="group relative flex-1 h-full cursor-crosshair">
+            <div className="absolute inset-y-0 left-1/2 w-px bg-gray-200 opacity-0 group-hover:opacity-100" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10 whitespace-nowrap rounded-lg bg-gray-900 px-3 py-1.5 text-[10px] font-bold text-white shadow-xl">
+              <p className="text-[8px] text-gray-400 font-medium uppercase tracking-widest mb-0.5">${d.label}</p>
+              <p>{formatCurrency(d.value)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

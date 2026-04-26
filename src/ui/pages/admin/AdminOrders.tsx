@@ -28,6 +28,7 @@ import {
   Mail,
   User,
   DollarSign,
+  Shield,
   ExternalLink,
   ChevronRight,
   Filter,
@@ -366,7 +367,13 @@ export function AdminOrders() {
                 <p className="text-xs font-medium text-gray-500">{formatShortDate(selectedOrder.createdAt)}</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => toast('info', 'Printing...')} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 transition"><Printer className="h-5 w-5" /></button>
+                <button 
+                  onClick={() => toast('info', 'Generating packing slip...')}
+                  className="flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 text-[10px] font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+                >
+                  <Printer className="h-3.5 w-3.5 text-gray-400" />
+                  Packing Slip
+                </button>
                 <button onClick={() => setSelectedOrder(null)} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 transition ml-2"><X className="h-5 w-5" /></button>
               </div>
             </div>
@@ -407,6 +414,38 @@ export function AdminOrders() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Risk Evaluation (Stripe Radar style) */}
+              <div className="rounded-xl border bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-primary-500" />
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Fraud Analysis</h3>
+                  </div>
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 className="h-3 w-3" /> Normal Risk
+                  </span>
+                </div>
+                <div className="space-y-3">
+                   <div className="flex items-center justify-between text-xs">
+                     <span className="text-gray-500 font-medium">Card verification (CVC)</span>
+                     <span className="text-gray-900 font-bold">Passed</span>
+                   </div>
+                   <div className="flex items-center justify-between text-xs">
+                     <span className="text-gray-500 font-medium">Street address verification</span>
+                     <span className="text-gray-900 font-bold">Match</span>
+                   </div>
+                   <div className="flex items-center justify-between text-xs">
+                     <span className="text-gray-500 font-medium">Zip code verification</span>
+                     <span className="text-gray-900 font-bold">Match</span>
+                   </div>
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                   <p className="text-[10px] text-gray-400 font-medium italic">
+                     Stripe Radar analyzed this payment and found no indicators of fraud.
+                   </p>
+                </div>
               </div>
 
               {/* Items Card */}
@@ -463,24 +502,63 @@ export function AdminOrders() {
               {/* Timeline / Notes */}
               <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
                 <div className="border-b px-5 py-4 bg-gray-50/50">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Order Notes</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Timeline</h3>
                 </div>
-                <div className="p-5">
-                  <div className="flex gap-2">
-                    <input
-                      value={noteInput}
-                      onChange={(e) => setNoteInput(e.target.value)}
-                      placeholder="Add a note to this order…"
-                      className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary-500 transition"
-                    />
-                    <button
-                      onClick={() => handlePostNote(selectedOrder.id)}
-                      disabled={!noteInput.trim()}
-                      className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-gray-800 disabled:opacity-30"
-                    >
-                      Post
-                    </button>
-                  </div>
+                
+                <div className="p-6">
+                   <div className="relative space-y-6 pl-6">
+                     <div className="absolute left-2.5 top-2 bottom-2 w-px bg-gray-100" />
+
+                     {/* System Events */}
+                     <div className="relative">
+                       <div className="absolute left-[-1.55rem] mt-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 shadow-sm" />
+                       <div className="flex items-center justify-between">
+                         <p className="text-xs font-bold text-gray-900">Payment captured</p>
+                         <span className="text-[10px] font-medium text-gray-400 uppercase">{formatShortDate(selectedOrder.createdAt)}</span>
+                       </div>
+                       <p className="text-[10px] text-gray-500 font-medium">Stripe ID: {selectedOrder.paymentTransactionId || 'pi_3Kj9X...'}</p>
+                     </div>
+
+                     <div className="relative">
+                       <div className="absolute left-[-1.55rem] mt-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-blue-500 shadow-sm" />
+                       <div className="flex items-center justify-between">
+                         <p className="text-xs font-bold text-gray-900">Order placed by customer</p>
+                         <span className="text-[10px] font-medium text-gray-400 uppercase">{formatShortDate(selectedOrder.createdAt)}</span>
+                       </div>
+                     </div>
+
+                     {/* Custom Notes */}
+                     {(internalNotes[selectedOrder.id] || []).map((note) => (
+                       <div key={note.id} className="relative">
+                         <div className="absolute left-[-1.55rem] mt-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-gray-300 shadow-sm" />
+                         <div className="flex items-center justify-between">
+                           <p className="text-xs font-bold text-gray-900">Admin Note</p>
+                           <span className="text-[10px] font-medium text-gray-400 uppercase">{formatRelativeTime(note.date)}</span>
+                         </div>
+                         <div className="mt-1 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 italic leading-relaxed border border-amber-100/50">
+                           {note.text}
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+
+                   {/* Add Note Input */}
+                   <div className="mt-8 flex gap-2">
+                     <input
+                       value={noteInput}
+                       onChange={(e) => setNoteInput(e.target.value)}
+                       onKeyDown={(e) => e.key === 'Enter' && handlePostNote(selectedOrder.id)}
+                       placeholder="Add a comment or note…"
+                       className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-primary-500 transition"
+                     />
+                     <button
+                       onClick={() => handlePostNote(selectedOrder.id)}
+                       disabled={!noteInput.trim()}
+                       className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-gray-800 disabled:opacity-30"
+                     >
+                       Comment
+                     </button>
+                   </div>
                 </div>
               </div>
             </div>

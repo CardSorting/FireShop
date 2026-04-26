@@ -294,19 +294,66 @@ export function AdminProductForm() {
             </div>
           </section>
 
-          {/* Inventory */}
+          {/* Inventory & Shipping */}
           <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Inventory</h2>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Quantity Available</label>
-              <input
-                name="stock"
-                type="number"
-                value={form.stock}
-                onChange={handleChange}
-                required
-                className="w-32 rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition"
-              />
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">Inventory & Shipping</h2>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">Quantity Available</label>
+                <input
+                  name="stock"
+                  type="number"
+                  value={form.stock}
+                  onChange={handleChange}
+                  required
+                  className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1.5">SKU (Stock Keeping Unit)</label>
+                <input
+                  name="sku"
+                  placeholder="PM-1024-BS"
+                  className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition"
+                />
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t">
+               <label className="flex items-center gap-2 cursor-pointer">
+                 <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                 <span className="text-xs font-bold text-gray-700">Track quantity</span>
+               </label>
+            </div>
+          </section>
+
+          {/* Variants */}
+          <section className="rounded-xl border bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Variants</h2>
+              <button type="button" className="text-[10px] font-bold text-primary-600 uppercase hover:underline">Add Options</button>
+            </div>
+            <div className="rounded-lg border-2 border-dashed bg-gray-50/50 p-6 text-center">
+              <Plus className="h-6 w-6 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs text-gray-500 font-medium">Add variants if this product has multiple options like condition or language.</p>
+            </div>
+          </section>
+
+          {/* Search Engine Listing Preview (SEO) */}
+          <section className="rounded-xl border bg-white overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between border-b bg-gray-50/50 px-5 py-4">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Search engine listing preview</h2>
+              <button type="button" className="text-[10px] font-bold text-primary-600 uppercase hover:underline">Edit SEO</button>
+            </div>
+            <div className="p-5 space-y-2">
+              <p className="text-sm font-medium text-[#1a0dab] hover:underline cursor-pointer truncate max-w-full">
+                {form.name || 'Your Product Title'} | PlayMoreTCG
+              </p>
+              <p className="text-xs text-[#006621] truncate">
+                https://playmoretcg.com/products/{(form.name || 'product-handle').toLowerCase().replace(/\s+/g, '-')}
+              </p>
+              <p className="text-xs text-[#4d5156] line-clamp-2 leading-relaxed">
+                {form.description || 'Add a description to see how this product might appear in search engine listings.'}
+              </p>
             </div>
           </section>
         </div>
@@ -371,6 +418,13 @@ export function AdminProductForm() {
                     <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1.5">Tags</label>
+                <input
+                  placeholder="Vintage, Holo, Charizard..."
+                  className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition"
+                />
               </div>
             </div>
           </section>
