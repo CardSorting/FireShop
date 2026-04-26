@@ -1,5 +1,57 @@
 # Changelog
 
+## 2026-04-26 — Third deep audit pass: checkout idempotency propagation, bounded JSON bodies, origin checks, and trusted checkout response validation
+
+### Problem verified
+
+- `src/core/OrderService.ts` generated a fresh trusted-checkout idempotency key for each finalization attempt, so the UI/API path could not preserve one stable retry key across refresh/retry of the same checkout attempt.
+- `src/app/api/orders/route.ts` parsed checkout requests without accepting or forwarding an optional client attempt idempotency key.
+- `src/infrastructure/server/apiGuards.ts::readJsonObject()` accepted JSON bodies without an explicit body-size ceiling, content-type enforcement, or same-origin mutation check for cookie-authenticated write requests.
+- `src/infrastructure/services/TrustedCheckoutGateway.ts` called the configured checkout endpoint without a timeout/abort signal, without enforcing HTTPS for production endpoints, and returned `response.json()` as `Order` without validating the external response shape.
+- `src/ui/pages/CheckoutPage.tsx` did not retain a stable checkout-attempt key for the lifecycle of a payment authorization/finalization attempt.
+
+### Remediation performed
+
+- Updated `src/core/OrderService.ts` so `finalizeTrustedCheckout()` and `placeOrder()` accept an optional `idempotencyKey`; Core now forwards a supplied key to either the trusted checkout gateway or the payment processor while preserving UUID fallback behavior when no key is supplied.
+- Updated `src/app/api/orders/route.ts` to read `idempotencyKey` from `parseCheckoutRequest()` and pass it into `orderService.placeOrder()`.
+- Extended `src/infrastructure/server/apiGuards.ts` with:
+  - `MAX_JSON_BODY_BYTES` set to `32 * 1024` for request body bounds.
+  - `assertTrustedMutationOrigin()` for same-origin validation on non-GET/HEAD/OPTIONS requests when an `Origin` header is present.
+  - content-type enforcement for JSON body parsing.
+  - raw body byte-length validation before JSON parsing.
+  - `parseIdempotencyKey()` with the accepted pattern `/^[a-zA-Z0-9:_-]{16,160}$/`.
+  - `parseCheckoutRequest()` returning optional `idempotencyKey` in addition to `shippingAddress` and `paymentMethodId`.
+- Hardened `src/infrastructure/services/TrustedCheckoutGateway.ts` with:
+  - a `15_000` ms abort timeout for trusted checkout fetches.
+  - production HTTPS enforcement for `CHECKOUT_ENDPOINT`.
+  - runtime validation of returned order status, address, items, totals, payment transaction id, and timestamps before converting the external payload to a Domain `Order`.
+- Updated `src/ui/apiClientServices.ts` so `finalizeTrustedCheckout()` and `placeOrder()` can transmit an optional `idempotencyKey` to `/api/orders`.
+- Updated `src/ui/pages/CheckoutPage.tsx` to create a stable `checkout-ui:${crypto.randomUUID()}` key in a `useRef`, send it with checkout finalization, and rotate it only after an order is confirmed.
+
+### Verification evidence
+
+- `npm run lint && npm run build` completed successfully after the hardening pass.
+- The successful build completed Next.js production compilation, TypeScript validation, page-data collection, static page generation for 22 app routes, and listed dynamic API routes including `/api/orders`.
+- `git --no-pager diff -- src/core/OrderService.ts src/infrastructure/server/apiGuards.ts src/app/api/orders/route.ts src/infrastructure/services/TrustedCheckoutGateway.ts src/ui/apiClientServices.ts src/ui/pages/CheckoutPage.tsx` verified the exact modified source files for this pass.
+
+### Files intentionally changed in this pass
+
+- `src/core/OrderService.ts`
+- `src/infrastructure/server/apiGuards.ts`
+- `src/app/api/orders/route.ts`
+- `src/infrastructure/services/TrustedCheckoutGateway.ts`
+- `src/ui/apiClientServices.ts`
+- `src/ui/pages/CheckoutPage.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Domain remained unchanged and pure; no HTTP, cookie, fetch, database, or framework concerns were added to `src/domain`.
+- Core continues to orchestrate via Domain repository/service interfaces and delegates external checkout I/O to the Infrastructure `ICheckoutGateway` implementation.
+- Infrastructure owns transport hardening, request parsing, same-origin checks, endpoint timeout behavior, and external response validation.
+- UI only generates and carries a retry key as presentation/session state; it does not compute checkout totals, stock outcomes, or payment results.
+
 ## 2026-04-25 — Second deep audit pass: transport parsing, checkout payment requirement, session expiry, and CSP tightening
 
 ### Problem verified

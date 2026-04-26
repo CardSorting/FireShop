@@ -63,8 +63,8 @@ export function createApiClientServices() {
             getCartTotal: (items: { priceSnapshot: number; quantity: number }[]) => items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0),
         },
         orderService: {
-            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId }) })),
-            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId }) })),
+            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
+            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
             getOrders: (userId: string) => (sessionScoped(userId), request<Order[]>('/api/orders')),
             getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string }) => {
                 const qs = new URLSearchParams();

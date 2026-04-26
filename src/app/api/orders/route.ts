@@ -15,9 +15,9 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const user = await requireSessionUser();
-        const { shippingAddress, paymentMethodId } = parseCheckoutRequest(await readJsonObject(request));
+        const { shippingAddress, paymentMethodId, idempotencyKey } = parseCheckoutRequest(await readJsonObject(request));
         const services = await getServerServices();
-        const order = await services.orderService.placeOrder(user.id, shippingAddress, paymentMethodId);
+        const order = await services.orderService.placeOrder(user.id, shippingAddress, paymentMethodId, idempotencyKey);
         return NextResponse.json(order);
     } catch (error) {
         return jsonError(error, 'Failed to place order');

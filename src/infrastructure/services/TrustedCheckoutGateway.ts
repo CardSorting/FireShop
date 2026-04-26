@@ -3,8 +3,74 @@
  * Adapter for a trusted server-side checkout finalization endpoint.
  */
 import type { ICheckoutGateway } from '@domain/repositories';
-import type { Order } from '@domain/models';
+import type { Address, Order, OrderItem, OrderStatus } from '@domain/models';
 import { PaymentFailedError } from '@domain/errors';
+
+const CHECKOUT_TIMEOUT_MS = 15_000;
+
+function isOrderStatus(value: unknown): value is OrderStatus {
+  return typeof value === 'string'
+    && ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].includes(value);
+}
+
+function isAddress(value: unknown): value is Address {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<Address>;
+  return typeof candidate.street === 'string'
+    && typeof candidate.city === 'string'
+    && typeof candidate.state === 'string'
+    && typeof candidate.zip === 'string'
+    && typeof candidate.country === 'string';
+}
+
+function isOrderItem(value: unknown): value is OrderItem {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const candidate = value as Partial<OrderItem>;
+  return typeof candidate.productId === 'string'
+    && typeof candidate.name === 'string'
+    && Number.isInteger(candidate.quantity)
+    && Number.isInteger(candidate.unitPrice);
+}
+
+function parseTrustedOrder(value: unknown): Order {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new PaymentFailedError('Trusted checkout returned an invalid order response.');
+  }
+
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.id !== 'string'
+    || typeof candidate.userId !== 'string'
+    || !Array.isArray(candidate.items)
+    || !candidate.items.every(isOrderItem)
+    || !Number.isInteger(candidate.total)
+    || !isOrderStatus(candidate.status)
+    || !isAddress(candidate.shippingAddress)
+    || !(typeof candidate.paymentTransactionId === 'string' || candidate.paymentTransactionId === null)
+    || typeof candidate.createdAt !== 'string'
+    || typeof candidate.updatedAt !== 'string') {
+    throw new PaymentFailedError('Trusted checkout returned an invalid order response.');
+  }
+
+  const orderItems = candidate.items as OrderItem[];
+  const orderTotal = candidate.total as number;
+  const orderStatus = candidate.status as OrderStatus;
+  const shippingAddress = candidate.shippingAddress as Address;
+  const paymentTransactionId = candidate.paymentTransactionId as string | null;
+  const createdAt = candidate.createdAt as string;
+  const updatedAt = candidate.updatedAt as string;
+
+  return {
+    id: candidate.id,
+    userId: candidate.userId,
+    items: orderItems,
+    total: orderTotal,
+    status: orderStatus,
+    shippingAddress,
+    paymentTransactionId,
+    createdAt: new Date(createdAt),
+    updatedAt: new Date(updatedAt),
+  };
+}
 
 export class TrustedCheckoutGateway implements ICheckoutGateway {
   constructor(private readonly endpoint: string | undefined = process.env.CHECKOUT_ENDPOINT) { }
@@ -16,19 +82,28 @@ export class TrustedCheckoutGateway implements ICheckoutGateway {
       );
     }
 
-    const response = await fetch(this.endpoint, {
+    const endpointUrl = new URL(this.endpoint);
+    if (process.env.NODE_ENV === 'production' && endpointUrl.protocol !== 'https:') {
+      throw new PaymentFailedError('Trusted checkout endpoint must use HTTPS in production.');
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CHECKOUT_TIMEOUT_MS);
+
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Idempotency-Key': params.idempotencyKey,
       },
       body: JSON.stringify(params),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       throw new PaymentFailedError('Trusted checkout finalization failed. Please try again.');
     }
 
-    return response.json() as Promise<Order>;
+    return parseTrustedOrder(await response.json().catch(() => null));
   }
 }

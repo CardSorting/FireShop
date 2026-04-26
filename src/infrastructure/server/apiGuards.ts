@@ -7,6 +7,8 @@ import { logger } from '@utils/logger';
 const ORDER_STATUSES = new Set<OrderStatus>(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']);
 const PRODUCT_CATEGORIES = new Set<ProductCategory>(['booster', 'single', 'deck', 'accessory', 'box']);
 const CARD_RARITIES = new Set<CardRarity>(['common', 'uncommon', 'rare', 'holo', 'secret']);
+const MAX_JSON_BODY_BYTES = 32 * 1024;
+const IDEMPOTENCY_KEY_PATTERN = /^[a-zA-Z0-9:_-]{16,160}$/;
 
 export async function requireSessionUser(): Promise<User> {
     const user = await getSessionUser();
@@ -21,11 +23,40 @@ export async function requireAdminSession(): Promise<User & { role: 'admin' }> {
 }
 
 export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
-    const body = await request.json().catch(() => null);
+    assertTrustedMutationOrigin(request);
+    const contentLength = Number(request.headers.get('content-length') ?? 0);
+    if (Number.isFinite(contentLength) && contentLength > MAX_JSON_BODY_BYTES) {
+        throw new DomainError('Request body is too large.');
+    }
+
+    const contentType = request.headers.get('content-type') ?? '';
+    if (contentType && !contentType.toLowerCase().includes('application/json')) {
+        throw new DomainError('Request body must be application/json.');
+    }
+
+    const rawBody = await request.text().catch(() => null);
+    if (rawBody === null) throw new DomainError('Request body must be valid JSON.');
+    if (new TextEncoder().encode(rawBody).byteLength > MAX_JSON_BODY_BYTES) {
+        throw new DomainError('Request body is too large.');
+    }
+
+    const body = rawBody ? JSON.parse(rawBody) as unknown : null;
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         throw new DomainError('Request body must be a JSON object.');
     }
     return body as Record<string, unknown>;
+}
+
+export function assertTrustedMutationOrigin(request: Request): void {
+    if (request.method === 'GET' || request.method === 'HEAD' || request.method === 'OPTIONS') return;
+    const origin = request.headers.get('origin');
+    if (!origin) return;
+
+    const requestUrl = new URL(request.url);
+    const originUrl = new URL(origin);
+    if (originUrl.protocol !== requestUrl.protocol || originUrl.host !== requestUrl.host) {
+        throw new UnauthorizedError('Cross-site request origin is not allowed.');
+    }
 }
 
 export function parseBoundedLimit(value: string | null, fallback = 20, max = 100): number {
@@ -120,10 +151,21 @@ export function parseProductUpdate(body: Record<string, unknown>): ProductUpdate
     return update;
 }
 
-export function parseCheckoutRequest(body: Record<string, unknown>): { shippingAddress: Address; paymentMethodId: string } {
+export function parseIdempotencyKey(value: unknown): string | undefined {
+    if (value === undefined || value === null || value === '') return undefined;
+    if (typeof value !== 'string') throw new DomainError('idempotencyKey must be a string.');
+    const trimmed = value.trim();
+    if (!IDEMPOTENCY_KEY_PATTERN.test(trimmed)) {
+        throw new DomainError('idempotencyKey is invalid.');
+    }
+    return trimmed;
+}
+
+export function parseCheckoutRequest(body: Record<string, unknown>): { shippingAddress: Address; paymentMethodId: string; idempotencyKey?: string } {
     return {
         shippingAddress: parseShippingAddress(body.shippingAddress),
         paymentMethodId: requireString(body.paymentMethodId, 'paymentMethodId'),
+        idempotencyKey: parseIdempotencyKey(body.idempotencyKey),
     };
 }
 

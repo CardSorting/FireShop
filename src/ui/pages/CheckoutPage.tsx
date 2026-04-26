@@ -3,7 +3,7 @@
 /**
  * [LAYER: UI]
  */
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
@@ -29,6 +29,7 @@ export function CheckoutPage() {
   const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'authorizing' | 'finalizing'>('idle');
   const [orderId, setOrderId] = useState<string>('');
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const checkoutAttemptKey = useRef(`checkout-ui:${crypto.randomUUID()}`);
 
   async function handleSuccess(paymentMethodId: string) {
     if (!user) return;
@@ -36,8 +37,14 @@ export function CheckoutPage() {
     setCheckoutStatus('finalizing');
     try {
       const normalizedAddress = { ...address, country: address.country.trim().toUpperCase() };
-      const order = await services.orderService.finalizeTrustedCheckout(user.id, normalizedAddress, paymentMethodId);
+      const order = await services.orderService.finalizeTrustedCheckout(
+        user.id,
+        normalizedAddress,
+        paymentMethodId,
+        checkoutAttemptKey.current
+      );
       setOrderId(order.id);
+      checkoutAttemptKey.current = `checkout-ui:${crypto.randomUUID()}`;
       setStep('success');
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : 'Checkout could not be finalized. Please try again.');

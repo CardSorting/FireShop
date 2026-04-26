@@ -45,19 +45,24 @@ export class OrderService {
     private checkoutGateway?: ICheckoutGateway
   ) {}
 
-  async finalizeTrustedCheckout(userId: string, shippingAddress: Address, paymentMethodId: string): Promise<Order> {
+  async finalizeTrustedCheckout(
+    userId: string,
+    shippingAddress: Address,
+    paymentMethodId: string,
+    idempotencyKey?: string
+  ): Promise<Order> {
     assertValidShippingAddress(shippingAddress);
     if (!paymentMethodId.trim()) {
       throw new PaymentFailedError('Payment method is required to finalize checkout.');
     }
 
-    const idempotencyKey = `trusted-checkout:${userId}:${crypto.randomUUID()}`;
+    const trustedIdempotencyKey = idempotencyKey?.trim() || `trusted-checkout:${userId}:${crypto.randomUUID()}`;
     if (this.checkoutGateway) {
       return this.checkoutGateway.finalizeCheckout({
         userId,
         shippingAddress,
         paymentMethodId,
-        idempotencyKey,
+        idempotencyKey: trustedIdempotencyKey,
       });
     }
 
@@ -66,15 +71,20 @@ export class OrderService {
     );
   }
 
-  async placeOrder(userId: string, shippingAddress: Address, paymentMethodId?: string): Promise<Order> {
+  async placeOrder(
+    userId: string,
+    shippingAddress: Address,
+    paymentMethodId?: string,
+    idempotencyKey?: string
+  ): Promise<Order> {
     if (this.checkoutGateway && paymentMethodId) {
-      return this.finalizeTrustedCheckout(userId, shippingAddress, paymentMethodId);
+      return this.finalizeTrustedCheckout(userId, shippingAddress, paymentMethodId, idempotencyKey);
     }
 
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_${userId}`;
     const checkoutAttemptId = crypto.randomUUID();
-    const idempotencyKey = `checkout:${userId}:${checkoutAttemptId}`;
+    const checkoutIdempotencyKey = idempotencyKey?.trim() || `checkout:${userId}:${checkoutAttemptId}`;
     const acquired = await this.locker.acquireLock(lockId, userId, 30000); // 30 second lock
     if (!acquired) {
       throw new CheckoutInProgressError();
@@ -123,7 +133,7 @@ export class OrderService {
       amount: total,
       orderId: checkoutAttemptId,
       paymentMethodId,
-      idempotencyKey,
+      idempotencyKey: checkoutIdempotencyKey,
     });
 
     if (!paymentResult.success || !paymentResult.transactionId) {
