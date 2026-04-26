@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import type { Order, OrderStatus } from '@domain/models';
 import {
@@ -70,6 +71,7 @@ export function AdminOrders() {
   useAdminPageTitle('Orders');
   const services = useServices();
   const { toast } = useToast();
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [cursor, setCursor] = useState<string | undefined>();
@@ -329,342 +331,52 @@ export function AdminOrders() {
               {!loading && filteredOrders.map((o) => {
                 const isSelected = selectedIds.has(o.id);
                 return (
-                  <tr
-                    key={o.id}
-                    onClick={() => setSelectedOrder(o)}
-                    className={`group cursor-pointer transition hover:bg-gray-50 ${isSelected ? 'bg-primary-50/40' : ''}`}
-                  >
-                    <td className="px-4 py-3.5">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onClick={(e) => toggleSelect(o.id, e)}
-                        onChange={() => { }}
-                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                      />
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900 tracking-tight">#{o.id.slice(0, 8).toUpperCase()}</span>
-                        <ChevronRight className="h-3 w-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-xs font-medium text-gray-600">{formatShortDate(o.createdAt)}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-xs font-bold text-gray-900 truncate">{o.customerName || `User #${o.userId.slice(0, 8)}`}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <AdminStatusBadge status={o.status} type="order" />
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
-                      {formatCurrency(o.total)}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {!loading && filteredOrders.length === 0 && (
-            <AdminEmptyState
-              title="No orders found"
-              description="Try adjusting your filters or search query."
-              icon={PackageSearch}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* ── Detail Panel (Slide-over) ── */}
-      {selectedOrder && (
-        <>
-          <div className="fixed inset-0 z-60 bg-gray-900/40 backdrop-blur-sm" onClick={() => setSelectedOrder(null)} />
-          <div className="fixed inset-y-0 right-0 z-70 w-full max-w-xl overflow-y-auto bg-[#F6F6F7] shadow-2xl animate-in slide-in-from-right duration-300 border-l">
-            {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 tracking-tight">Order #{selectedOrder.id.slice(0, 8).toUpperCase()}</h2>
-                <p className="text-xs font-medium text-gray-500">{formatShortDate(selectedOrder.createdAt)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button 
-                  onClick={() => toast('info', 'Generating packing slip...')}
-                  className="flex items-center gap-2 rounded-lg border bg-white px-3 py-1.5 text-[10px] font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
-                >
-                  <Printer className="h-3.5 w-3.5 text-gray-400" />
-                  Packing Slip
-                </button>
-                <button onClick={() => setSelectedOrder(null)} className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 transition ml-2"><X className="h-5 w-5" /></button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              {/* Primary Action Card */}
-              <div className="rounded-xl border bg-white p-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between">
-                  <AdminStatusBadge status={selectedOrder.status} type="order" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Current Status</p>
-                </div>
-
-                {NEXT_STATUSES[selectedOrder.status].length > 1 && (
-                  <div className="flex flex-col gap-3 pt-4 border-t">
-                    <p className="text-xs font-bold text-gray-900">Next step for this order:</p>
-                    <div className="flex gap-2">
-                      <button
-                        className="flex-1 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700"
-                        onClick={() => {
-                          const next = NEXT_STATUSES[selectedOrder.status].find(s => s !== selectedOrder.status);
-                          if (next) handleStatusChange(selectedOrder.id, next);
-                        }}
-                      >
-                        {nextOrderActionLabel(selectedOrder.status)}
-                      </button>
-                      <div className="relative">
-                        <select
-                          value={selectedOrder.status}
-                          onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value as OrderStatus)}
-                          className="appearance-none h-full rounded-lg border bg-white px-4 py-2.5 pr-10 text-sm font-bold text-gray-700 shadow-sm outline-none"
-                        >
-                          {NEXT_STATUSES[selectedOrder.status].map((status) => (
-                            <option key={status} value={status}>{humanizeOrderStatus(status)}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Risk Evaluation (Stripe Radar style) */}
-              <div className="rounded-xl border bg-white p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary-500" />
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Fraud Analysis</h3>
-                  </div>
-                  <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    selectedOrder.riskScore > 60 ? 'bg-red-50 text-red-600' : 
-                    selectedOrder.riskScore > 30 ? 'bg-amber-50 text-amber-600' : 
-                    'bg-green-50 text-green-600'
-                  }`}>
-                    {selectedOrder.riskScore > 60 ? <AlertTriangle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-                    {selectedOrder.riskScore > 60 ? 'High Risk' : selectedOrder.riskScore > 30 ? 'Elevated Risk' : 'Normal Risk'}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                   <div className="flex items-center justify-between text-xs">
-                     <span className="text-gray-500 font-medium">Card verification (CVC)</span>
-                     <span className="text-gray-900 font-bold">Passed</span>
-                   </div>
-                   <div className="flex items-center justify-between text-xs">
-                     <span className="text-gray-500 font-medium">Street address verification</span>
-                     <span className="text-gray-900 font-bold">Match</span>
-                   </div>
-                   <div className="flex items-center justify-between text-xs">
-                     <span className="text-gray-500 font-medium">Zip code verification</span>
-                     <span className="text-gray-900 font-bold">Match</span>
-                   </div>
-                </div>
-                <div className="mt-4 pt-4 border-t">
-                   <p className="text-[10px] text-gray-400 font-medium italic">
-                     Stripe Radar analyzed this payment and found no indicators of fraud.
-                   </p>
-                </div>
-              </div>
-
-              {/* Packing Slip Action */}
-              <div className="rounded-xl border border-primary-100 bg-primary-50/30 p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-primary-900">Logistics</h3>
-                  <Printer className="h-4 w-4 text-primary-600" />
-                </div>
-                <button 
-                  onClick={() => {
-                    const printWindow = window.open('', '_blank');
-                    if (printWindow) {
-                      printWindow.document.write(`
-                        <html>
-                          <head>
-                            <title>Packing Slip - ${selectedOrder.id}</title>
-                            <script src="https://cdn.tailwindcss.com"></script>
-                          </head>
-                          <body class="bg-white">
-                            <div class="p-12 max-w-[800px] mx-auto">
-                              <div class="flex justify-between items-start border-b-2 border-gray-900 pb-8 mb-8">
-                                <div>
-                                  <h1 class="text-4xl font-black uppercase tracking-tighter mb-2">Packing Slip</h1>
-                                  <p class="text-sm font-bold text-gray-500">Order #${selectedOrder.id.slice(0, 8).toUpperCase()}</p>
-                                </div>
-                                <div class="text-right">
-                                  <p class="text-xl font-black uppercase">PlayMore TCG</p>
-                                  <p class="text-xs font-medium text-gray-500">123 Pallet Town Road, Kanto</p>
-                                  <p class="text-xs font-medium text-gray-500">support@playmoretcg.com</p>
-                                </div>
-                              </div>
-                              <div class="grid grid-cols-2 gap-12 mb-12">
-                                <div>
-                                  <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Ship To</h2>
-                                  <p class="text-sm font-bold">${selectedOrder.customerName}</p>
-                                  <p class="text-sm font-medium text-gray-600">${selectedOrder.shippingAddress.street}</p>
-                                  <p class="text-sm font-medium text-gray-600">${selectedOrder.shippingAddress.city}, ${selectedOrder.shippingAddress.state} ${selectedOrder.shippingAddress.zip}</p>
-                                </div>
-                                <div class="text-right">
-                                  <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Order Info</h2>
-                                  <p class="text-sm font-bold">${selectedOrder.createdAt.toLocaleDateString()}</p>
-                                </div>
-                              </div>
-                              <table class="w-full mb-12">
-                                <thead class="border-b border-gray-200">
-                                  <tr>
-                                    <th class="py-3 text-left text-[10px] font-black uppercase tracking-widest text-gray-400">Description</th>
-                                    <th class="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-400">Qty</th>
-                                  </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100">
-                                  ${selectedOrder.items.map(item => `
-                                    <tr>
-                                      <td class="py-4 text-sm font-bold">${item.name}</td>
-                                      <td class="py-4 text-center text-sm font-bold">${item.quantity}</td>
-                                    </tr>
-                                  `).join('')}
-                                </tbody>
-                              </table>
-                              <div class="border-t pt-8 text-center">
-                                <p class="text-xs font-bold text-gray-400 italic">Thank you for shopping with PlayMore TCG!</p>
-                              </div>
-                            </div>
-                            <script>window.print();</script>
-                          </body>
-                        </html>
-                      `);
-                      printWindow.document.close();
-                    }
-                  }}
-                  className="w-full rounded-lg bg-white border border-primary-200 px-4 py-2.5 text-xs font-bold text-primary-700 shadow-sm transition hover:bg-primary-50"
-                >
-                  Print Packing Slip
-                </button>
-              </div>
-
-              {/* Items Card */}
-              <div className="rounded-xl border bg-white shadow-sm">
-                <div className="border-b px-5 py-4 bg-gray-50/50">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Items ({selectedOrder.items.length})</h3>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {selectedOrder.items.map((item) => (
-                    <div key={item.productId} className="flex items-center justify-between px-5 py-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
-                        <p className="text-[10px] font-medium text-gray-500 mt-0.5">{item.quantity} × {formatCurrency(item.unitPrice)}</p>
-                      </div>
-                      <p className="text-sm font-bold text-gray-900 tracking-tight">{formatCurrency(item.unitPrice * item.quantity)}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-gray-50 px-5 py-4 border-t space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>Subtotal</span>
-                    <span>{formatCurrency(selectedOrder.total)}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-base font-bold text-gray-900 border-t pt-2 mt-2">
-                    <span>Total Paid</span>
-                    <span className="tracking-tight">{formatCurrency(selectedOrder.total)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Customer & Shipping Grid */}
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div className="rounded-xl border bg-white p-5 shadow-sm">
-                  <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">Customer</h3>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600 font-bold text-xs uppercase">
-                      {(selectedOrder.customerName || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate">{selectedOrder.customerName || 'Anonymous User'}</p>
-                      <p className="text-[10px] font-medium text-gray-500 truncate">{selectedOrder.customerEmail}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-xl border bg-white p-5 shadow-sm">
-                  <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">Shipping</h3>
-                  <div className="space-y-1 text-sm text-gray-700 font-medium">
-                    <p>{selectedOrder.shippingAddress.street}</p>
-                    <p>{selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} {selectedOrder.shippingAddress.zip}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timeline / Notes */}
-              <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-                <div className="border-b px-5 py-4 bg-gray-50/50">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Timeline</h3>
-                </div>
-                
-                <div className="p-6">
-                   <div className="relative space-y-6 pl-6">
-                     <div className="absolute left-2.5 top-2 bottom-2 w-px bg-gray-100" />
-
-                     {/* System Events */}
-                     <div className="relative">
-                       <div className="absolute left-[-1.55rem] mt-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 shadow-sm" />
-                       <div className="flex items-center justify-between">
-                         <p className="text-xs font-bold text-gray-900">Payment captured</p>
-                         <span className="text-[10px] font-medium text-gray-400 uppercase">{formatShortDate(selectedOrder.createdAt)}</span>
-                       </div>
-                       <p className="text-[10px] text-gray-500 font-medium">Stripe ID: {selectedOrder.paymentTransactionId || 'pi_3Kj9X...'}</p>
-                     </div>
-
-                     <div className="relative">
-                       <div className="absolute left-[-1.55rem] mt-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-blue-500 shadow-sm" />
-                       <div className="flex items-center justify-between">
-                         <p className="text-xs font-bold text-gray-900">Order placed by customer</p>
-                         <span className="text-[10px] font-medium text-gray-400 uppercase">{formatShortDate(selectedOrder.createdAt)}</span>
-                       </div>
-                     </div>
-
-                     {/* Custom Notes */}
-                     {(internalNotes[selectedOrder.id] || []).map((note) => (
-                       <div key={note.id} className="relative">
-                         <div className="absolute left-[-1.55rem] mt-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-gray-300 shadow-sm" />
-                         <div className="flex items-center justify-between">
-                           <p className="text-xs font-bold text-gray-900">Admin Note</p>
-                           <span className="text-[10px] font-medium text-gray-400 uppercase">{formatRelativeTime(note.date)}</span>
-                         </div>
-                         <div className="mt-1 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 italic leading-relaxed border border-amber-100/50">
-                           {note.text}
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-
-                   {/* Add Note Input */}
-                   <div className="mt-8 flex gap-2">
-                     <input
-                       value={noteInput}
-                       onChange={(e) => setNoteInput(e.target.value)}
-                       onKeyDown={(e) => e.key === 'Enter' && handlePostNote(selectedOrder.id)}
-                       placeholder="Add a comment or note…"
-                       className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-xs font-medium outline-none focus:ring-2 focus:ring-primary-500 transition"
-                     />
-                     <button
-                       onClick={() => handlePostNote(selectedOrder.id)}
-                       disabled={!noteInput.trim()}
-                       className="rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-gray-800 disabled:opacity-30"
-                     >
-                       Comment
-                     </button>
-                   </div>
-                </div>
-              </div>
-            </div>
+                    <tr
+                      key={o.id}
+                      onClick={() => router.push(`/admin/orders/${o.id}`)}
+                      className={`group cursor-pointer transition hover:bg-gray-50 ${isSelected ? 'bg-primary-50/40' : ''}`}
+                    >
+                      <td className="px-4 py-3.5">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onClick={(e) => toggleSelect(o.id, e)}
+                          onChange={() => { }}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900 tracking-tight">#{o.id.slice(0, 8).toUpperCase()}</span>
+                          <ChevronRight className="h-3 w-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-xs font-medium text-gray-600">{formatShortDate(o.createdAt)}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-xs font-bold text-gray-900 truncate">{o.customerName || `User #${o.userId.slice(0, 8)}`}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <AdminStatusBadge status={o.status} type="order" />
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
+                        {formatCurrency(o.total)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {!loading && filteredOrders.length === 0 && (
+              <AdminEmptyState
+                title="No orders found"
+                description="Try adjusting your filters or search query."
+                icon={PackageSearch}
+              />
+            )}
           </div>
-        </>
-      )}
+        </div>
 
       {/* ── Batch Actions ── */}
       <BulkActionBar

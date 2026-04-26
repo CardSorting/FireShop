@@ -6,6 +6,7 @@
  * Patterns modeled after Shopify Customers for high-velocity management.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { 
   Search, 
@@ -22,7 +23,8 @@ import {
   Star,
   Clock,
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Plus
 } from 'lucide-react';
 import { formatCurrency, formatShortDate, normalizeSearch } from '@utils/formatters';
 import { 
@@ -48,6 +50,7 @@ export function AdminCustomers() {
   useAdminPageTitle('Customers');
   const services = useServices();
   const { toast } = useToast();
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [segment, setSegment] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -125,7 +128,7 @@ export function AdminCustomers() {
               Export
             </button>
             <button 
-              onClick={() => setShowAddModal(true)}
+              onClick={() => router.push('/admin/customers/new')}
               className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
             >
               <UserPlus className="h-3.5 w-3.5" />
@@ -215,7 +218,7 @@ export function AdminCustomers() {
                   {filtered.map((customer) => (
                     <tr 
                       key={customer.id} 
-                      onClick={() => setSelectedCustomer(customer)}
+                      onClick={() => router.push(`/admin/customers/${customer.id}`)}
                       className="group cursor-pointer transition hover:bg-gray-50"
                     >
                       <td className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
@@ -270,169 +273,6 @@ export function AdminCustomers() {
           </div>
         </div>
       </div>
-
-      {/* ── Customer Detail Slide-over ── */}
-      {selectedCustomer && (
-        <>
-          <div className="fixed inset-0 z-60 bg-gray-900/40 backdrop-blur-sm" onClick={() => setSelectedCustomer(null)} />
-          <div className="fixed inset-y-0 right-0 z-70 w-full max-w-lg overflow-y-auto bg-white shadow-2xl animate-in slide-in-from-right duration-300 border-l">
-            {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold text-lg uppercase border border-primary-200">
-                  {selectedCustomer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 leading-tight">{selectedCustomer.name}</h2>
-                  <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">{selectedCustomer.email}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setSelectedCustomer(null)}
-                className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-900"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-8">
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-xl border bg-gray-50/50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Lifetime Spent</p>
-                  <p className="text-xl font-bold text-gray-900">{formatCurrency(selectedCustomer.spent)}</p>
-                </div>
-                <div className="rounded-xl border bg-gray-50/50 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Total Orders</p>
-                  <p className="text-xl font-bold text-gray-900">{selectedCustomer.orders}</p>
-                </div>
-              </div>
-
-              {/* Customer Details */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">About Customer</h3>
-                <div className="space-y-3 rounded-xl border p-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Customer ID</span>
-                    <span className="font-mono text-gray-900">{selectedCustomer.id}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Customer Since</span>
-                    <span className="text-gray-900">{formatShortDate(selectedCustomer.joined)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Last Ordered</span>
-                    <span className="text-gray-900">{selectedCustomer.lastOrder ? formatShortDate(selectedCustomer.lastOrder) : 'Never'}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-500 font-medium">Marketing Status</span>
-                    <span className="inline-flex items-center gap-1 text-green-600 font-bold">
-                      <Check className="h-3 w-3" /> Subscribed
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Activity simulated */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Recent Activity</h3>
-                <div className="relative space-y-6 pl-6">
-                  <div className="absolute left-2.5 top-2 bottom-2 w-0.5 bg-gray-100" />
-                  
-                  {selectedCustomer.orders > 0 && (
-                    <div className="relative">
-                      <div className="absolute left-[-1.35rem] mt-1 h-3 w-3 rounded-full border-2 border-white bg-primary-500" />
-                      <p className="text-sm font-bold text-gray-900">Placed order #1042</p>
-                      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">{selectedCustomer.lastOrder ? formatShortDate(selectedCustomer.lastOrder) : ''}</p>
-                      <div className="mt-2 rounded-lg border bg-gray-50 p-2.5 flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                           <ShoppingBag className="h-3.5 w-3.5 text-gray-400" />
-                           <span className="text-xs font-medium text-gray-700">3 items · {formatCurrency(selectedCustomer.spent / (selectedCustomer.orders || 1))}</span>
-                         </div>
-                         <ChevronRight className="h-3 w-3 text-gray-300" />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="relative">
-                    <div className="absolute left-[-1.35rem] mt-1 h-3 w-3 rounded-full border-2 border-white bg-gray-300" />
-                    <p className="text-sm font-bold text-gray-900">Customer account created</p>
-                    <p className="text-[10px] font-medium text-gray-400 uppercase tracking-widest">{formatShortDate(selectedCustomer.joined)}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes Section */}
-              <div className="space-y-4 pt-4 border-t">
-                 <div className="flex items-center justify-between">
-                   <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Admin Notes</h3>
-                   <button className="text-[10px] font-bold text-primary-600 uppercase tracking-widest hover:underline">Edit</button>
-                 </div>
-                 <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-4">
-                   <p className="text-xs text-amber-800 leading-relaxed italic">
-                     "Prefer standard shipping over express. Collecting vintage base set booster boxes."
-                   </p>
-                 </div>
-              </div>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-4 flex gap-3">
-              <button className="flex-1 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-100">
-                Send Email
-              </button>
-              <button className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-gray-800">
-                View Full Profile
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-      {/* Add Customer Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
-          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl animate-in zoom-in duration-200">
-            <div className="border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-gray-900">Add Customer</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-900 transition">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form 
-              onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const email = formData.get('email') as string;
-                // Since this is a local app, we'd call services.authService.signUp or a dedicated admin endpoint
-                toast('success', `Manual account for ${email} would be created here.`);
-                setShowAddModal(false);
-              }}
-              className="p-6 space-y-4"
-            >
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Full Name</label>
-                <input required name="name" type="text" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Email Address</label>
-                <input required name="email" type="email" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" />
-              </div>
-              <div className="rounded-xl bg-primary-50 p-4">
-                 <p className="text-[10px] text-primary-700 leading-relaxed font-medium">
-                   An invitation email will be sent to this address to set their password and finalize the account.
-                 </p>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowAddModal(false)} className="rounded-lg border px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-700">Send Invite</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-import { X, Check, Plus } from 'lucide-react';
