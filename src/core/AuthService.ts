@@ -42,6 +42,11 @@ export class AuthService {
     return this.provider.onAuthStateChanged(callback);
   }
 
+  async getAllUsers(): Promise<User[]> {
+    if (!this.provider.getAllUsers) return [];
+    return this.provider.getAllUsers();
+  }
+
   requireAuth(user: User | null): asserts user is User {
     if (!user) throw new AuthError();
   }

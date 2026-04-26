@@ -103,6 +103,21 @@ export class SQLiteAuthAdapter implements IAuthProvider {
     };
   }
 
+  async getAllUsers(): Promise<User[]> {
+    const users = await this.db
+      .selectFrom('users')
+      .selectAll()
+      .execute();
+
+    return users.map(u => ({
+      id: u.id,
+      email: u.email,
+      displayName: u.displayName,
+      role: toUserRole(u.role),
+      createdAt: new Date(u.createdAt),
+    }));
+  }
+
   private setCurrentUser(user: User | null) {
     this.currentUser = user;
     this.authListeners.forEach(l => l(user));

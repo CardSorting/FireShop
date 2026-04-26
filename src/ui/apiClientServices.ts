@@ -42,6 +42,7 @@ export function createApiClientServices() {
                 void request<User | null>('/api/auth/me').then(callback).catch(() => callback(null));
                 return () => { };
             },
+            getAllUsers: () => request<User[]>('/api/auth/users'),
         },
         productService: {
             getProducts: (options?: { category?: string; limit?: number; cursor?: string }) => {
@@ -80,6 +81,7 @@ export function createApiClientServices() {
             },
             updateOrderStatus: (id: string, status: OrderStatus) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
             batchUpdateOrderStatus: async (ids: string[], status: OrderStatus) => { for (const id of ids) await request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); },
+            getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
         },
     };
 }

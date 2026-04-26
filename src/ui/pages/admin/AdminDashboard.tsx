@@ -52,12 +52,18 @@ export function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [customerCount, setCustomerCount] = useState(0);
 
   async function loadDashboard() {
     setLoading(true);
     setError(null);
     try {
-      setSummary(await services.orderService.getAdminDashboardSummary());
+      const [dashSummary, users] = await Promise.all([
+        services.orderService.getAdminDashboardSummary(),
+        services.authService.getAllUsers()
+      ]);
+      setSummary(dashSummary);
+      setCustomerCount(users.length);
       setLastUpdated(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard');
@@ -158,10 +164,10 @@ export function AdminDashboard() {
         />
         <AdminMetricCard 
           label="Active Customers"
-          value="1,248" 
+          value={customerCount.toLocaleString()} 
           icon={Users} 
           color="info"
-          trend={{ value: '5%', positive: true }}
+          onClick={() => router.push('/admin/customers')}
           description="Total registered users"
         />
       </div>
@@ -303,26 +309,30 @@ export function AdminDashboard() {
               <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Store Activity</h2>
             </div>
             <div className="p-5 space-y-6">
-              {[
-                { label: 'Payout of $1,240.00 processed', time: '2 hours ago', icon: DollarSign, color: 'text-green-600 bg-green-50' },
-                { label: 'New customer "Alex Rivers" signed up', time: '5 hours ago', icon: Users, color: 'text-primary-600 bg-primary-50' },
-                { label: 'Order #1042 was fulfilled', time: '8 hours ago', icon: CheckCircle2, color: 'text-blue-600 bg-blue-50' },
-                { label: 'Stock alert: Base Set Booster pack', time: '12 hours ago', icon: AlertTriangle, color: 'text-amber-600 bg-amber-50' },
-              ].map((activity, i) => {
-                const Icon = activity.icon;
-                return (
-                  <div key={i} className="flex gap-4 relative">
-                    {i !== 3 && <div className="absolute left-4 top-10 w-0.5 h-6 bg-gray-100" />}
-                    <div className={`rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0 ${activity.color}`}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-gray-900 leading-tight">{activity.label}</p>
-                      <p className="mt-1 text-[10px] text-gray-400 font-medium">{activity.time}</p>
-                    </div>
+              {summary.recentOrders.map((order, i) => (
+                <div key={order.id} className="flex gap-4 relative">
+                  {i !== summary.recentOrders.length - 1 && <div className="absolute left-4 top-10 w-0.5 h-6 bg-gray-100" />}
+                  <div className={`rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0 ${
+                    order.status === 'confirmed' ? 'text-primary-600 bg-primary-50' : 
+                    order.status === 'shipped' ? 'text-blue-600 bg-blue-50' :
+                    order.status === 'delivered' ? 'text-green-600 bg-green-50' :
+                    'text-gray-600 bg-gray-50'
+                  }`}>
+                    {order.status === 'shipped' ? <Truck className="h-4 w-4" /> : 
+                     order.status === 'delivered' ? <CheckCircle2 className="h-4 w-4" /> :
+                     <ShoppingBag className="h-4 w-4" />}
                   </div>
-                );
-              })}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-900 leading-tight">
+                      Order #{order.id.slice(0, 8).toUpperCase()} was {order.status}
+                    </p>
+                    <p className="mt-1 text-[10px] text-gray-400 font-medium">{formatShortDate(order.createdAt)}</p>
+                  </div>
+                </div>
+              ))}
+              {summary.recentOrders.length === 0 && (
+                <p className="text-center text-xs text-gray-400 py-4 italic">No recent activity</p>
+              )}
             </div>
             <div className="bg-gray-50 px-5 py-3 border-t">
               <button className="text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-gray-900 transition flex items-center gap-1.5">

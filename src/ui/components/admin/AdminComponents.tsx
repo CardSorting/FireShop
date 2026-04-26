@@ -8,6 +8,8 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '../../hooks/useAuth';
+import { formatCurrency } from '../../../utils/formatters';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -540,6 +542,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
    ═══════════════════════════════════════════════════════ */
 
 export function AdminTopBar({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
+  const { user } = useAuth();
+  const initials = user?.displayName?.split(' ').map(n => n[0]).join('').toUpperCase() || 'AD';
+  const role = 'Store Admin'; // Could be dynamic if roles exist
+
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white/80 px-4 backdrop-blur-md lg:px-6">
       <div className="flex items-center gap-3">
@@ -557,11 +563,11 @@ export function AdminTopBar({ onToggleSidebar }: { onToggleSidebar?: () => void 
       <div className="flex items-center gap-4">
         <div className="hidden items-center gap-3 md:flex">
           <div className="text-right">
-            <p className="text-xs font-semibold text-gray-900">Store Admin</p>
+            <p className="text-xs font-semibold text-gray-900">{user?.displayName || 'Store Admin'}</p>
             <p className="text-[10px] text-gray-500">PlayMoreTCG</p>
           </div>
           <div className="h-8 w-8 overflow-hidden rounded-full bg-linear-to-br from-primary-400 to-primary-600 shadow-sm">
-            <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">PM</div>
+            <div className="flex h-full w-full items-center justify-center text-xs font-bold text-white">{initials}</div>
           </div>
         </div>
       </div>

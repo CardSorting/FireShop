@@ -104,4 +104,18 @@ export async function initDatabase() {
     .addColumn('details', 'text', (col) => col.notNull())
     .addColumn('timestamp', 'text', (col) => col.notNull())
     .execute();
+
+  await db.schema
+    .createTable('discounts')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('code', 'text', (col) => col.notNull().unique())
+    .addColumn('type', 'text', (col) => col.notNull())
+    .addColumn('value', 'integer', (col) => col.notNull())
+    .addColumn('status', 'text', (col) => col.notNull())
+    .addColumn('startsAt', 'text', (col) => col.notNull())
+    .addColumn('endsAt', 'text')
+    .addColumn('usageCount', 'integer', (col) => col.notNull().defaultTo(0))
+    .addColumn('createdAt', 'text', (col) => col.notNull())
+    .execute();
 }

@@ -5,7 +5,8 @@
  * Admin customer management — CRM-style list with segments and LTV.
  * Patterns modeled after Shopify Customers for high-velocity management.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useServices } from '../../hooks/useServices';
 import { 
   Search, 
   User, 
@@ -34,15 +35,6 @@ import {
   AdminMetricCard
 } from '../../components/admin/AdminComponents';
 
-// Mock customer data
-const MOCK_CUSTOMERS = [
-  { id: 'u1', name: 'Ash Ketchum', email: 'ash@pallet.town', orders: 12, spent: 45000, lastOrder: new Date('2026-04-25'), joined: new Date('2026-01-10'), segment: 'big_spender' },
-  { id: 'u2', name: 'Misty Waterflower', email: 'misty@cerulean.gym', orders: 8, spent: 28000, lastOrder: new Date('2026-04-20'), joined: new Date('2026-01-15'), segment: 'active' },
-  { id: 'u3', name: 'Brock Harrison', email: 'brock@pewter.gym', orders: 5, spent: 15000, lastOrder: new Date('2026-03-12'), joined: new Date('2026-02-01'), segment: 'active' },
-  { id: 'u4', name: 'Gary Oak', email: 'gary@profoak.com', orders: 25, spent: 120000, lastOrder: new Date('2026-04-26'), joined: new Date('2025-12-20'), segment: 'big_spender' },
-  { id: 'u5', name: 'Professor Oak', email: 'samuel@profoak.com', orders: 3, spent: 9000, lastOrder: new Date('2026-02-28'), joined: new Date('2026-02-15'), segment: 'inactive' },
-  { id: 'u6', name: 'Team Rocket', email: 'meowth@giovanni.biz', orders: 0, spent: 0, lastOrder: null, joined: new Date('2026-04-01'), segment: 'new' },
-];
 
 const SEGMENT_TABS = [
   { label: 'All', value: 'all', icon: Users },
@@ -53,29 +45,48 @@ const SEGMENT_TABS = [
 
 export function AdminCustomers() {
   useAdminPageTitle('Customers');
+  const services = useServices();
   const { toast } = useToast();
   const [query, setQuery] = useState('');
   const [segment, setSegment] = useState('all');
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<any[]>([]);
 
-  const [selectedCustomer, setSelectedCustomer] = useState<typeof MOCK_CUSTOMERS[0] | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+
+  async function loadCustomers() {
+    setLoading(true);
+    try {
+      const users = await services.authService.getAllUsers();
+      const summaries = await services.orderService.getCustomerSummaries(users);
+      setCustomers(summaries);
+    } catch (err) {
+      toast('error', 'Failed to load customers');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadCustomers();
+  }, [services]);
 
   const filtered = useMemo(() => {
     const needle = normalizeSearch(query);
-    return MOCK_CUSTOMERS.filter(c => {
+    return customers.filter(c => {
       const matchesSearch = !needle || c.name.toLowerCase().includes(needle) || c.email.toLowerCase().includes(needle);
       const matchesSegment = segment === 'all' || c.segment === segment;
       return matchesSearch && matchesSegment;
     }).sort((a, b) => b.spent - a.spent);
-  }, [query, segment]);
+  }, [query, segment, customers]);
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { all: MOCK_CUSTOMERS.length };
-    MOCK_CUSTOMERS.forEach(c => {
+    const map: Record<string, number> = { all: customers.length };
+    customers.forEach(c => {
       map[c.segment] = (map[c.segment] || 0) + 1;
     });
     return map;
-  }, []);
+  }, [customers]);
 
   if (loading) return <SkeletonPage />;
 
@@ -105,14 +116,19 @@ export function AdminCustomers() {
 
       {/* ── KPI Row ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <AdminMetricCard label="Total customers" value={MOCK_CUSTOMERS.length} icon={Users} color="info" />
+        <AdminMetricCard label="Total customers" value={customers.length} icon={Users} color="info" />
         <AdminMetricCard 
           label="Avg. LTV" 
-          value={formatCurrency(MOCK_CUSTOMERS.reduce((a, b) => a + b.spent, 0) / MOCK_CUSTOMERS.length)} 
+          value={formatCurrency(customers.length > 0 ? customers.reduce((a, b) => a + b.spent, 0) / customers.length : 0)} 
           icon={DollarSign} 
           color="success" 
         />
-        <AdminMetricCard label="New this week" value={1} icon={UserPlus} color="primary" />
+        <AdminMetricCard 
+          label="New this week" 
+          value={customers.filter(c => (Date.now() - c.joined.getTime()) < 7 * 24 * 60 * 60 * 1000).length} 
+          icon={UserPlus} 
+          color="primary" 
+        />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -187,7 +203,7 @@ export function AdminCustomers() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold text-[10px] uppercase shadow-sm border border-primary-200">
-                            {customer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            {customer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-bold text-gray-900">{customer.name}</p>
@@ -243,7 +259,7 @@ export function AdminCustomers() {
             <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-white px-6 py-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-700 font-bold text-lg uppercase border border-primary-200">
-                  {selectedCustomer.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                  {selectedCustomer.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900 leading-tight">{selectedCustomer.name}</h2>

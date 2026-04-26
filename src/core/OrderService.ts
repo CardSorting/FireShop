@@ -308,4 +308,36 @@ export class OrderService {
     }
     await Promise.all(ids.map((id) => this.orderRepo.updateStatus(id, status)));
   }
+
+  async getCustomerSummaries(users: import('@domain/models').User[]): Promise<any[]> {
+    const summaries = await Promise.all(
+      users.map(async (user) => {
+        const orders = await this.orderRepo.getByUserId(user.id);
+        const spent = orders
+          .filter((o) => o.status !== 'cancelled')
+          .reduce((sum, o) => sum + o.total, 0);
+        const lastOrder = orders.length > 0 
+          ? new Date(Math.max(...orders.map(o => o.createdAt.getTime())))
+          : null;
+        
+        let segment = 'new';
+        if (spent > 100000) segment = 'big_spender';
+        else if (orders.length > 5) segment = 'active';
+        else if (orders.length === 0 && (Date.now() - user.createdAt.getTime()) > 30 * 24 * 60 * 60 * 1000) segment = 'inactive';
+
+        return {
+          id: user.id,
+          name: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          orders: orders.length,
+          spent,
+          lastOrder,
+          joined: user.createdAt,
+          segment
+        };
+      })
+    );
+
+    return summaries.sort((a, b) => b.spent - a.spent);
+  }
 }

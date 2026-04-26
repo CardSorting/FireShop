@@ -44,6 +44,7 @@ export interface IAuthProvider {
   signUp(email: string, password: string, displayName: string): Promise<User>;
   signOut(): Promise<void>;
   onAuthStateChanged(callback: (user: User | null) => void): () => void;
+  getAllUsers?(): Promise<User[]>;
 }
 
 export interface IPaymentProcessor {

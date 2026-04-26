@@ -60,6 +60,18 @@ export interface HiveAuditTable {
   timestamp: string;
 }
 
+export interface DiscountTable {
+  id: string;
+  code: string;
+  type: string; // 'percentage' | 'fixed'
+  value: number;
+  status: string; // 'active' | 'expired' | 'scheduled'
+  startsAt: string;
+  endsAt: string | null;
+  usageCount: number;
+  createdAt: string;
+}
+
 export interface Database {
   products: ProductTable;
   users: UserTable;
@@ -67,4 +79,5 @@ export interface Database {
   orders: OrderTable;
   hive_claims: HiveClaimTable;
   hive_audit: HiveAuditTable;
+  discounts: DiscountTable;
 }
