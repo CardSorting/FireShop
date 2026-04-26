@@ -27,7 +27,7 @@ import {
   HelpCircle,
   Megaphone,
 } from 'lucide-react';
-import { AdminBreadcrumb, ToastProvider, ShortcutsHelp } from '../components/admin/AdminComponents';
+import { AdminBreadcrumb, ToastProvider, ShortcutsHelp, AdminNotificationBell } from '../components/admin/AdminComponents';
 import { CommandPalette } from '../components/admin/CommandPalette';
 
 /* ── Nav Configuration ── */
@@ -144,10 +144,11 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <AdminBreadcrumb />
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={openSearch} className="p-2 text-gray-400">
+            <button onClick={openSearch} className="p-2 text-gray-400 transition hover:text-gray-900">
               <Search className="h-5 w-5" />
             </button>
-            <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-[10px] font-bold text-white">PM</div>
+            <AdminNotificationBell />
+            <div className="h-8 w-8 rounded-full bg-linear-to-br from-primary-400 to-primary-600 flex items-center justify-center text-[10px] font-bold text-white shadow-sm ml-2">PM</div>
           </div>
         </header>
         
@@ -322,11 +323,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             {/* Dynamic Breadcrumbs / Desktop Top Bar */}
             <header className="hidden lg:flex h-12 shrink-0 items-center justify-between border-b bg-white/50 px-8 backdrop-blur-sm">
               <AdminBreadcrumb />
-              <div className="flex items-center gap-4 text-xs font-medium text-gray-400">
-                <span className="flex items-center gap-1.5">
-                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+              <div className="flex items-center gap-6">
+                <AdminNotificationBell />
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
                   Store is live
-                </span>
+                </div>
               </div>
             </header>
 

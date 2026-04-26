@@ -272,6 +272,41 @@ export function AdminDashboard() {
             </div>
           </section>
 
+          {/* Activity Feed */}
+          <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
+            <div className="flex items-center gap-2 border-b px-5 py-4 bg-gray-50/50">
+              <Activity className="h-4 w-4 text-primary-500" />
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Store Activity</h2>
+            </div>
+            <div className="p-5 space-y-6">
+              {[
+                { label: 'Payout of $1,240.00 processed', time: '2 hours ago', icon: DollarSign, color: 'text-green-600 bg-green-50' },
+                { label: 'New customer "Alex Rivers" signed up', time: '5 hours ago', icon: Users, color: 'text-primary-600 bg-primary-50' },
+                { label: 'Order #1042 was fulfilled', time: '8 hours ago', icon: CheckCircle2, color: 'text-blue-600 bg-blue-50' },
+                { label: 'Stock alert: Base Set Booster pack', time: '12 hours ago', icon: AlertTriangle, color: 'text-amber-600 bg-amber-50' },
+              ].map((activity, i) => {
+                const Icon = activity.icon;
+                return (
+                  <div key={i} className="flex gap-4 relative">
+                    {i !== 3 && <div className="absolute left-4 top-10 w-0.5 h-6 bg-gray-100" />}
+                    <div className={`rounded-full p-2 h-8 w-8 flex items-center justify-center shrink-0 ${activity.color}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-gray-900 leading-tight">{activity.label}</p>
+                      <p className="mt-1 text-[10px] text-gray-400 font-medium">{activity.time}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="bg-gray-50 px-5 py-3 border-t">
+              <button className="text-[10px] font-bold text-gray-500 uppercase tracking-wider hover:text-gray-900 transition flex items-center gap-1.5">
+                View All Activity <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+          </section>
+
           {/* Inventory Watchlist */}
           <section className="rounded-xl border bg-white shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 border-b px-5 py-4 bg-gray-50/50">

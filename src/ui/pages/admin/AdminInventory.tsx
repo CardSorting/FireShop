@@ -3,36 +3,33 @@
 /**
  * [LAYER: UI]
  * Admin inventory — Stock management with health indicators, visual distribution
- * bar, and inline stock editing.
+ * bar, and high-velocity bulk stock editing.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import type { InventoryHealth, InventoryOverview } from '@domain/models';
 import { 
   AlertTriangle, 
-  PackageSearch, 
-  Search, 
   Boxes, 
   DollarSign, 
   Activity,
-  ArrowRight,
   CheckCircle2,
   XCircle,
-  Minus,
-  Plus,
-  Check,
-  X,
-  Download
+  RotateCcw,
+  Search,
+  Plus
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
-import { formatCurrency, humanizeCategory, normalizeSearch } from '@utils/formatters';
-import { AdminPageHeader, AdminMetricCard, AdminStatusBadge, AdminEmptyState, SkeletonPage, SkeletonRow, useToast, useAdminPageTitle, AdminSparkline, HelpTooltip } from '../../components/admin/AdminComponents';
-
-const HEALTH_COPY: Record<InventoryHealth, { label: string; action: string }> = {
-  out_of_stock: { label: 'Out of stock', action: 'Restock immediately to resume sales.' },
-  low_stock: { label: 'Low stock', action: 'Restock soon to avoid stockouts.' },
-  healthy: { label: 'Healthy', action: 'No action required.' },
-};
+import { formatCurrency, normalizeSearch } from '@utils/formatters';
+import { 
+  AdminPageHeader, 
+  AdminMetricCard, 
+  AdminStatusBadge, 
+  AdminEmptyState, 
+  SkeletonPage, 
+  useToast, 
+  useAdminPageTitle, 
+  AdminTab 
+} from '../../components/admin/AdminComponents';
+import type { InventoryOverview, InventoryHealth } from '@domain/models';
 
 type HealthFilter = InventoryHealth | 'all';
 
@@ -45,23 +42,11 @@ export function AdminInventory() {
   const [health, setHealth] = useState<HealthFilter>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [savingStock, setSavingStock] = useState(false);
-
-  async function handleExport() {
-    toast('info', 'Generating stock report...');
-    await new Promise(r => setTimeout(r, 1000));
-    const headers = 'Product ID,Name,Category,Stock,Health\n';
-    const csv = (overview?.products ?? []).map(p => `${p.id},${p.name},${p.category},${p.stock},${p.inventoryHealth}`).join('\n');
-    const blob = new Blob([headers + csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `inventory-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    toast('success', 'Report downloaded');
-  }
+  
+  // Bulk editing state
+  const [isBulkEditing, setIsBulkEditing] = useState(false);
+  const [bulkChanges, setBulkChanges] = useState<Record<string, number>>({});
+  const [savingBulk, setSavingBulk] = useState(false);
 
   const loadInventory = useCallback(async () => {
     setLoading(true);
@@ -79,22 +64,26 @@ export function AdminInventory() {
     void loadInventory();
   }, [loadInventory]);
 
-  async function saveStockEdit(productId: string) {
-    const newStock = parseInt(editValue, 10);
-    if (isNaN(newStock) || newStock < 0) {
-      toast('error', 'Stock must be a non-negative number');
+  async function handleBulkSave() {
+    const entries = Object.entries(bulkChanges);
+    if (entries.length === 0) {
+      setIsBulkEditing(false);
       return;
     }
-    setSavingStock(true);
+
+    setSavingBulk(true);
     try {
-      await services.productService.updateProduct(productId, { stock: newStock });
-      toast('success', 'Stock updated');
-      setEditingId(null);
+      await Promise.all(
+        entries.map(([id, stock]) => services.productService.updateProduct(id, { stock }))
+      );
+      toast('success', `Updated stock for ${entries.length} items`);
+      setIsBulkEditing(false);
+      setBulkChanges({});
       await loadInventory();
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to update stock');
+      toast('error', err instanceof Error ? err.message : 'Bulk update failed');
     } finally {
-      setSavingStock(false);
+      setSavingBulk(false);
     }
   }
 
@@ -109,292 +98,176 @@ export function AdminInventory() {
   }, [health, overview, query]);
 
   if (loading) return <SkeletonPage />;
-  if (error) return (
-    <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
-      <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-100">
-          <AlertTriangle className="h-6 w-6 text-red-600" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-red-900">Failed to load inventory</p>
-          <p className="mt-0.5 text-sm text-red-700">{error}</p>
-        </div>
-        <button
-          onClick={loadInventory}
-          className="shrink-0 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 active:scale-95"
-        >
-          Try again
-        </button>
-      </div>
-    </div>
-  );
-  if (!overview) return null;
-
-  const HEALTH_TABS: { value: HealthFilter; label: string; count: number; icon: typeof Boxes }[] = [
-    { value: 'all', label: 'All', count: overview.totalProducts, icon: Boxes },
-    { value: 'out_of_stock', label: 'Out of stock', count: overview.healthCounts.out_of_stock, icon: XCircle },
-    { value: 'low_stock', label: 'Low stock', count: overview.healthCounts.low_stock, icon: AlertTriangle },
-    { value: 'healthy', label: 'In stock', count: overview.healthCounts.healthy, icon: CheckCircle2 },
+  
+  const HEALTH_TABS = [
+    { value: 'all', label: 'All', count: overview?.totalProducts ?? 0, icon: Boxes },
+    { value: 'out_of_stock', label: 'Out of stock', count: overview?.healthCounts.out_of_stock ?? 0, icon: XCircle },
+    { value: 'low_stock', label: 'Low stock', count: overview?.healthCounts.low_stock ?? 0, icon: AlertTriangle },
+    { value: 'healthy', label: 'In stock', count: overview?.healthCounts.healthy ?? 0, icon: CheckCircle2 },
   ];
 
-  const totalProducts = overview.totalProducts || 1;
-  const healthyPct = Math.round((overview.healthCounts.healthy / totalProducts) * 100);
-  const lowPct = Math.round((overview.healthCounts.low_stock / totalProducts) * 100);
+  const totalProducts = overview?.totalProducts || 1;
+  const healthyPct = Math.round(((overview?.healthCounts.healthy ?? 0) / totalProducts) * 100);
+  const lowPct = Math.round(((overview?.healthCounts.low_stock ?? 0) / totalProducts) * 100);
   const oosPct = 100 - healthyPct - lowPct;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <AdminPageHeader 
         title="Inventory" 
-        subtitle="Track stock levels and manage availability."
+        subtitle="Track stock levels and manage availability"
         actions={
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 rounded-xl border bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
-          >
-            <Download className="h-4 w-4 text-gray-400" />
-            Export
-          </button>
+          <div className="flex items-center gap-2">
+            {!isBulkEditing ? (
+              <button 
+                onClick={() => setIsBulkEditing(true)}
+                className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Bulk update
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={() => { setIsBulkEditing(false); setBulkChanges({}); }}
+                  className="rounded-lg px-4 py-2 text-xs font-bold text-gray-500 transition hover:bg-gray-100"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleBulkSave}
+                  disabled={savingBulk || Object.keys(bulkChanges).length === 0}
+                  className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {savingBulk ? 'Saving...' : 'Save changes'}
+                </button>
+              </>
+            )}
+          </div>
         }
       />
 
-      {/* ── KPIs ── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminMetricCard 
-          label={
-            <span className="flex items-center">
-              Total SKUs
-              <HelpTooltip text="Total number of unique products in your catalog." />
-            </span>
-          }
-          value={overview.totalProducts} 
-          icon={Boxes} 
-          color="info" 
-          description={
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-gray-500">Catalog size</span>
-              <AdminSparkline data={[42, 45, 43, 48, 46, 52, 50]} color="info" />
-            </div>
-          }
-        />
-        <AdminMetricCard 
-          label={
-            <span className="flex items-center">
-              Units on Hand
-              <HelpTooltip text="Total quantity of all items currently in stock." />
-            </span>
-          }
-          value={overview.totalUnits} 
-          icon={Activity} 
-          color="primary" 
-          description={
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-gray-500">Stock level</span>
-              <AdminSparkline data={[850, 920, 880, 1050, 980, 1120, 1080]} color="primary" />
-            </div>
-          }
-        />
-        <AdminMetricCard 
-          label={
-            <span className="flex items-center">
-              Inventory Value
-              <HelpTooltip text="The total retail value of all items currently in stock." />
-            </span>
-          }
-          value={formatCurrency(overview.inventoryValue)} 
-          icon={DollarSign} 
-          color="success" 
-          description={
-            <div className="mt-2 flex items-center justify-between">
-              <span className="text-xs text-gray-500">Asset value</span>
-              <AdminSparkline data={[12000, 13500, 12800, 14200, 13900, 15500, 15100]} color="success" />
-            </div>
-          }
-        />
-        <AdminMetricCard 
-          label={
-            <span className="flex items-center">
-              Needs Attention
-              <HelpTooltip text="Items that are low on stock or completely sold out." />
-            </span>
-          }
-          value={overview.healthCounts.out_of_stock + overview.healthCounts.low_stock} 
-          icon={AlertTriangle} 
-          color={overview.healthCounts.out_of_stock > 0 ? 'danger' : 'warning'}
-          description={overview.healthCounts.out_of_stock > 0 ? `${overview.healthCounts.out_of_stock} out of stock` : 'Low stock items'}
-        />
+      {/* ── KPI Grid ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminMetricCard label="Units on Hand" value={overview?.totalUnits ?? 0} icon={Activity} color="primary" />
+        <AdminMetricCard label="Inventory Value" value={formatCurrency(overview?.inventoryValue ?? 0)} icon={DollarSign} color="success" />
+        <AdminMetricCard label="Stock Health" value={`${healthyPct}%`} icon={CheckCircle2} color="success" description="Overall health score" />
+        <AdminMetricCard label="Needs Attention" value={(overview?.healthCounts.out_of_stock ?? 0) + (overview?.healthCounts.low_stock ?? 0)} icon={AlertTriangle} color="warning" />
       </div>
 
-      {/* ── Health Distribution Bar ── */}
-      <div className="rounded-2xl border bg-white p-5 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Stock Health Distribution</h3>
-          <div className="flex items-center gap-4 text-[10px]">
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-green-500" />Healthy ({overview.healthCounts.healthy})</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-amber-500" />Low ({overview.healthCounts.low_stock})</span>
-            <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-red-500" />Out ({overview.healthCounts.out_of_stock})</span>
-          </div>
-        </div>
-        <div className="flex h-3 overflow-hidden rounded-full bg-gray-100">
-          {healthyPct > 0 && <div className="bg-green-500 transition-all duration-500" style={{ width: `${healthyPct}%` }} />}
-          {lowPct > 0 && <div className="bg-amber-500 transition-all duration-500" style={{ width: `${lowPct}%` }} />}
-          {oosPct > 0 && <div className="bg-red-500 transition-all duration-500" style={{ width: `${oosPct}%` }} />}
-        </div>
-        <div className="mt-2 flex justify-between text-[10px] text-gray-400">
-          <span>{healthyPct}% healthy</span>
-          <span>{lowPct + oosPct}% needs attention</span>
-        </div>
-      </div>
-
-      {/* ── Filters ── */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-1 overflow-x-auto rounded-xl border bg-white p-1 shadow-sm no-scrollbar">
+      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+        {/* ── Tabs ── */}
+        <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
           {HEALTH_TABS.map((tab) => (
-            <button
+            <AdminTab
               key={tab.value}
-              onClick={() => setHealth(tab.value)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition ${
-                health === tab.value 
-                  ? 'bg-gray-900 text-white shadow-sm' 
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-            >
-              {tab.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                health === tab.value ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-              }`}>
-                {tab.count}
-              </span>
-            </button>
+              label={tab.label}
+              count={tab.count}
+              active={health === tab.value}
+              onClick={() => setHealth(tab.value as HealthFilter)}
+              icon={tab.icon}
+            />
           ))}
         </div>
 
-        <div className="relative lg:w-72">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input 
-            value={query} 
-            onChange={(event) => setQuery(event.target.value)} 
-            placeholder="Search inventory…" 
-            className="w-full rounded-xl border bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent" 
-          />
+        {/* ── Distribution Bar ── */}
+        <div className="p-4 bg-gray-50/50 border-b">
+          <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-200">
+            <div className="bg-green-500 transition-all" style={{ width: `${healthyPct}%` }} />
+            <div className="bg-amber-500 transition-all" style={{ width: `${lowPct}%` }} />
+            <div className="bg-red-500 transition-all" style={{ width: `${oosPct}%` }} />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <div className="flex gap-3">
+              <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-green-500" /> {healthyPct}% Healthy</span>
+              <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-amber-500" /> {lowPct}% Low</span>
+              <span className="flex items-center gap-1"><div className="h-1.5 w-1.5 rounded-full bg-red-500" /> {oosPct}% Out</span>
+            </div>
+            <span>{overview?.totalUnits} units total</span>
+          </div>
         </div>
-      </div>
 
-      {/* ── Table ── */}
-      <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
-        <div className="overflow-x-auto styled-scrollbar">
+        {/* ── Search Bar ── */}
+        <div className="p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input 
+              value={query} 
+              onChange={(e) => setQuery(e.target.value)} 
+              placeholder="Search products by name or category…" 
+              className="w-full rounded-lg border bg-gray-50 py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" 
+            />
+          </div>
+        </div>
+
+        {/* ── Table ── */}
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b bg-gray-50/80">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Product</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Stock</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Action</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Value</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Product</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Health</th>
+                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Quantity</th>
+                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">Retail Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {products.map((product) => (
-                <tr key={product.id} className="group transition hover:bg-gray-50">
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <img src={product.imageUrl} alt="" className="h-10 w-10 rounded-lg border object-cover" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-gray-900">{product.name}</p>
-                        <p className="text-xs text-gray-500">{humanizeCategory(product.category)}</p>
+            <tbody className="divide-y divide-gray-100">
+              {products.map((p) => {
+                const currentStock = bulkChanges[p.id] !== undefined ? bulkChanges[p.id] : p.stock;
+                const isChanged = bulkChanges[p.id] !== undefined && bulkChanges[p.id] !== p.stock;
+
+                return (
+                  <tr key={p.id} className="group transition hover:bg-gray-50">
+                    <td className="px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <img src={p.imageUrl} alt="" className="h-10 w-10 rounded border object-cover bg-gray-50" />
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
+                          <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{p.category}</p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <AdminStatusBadge status={product.inventoryHealth} type="inventory" />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    {editingId === product.id ? (
-                      /* ── Inline stock editor ── */
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setEditValue(String(Math.max(0, parseInt(editValue) - 1)))}
-                          className="rounded-md border p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-                        >
-                          <Minus className="h-3 w-3" />
-                        </button>
-                        <input
-                          type="number"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveStockEdit(product.id);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          className="w-16 rounded-lg border bg-white px-2 py-1 text-center text-sm font-semibold focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                          autoFocus
-                        />
-                        <button
-                          onClick={() => setEditValue(String(parseInt(editValue) + 1))}
-                          className="rounded-md border p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
-                        >
-                          <Plus className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => saveStockEdit(product.id)}
-                          disabled={savingStock}
-                          className="rounded-md bg-green-50 p-1 text-green-600 transition hover:bg-green-100 disabled:opacity-50"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="rounded-md bg-gray-50 p-1 text-gray-400 transition hover:bg-gray-100"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      /* ── Stock display (click to edit) ── */
-                      <button
-                        onClick={() => { setEditingId(product.id); setEditValue(String(product.stock)); }}
-                        className="group/stock flex items-center gap-1 rounded-lg px-2 py-1 text-left transition hover:bg-gray-100"
-                        title="Click to adjust stock"
-                      >
-                        <span className="text-sm font-semibold text-gray-900">{product.stock}</span>
-                        <span className="text-[10px] text-gray-400">units</span>
-                        <span className="ml-1 text-[10px] text-primary-500 opacity-0 transition group-hover/stock:opacity-100">edit</span>
-                      </button>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <p className="text-xs text-gray-500">{HEALTH_COPY[product.inventoryHealth].action}</p>
-                  </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <p className="text-sm font-semibold text-gray-900">{formatCurrency(product.stock * product.price)}</p>
-                  </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <Link 
-                      href={`/admin/products/${product.id}/edit`} 
-                      className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-primary-600 transition hover:bg-primary-50"
-                    >
-                      Edit
-                      <ArrowRight className="h-3 w-3" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <AdminStatusBadge status={p.inventoryHealth} type="inventory" />
+                    </td>
+                    <td className="px-4 py-3.5">
+                      {isBulkEditing ? (
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="number"
+                            value={currentStock}
+                            onChange={(e) => setBulkChanges({ ...bulkChanges, [p.id]: parseInt(e.target.value) || 0 })}
+                            className={`w-20 rounded border bg-white px-2 py-1 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${isChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
+                          />
+                          {isChanged && <button onClick={() => {
+                            const next = { ...bulkChanges };
+                            delete next[p.id];
+                            setBulkChanges(next);
+                          }} className="text-primary-600 hover:text-primary-700"><RotateCcw className="h-3.5 w-3.5" /></button>}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${p.stock < 5 ? 'text-amber-600' : 'text-gray-900'}`}>{p.stock}</span>
+                          <span className="text-[10px] text-gray-400 font-bold uppercase">Units</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
+                      {formatCurrency(currentStock * p.price)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          {products.length === 0 && (
+            <AdminEmptyState 
+              title="No products found" 
+              description="Adjust your search or filters to see more inventory items."
+              icon={Boxes}
+            />
+          )}
         </div>
-        {products.length === 0 && (
-          <AdminEmptyState 
-            title="No matches found" 
-            description="Adjust your search or filters to see more inventory items." 
-            icon={PackageSearch} 
-            action={
-              <button onClick={() => { setHealth('all'); setQuery(''); }} className="text-sm font-semibold text-primary-600 hover:underline">
-                Clear all filters
-              </button>
-            }
-          />
-        )}
       </div>
     </div>
   );

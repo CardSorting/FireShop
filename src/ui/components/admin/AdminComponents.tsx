@@ -21,6 +21,9 @@ import {
   Check,
   Info,
   AlertCircle,
+  Bell,
+  ShoppingBag,
+  DollarSign,
   type LucideIcon
 } from 'lucide-react';
 
@@ -687,4 +690,67 @@ export function AdminSparkline({ data, color = 'primary' }: { data: number[], co
   );
 }
 
+/* ═══════════════════════════════════════════════════════
+   NOTIFICATION BELL — Real-time activity popover
+   ═══════════════════════════════════════════════════════ */
+
+export function AdminNotificationBell() {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const notifications = [
+    { id: '1', title: 'New order #1042', time: '2 mins ago', icon: ShoppingBag, color: 'text-primary-600 bg-primary-50' },
+    { id: '2', title: 'Product "Base Set Booster" is out of stock', time: '1 hour ago', icon: AlertTriangle, color: 'text-red-600 bg-red-50' },
+    { id: '3', title: 'Payout of $1,240.00 processed', time: '3 hours ago', icon: DollarSign, color: 'text-green-600 bg-green-50' },
+  ];
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={containerRef}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`relative rounded-lg p-2 transition hover:bg-gray-100 ${open ? 'bg-gray-100 text-gray-900' : 'text-gray-500'}`}
+      >
+        <Bell className="h-5 w-5" />
+        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary-500 ring-2 ring-white" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-2xl border bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200 z-50">
+          <div className="border-b bg-gray-50/80 px-4 py-3">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Recent Activity</h3>
+          </div>
+          <div className="max-h-96 overflow-y-auto">
+            {notifications.map((n) => {
+              const Icon = n.icon;
+              return (
+                <div key={n.id} className="flex items-start gap-3 border-b border-gray-50 p-4 transition hover:bg-gray-50 cursor-pointer">
+                  <div className={`rounded-lg p-2 ${n.color}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-gray-900 leading-tight">{n.title}</p>
+                    <p className="mt-1 text-[10px] text-gray-400 font-medium">{n.time}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <button className="w-full bg-white py-3 text-[10px] font-bold uppercase tracking-widest text-primary-600 transition hover:bg-gray-50">
+            View all activity
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
