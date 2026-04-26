@@ -131,7 +131,15 @@ export function CommandPalette() {
             icon: ClipboardList,
             href: `/admin/orders`, // In real app, would deep link to order
             group: 'Orders'
-          }))
+          })),
+          {
+            id: 'search-cust',
+            label: `Search customers for "${needle}"`,
+            description: 'Jump to customer records',
+            icon: User,
+            href: `/admin/customers?q=${needle}`,
+            group: 'Customers'
+          }
         ];
 
         setDynamicResults(results);

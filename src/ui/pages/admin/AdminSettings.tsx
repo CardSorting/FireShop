@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Globe,
   Palette,
-  Bell
+  Bell,
+  UserCheck
 } from 'lucide-react';
 import { AdminPageHeader, useToast, useAdminPageTitle } from '../../components/admin/AdminComponents';
 
@@ -173,6 +174,45 @@ export function AdminSettings() {
               <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700">Active</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── Team Management (Shopify Style) ── */}
+      <section className="rounded-2xl border bg-white shadow-sm">
+        <div className="border-b px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Staff & permissions</h2>
+            <p className="text-xs text-gray-500">Manage who can access and edit your store.</p>
+          </div>
+          <button 
+            onClick={() => toast('info', 'Add staff flow coming soon')}
+            className="rounded-xl border border-gray-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+          >
+            Add staff member
+          </button>
+        </div>
+        <div className="divide-y divide-gray-50">
+          {[
+            { name: 'Admin User', email: 'admin@playmoretcg.com', role: 'Owner', lastActive: 'Now' },
+            { name: 'Sarah Miller', email: 'sarah@example.com', role: 'Staff (Fulfillment)', lastActive: '2h ago' },
+            { name: 'Mike Chen', email: 'mike@example.com', role: 'Staff (Catalog)', lastActive: 'Yesterday' },
+          ].map((member) => (
+            <div key={member.email} className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-500">
+                  <UserCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{member.name}</p>
+                  <p className="text-xs text-gray-500">{member.email}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-medium text-gray-900">{member.role}</p>
+                <p className="text-[10px] text-gray-400">Active {member.lastActive}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
     </div>

@@ -5,6 +5,7 @@
  * Admin order management — Shopify fulfillment-style with slide-over detail.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useServices } from '../../hooks/useServices';
 import type { Order, OrderStatus } from '@domain/models';
 import { 
@@ -24,7 +25,12 @@ import {
   Copy,
   Check,
   Calendar,
-  Download
+  Download,
+  Mail,
+  User,
+  ShoppingBag,
+  DollarSign,
+  ExternalLink
 } from 'lucide-react';
 import { formatCurrency, formatShortDate, humanizeOrderStatus, normalizeSearch, formatRelativeTime } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
@@ -460,6 +466,48 @@ export function AdminOrders() {
               <div className="flex items-center justify-between">
                 <AdminStatusBadge status={selectedOrder.status} type="order" />
                 <p className="text-xs text-gray-500">{formatShortDate(selectedOrder.createdAt)}</p>
+              </div>
+
+              {/* Customer Profile Card (Shopify Style) */}
+              <div className="rounded-xl border bg-white p-4 shadow-sm">
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Customer</h3>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+                    <User className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-gray-900">User #{selectedOrder.userId.slice(0, 8)}</p>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500">
+                      <Mail className="h-3 w-3" />
+                      <span className="truncate">customer-{selectedOrder.userId.slice(0, 4)}@example.com</span>
+                    </div>
+                  </div>
+                  <Link 
+                    href="/admin/customers" 
+                    className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-900"
+                    title="View full profile"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Link>
+                </div>
+                
+                {/* Micro-metrics */}
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t pt-4">
+                  <div>
+                    <p className="text-[10px] font-medium uppercase text-gray-400">Lifetime Orders</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <ShoppingBag className="h-3.5 w-3.5 text-primary-500" />
+                      <span className="text-sm font-bold text-gray-900">12 orders</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium uppercase text-gray-400">Total Spent</p>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <DollarSign className="h-3.5 w-3.5 text-green-500" />
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(selectedOrder.total * 5.4)}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Timeline */}
