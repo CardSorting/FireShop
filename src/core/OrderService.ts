@@ -64,7 +64,7 @@ export class OrderService {
     private audit: AuditService,
     private locker: ILockProvider = new InMemoryLockProvider(),
     private checkoutGateway?: ICheckoutGateway
-  ) {}
+  ) { }
 
   async finalizeTrustedCheckout(
     userId: string,
@@ -255,36 +255,36 @@ export class OrderService {
     const attentionItems: AdminDashboardSummary['attentionItems'] = [
       ...(fulfillmentCounts.to_review > 0
         ? [
-            {
-              id: 'orders-to-review',
-              label: `${fulfillmentCounts.to_review} orders need review`,
-              description: 'Confirm paid orders so staff know what to prepare next.',
-              href: '/admin/orders',
-              priority: 'high' as const,
-            },
-          ]
+          {
+            id: 'orders-to-review',
+            label: `${fulfillmentCounts.to_review} orders need review`,
+            description: 'Confirm paid orders so staff know what to prepare next.',
+            href: '/admin/orders',
+            priority: 'high' as const,
+          },
+        ]
         : []),
       ...(fulfillmentCounts.ready_to_ship > 0
         ? [
-            {
-              id: 'orders-ready-to-ship',
-              label: `${fulfillmentCounts.ready_to_ship} orders ready to ship`,
-              description: 'Pack these orders and advance them to shipped.',
-              href: '/admin/orders',
-              priority: 'high' as const,
-            },
-          ]
+          {
+            id: 'orders-ready-to-ship',
+            label: `${fulfillmentCounts.ready_to_ship} orders ready to ship`,
+            description: 'Pack these orders and advance them to shipped.',
+            href: '/admin/orders',
+            priority: 'high' as const,
+          },
+        ]
         : []),
       ...(productStats.healthCounts.out_of_stock > 0 || productStats.healthCounts.low_stock > 0
         ? [
-            {
-              id: 'inventory-low-stock',
-              label: `${productStats.healthCounts.out_of_stock + productStats.healthCounts.low_stock} products need stock attention`,
-              description: 'Review products that are unavailable or close to selling out.',
-              href: '/admin/inventory',
-              priority: productStats.healthCounts.out_of_stock > 0 ? ('high' as const) : ('medium' as const),
-            },
-          ]
+          {
+            id: 'inventory-low-stock',
+            label: `${productStats.healthCounts.out_of_stock + productStats.healthCounts.low_stock} products need stock attention`,
+            description: 'Review products that are unavailable or close to selling out.',
+            href: '/admin/inventory',
+            priority: productStats.healthCounts.out_of_stock > 0 ? ('high' as const) : ('medium' as const),
+          },
+        ]
         : []),
     ];
 
@@ -380,7 +380,7 @@ export class OrderService {
       await Promise.all(ids.map((id) => this.orderRepo.updateStatus(id, status)));
     }
 
-    await Promise.all(ids.map(id => 
+    await Promise.all(ids.map(id =>
       this.audit.record({
         userId: actor.id,
         userEmail: actor.email,
@@ -392,23 +392,25 @@ export class OrderService {
   }
 
   async getCustomerSummaries(users: User[]): Promise<CustomerSummary[]> {
+    const toDate = (value: Date | string): Date => value instanceof Date ? value : new Date(value);
     const summaries = await Promise.all(
       users.map(async (user) => {
         try {
           const orders = await this.orderRepo.getByUserId(user.id);
-        const spent = orders
-          .filter((o) => o.status !== 'cancelled')
-          .reduce((sum, o) => sum + o.total, 0);
-        const lastOrder = orders.length > 0 
-          ? new Date(Math.max(...orders.map(o => o.createdAt.getTime())))
-          : null;
-        
-        const joinedTime = user.createdAt.getTime();
+          const spent = orders
+            .filter((o) => o.status !== 'cancelled')
+            .reduce((sum, o) => sum + o.total, 0);
+          const lastOrder = orders.length > 0
+            ? new Date(Math.max(...orders.map(o => toDate(o.createdAt).getTime())))
+            : null;
 
-        let segment: CustomerSummary['segment'] = 'new';
-        if (spent > 100000) segment = 'big_spender';
-        else if (orders.length > 5) segment = 'active';
-        else if (orders.length === 0 && (Date.now() - joinedTime) > 30 * 24 * 60 * 60 * 1000) segment = 'inactive';
+          const joined = toDate(user.createdAt);
+          const joinedTime = joined.getTime();
+
+          let segment: CustomerSummary['segment'] = 'new';
+          if (spent > 100000) segment = 'big_spender';
+          else if (orders.length > 5) segment = 'active';
+          else if (orders.length === 0 && (Date.now() - joinedTime) > 30 * 24 * 60 * 60 * 1000) segment = 'inactive';
 
           return {
             id: user.id,
@@ -417,7 +419,7 @@ export class OrderService {
             orders: orders.length,
             spent,
             lastOrder,
-            joined: user.createdAt,
+            joined,
             segment
           };
         } catch (err) {
@@ -438,7 +440,7 @@ export class OrderService {
 
     const yesterdayRevenue = orderStats.dailyRevenue[5] || 0;
     const todayRevenue = orderStats.dailyRevenue[6] || 0;
-    const revenueGrowth = yesterdayRevenue > 0 
+    const revenueGrowth = yesterdayRevenue > 0
       ? Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100)
       : 0;
 
