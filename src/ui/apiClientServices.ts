@@ -111,7 +111,15 @@ export function createApiClientServices() {
             receiveTransfer: (id: string) => request<void>('/api/admin/inventory/transfers', { method: 'POST', body: JSON.stringify({ id, action: 'receive' }) }),
         },
         auditService: {
-            getRecentLogs: () => request<any[]>('/api/admin/audit'),
+            getRecentLogs: (options?: { query?: string; action?: string; targetId?: string; userId?: string }) => {
+                const qs = new URLSearchParams();
+                if (options?.query) qs.set('query', options.query);
+                if (options?.action) qs.set('action', options.action);
+                if (options?.targetId) qs.set('targetId', options.targetId);
+                if (options?.userId) qs.set('userId', options.userId);
+                return request<any[]>(`/api/admin/audit?${qs}`);
+            },
+            verifyChain: () => request<{ valid: boolean; total: number; corruptedId?: string }>('/api/admin/audit/verify'),
         },
     };
 

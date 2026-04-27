@@ -23,7 +23,9 @@ import {
   Settings,
   ArrowLeft,
   ChevronRight,
-  UserCheck
+  UserCheck,
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { 
   AdminPageHeader, 
@@ -33,9 +35,130 @@ import {
 } from '../../components/admin/AdminComponents';
 import type { User } from '@domain/models';
 
+interface SecuritySectionProps {
+  auditLogs: any[];
+  setAuditLogs: (logs: any[]) => void;
+  services: ReturnType<typeof useServices>;
+  toast: (type: 'success' | 'error' | 'info', message: string) => void;
+}
+
+function SecuritySection({ auditLogs, setAuditLogs, services, toast }: SecuritySectionProps) {
+  const [query, setQuery] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [chainStatus, setChainStatus] = useState<{ valid: boolean; total: number; corruptedId?: string } | null>(null);
+
+  const filteredLogs = auditLogs.filter(log => {
+    const matchesQuery = !query || 
+      log.userEmail?.toLowerCase().includes(query.toLowerCase()) ||
+      log.action?.toLowerCase().includes(query.toLowerCase()) ||
+      log.targetId?.toLowerCase().includes(query.toLowerCase()) ||
+      JSON.stringify(log.details || '').toLowerCase().includes(query.toLowerCase());
+    const matchesAction = !actionFilter || log.action === actionFilter;
+    return matchesQuery && matchesAction;
+  });
+
+  const uniqueActions = [...new Set(auditLogs.map(l => l.action))].sort();
+
+  async function handleVerifyChain() {
+    setVerifying(true);
+    setChainStatus(null);
+    try {
+      const result = await services.auditService.verifyChain();
+      setChainStatus(result);
+      toast(result.valid ? 'success' : 'error', 
+        result.valid 
+          ? `Chain intact — ${result.total} entries verified` 
+          : `Corruption detected at entry ${result.corruptedId?.slice(0, 8)}`
+      );
+    } catch {
+      toast('error', 'Failed to run chain verification');
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Controls */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search actor, action, target…"
+              className="w-full rounded-xl border bg-gray-50 pl-10 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500 transition"
+            />
+          </div>
+          <select
+            value={actionFilter}
+            onChange={e => setActionFilter(e.target.value)}
+            className="rounded-xl border bg-gray-50 px-3 py-2.5 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-primary-500 transition"
+          >
+            <option value="">All Actions</option>
+            {uniqueActions.map(a => (
+              <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={handleVerifyChain}
+          disabled={verifying}
+          className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${verifying ? 'animate-spin' : ''}`} />
+          {verifying ? 'Verifying…' : 'Verify Chain'}
+        </button>
+      </div>
+
+      {/* Chain Status Banner */}
+      {chainStatus && (
+        <div className={`flex items-center gap-3 rounded-xl p-4 text-sm font-bold animate-in fade-in duration-300 ${
+          chainStatus.valid ? 'bg-green-50 text-green-800 border border-green-100' : 'bg-red-50 text-red-800 border border-red-100'
+        }`}>
+          <Shield className="h-5 w-5 shrink-0" />
+          {chainStatus.valid
+            ? `Forensic chain verified — ${chainStatus.total} entries intact. No tampering detected.`
+            : `CHAIN BREACH: Corruption at entry ${chainStatus.corruptedId}. Immediate review required.`
+          }
+        </div>
+      )}
+
+      {/* Results Count */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Security Audit Trail</h3>
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          {filteredLogs.length} of {auditLogs.length} entries
+        </span>
+      </div>
+
+      {/* Logs Table */}
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
+        <AdminAuditLogs logs={filteredLogs} />
+      </div>
+
+      {/* Forensic Integrity Banner */}
+      <div className="rounded-2xl bg-gray-900 text-white p-6 shadow-xl">
+        <div className="flex gap-4">
+          <Shield className="h-6 w-6 text-primary-400 shrink-0" />
+          <div className="space-y-2">
+            <p className="text-sm font-bold uppercase tracking-widest">BroccoliQ Level 9 — Forensic Integrity</p>
+            <p className="text-xs text-gray-400 leading-relaxed font-medium">
+              Every audit entry is cryptographically sealed via SHA-256 chain hashing. Each record signs its predecessor, making the entire log tamper-evident. Run "Verify Chain" to confirm the complete log history has not been modified.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface AdminSettingsSectionProps {
   sectionId: string;
 }
+
 
 export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
   const services = useServices();
@@ -363,27 +486,13 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
                  </div>
                </div>
              ) : sectionId === 'security' ? (
+               <SecuritySection
+                 auditLogs={auditLogs}
+                 setAuditLogs={setAuditLogs}
+                 services={services}
+                 toast={toast}
+               />
 
-               <div className="space-y-8">
-                  <div className="flex items-center justify-between">
-                     <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Security Audit Trail</h3>
-                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{auditLogs.length} entries recorded</span>
-                  </div>
-                  <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-                     <AdminAuditLogs logs={auditLogs} />
-                  </div>
-                  <div className="rounded-2xl bg-gray-900 text-white p-6 shadow-xl">
-                     <div className="flex gap-4">
-                        <Shield className="h-6 w-6 text-primary-400 shrink-0" />
-                        <div className="space-y-2">
-                           <p className="text-sm font-bold uppercase tracking-widest">Forensic Integrity</p>
-                           <p className="text-xs text-gray-400 leading-relaxed font-medium">
-                             Audit logs are cryptographically sealed and immutable. They provide a definitive source of truth for administrative actions and cannot be modified or deleted.
-                           </p>
-                        </div>
-                     </div>
-                  </div>
-               </div>
              ) : (
               <div className="text-center py-20 space-y-4">
                  <div className="mx-auto h-20 w-20 rounded-full bg-gray-50 flex items-center justify-center text-gray-300">

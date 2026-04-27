@@ -114,5 +114,30 @@ export class AuditService {
       createdAt: new Date(row.createdAt),
     }));
   }
+
+  async verifyChain(): Promise<{ valid: boolean; total: number; corruptedId?: string }> {
+    const logs = await this.db
+      .selectFrom('hive_audit')
+      .selectAll()
+      .orderBy('createdAt', 'asc')
+      .execute();
+
+    let expectedPreviousHash = '0'.repeat(64);
+
+    for (const log of logs) {
+      const payload = `${log.id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${log.createdAt}`;
+      const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
+
+      if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {
+        logger.error(`[AuditService] Chain corruption detected at entry: ${log.id}`);
+        return { valid: false, total: logs.length, corruptedId: log.id };
+      }
+
+      expectedPreviousHash = log.hash!;
+    }
+
+    logger.info(`[AuditService] Chain verified clean across ${logs.length} entries.`);
+    return { valid: true, total: logs.length };
+  }
 }
 
