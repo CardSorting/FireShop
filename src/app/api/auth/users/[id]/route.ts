@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
 import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
-import type { UserRole } from '@domain/models';
+import type { JsonValue, UserRole } from '@domain/models';
 
 const USER_ROLES = new Set<UserRole>(['customer', 'admin']);
 
@@ -16,6 +16,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             displayName?: string;
             role?: UserRole;
             notes?: string;
+            metadata?: Record<string, JsonValue>;
         } = {};
 
         if ('displayName' in body) {
@@ -37,6 +38,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
                 throw new DomainError('Notes must be text.');
             }
             updates.notes = typeof body.notes === 'string' ? body.notes : '';
+        }
+
+        if ('metadata' in body) {
+            if (!body.metadata || typeof body.metadata !== 'object' || Array.isArray(body.metadata)) {
+                throw new DomainError('Metadata must be a JSON object.');
+            }
+            updates.metadata = body.metadata as Record<string, JsonValue>;
         }
 
         if (Object.keys(updates).length === 0) {

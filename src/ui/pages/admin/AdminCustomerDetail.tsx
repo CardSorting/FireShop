@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   DollarSign,
   Check,
+  MapPin,
   Shield,
   Star,
 } from 'lucide-react';
@@ -29,6 +30,15 @@ interface AdminCustomerDetailProps {
   id: string;
 }
 
+function formatCustomerAddress(metadata: any): string | null {
+  const address = metadata?.address;
+  if (!address || typeof address !== 'object' || Array.isArray(address)) return null;
+  const parts = [address.street, address.city, address.state, address.zip, address.country]
+    .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+    .map((part) => part.trim());
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+
 export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
   useAdminPageTitle('Customer Profile');
   const services = useServices();
@@ -37,7 +47,6 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
   const [customer, setCustomer] = useState<any | null>(null);
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
 
   async function loadCustomerOrdersByUserId(userId: string): Promise<Order[]> {
     const allOrders: Order[] = [];
@@ -63,7 +72,7 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
       const foundUser = users.find(u => u.id === id);
       if (found) {
         const orders = await loadCustomerOrdersByUserId(id);
-        setCustomer({ ...found, notes: foundUser?.notes, role: foundUser?.role });
+        setCustomer({ ...found, notes: foundUser?.notes, role: foundUser?.role, metadata: foundUser?.metadata });
         setCustomerOrders(orders);
       } else {
         toast('error', 'Customer not found');
@@ -76,29 +85,6 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
       setLoading(false);
     }
   }, [id, services, router, toast]);
-
-  async function handleEditProfile() {
-    if (!customer) return;
-    const displayName = prompt('Edit customer display name:', customer.name);
-    if (displayName === null) return;
-    const trimmed = displayName.trim();
-    if (!trimmed) {
-      toast('error', 'Display name is required');
-      return;
-    }
-
-    setSavingProfile(true);
-    try {
-      const updated = await services.authService.updateUser(customer.id, { displayName: trimmed });
-      setCustomer((prev: any) => prev ? { ...prev, name: updated.displayName, role: updated.role, notes: updated.notes } : prev);
-      toast('success', 'Customer profile updated');
-      void loadCustomer();
-    } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to update customer profile');
-    } finally {
-      setSavingProfile(false);
-    }
-  }
 
   useEffect(() => {
     void loadCustomer();
@@ -129,11 +115,10 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
         </div>
         <div className="flex gap-3">
           <button
-            onClick={handleEditProfile}
-            disabled={savingProfile}
-            className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={() => router.push(`/admin/customers/${customer.id}/edit`)}
+            className="rounded-xl border bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95"
           >
-            {savingProfile ? 'Saving...' : 'Edit Profile'}
+            Edit Profile
           </button>
           <button className="rounded-xl bg-gray-900 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-gray-800 active:scale-95">
             Send Email
@@ -172,8 +157,8 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
                     <div className="text-right">
                       <p className="text-sm font-bold text-gray-900">{formatCurrency(order.total)}</p>
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${order.status === 'delivered' ? 'bg-green-50 text-green-700' :
-                          order.status === 'cancelled' ? 'bg-red-50 text-red-700' :
-                            'bg-blue-50 text-blue-700'
+                        order.status === 'cancelled' ? 'bg-red-50 text-red-700' :
+                          'bg-blue-50 text-blue-700'
                         }`}>
                         {order.status}
                       </span>
@@ -227,6 +212,22 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
                 <p className="text-sm font-mono text-gray-900 break-all">{customer.id}</p>
               </div>
               <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Address</p>
+                {formatCustomerAddress(customer.metadata) ? (
+                  <div className="flex items-start gap-2 rounded-xl bg-gray-50 p-3 text-sm font-medium text-gray-700">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
+                    <span>{formatCustomerAddress(customer.metadata)}</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => router.push(`/admin/customers/${customer.id}/edit`)}
+                    className="rounded-xl border border-dashed px-3 py-2 text-xs font-bold uppercase text-gray-400 transition hover:border-primary-300 hover:text-primary-600"
+                  >
+                    Add Address
+                  </button>
+                )}
+              </div>
+              <div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Marketing Preference</p>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
                   <Check className="h-3.5 w-3.5" /> Subscribed
@@ -246,17 +247,7 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Admin Notes</h3>
               <button
-                onClick={() => {
-                  const val = prompt('Edit admin notes:', customer.notes || '');
-                  if (val !== null) {
-                    services.authService.updateUser(customer.id, { notes: val })
-                      .then(() => {
-                        toast('success', 'Notes updated');
-                        loadCustomer();
-                      })
-                      .catch(() => toast('error', 'Failed to update notes'));
-                  }
-                }}
+                onClick={() => router.push(`/admin/customers/${customer.id}/edit`)}
                 className="text-[10px] font-bold text-primary-600 uppercase hover:underline"
               >
                 Edit
