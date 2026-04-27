@@ -30,6 +30,7 @@ import { logger } from '@utils/logger';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
+import { formatMoney, formatDate, estimateDelivery } from '@utils/formatters';
 
 const STATUS_CONFIG: Record<OrderStatus, { color: string; icon: typeof Clock; label: string; step: number; description: string }> = {
   pending: { color: 'text-amber-700 bg-amber-50 border-amber-100', icon: Clock, label: 'Order placed', step: 1, description: 'We received your order and are getting it ready for review.' },
@@ -41,22 +42,9 @@ const STATUS_CONFIG: Record<OrderStatus, { color: string; icon: typeof Clock; la
 
 const STATUS_FILTERS: Array<'all' | OrderStatus> = ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
-function formatMoney(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function estimateDelivery(date: Date): string {
-  const end = new Date(date);
-  end.setDate(end.getDate() + 5);
-  return end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 export function OrdersPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { addItem, openCart } = useCart();
   const services = useServices();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -105,11 +93,28 @@ export function OrdersPage() {
 
   const latestOrder = orders[0];
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="mx-auto max-w-6xl space-y-8 px-4 py-16 animate-pulse">
         <div className="rounded-4xl bg-gray-100 h-52" />
         {[1, 2].map((item) => <div key={item} className="h-72 rounded-4xl bg-gray-50" />)}
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-28 text-center">
+        <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-amber-50 text-amber-500">
+          <ShieldCheck className="h-12 w-12" />
+        </div>
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-600">Secure access required</p>
+        <h1 className="mt-3 text-4xl font-black tracking-tight text-gray-900">Sign in to view orders</h1>
+        <p className="mt-4 text-lg font-medium leading-7 text-gray-500">To protect your privacy and order details, please sign in to your account.</p>
+        <div className="mt-10 flex flex-col items-center gap-4">
+          <Link href="/login" className="inline-flex items-center gap-3 rounded-2xl bg-gray-900 px-10 py-5 font-black text-white shadow-xl transition hover:bg-black">Sign in <ArrowRight className="h-5 w-5" /></Link>
+          <Link href="/products" className="text-sm font-bold text-gray-400 hover:text-gray-900">Continue shopping as guest</Link>
+        </div>
       </div>
     );
   }
@@ -158,6 +163,33 @@ export function OrdersPage() {
           </select>
           <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         </div>
+      </div>
+
+      <div className="mb-8 flex gap-2 overflow-x-auto pb-1" aria-label="Order status filters">
+        {STATUS_FILTERS.map((status) => {
+          const active = statusFilter === status;
+          const count = status === 'all' ? orders.length : orders.filter(o => o.status === status).length;
+          if (count === 0 && status !== 'all') return null;
+          
+          return (
+            <button
+              key={status}
+              type="button"
+              onClick={() => setStatusFilter(status)}
+              className={`flex items-center gap-2 shrink-0 rounded-full border px-4 py-2 text-xs font-black transition ${active ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-500 hover:border-primary-200 hover:text-primary-700'}`}
+            >
+              {status === 'all' ? 'All orders' : STATUS_CONFIG[status].label}
+              <span className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-black ${active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'}`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mb-6 flex items-center justify-between px-2">
+        <p className="text-sm font-medium text-gray-500">
+          Showing <span className="font-black text-gray-900">{filteredOrders.length}</span> {statusFilter === 'all' ? '' : statusFilter} order{filteredOrders.length === 1 ? '' : 's'}
+          {searchQuery && <span> matching "<span className="font-black text-gray-900">{searchQuery}</span>"</span>}
+        </p>
       </div>
 
       {filteredOrders.length === 0 ? (
@@ -222,11 +254,13 @@ function OrderCard({ order, reordering, onReorder }: { order: Order; reordering:
         </div>
 
         <div className="flex flex-col gap-4 border-t border-gray-100 pt-6 md:flex-row md:items-center md:justify-between">
-          <div className="text-xs font-medium text-gray-500">Estimated delivery by <span className="font-black text-gray-900">{estimateDelivery(order.createdAt)}</span></div>
+          <div className="text-xs font-medium text-gray-500">{order.trackingNumber ? 'Tracking available' : 'Tracking added after packing'} • Estimated delivery by <span className="font-black text-gray-900">{estimateDelivery(order.createdAt)}</span></div>
           <div className="flex flex-wrap gap-3">
-            <Link href={`/orders/${order.id}`} className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black text-white hover:bg-black">View details <ArrowRight className="h-4 w-4" /></Link>
+            <Link href={`/orders/${order.id}`} className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-5 py-3 text-xs font-black text-white hover:bg-black">
+              {order.status === 'shipped' ? 'Track package' : 'View details'} <ArrowRight className="h-4 w-4" />
+            </Link>
             <button onClick={onReorder} disabled={reordering} className="inline-flex items-center gap-2 rounded-2xl border-2 border-gray-100 px-5 py-3 text-xs font-black text-gray-800 hover:bg-gray-50 disabled:opacity-50">{reordering ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />} Buy again</button>
-            <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl border-2 border-gray-100 px-5 py-3 text-xs font-black text-gray-500 hover:bg-gray-50"><Printer className="h-4 w-4" /> Receipt</button>
+            <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl border-2 border-gray-100 px-5 py-3 text-xs font-black text-gray-500 hover:bg-gray-50"><Printer className="h-4 w-4" /> Print page receipt</button>
           </div>
         </div>
       </div>

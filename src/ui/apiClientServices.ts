@@ -89,7 +89,7 @@ export function createApiClientServices() {
             finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
             placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
             getOrders: (userId: string) => (sessionScoped(userId), request<Order[]>('/api/orders')),
-            getOrder: (id: string) => request<Order>(`/api/admin/orders/${id}`),
+            getOrder: (id: string) => request<Order>(`/api/orders/${id}`),
             getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string; query?: string }) => {
                 const qs = new URLSearchParams();
                 if (options?.status) qs.set('status', options.status);
@@ -100,6 +100,7 @@ export function createApiClientServices() {
             },
             addOrderNote: (id: string, text: string, actor: any) => request<OrderNote>(`/api/admin/orders/${id}/notes`, { method: 'POST', body: JSON.stringify({ text }) }),
             updateOrderFulfillment: (id: string, data: any, actor: any) => request<void>(`/api/admin/orders/${id}/fulfillment`, { method: 'PATCH', body: JSON.stringify(data) }),
+            getAdminOrder: (id: string) => request<Order>(`/api/admin/orders/${id}`),
             updateOrderStatus: (id: string, status: OrderStatus, _actor: { id: string; email: string }) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
             batchUpdateOrderStatus: (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => request<void>('/api/admin/orders/batch', { method: 'PATCH', body: JSON.stringify({ ids, status }) }),
             getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),

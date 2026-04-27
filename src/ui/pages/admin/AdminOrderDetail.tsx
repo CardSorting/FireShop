@@ -58,7 +58,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
   const loadOrder = useCallback(async () => {
     setLoading(true);
     try {
-      const found = await services.orderService.getOrder(id);
+      const found = await services.orderService.getAdminOrder(id);
       if (found) {
         setOrder(found);
       } else {

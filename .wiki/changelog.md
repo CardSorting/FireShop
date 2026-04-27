@@ -1,5 +1,100 @@
 # Changelog
 
+## 2026-04-27 — Third-pass checkout/order UX refinement and stability
+
+### Problem verified
+
+- The working tree contained staged/uncommitted checkout/order changes from a prior pass, leading to potential inconsistency between the intended state and on-disk files.
+- `CheckoutPage.tsx` and `OrderConfirmation.tsx` had opportunities for further refinement: better address/contact field error accessibility, a "review before payment" summary, clearer discount behavior, and empty-cart handling.
+- `OrdersPage.tsx` and `OrderDetailPage.tsx` needed signed-out/loading/auth state hardening, order count chips, and clearer action labeling for tracking and receipts.
+- UI formatters (`formatMoney`, `formatDate`, `estimateDelivery`) were repeated across multiple pages, increasing maintenance risk.
+
+### Remediation performed
+
+- Consolidated stateless UI formatters into `src/utils/formatters.ts` and updated all checkout/order pages to use the shared utilities.
+- Refined `src/ui/pages/CheckoutPage.tsx`:
+  - Extracted inline JSX into local UI helpers (`FormField`, `SummaryRow`, `ReviewRow`, `ReviewCard`) for improved maintainability.
+  - Added an empty-cart state to prevent confusing checkout navigation with no items.
+  - Implemented a "review before payment" summary panel immediately above the Stripe payment element.
+  - Added accessible error bindings (`aria-invalid`, `aria-describedby`) for all address fields (city/state/ZIP).
+  - Clarified discount behavior with explicit "previewed storefront discount" copy.
+- Refined `src/ui/checkout/OrderConfirmation.tsx`:
+  - Added status-specific titles and copy for pending, confirmed, shipped, delivered, and cancelled states.
+  - Added "next actions" buttons: Track package, Buy again, View order details, and Print receipt.
+  - Improved visual distinction for the `context="detail"` view, removing redundant self-links and updating the status hero.
+- Refined `src/ui/pages/OrdersPage.tsx`:
+  - Added a signed-out state to guide unauthenticated users to login.
+  - Implemented order count chips on filter buttons and result-count text showing "Showing X [status] orders".
+  - Improved "Receipt" print labeling and conditional "Track package" action text.
+- Refined `src/ui/pages/OrderDetailPage.tsx` with robust authentication and state handling, ensuring users see a clear sign-in or not-found guidance instead of infinite loading.
+- Verified the integrity of `src/app/api/orders/[id]/route.ts` and `src/app/orders/[id]/page.tsx` and confirmed no malformed route paths remain.
+
+### Verification evidence
+
+- `npm run lint` completed successfully after the third pass.
+- `npm run build` completed successfully, confirming all shared formatters, extracted helpers, and route normalization are stable. Latest verification for the third-pass checkout/order UX refinement: `npm run lint` and `npm run build` completed successfully. The production build generated 40 app routes, including the primary `/orders/[id]` and `/api/orders/[id]` routes, with consolidated formatters and robust state handling.
+
+### Files intentionally changed in this pass
+
+- `src/utils/formatters.ts`
+- `src/ui/pages/CheckoutPage.tsx`
+- `src/ui/checkout/OrderConfirmation.tsx`
+- `src/ui/pages/OrdersPage.tsx`
+- `src/ui/pages/OrderDetailPage.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- UI formatting logic is now centralized in a stateless plumbing layer, reducing duplication and improving consistency across the storefront.
+- Page-level state handling (loading/auth/error) is now more robust, ensuring a reliable user experience even when sessions expire or resources are missing.
+- Domain models and Core services remained unchanged in this UI-focused refinement pass.
+
+## 2026-04-27 — Second-pass checkout/order UX and customer-safe order details
+
+### Problem verified
+
+- Customer order-detail navigation needed a customer-owned API path instead of relying on the admin order detail endpoint through the UI API client.
+- The app contained a malformed tracked order route path (`src/app/orders/[id/]/page.tsx`) that produced an extra `/orders/[id/]` route alongside the intended `/orders/[id]` route.
+- `src/ui/pages/OrderDetailPage.tsx` could remain in a loading state for signed-out users because it returned early while `loading` stayed true.
+- Checkout and order pages still had opportunities for industry-standard clarity: stronger secure-checkout helper copy, better payment step expectations, more explicit tax/promo messaging, accessible field attributes, tracking-unavailable states, and filter chips familiar from customer account order pages.
+
+### Remediation performed
+
+- Added customer-owned `GET /api/orders/[id]` in `src/app/api/orders/[id]/route.ts`; it requires a signed-in session and returns the order only when `order.userId === session user.id`, otherwise raising `OrderNotFoundError`.
+- Updated `src/ui/apiClientServices.ts` so customer `orderService.getOrder(id)` calls `/api/orders/{id}` and added `orderService.getAdminOrder(id)` for admin-only order detail reads.
+- Updated `src/ui/pages/admin/AdminOrderDetail.tsx` to use `getAdminOrder(id)` so admin behavior remains on the protected admin endpoint.
+- Normalized the storefront order detail route to `src/app/orders/[id]/page.tsx` and removed the malformed `src/app/orders/[id/]/page.tsx` route from the working tree/index.
+- Reworked `src/ui/pages/OrderDetailPage.tsx` with signed-out, loading, and unavailable states using plain-language account/order guidance and a `context="detail"` confirmation view.
+- Deepened `src/ui/pages/CheckoutPage.tsx` with a checkout reassurance panel, help link, `aria-invalid` / `aria-describedby` on key fields, Stripe-style payment stage copy, estimated tax row, and clearer promo/gift-card disclaimer copy.
+- Deepened `src/ui/checkout/OrderConfirmation.tsx` with a detail-page context, explicit tracking-unavailable state, tracking/delivery update panel, and no redundant self-link when already viewing detail context.
+- Deepened `src/ui/pages/OrdersPage.tsx` with account-style status filter chips and clearer tracking availability copy in order cards.
+
+### Verification evidence
+
+- `npm run lint` completed successfully after the second pass.
+- `npm run build` completed successfully after route normalization and generated 40 app routes, including dynamic customer routes `/api/orders/[id]` and `/orders/[id]` with no duplicate malformed `/orders/[id/]` route.
+
+### Files intentionally changed in this pass
+
+- `src/app/api/orders/[id]/route.ts`
+- `src/app/orders/[id]/page.tsx`
+- `src/app/orders/[id/]/page.tsx` (removed malformed route path)
+- `src/ui/apiClientServices.ts`
+- `src/ui/pages/admin/AdminOrderDetail.tsx`
+- `src/ui/pages/OrderDetailPage.tsx`
+- `src/ui/pages/CheckoutPage.tsx`
+- `src/ui/checkout/OrderConfirmation.tsx`
+- `src/ui/pages/OrdersPage.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Customer order ownership enforcement is an Infrastructure HTTP-boundary concern and is implemented in the new customer order detail API route.
+- UI now routes customer and admin order detail reads through separate client service methods to avoid privilege-boundary ambiguity.
+- Domain and Core order models/orchestration were reused unchanged.
+
 ## 2026-04-27 — Checkout and post-payment order UX modernization
 
 ### Problem verified

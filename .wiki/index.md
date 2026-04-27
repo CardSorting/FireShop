@@ -27,6 +27,12 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ## Current verified state
 
+- Third-pass checkout/order UX refinement verified; consolidated UI formatters into `src/utils/formatters.ts` and updated `CheckoutPage`, `OrderConfirmation`, `OrdersPage`, and `OrderDetailPage`.
+- Checkout "Review before payment" verified in `src/ui/pages/CheckoutPage.tsx`; it includes extracted UI helpers, empty-cart handling, and hardened address-field accessibility.
+- Status-specific order confirmation/detail verified in `src/ui/checkout/OrderConfirmation.tsx`; it includes contextual titles/copy and "next step" actions (Track, Buy again, Print receipt).
+- Customer order history/detail state hardening verified in `src/ui/pages/OrdersPage.tsx` and `src/ui/pages/OrderDetailPage.tsx`; includes signed-out/not-found guides, order count chips, and better tracking labels.
+- Build stability verified; `npm run build` generates 40 app routes with normalized `/orders/[id]` paths and no malformed route conflicts.
+
 - Checkout UX modernization verified in `src/ui/pages/CheckoutPage.tsx`; checkout now uses a guarded `Information → Shipping → Payment` progression, inline contact/address validation, explanatory disabled wallet checkout placeholders, review cards, secure Stripe-style payment copy, mobile order-summary disclosure, discount-code feedback, free-shipping guidance, and buyer-protection trust cues.
 - Checkout success path verified in `src/ui/pages/CheckoutPage.tsx`; successful finalization stores the returned Domain `Order` and renders the shared `OrderConfirmation` experience while preserving stable checkout idempotency until confirmation.
 - Post-payment receipt experience verified in `src/ui/checkout/OrderConfirmation.tsx`; the page now presents order number/date, confirmation-email messaging, estimated delivery, customer next steps, status timeline, shipping/delivery cards, itemized receipt summary, print action, support link, order tracking, and shipping/refund policy navigation.
@@ -119,7 +125,7 @@ git --no-pager diff --stat
 git status --short
 ```
 
-Latest verification for the checkout/order UX modernization pass: `npm run lint` and `npm run build` completed successfully. The production build generated 41 app routes including `/checkout`, `/orders`, `/orders/[id/]`, and `/products`.
+Latest verification for the third-pass checkout/order UX refinement: `npm run lint` and `npm run build` completed successfully. The production build generated 40 app routes, including the primary `/orders/[id]` and `/api/orders/[id]` routes, with consolidated formatters and robust state handling.
 
 ## Mermaid: architectural bridge
 

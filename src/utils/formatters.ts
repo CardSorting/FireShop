@@ -8,6 +8,18 @@ export function formatCurrency(cents: number): string {
   }).format(cents / 100);
 }
 
+export function formatMoney(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(cents / 100);
+}
+
+export function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export function formatShortDate(date: Date | string | null | undefined): string {
   if (!date) return 'N/A';
   
@@ -22,6 +34,16 @@ export function formatShortDate(date: Date | string | null | undefined): string 
     day: 'numeric',
     year: 'numeric',
   }).format(d);
+}
+
+export function estimateDelivery(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const start = new Date(d);
+  start.setDate(start.getDate() + 3);
+  const end = new Date(d);
+  end.setDate(end.getDate() + 5);
+  const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  return `${start.toLocaleDateString(undefined, options)}–${end.toLocaleDateString(undefined, options)}`;
 }
 
 export function humanizeOrderStatus(status: string): string {

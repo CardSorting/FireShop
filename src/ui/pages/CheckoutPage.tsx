@@ -11,12 +11,10 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
-  CreditCard,
   HelpCircle,
   Info,
   LockKeyhole,
   Mail,
-  MapPin,
   PackageCheck,
   RefreshCcw,
   ShieldCheck,
@@ -32,6 +30,7 @@ import { OrderConfirmation } from '../checkout/OrderConfirmation';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
+import { formatMoney } from '@utils/formatters';
 
 const StripeCheckoutForm = lazy(() => import('../checkout/StripeCheckoutForm').then((module) => ({ default: module.StripeCheckoutForm })));
 
@@ -45,9 +44,6 @@ const CHECKOUT_STEPS: Array<{ id: CheckoutStep; label: string }> = [
   { id: 'payment', label: 'Payment' },
 ];
 
-function formatMoney(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 function validateEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -111,6 +107,7 @@ export function CheckoutPage() {
   const summaryRows = useMemo(() => [
     ['Subtotal', formatMoney(subtotal)],
     ['Shipping', shipping === 0 ? 'Free' : formatMoney(shipping)],
+    ['Estimated tax', 'Calculated after payment review'],
     ...(appliedDiscount ? [['Discount', `-${formatMoney(appliedDiscount.amount)}`]] : []),
   ], [appliedDiscount, shipping, subtotal]);
 
@@ -178,18 +175,47 @@ export function CheckoutPage() {
     if (checkoutError) document.getElementById('checkout-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [checkoutError]);
 
-  if (isSuccess && finalOrder) return <OrderConfirmation order={finalOrder} userEmail={email} userName={user?.displayName} />;
-
   const cartItems = cart?.items ?? [];
+
+  if (loadingCart) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <RefreshCcw className="mx-auto h-10 w-10 animate-spin text-primary-600" />
+          <p className="mt-4 text-xs font-black uppercase tracking-widest text-gray-400">Loading checkout...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0 && !isSuccess) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full bg-white rounded-3xl p-10 shadow-xl text-center border border-gray-100">
+          <ShoppingBag className="h-16 w-16 text-gray-200 mx-auto mb-6" />
+          <h1 className="text-2xl font-black text-gray-900 mb-2">Your cart is empty</h1>
+          <p className="text-gray-500 mb-8 font-medium">Add some items to your cart before checking out.</p>
+          <Link href="/products" className="inline-flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white shadow-xl transition hover:bg-black">
+            Continue shopping
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSuccess && finalOrder) return <OrderConfirmation order={finalOrder} userEmail={email} userName={user?.displayName} />;
 
   return (
     <div className="min-h-screen bg-white">
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/" className="text-2xl font-black tracking-tighter text-gray-900">PlayMore<span className="text-primary-600">TCG</span></Link>
-          <div className="hidden items-center gap-3 rounded-full border border-green-100 bg-green-50 px-4 py-2 md:flex">
-            <LockKeyhole className="h-3.5 w-3.5 text-green-600" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-green-700">Secure checkout powered by Stripe patterns</span>
+          <div className="flex items-center gap-3">
+            <Link href="/contact" className="hidden text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 sm:inline">Need help?</Link>
+            <div className="hidden items-center gap-3 rounded-full border border-green-100 bg-green-50 px-4 py-2 md:flex">
+              <LockKeyhole className="h-3.5 w-3.5 text-green-600" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-green-700">Secure checkout powered by Stripe patterns</span>
+            </div>
           </div>
         </div>
       </header>
@@ -214,6 +240,16 @@ export function CheckoutPage() {
           </nav>
 
           <div className="max-w-xl">
+            <div className="mb-8 rounded-3xl border border-primary-100 bg-primary-50/60 p-5">
+              <div className="flex gap-4">
+                <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary-600" />
+                <div>
+                  <p className="text-sm font-black text-primary-950">Fast, familiar checkout</p>
+                  <p className="mt-1 text-xs font-medium leading-5 text-primary-800">Your contact, shipping, and payment sections can be reviewed before placing the order. Card entry is handled through Stripe Elements.</p>
+                </div>
+              </div>
+            </div>
+
             {checkoutError && (
               <div id="checkout-error" role="alert" className="mb-6 flex gap-3 rounded-2xl border-2 border-red-100 bg-red-50 p-5 text-sm font-bold text-red-700">
                 <AlertCircle className="h-5 w-5 shrink-0" />
@@ -245,28 +281,67 @@ export function CheckoutPage() {
                   <label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">Email address</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} readOnly={!!user} placeholder="you@example.com" className={`w-full rounded-2xl border-2 bg-white py-4 pl-11 pr-4 text-sm font-bold text-gray-900 outline-none transition focus:ring-4 focus:ring-primary-50 ${fieldErrors.email ? 'border-red-300' : 'border-gray-100 focus:border-primary-500'}`} />
+                    <input id="checkout-email" type="email" autoComplete="email" aria-invalid={!!fieldErrors.email} aria-describedby={fieldErrors.email ? 'checkout-email-error' : undefined} value={email} onChange={(e) => setEmail(e.target.value)} readOnly={!!user} placeholder="you@example.com" className={`w-full rounded-2xl border-2 bg-white py-4 pl-11 pr-4 text-sm font-bold text-gray-900 outline-none transition focus:ring-4 focus:ring-primary-50 ${fieldErrors.email ? 'border-red-300' : 'border-gray-100 focus:border-primary-500'}`} />
                   </div>
-                  {fieldErrors.email && <p className="mt-2 text-xs font-bold text-red-600">{fieldErrors.email}</p>}
+                  {fieldErrors.email && <p id="checkout-email-error" className="mt-2 text-xs font-bold text-red-600">{fieldErrors.email}</p>}
                   <label className="mt-4 flex items-center gap-2 text-xs font-medium text-gray-600"><input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-primary-600" /> Email me order updates and collector offers.</label>
                 </section>
 
                 <section>
                   <h2 className="mb-6 text-2xl font-black tracking-tight text-gray-900">Shipping address</h2>
                   <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">Address</label>
-                      <input autoComplete="shipping street-address" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} placeholder="Street address or PO box" className={`w-full rounded-2xl border-2 px-4 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-primary-50 ${fieldErrors.street ? 'border-red-300' : 'border-gray-100 focus:border-primary-500'}`} />
-                      {fieldErrors.street && <p className="mt-2 text-xs font-bold text-red-600">{fieldErrors.street}</p>}
-                    </div>
+                    <FormField 
+                      label="Address" 
+                      id="checkout-street"
+                      autoComplete="shipping street-address" 
+                      error={fieldErrors.street} 
+                      value={address.street} 
+                      onChange={(val) => setAddress({ ...address, street: val })} 
+                      placeholder="Street address or PO box" 
+                    />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <div><label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">City</label><input autoComplete="shipping address-level2" value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} className={`w-full rounded-2xl border-2 px-4 py-4 text-sm font-bold outline-none ${fieldErrors.city ? 'border-red-300' : 'border-gray-100'}`} />{fieldErrors.city && <p className="mt-2 text-xs font-bold text-red-600">{fieldErrors.city}</p>}</div>
-                      <div><label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">State</label><input autoComplete="shipping address-level1" value={address.state} onChange={(e) => setAddress({ ...address, state: e.target.value })} className={`w-full rounded-2xl border-2 px-4 py-4 text-sm font-bold outline-none ${fieldErrors.state ? 'border-red-300' : 'border-gray-100'}`} />{fieldErrors.state && <p className="mt-2 text-xs font-bold text-red-600">{fieldErrors.state}</p>}</div>
-                      <div><label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">ZIP</label><input autoComplete="shipping postal-code" value={address.zip} onChange={(e) => setAddress({ ...address, zip: e.target.value })} className={`w-full rounded-2xl border-2 px-4 py-4 text-sm font-bold outline-none ${fieldErrors.zip ? 'border-red-300' : 'border-gray-100'}`} />{fieldErrors.zip && <p className="mt-2 text-xs font-bold text-red-600">{fieldErrors.zip}</p>}</div>
+                      <FormField 
+                        label="City" 
+                        id="checkout-city"
+                        autoComplete="shipping address-level2" 
+                        error={fieldErrors.city}
+                        value={address.city} 
+                        onChange={(val) => setAddress({ ...address, city: val })} 
+                      />
+                      <FormField 
+                        label="State" 
+                        id="checkout-state"
+                        autoComplete="shipping address-level1" 
+                        error={fieldErrors.state}
+                        value={address.state} 
+                        onChange={(val) => setAddress({ ...address, state: val })} 
+                      />
+                      <FormField 
+                        label="ZIP" 
+                        id="checkout-zip"
+                        autoComplete="shipping postal-code" 
+                        error={fieldErrors.zip}
+                        value={address.zip} 
+                        onChange={(val) => setAddress({ ...address, zip: val })} 
+                      />
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div><label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">Country</label><input autoComplete="shipping country" value={address.country} onChange={(e) => setAddress({ ...address, country: e.target.value })} className="w-full rounded-2xl border-2 border-gray-100 px-4 py-4 text-sm font-bold outline-none" /></div>
-                      <div><label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">Phone optional</label><input type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="For carrier delivery questions" className="w-full rounded-2xl border-2 border-gray-100 px-4 py-4 text-sm font-bold outline-none" /></div>
+                      <FormField 
+                        label="Country" 
+                        id="checkout-country"
+                        autoComplete="shipping country" 
+                        value={address.country} 
+                        onChange={(val) => setAddress({ ...address, country: val })} 
+                      />
+                      <FormField 
+                        label="Phone optional" 
+                        id="checkout-phone"
+                        type="tel" 
+                        autoComplete="tel" 
+                        value={phone} 
+                        onChange={setPhone} 
+                        placeholder="For carrier delivery questions" 
+                      />
                     </div>
                   </div>
                 </section>
@@ -303,8 +378,19 @@ export function CheckoutPage() {
                 <ReviewCard email={email} address={address} shipping={shipping} onChange={setStep} />
                 <section>
                   <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-black tracking-tight text-gray-900">Payment</h1><span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-green-700"><ShieldCheck className="h-3.5 w-3.5" /> Secure</span></div>
-                  <div className="mb-4 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-xs font-medium text-gray-600">Your payment details are entered in Stripe Elements. PlayMoreTCG never stores your full card number.</div>
+                  <div className="mb-4 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-xs font-medium text-gray-600 sm:grid-cols-3">
+                    <span><strong className="block text-gray-900">1. Enter card</strong>Stripe securely collects card details.</span>
+                    <span><strong className="block text-gray-900">2. Authorize</strong>Your bank verifies the payment.</span>
+                    <span><strong className="block text-gray-900">3. Confirm</strong>We create your order and receipt.</span>
+                  </div>
                   <div className="overflow-hidden rounded-3xl border-2 border-gray-900 shadow-xl shadow-gray-200/50">
+                    <div className="bg-gray-50 px-6 py-4 border-b border-gray-100">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Order review</h3>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-700">{totalItems} items</span>
+                        <span className="text-lg font-black text-gray-900">{formatMoney(total)}</span>
+                      </div>
+                    </div>
                     {isStripeConfigured ? (
                       <Suspense fallback={<div className="p-16 text-center text-sm font-bold text-gray-400 animate-pulse">Initializing secure gateway...</div>}>
                         <StripeCheckoutForm address={address} onSuccess={handleSuccess} onPlaceOrder={(isPlacing) => { setPlacing(isPlacing); setCheckoutStatus(isPlacing ? 'authorizing' : 'idle'); }} isPlacing={placing || checkoutStatus !== 'idle'} />
@@ -332,10 +418,50 @@ export function CheckoutPage() {
                   <div key={item.productId} className="flex items-center gap-4"><div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border bg-white shadow-sm"><img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" /><span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-gray-600 text-[10px] font-black text-white ring-2 ring-white">{item.quantity}</span></div><div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-gray-900">{item.name}</p><p className="mt-1 text-[10px] font-bold text-gray-400">{formatMoney(item.priceSnapshot)} each</p></div><p className="text-xs font-black text-gray-900">{formatMoney(item.priceSnapshot * item.quantity)}</p></div>
                 ))}
               </div>
-              <div className="mt-8 border-t border-gray-200 pt-6"><div className="flex gap-2"><input value={discountCode} onChange={(e) => setDiscountCode(e.target.value)} placeholder="Discount code" className="min-w-0 flex-1 rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-primary-500" /><button onClick={handleApplyDiscount} disabled={isApplying || !discountCode.trim()} className="rounded-2xl bg-gray-200 px-5 py-3 text-xs font-black text-gray-700 disabled:opacity-50">{isApplying ? <RefreshCcw className="h-4 w-4 animate-spin" /> : 'Apply'}</button></div>{discountMessage && <p className={`mt-3 text-xs font-bold ${appliedDiscount ? 'text-green-700' : 'text-amber-700'}`}>{discountMessage}</p>}{appliedDiscount && <div className="mt-3 flex items-center justify-between rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-xs font-black text-green-700"><span className="flex items-center gap-2"><Tag className="h-3.5 w-3.5" /> {appliedDiscount.code}</span><button onClick={() => { setAppliedDiscount(null); setDiscountMessage(null); }} className="opacity-60 hover:opacity-100">Remove</button></div>}</div>
-              <div className="mt-8 space-y-3 border-t border-gray-200 pt-6">{summaryRows.map(([label, value]) => <div key={label} className={`flex justify-between text-sm font-bold ${label === 'Discount' ? 'text-green-600' : 'text-gray-500'}`}><span>{label}</span><span className="text-gray-900">{value}</span></div>)}<div className="flex items-end justify-between border-t border-gray-200 pt-5"><span className="text-lg font-black text-gray-900">Total</span><span className="text-right"><span className="mr-2 text-[10px] font-black uppercase text-gray-400">USD</span><span className="text-3xl font-black tracking-tighter text-gray-900">{formatMoney(total)}</span></span></div></div>
-              {freeShippingRemaining > 0 ? <div className="mt-6 rounded-2xl bg-white p-4 text-xs font-bold text-gray-600 shadow-sm"><Truck className="mb-2 h-4 w-4 text-primary-600" /> Add {formatMoney(freeShippingRemaining)} more for free standard shipping.</div> : <div className="mt-6 rounded-2xl bg-green-50 p-4 text-xs font-bold text-green-700"><Truck className="mb-2 h-4 w-4" /> Free standard shipping unlocked.</div>}
-              <div className="mt-8 grid gap-4"><TrustItem icon={<ShieldCheck className="h-4 w-4" />} title="Buyer protection" text="Authenticity-backed singles and sealed products." /><TrustItem icon={<PackageCheck className="h-4 w-4" />} title="Protected packaging" text="Sleeved, packed, and boxed for collectors." /><TrustItem icon={<HelpCircle className="h-4 w-4" />} title="Support after purchase" text="Order help, returns guidance, and delivery questions." /></div>
+              <div className="mt-8 border-t border-gray-200 pt-6">
+                <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-gray-400">Promo or gift card</p>
+                <div className="flex gap-2">
+                  <input value={discountCode} onChange={(e) => setDiscountCode(e.target.value)} placeholder="Discount code" className="min-w-0 flex-1 rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 text-sm font-bold outline-none focus:border-primary-500" />
+                  <button onClick={handleApplyDiscount} disabled={isApplying || !discountCode.trim()} className="rounded-2xl bg-gray-200 px-5 py-3 text-xs font-black text-gray-700 disabled:opacity-50">
+                    {isApplying ? <RefreshCcw className="h-4 w-4 animate-spin" /> : 'Apply'}
+                  </button>
+                </div>
+                {discountMessage && <p className={`mt-3 text-xs font-bold ${appliedDiscount ? 'text-green-700' : 'text-amber-700'}`}>{discountMessage}</p>}
+                <p className="mt-2 text-[10px] font-medium text-gray-400">Previewed storefront discount. Final order totals are calculated at checkout completion.</p>
+                {appliedDiscount && (
+                  <div className="mt-3 flex items-center justify-between rounded-xl border border-green-100 bg-green-50 px-3 py-2 text-xs font-black text-green-700">
+                    <span className="flex items-center gap-2"><Tag className="h-3.5 w-3.5" /> {appliedDiscount.code}</span>
+                    <button onClick={() => { setAppliedDiscount(null); setDiscountMessage(null); }} className="opacity-60 hover:opacity-100">Remove</button>
+                  </div>
+                )}
+              </div>
+              <div className="mt-8 space-y-3 border-t border-gray-200 pt-6">
+                <SummaryRow label="Subtotal" value={formatMoney(subtotal)} />
+                <SummaryRow label="Shipping" value={shipping === 0 ? 'Free' : formatMoney(shipping)} />
+                <SummaryRow label="Estimated tax" value="Calculated after review" />
+                {appliedDiscount && <SummaryRow label="Discount" value={`-${formatMoney(appliedDiscount.amount)}`} isDiscount />}
+                <div className="flex items-end justify-between border-t border-gray-200 pt-5">
+                  <span className="text-lg font-black text-gray-900">Total</span>
+                  <span className="text-right">
+                    <span className="mr-2 text-[10px] font-black uppercase text-gray-400">USD</span>
+                    <span className="text-3xl font-black tracking-tighter text-gray-900">{formatMoney(total)}</span>
+                  </span>
+                </div>
+              </div>
+              {freeShippingRemaining > 0 ? (
+                <div className="mt-6 rounded-2xl bg-white p-4 text-xs font-bold text-gray-600 shadow-sm">
+                  <Truck className="mb-2 h-4 w-4 text-primary-600" /> Add {formatMoney(freeShippingRemaining)} more for free standard shipping.
+                </div>
+              ) : (
+                <div className="mt-6 rounded-2xl bg-green-50 p-4 text-xs font-bold text-green-700">
+                  <Truck className="mb-2 h-4 w-4" /> Free standard shipping unlocked.
+                </div>
+              )}
+              <div className="mt-8 grid gap-4">
+                <TrustItem icon={<ShieldCheck className="h-4 w-4" />} title="Buyer protection" text="Authenticity-backed singles and sealed products." />
+                <TrustItem icon={<PackageCheck className="h-4 w-4" />} title="Protected packaging" text="Sleeved, packed, and boxed for collectors." />
+                <TrustItem icon={<HelpCircle className="h-4 w-4" />} title="Support after purchase" text="Order help, returns guidance, and delivery questions." />
+              </div>
             </div>
           </div>
         </aside>
@@ -344,16 +470,65 @@ export function CheckoutPage() {
   );
 }
 
+function SummaryRow({ label, value, isDiscount }: { label: string; value: string; isDiscount?: boolean }) {
+  return (
+    <div className={`flex justify-between text-sm font-bold ${isDiscount ? 'text-green-600' : 'text-gray-500'}`}>
+      <span>{label}</span>
+      <span className="text-gray-900">{value}</span>
+    </div>
+  );
+}
+
+function FormField({ label, id, value, onChange, placeholder, error, type = 'text', autoComplete }: { label: string; id: string; value: string; onChange: (v: string) => void; placeholder?: string; error?: string; type?: string; autoComplete?: string }) {
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">{label}</label>
+      <input 
+        id={id}
+        type={type}
+        autoComplete={autoComplete} 
+        aria-invalid={!!error} 
+        aria-describedby={error ? `${id}-error` : undefined}
+        value={value} 
+        onChange={(e) => onChange(e.target.value)} 
+        placeholder={placeholder} 
+        className={`w-full rounded-2xl border-2 px-4 py-4 text-sm font-bold outline-none transition focus:ring-4 focus:ring-primary-50 ${error ? 'border-red-300' : 'border-gray-100 focus:border-primary-500'}`} 
+      />
+      {error && <p id={`${id}-error`} className="mt-2 text-xs font-bold text-red-600">{error}</p>}
+    </div>
+  );
+}
+
 function ReviewCard({ email, address, shipping, onChange }: { email: string; address: Address; shipping: number; onChange: (step: CheckoutStep) => void }) {
   return (
     <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white text-sm shadow-sm">
-      <div className="flex items-center justify-between gap-4 border-b p-4"><span className="w-20 text-xs font-black uppercase tracking-widest text-gray-400">Contact</span><span className="min-w-0 flex-1 truncate font-bold text-gray-700">{email}</span><button onClick={() => onChange('information')} className="text-xs font-black text-primary-600 hover:underline">Change</button></div>
-      <div className="flex items-center justify-between gap-4 border-b p-4"><span className="w-20 text-xs font-black uppercase tracking-widest text-gray-400">Ship to</span><span className="min-w-0 flex-1 truncate font-bold text-gray-700">{address.street}, {address.city}, {address.state} {address.zip}</span><button onClick={() => onChange('information')} className="text-xs font-black text-primary-600 hover:underline">Change</button></div>
-      <div className="flex items-center justify-between gap-4 p-4"><span className="w-20 text-xs font-black uppercase tracking-widest text-gray-400">Method</span><span className="min-w-0 flex-1 truncate font-bold text-gray-700">Standard insured • {shipping === 0 ? 'Free' : formatMoney(shipping)}</span><button onClick={() => onChange('shipping')} className="text-xs font-black text-primary-600 hover:underline">Change</button></div>
+      <ReviewRow label="Contact" value={email} onChange={() => onChange('information')} />
+      <ReviewRow label="Ship to" value={`${address.street}, ${address.city}, ${address.state} ${address.zip}`} onChange={() => onChange('information')} />
+      <ReviewRow label="Method" value={`Standard insured • ${shipping === 0 ? 'Free' : formatMoney(shipping)}`} onChange={() => onChange('shipping')} isLast />
+    </div>
+  );
+}
+
+function ReviewRow({ label, value, onChange, isLast }: { label: string; value: string; onChange: () => void; isLast?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between gap-4 p-4 ${isLast ? '' : 'border-b border-gray-100'}`}>
+      <span className="w-20 text-xs font-black uppercase tracking-widest text-gray-400">{label}</span>
+      <span className="min-w-0 flex-1 truncate font-bold text-gray-700">{value}</span>
+      <button onClick={onChange} className="text-xs font-black text-primary-600 hover:underline">Change</button>
     </div>
   );
 }
 
 function TrustItem({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
-  return <div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-primary-600 shadow-sm">{icon}</div><div><p className="text-[10px] font-black uppercase tracking-widest text-gray-900">{title}</p><p className="mt-1 text-[10px] font-bold text-gray-400">{text}</p></div></div>;
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-gray-200 bg-white text-primary-600 shadow-sm">
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-900">{title}</p>
+        <p className="mt-1 text-[10px] font-bold text-gray-400">{text}</p>
+      </div>
+    </div>
+  );
 }
