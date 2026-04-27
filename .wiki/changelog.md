@@ -1,5 +1,47 @@
 # Changelog
 
+## 2026-04-26 — Storefront cart UX and snapshot pricing alignment
+
+### Problem verified
+
+- `src/ui/pages/CartPage.tsx` rendered cart rows by refetching products and used current `Product.price` for cart totals, while checkout/order logic uses `CartItem.priceSnapshot`.
+- Cart UI omitted robust signed-out/loading/error states and line-level pending states for cart mutations.
+- `src/ui/layouts/Navbar.tsx` exposed a cart link without a signed-in item-count badge or immediate refresh after cart mutations.
+- `src/ui/pages/ProductDetailPage.tsx` added items without dispatching a navbar refresh event and provided only transient button text as post-add feedback.
+- `src/ui/pages/ProductsPage.tsx` product cards displayed as interactive cards but did not link shoppers to product detail pages.
+
+### Remediation performed
+
+- Reworked `src/ui/pages/CartPage.tsx` to render cart item names, images, unit prices, line totals, and subtotal from `CartItem` snapshots (`name`, `imageUrl`, `priceSnapshot`, `quantity`).
+- Kept current product fetches in `CartPage` as supplemental metadata only, used for current stock/unavailable warnings and quantity clamp hints.
+- Added cart page loading, signed-out, empty, and error/retry states; added breadcrumb, item-count summary, sticky order summary, estimated shipping copy, checkout disclaimer, and trust/help cues.
+- Added per-line pending state and clear-cart pending state in `CartPage`; quantity controls clamp to `1`, current stock when known, and Domain `MAX_CART_QUANTITY`.
+- Added `cart:updated` browser event dispatches after successful cart remove, quantity update, clear-cart, and product-detail add-to-cart mutations.
+- Updated `src/ui/layouts/Navbar.tsx` to fetch signed-in cart quantity through `cartService.getCart(user.id)`, display a badge capped at `99+`, reset on sign-out, and refetch on `cart:updated`.
+- Updated `src/ui/pages/ProductDetailPage.tsx` to catch add-to-cart errors, dispatch `cart:updated` after successful add, and show a confirmation panel with `View cart` and `Continue shopping` links.
+- Updated `src/ui/pages/ProductsPage.tsx` so product images, names, and a new `View details` CTA link to `/products/{id}`.
+
+### Verification evidence
+
+- Targeted ESLint completed successfully: `CI=1 npx eslint src/ui/pages/CartPage.tsx src/ui/layouts/Navbar.tsx src/ui/pages/ProductDetailPage.tsx src/ui/pages/ProductsPage.tsx` returned `EXIT:0`.
+- Targeted TypeScript error scan completed with no touched-file diagnostics: `npx tsc --noEmit --pretty false 2>&1 | grep -E "src/ui/(pages/CartPage|layouts/Navbar|pages/ProductDetailPage|pages/ProductsPage)" || true` returned no matches.
+- `git status --short` after reverting generated `tsconfig.tsbuildinfo` showed only the four intended UI source files modified before ledger updates.
+
+### Files intentionally changed in this pass
+
+- `src/ui/pages/CartPage.tsx`
+- `src/ui/layouts/Navbar.tsx`
+- `src/ui/pages/ProductDetailPage.tsx`
+- `src/ui/pages/ProductsPage.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- This pass is UI-layer only. Domain `CartItem` snapshot data and `MAX_CART_QUANTITY` were consumed without modifying Domain rules or models.
+- Core and Infrastructure contracts were reused unchanged through existing UI services and API routes.
+- The cart-count synchronization mechanism is intentionally lightweight (`window` custom event) and avoids introducing a broader cart provider/refactor in this pass.
+
 ## 2026-04-26 — Admin customer order history hydration fix
 
 ### Problem verified

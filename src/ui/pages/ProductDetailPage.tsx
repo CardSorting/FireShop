@@ -11,6 +11,17 @@ import { useAuth } from '../hooks/useAuth';
 import type { Product } from '@domain/models';
 import { ShoppingCart, ArrowLeft, Check } from 'lucide-react';
 
+function emitCartUpdated(): void {
+  window.dispatchEvent(new CustomEvent('cart:updated'));
+}
+
+function toFriendlyError(err: unknown): string {
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
+  return 'Unable to add this item to your cart right now.';
+}
+
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -19,6 +30,7 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const loadProduct = useCallback(async () => {
     if (!id) return;
@@ -33,10 +45,17 @@ export function ProductDetailPage() {
   async function handleAddToCart() {
     if (!user || !product) return;
     setAdding(true);
-    await services.cartService.addToCart(user.id, product.id, quantity);
-    setAdding(false);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    setError(null);
+    try {
+      await services.cartService.addToCart(user.id, product.id, quantity);
+      emitCartUpdated();
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2500);
+    } catch (err) {
+      setError(toFriendlyError(err));
+    } finally {
+      setAdding(false);
+    }
   }
 
   if (!product) return <div className="max-w-7xl mx-auto p-8 text-center text-gray-400">Loading...</div>;
@@ -74,30 +93,46 @@ export function ProductDetailPage() {
           </div>
 
           {user ? (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border rounded-md">
+            <div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center border rounded-md">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="px-3 py-2 text-gray-600 hover:bg-gray-50"
+                  >
+                    -
+                  </button>
+                  <span className="px-3 py-2 text-sm font-medium w-12 text-center">{quantity}</span>
+                  <button
+                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                    className="px-3 py-2 text-gray-600 hover:bg-gray-50"
+                  >
+                    +
+                  </button>
+                </div>
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-50"
+                  onClick={handleAddToCart}
+                  disabled={adding || product.stock === 0}
+                  className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-md font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  -
-                </button>
-                <span className="px-3 py-2 text-sm font-medium w-12 text-center">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="px-3 py-2 text-gray-600 hover:bg-gray-50"
-                >
-                  +
+                  {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+                  {adding ? 'Adding...' : added ? 'Added!' : 'Add to Cart'}
                 </button>
               </div>
-              <button
-                onClick={handleAddToCart}
-                disabled={adding || product.stock === 0}
-                className="flex items-center gap-2 bg-primary-600 text-white px-6 py-2.5 rounded-md font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                {adding ? 'Adding...' : added ? 'Added!' : 'Add to Cart'}
-              </button>
+
+              {error && (
+                <p className="mt-3 text-sm text-red-600">{error}</p>
+              )}
+
+              {added && (
+                <div className="mt-4 border border-green-200 bg-green-50 text-green-800 rounded-lg p-4">
+                  <p className="font-medium">Added to cart</p>
+                  <div className="mt-2 flex items-center gap-3 text-sm">
+                    <Link href="/cart" className="font-medium underline">View cart</Link>
+                    <Link href="/products" className="underline">Continue shopping</Link>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <Link href="/login" className="inline-block bg-primary-600 text-white px-6 py-2.5 rounded-md font-medium hover:bg-primary-700">

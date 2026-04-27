@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { Search, Filter } from 'lucide-react';
+import Link from 'next/link';
 
 export function ProductsPage() {
   const services = useServices();
@@ -138,19 +139,21 @@ export function ProductsPage() {
                   key={p.id}
                   className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition"
                 >
-                  <div className="aspect-square overflow-hidden">
+                  <Link href={`/products/${p.id}`} className="block aspect-square overflow-hidden">
                     <img
                       src={p.imageUrl}
                       alt={p.name}
                       className="w-full h-full object-cover"
                     />
-                  </div>
+                  </Link>
                   <div className="p-4">
                     <p className="text-xs text-primary-600 font-medium uppercase mb-1">
                       {p.category}
                     </p>
                     <h3 className="font-semibold text-gray-900 text-sm line-clamp-2 mb-2">
-                      {p.name}
+                      <Link href={`/products/${p.id}`} className="hover:text-primary-600">
+                        {p.name}
+                      </Link>
                     </h3>
                     <div className="flex items-center justify-between">
                       <p className="text-lg font-bold text-gray-900">
@@ -159,6 +162,14 @@ export function ProductsPage() {
                       <span className="text-sm text-gray-500">
                         Stock: {p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}
                       </span>
+                    </div>
+                    <div className="mt-3">
+                      <Link
+                        href={`/products/${p.id}`}
+                        className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                      >
+                        View details
+                      </Link>
                     </div>
                   </div>
                 </article>

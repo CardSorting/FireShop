@@ -6,14 +6,46 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
+import { useCallback, useEffect, useState } from 'react';
 import { ShoppingCart, Package, LogIn, LogOut, Shield, User, Home } from 'lucide-react';
+import { useServices } from '../hooks/useServices';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
+  const services = useServices();
   const router = useRouter();
+  const [cartCount, setCartCount] = useState(0);
+
+  const loadCartCount = useCallback(async () => {
+    if (!user) {
+      setCartCount(0);
+      return;
+    }
+
+    try {
+      const cart = await services.cartService.getCart(user.id);
+      const count = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+      setCartCount(count);
+    } catch {
+      setCartCount(0);
+    }
+  }, [services, user]);
+
+  useEffect(() => {
+    void loadCartCount();
+  }, [loadCartCount]);
+
+  useEffect(() => {
+    const refresh = () => {
+      void loadCartCount();
+    };
+    window.addEventListener('cart:updated', refresh);
+    return () => window.removeEventListener('cart:updated', refresh);
+  }, [loadCartCount]);
 
   const handleSignOut = async () => {
     await signOut();
+    setCartCount(0);
     router.push('/');
   };
 
@@ -34,9 +66,14 @@ export function Navbar() {
             <Link href="/products" className="text-gray-600 hover:text-primary-600 text-sm">
               Products
             </Link>
-            <Link href="/cart" className="text-gray-600 hover:text-primary-600 flex items-center gap-1 text-sm">
+            <Link href="/cart" className="text-gray-600 hover:text-primary-600 flex items-center gap-1 text-sm relative">
               <ShoppingCart className="w-4 h-4" />
               Cart
+              {user && cartCount > 0 && (
+                <span className="ml-1 min-w-5 h-5 rounded-full bg-primary-600 text-white text-[11px] px-1.5 inline-flex items-center justify-center font-semibold">
+                  {cartCount > 99 ? '99+' : cartCount}
+                </span>
+              )}
             </Link>
 
             {user ? (

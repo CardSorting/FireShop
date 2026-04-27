@@ -27,6 +27,12 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ## Current verified state
 
+- Storefront cart UX alignment verified in `src/ui/pages/CartPage.tsx`; the cart now renders authoritative `CartItem` snapshot fields for names, images, unit prices, line totals, and subtotal instead of calculating totals from current refetched product prices.
+- Cart page robustness verified in `src/ui/pages/CartPage.tsx`; it now includes loading, signed-out, empty, and error/retry states, per-line mutation pending state, clear-cart confirmation/pending state, stock/unavailable warnings from supplemental product fetches, `MAX_CART_QUANTITY` clamping, estimated-shipping copy, checkout disclaimer, and trust/help cues.
+- Event-based storefront cart synchronization verified: `src/ui/pages/CartPage.tsx` dispatches `cart:updated` after successful remove/update/clear mutations, and `src/ui/pages/ProductDetailPage.tsx` dispatches the same event after successful add-to-cart.
+- Navbar cart badge verified in `src/ui/layouts/Navbar.tsx`; signed-in users now get a cart quantity badge loaded from `cartService.getCart(user.id)`, capped visually at `99+`, reset on sign-out, and refreshed on `cart:updated`.
+- Product detail add-to-cart next steps verified in `src/ui/pages/ProductDetailPage.tsx`; successful adds now show an “Added to cart” confirmation panel with `View cart` and `Continue shopping` links, while add failures surface inline error text.
+- Product listing navigation gap closed in `src/ui/pages/ProductsPage.tsx`; product images, names, and a `View details` CTA now link to `/products/{id}`.
 - Admin customer detail order-history fix verified in `src/ui/pages/admin/AdminCustomerDetail.tsx`; page now retrieves customer orders through paginated admin orders (`getAllOrders`) filtered by `order.userId`, replacing incorrect session-scoped `getOrders(customerId)` usage that produced blank histories.
 - UI customer/date normalization fix verified in `src/ui/apiClientServices.ts`; transport date revival now converts `joined`, `lastOrder`, `startsAt`, `endsAt`, and `expectedAt` (in addition to `createdAt`/`updatedAt`) so admin customer screens can safely call Date APIs like `getTime()`.
 - Admin customer summaries endpoint restoration verified in `src/app/api/admin/customers/route.ts`; the route now supports `GET` (in addition to `POST`) with `requireAdminSession()` and returns summaries via shared response orchestration aligned with UI fetch usage.
