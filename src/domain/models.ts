@@ -76,11 +76,45 @@ export interface Order {
   customerEmail?: string;
   trackingNumber?: string | null;
   shippingCarrier?: string | null;
+  trackingUrl?: string | null;
+  estimatedDeliveryDate?: Date | null;
+  fulfillmentEvents?: OrderFulfillmentEvent[];
   notes: OrderNote[];
   riskScore: number; // 0-100
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type OrderFulfillmentEventType =
+  | 'order_placed'
+  | 'payment_confirmed'
+  | 'processing'
+  | 'label_created'
+  | 'in_transit'
+  | 'delivered'
+  | 'cancelled';
+
+export interface OrderFulfillmentEvent {
+  id: string;
+  type: OrderFulfillmentEventType;
+  label: string;
+  description: string;
+  at: Date;
+}
+
+export interface OrderListFilter {
+  status?: OrderStatus | 'all';
+  query?: string;
+  from?: Date;
+  to?: Date;
+}
+
+export type OrderListSort =
+  | 'newest'
+  | 'oldest'
+  | 'total_desc'
+  | 'total_asc'
+  | 'status';
 
 export interface OrderNote {
   id: string;

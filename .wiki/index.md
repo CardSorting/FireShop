@@ -27,6 +27,14 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ## Current verified state
 
+- Order-history architecture upgraded to a layered customer-view model: Domain now defines `OrderFulfillmentEvent*` types and optional order enrichment fields (`trackingUrl`, `estimatedDeliveryDate`, `fulfillmentEvents`) in `src/domain/models.ts`.
+- Pure customer-order derivation rules verified in `src/domain/rules.ts`: `deriveTrackingUrl`, `deriveEstimatedDeliveryDate`, and `deriveOrderFulfillmentEvents`, plus non-technical status copy helpers.
+- Core order orchestration verified in `src/core/OrderService.ts`: `getOrders()`/`getOrder()` now return enriched customer-view orders and `getOrdersForCustomerView()` applies status/query/date/sort filtering.
+- Customer orders API query model verified in `src/app/api/orders/route.ts`: `GET /api/orders` accepts `status`, `query`, `from`, `to`, and `sort`, delegating filtering/sorting to Core.
+- UI transport and date-revival updates verified in `src/ui/apiClientServices.ts`: customer `getOrders(userId, options?)` forwards query params and date revival now includes `estimatedDeliveryDate` and event `at` timestamps.
+- `src/ui/pages/OrdersPage.tsx` was rebuilt into a Shopify/Stripe-style account experience with task-first spotlight, metrics, familiar filters/sorts/date windows, expandable timeline rows, and clear actions (`Track package`, `Buy again`, `View receipt/details`).
+- Order-history plumbing helpers verified in `src/utils/formatters.ts`: `formatOrderNumber()` and `orderStatusSubtitle()`.
+
 - Third-pass checkout/order UX refinement verified; consolidated UI formatters into `src/utils/formatters.ts` and updated `CheckoutPage`, `OrderConfirmation`, `OrdersPage`, and `OrderDetailPage`.
 - Checkout "Review before payment" verified in `src/ui/pages/CheckoutPage.tsx`; it includes extracted UI helpers, empty-cart handling, and hardened address-field accessibility.
 - Status-specific order confirmation/detail verified in `src/ui/checkout/OrderConfirmation.tsx`; it includes contextual titles/copy and "next step" actions (Track, Buy again, Print receipt).

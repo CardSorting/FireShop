@@ -1,5 +1,72 @@
 # Changelog
 
+## 2026-04-27 — Order history upgraded to Shopify/Stripe-style customer account patterns
+
+### Problem verified
+
+- The prior `src/ui/pages/OrdersPage.tsx` implementation was visually rich but card-heavy and not task-first for non-technical users.
+- The order-history API contract lacked first-class customer-facing metadata commonly expected in ecommerce account pages (timeline events, estimated delivery date, tracking URL).
+- Filtering/sorting/date-window behavior was mostly UI-local and did not align to robust query-driven list patterns.
+- Empty-state assets included a machine-local absolute file path in the previous order-history implementation.
+
+### Remediation performed
+
+- Extended Domain order contracts in `src/domain/models.ts` with optional customer-view fields:
+  - `trackingUrl?: string | null`
+  - `estimatedDeliveryDate?: Date | null`
+  - `fulfillmentEvents?: OrderFulfillmentEvent[]`
+  - Added `OrderFulfillmentEventType`, `OrderFulfillmentEvent`, `OrderListFilter`, and `OrderListSort`.
+- Added pure Domain derivation helpers in `src/domain/rules.ts`:
+  - `deriveTrackingUrl(order)`
+  - `deriveEstimatedDeliveryDate(order)`
+  - `deriveOrderFulfillmentEvents(order)`
+  - plus customer status-label/description helpers for consistent non-technical copy.
+- Upgraded Core orchestration in `src/core/OrderService.ts`:
+  - `getOrders()` and `getOrder()` now enrich customer-view fields.
+  - Added `getOrdersForCustomerView(userId, options)` for status/query/date/sort filtering in Core.
+- Upgraded customer orders API in `src/app/api/orders/route.ts`:
+  - `GET /api/orders` now accepts query params (`status`, `query`, `from`, `to`, `sort`) and routes through `getOrdersForCustomerView`.
+- Upgraded UI API client in `src/ui/apiClientServices.ts`:
+  - customer `orderService.getOrders(userId, options?)` now supports filter/sort params.
+  - date revival now includes `estimatedDeliveryDate` and event `at` timestamps.
+- Rebuilt `src/ui/pages/OrdersPage.tsx` with familiar ecommerce account patterns:
+  - task-first hero + most-recent-order spotlight
+  - summary metrics (active, delivered, total spent)
+  - search + status + date-window + sort controls
+  - row/list hybrid cards with expandable details
+  - timeline panel from `fulfillmentEvents`
+  - clear action rail (`Track package`, `Buy again`, `View receipt/details`)
+  - improved signed-out and empty states
+- Added reusable plumbing helpers in `src/utils/formatters.ts`:
+  - `formatOrderNumber()`
+  - `orderStatusSubtitle()`
+
+### Verification evidence
+
+- Targeted ESLint run completed with no reported diagnostics for changed order-history files:
+  - `npx eslint src/domain/models.ts src/domain/rules.ts src/core/OrderService.ts src/app/api/orders/route.ts src/ui/apiClientServices.ts src/ui/pages/OrdersPage.tsx src/utils/formatters.ts`
+- TypeScript typecheck executed:
+  - `npx tsc --noEmit`
+
+### Files intentionally changed in this pass
+
+- `src/domain/models.ts`
+- `src/domain/rules.ts`
+- `src/core/OrderService.ts`
+- `src/app/api/orders/route.ts`
+- `src/ui/apiClientServices.ts`
+- `src/ui/pages/OrdersPage.tsx`
+- `src/utils/formatters.ts`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- ✅ Domain remains pure (no I/O or UI dependencies): only types and pure derivation functions were added.
+- ✅ Core owns orchestration/filtering enrichment for customer order read models.
+- ✅ Infrastructure/API route remains transport-focused and delegates logic to Core.
+- ✅ UI now primarily renders enriched state and dispatches user actions.
+
 ## 2026-04-27 — Third-pass checkout/order UX refinement and stability
 
 ### Problem verified

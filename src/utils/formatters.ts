@@ -50,6 +50,18 @@ export function humanizeOrderStatus(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
+export function formatOrderNumber(orderId: string): string {
+  return `#${orderId.toUpperCase().slice(0, 12)}`;
+}
+
+export function orderStatusSubtitle(status: string): string {
+  if (status === 'pending') return 'We received your order and are reviewing payment.';
+  if (status === 'confirmed') return 'Payment confirmed. Your order is being packed.';
+  if (status === 'shipped') return 'Your package is in transit with the carrier.';
+  if (status === 'delivered') return 'Package delivered. Thanks for shopping with us!';
+  return 'This order was cancelled. Refund timing depends on your bank.';
+}
+
 export function humanizeCategory(category: string): string {
   return category.charAt(0).toUpperCase() + category.slice(1);
 }

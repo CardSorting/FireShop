@@ -1,7 +1,20 @@
 /**
  * [LAYER: DOMAIN]
  */
-import type { Address, CardRarity, CartItem, FulfillmentBucket, InventoryHealth, OrderStatus, Product, ProductCategory, ProductDraft, ProductUpdate } from './models';
+import type {
+  Address,
+  CardRarity,
+  CartItem,
+  FulfillmentBucket,
+  InventoryHealth,
+  Order,
+  OrderFulfillmentEvent,
+  OrderStatus,
+  Product,
+  ProductCategory,
+  ProductDraft,
+  ProductUpdate,
+} from './models';
 import { InsufficientStockError, InvalidAddressError, InvalidOrderError, InvalidProductError } from './errors';
 
 export const MAX_CART_QUANTITY = 99;
@@ -206,6 +219,100 @@ export function nextOrderActionLabel(status: OrderStatus): string {
   if (status === 'shipped') return 'Mark as delivered';
   if (status === 'delivered') return 'Completed';
   return 'Cancelled';
+}
+
+export function customerOrderStatusLabel(status: OrderStatus): string {
+  if (status === 'pending') return 'Order placed';
+  if (status === 'confirmed') return 'Processing';
+  if (status === 'shipped') return 'On the way';
+  if (status === 'delivered') return 'Delivered';
+  return 'Cancelled';
+}
+
+export function customerOrderStatusDescription(status: OrderStatus): string {
+  if (status === 'pending') return 'We received your order and it is waiting for payment review.';
+  if (status === 'confirmed') return 'Payment is confirmed and your order is being packed.';
+  if (status === 'shipped') return 'Your package is in transit with the carrier.';
+  if (status === 'delivered') return 'Your order was delivered to the shipping address.';
+  return 'This order was cancelled. Refund timing depends on your payment method.';
+}
+
+export function deriveEstimatedDeliveryDate(order: Order): Date | null {
+  if (order.status === 'cancelled') return null;
+  const base = new Date(order.createdAt);
+  base.setDate(base.getDate() + (order.status === 'delivered' ? 3 : 5));
+  return base;
+}
+
+export function deriveTrackingUrl(order: Order): string | null {
+  if (!order.trackingNumber) return null;
+  const encoded = encodeURIComponent(order.trackingNumber);
+  return `https://www.google.com/search?q=${encoded}`;
+}
+
+export function deriveOrderFulfillmentEvents(order: Order): OrderFulfillmentEvent[] {
+  const placedAt = new Date(order.createdAt);
+  const updatedAt = new Date(order.updatedAt);
+  const events: OrderFulfillmentEvent[] = [
+    {
+      id: `${order.id}-placed`,
+      type: 'order_placed',
+      label: 'Order placed',
+      description: 'We received your order request.',
+      at: placedAt,
+    },
+  ];
+
+  if (order.status !== 'pending' && order.status !== 'cancelled') {
+    events.push({
+      id: `${order.id}-payment-confirmed`,
+      type: 'payment_confirmed',
+      label: 'Payment confirmed',
+      description: 'Your payment was authorized and captured.',
+      at: new Date(Math.max(placedAt.getTime(), updatedAt.getTime() - 3 * 60 * 60 * 1000)),
+    });
+    events.push({
+      id: `${order.id}-processing`,
+      type: 'processing',
+      label: 'Preparing shipment',
+      description: 'Items are being picked and packed.',
+      at: new Date(Math.max(placedAt.getTime(), updatedAt.getTime() - 2 * 60 * 60 * 1000)),
+    });
+  }
+
+  if (order.status === 'shipped' || order.status === 'delivered') {
+    events.push({
+      id: `${order.id}-in-transit`,
+      type: 'in_transit',
+      label: 'In transit',
+      description: order.trackingNumber
+        ? `Tracking number ${order.trackingNumber} is active.`
+        : 'Your package was handed to the carrier.',
+      at: new Date(Math.max(placedAt.getTime(), updatedAt.getTime() - 60 * 60 * 1000)),
+    });
+  }
+
+  if (order.status === 'delivered') {
+    events.push({
+      id: `${order.id}-delivered`,
+      type: 'delivered',
+      label: 'Delivered',
+      description: 'The carrier marked your package as delivered.',
+      at: updatedAt,
+    });
+  }
+
+  if (order.status === 'cancelled') {
+    events.push({
+      id: `${order.id}-cancelled`,
+      type: 'cancelled',
+      label: 'Cancelled',
+      description: 'This order was cancelled before shipment.',
+      at: updatedAt,
+    });
+  }
+
+  return events.sort((a, b) => b.at.getTime() - a.at.getTime());
 }
 
 export function addCartItem(

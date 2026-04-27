@@ -25,6 +25,9 @@ import {
   assertValidShippingAddress,
   calculateCartTotal,
   canPlaceOrder,
+  deriveEstimatedDeliveryDate,
+  deriveOrderFulfillmentEvents,
+  deriveTrackingUrl,
 } from '@domain/rules';
 import { coalesceCartStockDeductions } from '@domain/rules';
 import {
@@ -220,11 +223,56 @@ export class OrderService {
   }
 
   async getOrders(userId: string): Promise<Order[]> {
-    return this.orderRepo.getByUserId(userId);
+    const orders = await this.orderRepo.getByUserId(userId);
+    return orders.map((order) => this.enrichOrderForCustomerView(order));
   }
 
   async getOrder(id: string): Promise<Order | null> {
-    return this.orderRepo.getById(id);
+    const order = await this.orderRepo.getById(id);
+    return order ? this.enrichOrderForCustomerView(order) : null;
+  }
+
+  async getOrdersForCustomerView(
+    userId: string,
+    options?: {
+      status?: OrderStatus | 'all';
+      query?: string;
+      from?: Date;
+      to?: Date;
+      sort?: 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
+    }
+  ): Promise<Order[]> {
+    const orders = (await this.orderRepo.getByUserId(userId)).map((order) => this.enrichOrderForCustomerView(order));
+    const q = options?.query?.trim().toLowerCase() ?? '';
+
+    const filtered = orders.filter((order) => {
+      const matchesStatus = !options?.status || options.status === 'all' || order.status === options.status;
+      const matchesQuery = !q
+        || order.id.toLowerCase().includes(q)
+        || order.items.some((item) => item.name.toLowerCase().includes(q));
+      const createdAt = order.createdAt.getTime();
+      const matchesFrom = !options?.from || createdAt >= options.from.getTime();
+      const matchesTo = !options?.to || createdAt <= options.to.getTime();
+      return matchesStatus && matchesQuery && matchesFrom && matchesTo;
+    });
+
+    const sort = options?.sort ?? 'newest';
+    return [...filtered].sort((a, b) => {
+      if (sort === 'oldest') return a.createdAt.getTime() - b.createdAt.getTime();
+      if (sort === 'total_desc') return b.total - a.total;
+      if (sort === 'total_asc') return a.total - b.total;
+      if (sort === 'status') return a.status.localeCompare(b.status);
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+  }
+
+  private enrichOrderForCustomerView(order: Order): Order {
+    return {
+      ...order,
+      trackingUrl: order.trackingUrl ?? deriveTrackingUrl(order),
+      estimatedDeliveryDate: order.estimatedDeliveryDate ?? deriveEstimatedDeliveryDate(order),
+      fulfillmentEvents: order.fulfillmentEvents ?? deriveOrderFulfillmentEvents(order),
+    };
   }
 
   async getAllOrders(options?: {

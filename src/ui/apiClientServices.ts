@@ -3,7 +3,7 @@
 import type { Address, AdminDashboardSummary, Cart, InventoryOverview, Order, OrderStatus, Product, ProductDraft, ProductUpdate, User, OrderNote } from '@domain/models';
 
 const sessionScoped = (userId: string) => void userId;
-const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt']);
+const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt', 'estimatedDeliveryDate', 'at']);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {
@@ -88,7 +88,22 @@ export function createApiClientServices() {
             getAdminDashboardSummary: () => request<AdminDashboardSummary>('/api/admin/dashboard'),
             finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
             placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
-            getOrders: (userId: string) => (sessionScoped(userId), request<Order[]>('/api/orders')),
+            getOrders: (userId: string, options?: {
+                status?: OrderStatus | 'all';
+                query?: string;
+                from?: string;
+                to?: string;
+                sort?: 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
+            }) => {
+                sessionScoped(userId);
+                const qs = new URLSearchParams();
+                if (options?.status) qs.set('status', options.status);
+                if (options?.query) qs.set('query', options.query);
+                if (options?.from) qs.set('from', options.from);
+                if (options?.to) qs.set('to', options.to);
+                if (options?.sort) qs.set('sort', options.sort);
+                return request<Order[]>(`/api/orders?${qs}`);
+            },
             getOrder: (id: string) => request<Order>(`/api/orders/${id}`),
             getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string; query?: string }) => {
                 const qs = new URLSearchParams();
