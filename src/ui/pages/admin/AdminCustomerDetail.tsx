@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
+import type { Order } from '@domain/models';
 import { 
   ArrowLeft,
   Mail, 
@@ -42,16 +43,29 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
   const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  async function loadCustomerOrdersByUserId(userId: string): Promise<Order[]> {
+    const allOrders: Order[] = [];
+    let cursor: string | undefined = undefined;
+    let pageSafety = 0;
+
+    do {
+      const page = await services.orderService.getAllOrders({ limit: 100, cursor });
+      allOrders.push(...page.orders.filter((order) => order.userId === userId));
+      cursor = page.nextCursor;
+      pageSafety += 1;
+    } while (cursor && pageSafety < 20);
+
+    return allOrders.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
   const loadCustomer = useCallback(async () => {
     setLoading(true);
     try {
-      const [users, orders] = await Promise.all([
-        services.authService.getAllUsers(),
-        services.orderService.getOrders(id)
-      ]);
+      const users = await services.authService.getAllUsers();
       const summaries = await services.orderService.getCustomerSummaries(users);
       const found = summaries.find(c => c.id === id);
       if (found) {
+        const orders = await loadCustomerOrdersByUserId(id);
         setCustomer(found);
         setCustomerOrders(orders);
       } else {

@@ -27,6 +27,9 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ## Current verified state
 
+- Admin customer detail order-history fix verified in `src/ui/pages/admin/AdminCustomerDetail.tsx`; page now retrieves customer orders through paginated admin orders (`getAllOrders`) filtered by `order.userId`, replacing incorrect session-scoped `getOrders(customerId)` usage that produced blank histories.
+- UI customer/date normalization fix verified in `src/ui/apiClientServices.ts`; transport date revival now converts `joined`, `lastOrder`, `startsAt`, `endsAt`, and `expectedAt` (in addition to `createdAt`/`updatedAt`) so admin customer screens can safely call Date APIs like `getTime()`.
+- Admin customer summaries endpoint restoration verified in `src/app/api/admin/customers/route.ts`; the route now supports `GET` (in addition to `POST`) with `requireAdminSession()` and returns summaries via shared response orchestration aligned with UI fetch usage.
 - Admin order details endpoint restoration verified in `src/app/api/admin/orders/[id]/route.ts`; the route now supports `GET` with `requireAdminSession()`, resolves the order through `services.orderService.getOrder(id)`, and returns `OrderNotFoundError` for missing orders (mapped to HTTP 404 by `jsonError()`).
 - Framework/runtime stack: Next.js `16.0.10` declared in `package.json`, React `19.2.5`, TypeScript `~6.0.2`, ESLint `10.2.1`, Tailwind CSS `4.2.4` with `@tailwindcss/postcss`.
 - Runtime scripts from `package.json`: `npm run dev`, `npm run build`, `npm run lint`, `npm run start`.
@@ -102,7 +105,7 @@ git --no-pager diff --stat
 git status --short
 ```
 
-Latest verification for the admin order-details restoration pass: `npm run build` completed successfully, and the production build generated the dynamic route `/api/admin/orders/[id]` with no TypeScript or compilation errors.
+Latest verification for the admin customer detail stabilization pass: `npm run build` completed successfully, and the production build generated dynamic routes `/api/admin/customers` and `/api/admin/orders/[id]` with no TypeScript or compilation errors.
 
 ## Mermaid: architectural bridge
 

@@ -3,6 +3,7 @@
 import type { Address, AdminDashboardSummary, Cart, InventoryOverview, Order, OrderStatus, Product, ProductDraft, ProductUpdate, User, OrderNote } from '@domain/models';
 
 const sessionScoped = (userId: string) => void userId;
+const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt']);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {
@@ -32,7 +33,7 @@ function reviveDates(value: unknown): unknown {
     if (value && typeof value === 'object') {
         const out: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(value)) {
-            out[key] = ['createdAt', 'updatedAt'].includes(key) && typeof val === 'string' ? new Date(val) : reviveDates(val);
+            out[key] = DATE_FIELD_KEYS.has(key) && typeof val === 'string' ? new Date(val) : reviveDates(val);
         }
         return out;
     }

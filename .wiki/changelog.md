@@ -1,5 +1,95 @@
 # Changelog
 
+## 2026-04-26 — Admin customer order history hydration fix
+
+### Problem verified
+
+- Admin customer detail page showed an empty order history (`No orders yet`) even for customers with orders.
+- `src/ui/pages/admin/AdminCustomerDetail.tsx` was calling `services.orderService.getOrders(id)` using the **customer id** as if it were the current session user id; this endpoint is session-scoped and does not return arbitrary customer order history for admin views.
+
+### Remediation performed
+
+- Updated `src/ui/pages/admin/AdminCustomerDetail.tsx` to load customer orders via admin feed pagination:
+  - Added `loadCustomerOrdersByUserId(userId)`.
+  - Reads paginated admin orders using `services.orderService.getAllOrders({ limit: 100, cursor })`.
+  - Filters each page by `order.userId === userId`.
+  - Sorts resulting orders by `createdAt` descending for timeline rendering.
+- Added missing `Order` type import from `@domain/models` for compile-safe UI typing.
+
+### Verification evidence
+
+- `npm run build` completed successfully after the customer order-history retrieval fix.
+- Build output includes customer/admin routes (`/admin/customers`, `/admin/customers/[id]`, `/api/admin/orders`), confirming compile-time integrity of the updated admin customer detail flow.
+
+### Files intentionally changed in this pass
+
+- `src/ui/pages/admin/AdminCustomerDetail.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Change is UI-layer data retrieval correction.
+- Domain/Core/Infrastructure contracts were reused without mutation; admin detail now consumes existing admin order list capability correctly.
+
+## 2026-04-26 — Admin customer dates runtime normalization fix
+
+### Problem verified
+
+- Admin customers page crashed at runtime with `c.joined.getTime is not a function` in `src/ui/pages/admin/AdminCustomers.tsx`.
+- UI transport date revival in `src/ui/apiClientServices.ts` only converted `createdAt` and `updatedAt`, leaving customer summary date fields (`joined`, `lastOrder`) as strings.
+
+### Remediation performed
+
+- Extended UI date normalization in `src/ui/apiClientServices.ts` by introducing `DATE_FIELD_KEYS` and updating `reviveDates()` to revive additional known date keys:
+  - `joined`, `lastOrder`, `startsAt`, `endsAt`, `expectedAt` (plus existing `createdAt`, `updatedAt`).
+
+### Verification evidence
+
+- `npm run build` completed successfully after the UI date revival update.
+- Build output includes admin customer routes (`/admin/customers`, `/admin/customers/[id]`) and dynamic admin API routes, confirming compile/runtime compatibility.
+
+### Files intentionally changed in this pass
+
+- `src/ui/apiClientServices.ts`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Change is UI-layer transport normalization only.
+- Domain/Core contracts were unchanged; fix ensures UI renders server JSON with correct runtime date objects.
+
+## 2026-04-26 — Admin customer details loading restoration
+
+### Problem verified
+
+- Admin customer detail UI (`src/ui/pages/admin/AdminCustomerDetail.tsx`) loads customer summaries via `services.orderService.getCustomerSummaries(...)`, which uses `request('/api/admin/customers')` (HTTP GET) in `src/ui/apiClientServices.ts`.
+- `src/app/api/admin/customers/route.ts` only implemented `POST`, so the UI GET request failed and surfaced "Failed to load customer details".
+
+### Remediation performed
+
+- Added `GET` handler to `src/app/api/admin/customers/route.ts`.
+- Preserved admin authorization with `requireAdminSession()`.
+- Unified summary generation through shared `getCustomerSummariesResponse()` so both GET and POST return the same payload.
+- Kept compatibility by retaining `POST` and routing it through the same shared response path.
+
+### Verification evidence
+
+- `npm run build` completed successfully after the route update.
+- Build output includes dynamic route `ƒ /api/admin/customers`, confirming the updated endpoint compiles in production build.
+
+### Files intentionally changed in this pass
+
+- `src/app/api/admin/customers/route.ts`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- Change is Infrastructure-only (admin HTTP adapter behavior).
+- Domain/Core contracts were unchanged; the fix aligns transport method support with existing UI service usage.
+
 ## 2026-04-26 — Admin order details loading restoration
 
 ### Problem verified
