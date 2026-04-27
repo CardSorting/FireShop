@@ -13,12 +13,26 @@ export function HomePage() {
   const services = useServices();
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    services.productService.getProducts({ limit: 4 }).then((result) => {
-      setFeatured(result.products);
-      setLoading(false);
-    });
+    let mounted = true;
+    services.productService.getProducts({ limit: 4 })
+      .then((result) => {
+        if (!mounted) return;
+        setFeatured(result.products);
+        setError(null);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : 'Failed to load featured products');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, [services]);
 
   return (
@@ -67,6 +81,10 @@ export function HomePage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Featured Products</h2>
           {loading ? (
             <div className="text-center py-12 text-gray-400">Loading...</div>
+          ) : error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+              {error}
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featured.map((p) => (

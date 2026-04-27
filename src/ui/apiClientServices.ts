@@ -14,8 +14,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
             ...(init?.headers ?? {}),
         },
     });
-    const data = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(data?.error ?? 'Request failed');
+    const contentType = response.headers.get('content-type') ?? '';
+    const data = contentType.includes('application/json')
+        ? await response.json().catch(() => null)
+        : null;
+    if (!response.ok) {
+        const serverMessage = data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
+            ? data.error
+            : null;
+        throw new Error(serverMessage ?? `${init?.method ?? 'GET'} ${path} failed (${response.status})`);
+    }
     return reviveDates(data) as T;
 }
 
