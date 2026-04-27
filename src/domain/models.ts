@@ -42,7 +42,7 @@ export interface User {
   displayName: string;
   role: UserRole;
   notes?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, JsonValue>;
   createdAt: Date;
 }
 
@@ -163,4 +163,51 @@ export interface InventoryOverview {
   inventoryValue: number;
   healthCounts: Record<InventoryHealth, number>;
   products: Array<Product & { inventoryHealth: InventoryHealth }>;
+}
+
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+
+export type DiscountType = 'percentage' | 'fixed';
+export type DiscountStatus = 'active' | 'scheduled' | 'expired';
+
+export interface Discount {
+  id: string;
+  code: string;
+  type: DiscountType;
+  value: number;
+  status: DiscountStatus;
+  startsAt: Date;
+  endsAt: Date | null;
+  usageCount: number;
+  createdAt: Date;
+}
+
+export type DiscountDraft = Omit<Discount, 'id' | 'usageCount' | 'createdAt'>;
+export type DiscountUpdate = Partial<Omit<DiscountDraft, 'code'>>;
+
+export interface CustomerSummary {
+  id: string;
+  name: string;
+  email: string;
+  orders: number;
+  spent: number;
+  lastOrder: Date | null;
+  joined: Date;
+  segment: 'new' | 'active' | 'inactive' | 'big_spender';
+}
+
+export interface AnalyticsTopProduct {
+  name: string;
+  revenue: number;
+  sales: number;
+  growth: number;
+}
+
+export interface AnalyticsData {
+  totalRevenue: number;
+  dailyRevenue: number[];
+  revenueGrowth: number;
+  averageOrderValue: number;
+  topProducts: AnalyticsTopProduct[];
 }

@@ -1,5 +1,5 @@
 import { getInitialServices } from '@core/container';
-import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession, requireJsonValue, requireString } from '@infrastructure/server/apiGuards';
 import { NextResponse } from 'next/server';
 
 export async function GET() {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const user = await requireAdminSession();
     const body = await readJsonObject(request);
     const key = requireString(body.key, 'key');
-    const value = body.value;
+    const value = requireJsonValue(body.value, 'value');
     
     const services = getInitialServices();
     await services.settingsService.updateSetting(key, value, { id: user.id, email: user.email });

@@ -1,12 +1,10 @@
 import { initDatabase } from '@infrastructure/sqlite/database';
 import { getInitialServices } from '@core/container';
 
-let initialized = false;
+let initPromise: Promise<void> | null = null;
 
 export async function getServerServices() {
-    if (!initialized) {
-        await initDatabase();
-        initialized = true;
-    }
+    if (!initPromise) initPromise = initDatabase();
+    await initPromise;
     return getInitialServices();
 }

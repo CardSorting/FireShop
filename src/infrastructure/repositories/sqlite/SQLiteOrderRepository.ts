@@ -69,7 +69,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
     this.db = getSQLiteDB();
   }
 
-  private mapTableToOrder(row: any): Order {
+  private mapTableToOrder = (row: any): Order => {
     return {
       id: row.id,
       userId: row.userId,
@@ -81,13 +81,13 @@ export class SQLiteOrderRepository implements IOrderRepository {
       trackingNumber: row.trackingNumber,
       shippingCarrier: row.shippingCarrier,
       notes: row.notes ? JSON.parse(row.notes) : [],
-      customerName: row.displayName,
-      customerEmail: row.email,
+      customerName: row.displayName ?? null,
+      customerEmail: row.email ?? null,
       riskScore: row.riskScore || 0,
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
     };
-  }
+  };
 
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
@@ -137,7 +137,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
   async getById(id: string): Promise<Order | null> {
     const result = await this.db
       .selectFrom('orders')
-      .innerJoin('users', 'users.id', 'orders.userId')
+      .leftJoin('users', 'users.id', 'orders.userId')
       .select([
         'orders.id',
         'orders.userId',
@@ -164,7 +164,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
   async getByUserId(userId: string): Promise<Order[]> {
     const results = await this.db
       .selectFrom('orders')
-      .innerJoin('users', 'users.id', 'orders.userId')
+      .leftJoin('users', 'users.id', 'orders.userId')
       .select([
         'orders.id',
         'orders.userId',
@@ -189,6 +189,26 @@ export class SQLiteOrderRepository implements IOrderRepository {
     return results.map(this.mapTableToOrder);
   }
 
+  async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[]): Promise<void> {
+    await this.db
+      .updateTable('orders')
+      .set({ notes: JSON.stringify(notes), updatedAt: new Date().toISOString() })
+      .where('id', '=', orderId)
+      .execute();
+  }
+
+  async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string }): Promise<void> {
+    await this.db
+      .updateTable('orders')
+      .set({
+        trackingNumber: data.trackingNumber ?? null,
+        shippingCarrier: data.shippingCarrier ?? null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where('id', '=', orderId)
+      .execute();
+  }
+
   async getAll(options?: {
     status?: OrderStatus;
     query?: string;
@@ -197,7 +217,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
   }): Promise<{ orders: Order[]; nextCursor?: string }> {
     let query = this.db
       .selectFrom('orders')
-      .innerJoin('users', 'users.id', 'orders.userId')
+      .leftJoin('users', 'users.id', 'orders.userId')
       .select([
         'orders.id',
         'orders.userId',

@@ -6,6 +6,7 @@ import { Kysely } from 'kysely';
 import { getSQLiteDB } from '../../sqlite/database';
 import type { Database } from '../../sqlite/schema';
 import type { ISettingsRepository } from '@domain/repositories';
+import type { JsonValue } from '@domain/models';
 
 export class SQLiteSettingsRepository implements ISettingsRepository {
   private db: Kysely<Database>;
@@ -29,7 +30,7 @@ export class SQLiteSettingsRepository implements ISettingsRepository {
     }
   }
 
-  async set<T>(key: string, value: T): Promise<void> {
+  async set(key: string, value: JsonValue): Promise<void> {
     const jsonValue = JSON.stringify(value);
     const now = new Date().toISOString();
 
@@ -47,12 +48,12 @@ export class SQLiteSettingsRepository implements ISettingsRepository {
       .execute();
   }
 
-  async getAll(): Promise<Record<string, any>> {
+  async getAll(): Promise<Record<string, JsonValue>> {
     const rows = await this.db.selectFrom('settings').selectAll().execute();
-    const result: Record<string, any> = {};
+    const result: Record<string, JsonValue> = {};
     for (const row of rows) {
       try {
-        result[row.key] = JSON.parse(row.value);
+        result[row.key] = JSON.parse(row.value) as JsonValue;
       } catch {
         result[row.key] = null;
       }

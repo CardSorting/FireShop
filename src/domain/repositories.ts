@@ -2,6 +2,13 @@
  * [LAYER: DOMAIN]
  */
 import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User } from './models';
+import type {
+  Discount,
+  DiscountDraft,
+  DiscountUpdate,
+  JsonValue,
+  Transfer,
+} from './models';
 
 export interface IProductRepository {
   getAll(options?: {
@@ -49,7 +56,8 @@ export interface IOrderRepository {
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
-  seed?(order: Order): Promise<void>;
+  updateNotes(orderId: string, notes: import('./models').OrderNote[]): Promise<void>;
+  updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string }): Promise<void>;
   getDashboardStats(): Promise<{
     totalRevenue: number;
     dailyRevenue: number[]; // Last 7 days, index 0 is 6 days ago, index 6 is today
@@ -98,23 +106,23 @@ export interface ILockProvider {
 }
 
 export interface IDiscountRepository {
-  getAll(): Promise<any[]>;
-  getById(id: string): Promise<any | null>;
-  getByCode(code: string): Promise<any | null>;
-  create(discount: any): Promise<any>;
-  update(id: string, updates: any): Promise<any>;
+  getAll(): Promise<Discount[]>;
+  getById(id: string): Promise<Discount | null>;
+  getByCode(code: string): Promise<Discount | null>;
+  create(discount: DiscountDraft): Promise<Discount>;
+  update(id: string, updates: DiscountUpdate): Promise<Discount>;
   delete(id: string): Promise<void>;
   incrementUsage(id: string): Promise<void>;
 }
 
 export interface ITransferRepository {
-  getAll(): Promise<import('./models').Transfer[]>;
-  update(id: string, updates: Partial<import('./models').Transfer>): Promise<void>;
-  create?(transfer: import('./models').Transfer): Promise<void>;
+  getAll(): Promise<Transfer[]>;
+  update(id: string, updates: Partial<Transfer>): Promise<void>;
+  create?(transfer: Transfer): Promise<void>;
 }
 
 export interface ISettingsRepository {
   get<T>(key: string): Promise<T | null>;
-  set(key: string, value: any): Promise<void>;
-  getAll(): Promise<Record<string, any>>;
+  set(key: string, value: JsonValue): Promise<void>;
+  getAll(): Promise<Record<string, JsonValue>>;
 }

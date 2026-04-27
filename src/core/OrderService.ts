@@ -9,15 +9,21 @@ import type {
   ILockProvider,
   ICheckoutGateway,
 } from '@domain/repositories';
-import type { AdminDashboardSummary, Order, OrderStatus, Address } from '@domain/models';
+import type {
+  AdminDashboardSummary,
+  AnalyticsData,
+  CustomerSummary,
+  Order,
+  OrderStatus,
+  Address,
+  User,
+} from '@domain/models';
 import { AuditService } from './AuditService';
 import {
   assertValidOrderItems,
   assertValidOrderStatusTransition,
   assertValidShippingAddress,
   calculateCartTotal,
-  classifyFulfillmentBucket,
-  classifyInventoryHealth,
   canPlaceOrder,
 } from '@domain/rules';
 import { coalesceCartStockDeductions } from '@domain/rules';
@@ -35,13 +41,16 @@ import { logger } from '@utils/logger';
 class InMemoryLockProvider implements ILockProvider {
   private locks = new Set<string>();
 
-  async acquireLock(resourceId: string): Promise<boolean> {
+  async acquireLock(resourceId: string, owner: string, ttlMs?: number): Promise<boolean> {
+    void owner;
+    void ttlMs;
     if (this.locks.has(resourceId)) return false;
     this.locks.add(resourceId);
     return true;
   }
 
-  async releaseLock(resourceId: string): Promise<void> {
+  async releaseLock(resourceId: string, owner: string): Promise<void> {
+    void owner;
     this.locks.delete(resourceId);
   }
 }
@@ -302,32 +311,7 @@ export class OrderService {
     assertValidOrderStatusTransition(order.status, status);
 
     // BroccoliQ Level 7: Inventory Restocking Logic
-    if (status === 'cancelled' && order.status !== 'cancelled') {
-      const restockingUpdates = order.items.map(item => ({
-        id: item.productId,
-        delta: item.quantity
-      }));
-      
-      try {
-        if (this.productRepo.batchUpdateStock) {
-          await this.productRepo.batchUpdateStock(restockingUpdates);
-        } else {
-          await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
-        }
-        
-        await this.audit.record({
-          userId: actor.id,
-          userEmail: actor.email,
-          action: 'order_status_changed', // Existing action
-          targetId: id,
-          details: { note: 'Inventory restocked automatically', items: restockingUpdates.length }
-        });
-      } catch (err) {
-        logger.error(`Critical Failure: Could not restock inventory for cancelled order ${id}`, err);
-        // We continue with status change but log the failure for forensic recovery
-      }
-    }
-
+    // Status update happens first — if it fails, no stock has changed yet (H-3 fix)
     await this.orderRepo.updateStatus(id, status);
     await this.audit.record({
       userId: actor.id,
@@ -336,6 +320,29 @@ export class OrderService {
       targetId: id,
       details: { from: order.status, to: status }
     });
+
+    if (status === 'cancelled' && order.status !== 'cancelled') {
+      const restockingUpdates = order.items.map(item => ({
+        id: item.productId,
+        delta: item.quantity
+      }));
+      try {
+        if (this.productRepo.batchUpdateStock) {
+          await this.productRepo.batchUpdateStock(restockingUpdates);
+        } else {
+          await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
+        }
+        await this.audit.record({
+          userId: actor.id,
+          userEmail: actor.email,
+          action: 'order_status_changed',
+          targetId: id,
+          details: { note: 'Inventory restocked automatically', items: restockingUpdates.length }
+        });
+      } catch (err) {
+        logger.error(`Critical Failure: Could not restock inventory for cancelled order ${id}`, err);
+      }
+    }
   }
 
   async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
@@ -384,7 +391,7 @@ export class OrderService {
     ));
   }
 
-  async getCustomerSummaries(users: import('@domain/models').User[]): Promise<any[]> {
+  async getCustomerSummaries(users: User[]): Promise<CustomerSummary[]> {
     const summaries = await Promise.all(
       users.map(async (user) => {
         try {
@@ -396,11 +403,9 @@ export class OrderService {
           ? new Date(Math.max(...orders.map(o => o.createdAt.getTime())))
           : null;
         
-        const joinedTime = user.createdAt instanceof Date 
-          ? user.createdAt.getTime() 
-          : new Date(user.createdAt as any).getTime();
+        const joinedTime = user.createdAt.getTime();
 
-        let segment = 'new';
+        let segment: CustomerSummary['segment'] = 'new';
         if (spent > 100000) segment = 'big_spender';
         else if (orders.length > 5) segment = 'active';
         else if (orders.length === 0 && (Date.now() - joinedTime) > 30 * 24 * 60 * 60 * 1000) segment = 'inactive';
@@ -412,7 +417,7 @@ export class OrderService {
             orders: orders.length,
             spent,
             lastOrder,
-            joined: user.createdAt instanceof Date ? user.createdAt : new Date(user.createdAt as any),
+            joined: user.createdAt,
             segment
           };
         } catch (err) {
@@ -425,7 +430,7 @@ export class OrderService {
 
     return summaries.sort((a, b) => b.spent - a.spent);
   }
-  async getAnalyticsData(): Promise<any> {
+  async getAnalyticsData(): Promise<AnalyticsData> {
     const [orderStats, topProducts] = await Promise.all([
       this.orderRepo.getDashboardStats(),
       this.orderRepo.getTopProducts(10),
@@ -457,8 +462,8 @@ export class OrderService {
   }
 
   async addOrderNote(
-    orderId: string, 
-    text: string, 
+    orderId: string,
+    text: string,
     actor: { id: string, email: string }
   ): Promise<import('@domain/models').OrderNote> {
     const order = await this.orderRepo.getById(orderId);
@@ -472,17 +477,7 @@ export class OrderService {
       createdAt: new Date(),
     };
 
-    const nextNotes = [...order.notes, note];
-    
-    // In a real repo, this might be a separate table, but here we update the order JSON
-    await (this.orderRepo as any).db
-      .updateTable('orders')
-      .set({
-        notes: JSON.stringify(nextNotes),
-        updatedAt: new Date().toISOString()
-      })
-      .where('id', '=', orderId)
-      .execute();
+    await this.orderRepo.updateNotes(orderId, [...order.notes, note]);
 
     await this.audit.record({
       userId: actor.id,
@@ -503,25 +498,17 @@ export class OrderService {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
 
-    await (this.orderRepo as any).db
-      .updateTable('orders')
-      .set({
-        trackingNumber: data.trackingNumber,
-        shippingCarrier: data.shippingCarrier,
-        updatedAt: new Date().toISOString()
-      })
-      .where('id', '=', orderId)
-      .execute();
+    await this.orderRepo.updateFulfillment(orderId, data);
 
     await this.audit.record({
       userId: actor.id,
       userEmail: actor.email,
       action: 'order_status_changed',
       targetId: orderId,
-      details: { 
-        type: 'fulfillment_update', 
-        tracking: data.trackingNumber, 
-        carrier: data.shippingCarrier 
+      details: {
+        type: 'fulfillment_update',
+        tracking: data.trackingNumber,
+        carrier: data.shippingCarrier
       }
     });
   }

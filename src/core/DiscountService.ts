@@ -2,6 +2,7 @@
  * [LAYER: CORE]
  */
 import type { IDiscountRepository } from '@domain/repositories';
+import type { DiscountDraft, DiscountUpdate } from '@domain/models';
 import { AuditService } from './AuditService';
 
 export class DiscountService {
@@ -14,14 +15,7 @@ export class DiscountService {
     return this.discountRepo.getAll();
   }
 
-  async createDiscount(data: {
-    code: string;
-    type: 'percentage' | 'fixed';
-    value: number;
-    status: 'active' | 'scheduled' | 'expired';
-    startsAt: Date;
-    endsAt?: Date;
-  }, actor: { id: string, email: string }) {
+  async createDiscount(data: DiscountDraft, actor: { id: string, email: string }) {
     const discount = await this.discountRepo.create(data);
     await this.audit.record({
       userId: actor.id,
@@ -43,7 +37,7 @@ export class DiscountService {
     });
   }
 
-  async updateDiscount(id: string, updates: any, actor: { id: string, email: string }) {
+  async updateDiscount(id: string, updates: DiscountUpdate, actor: { id: string, email: string }) {
     const discount = await this.discountRepo.update(id, updates);
     await this.audit.record({
       userId: actor.id,

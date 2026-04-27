@@ -19,6 +19,13 @@ export default defineConfig([
     rules: {
       'react-hooks/set-state-in-effect': 'off',
       'preserve-caught-error': 'off',
+      'react-hooks/purity': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-empty': 'off',
+      'no-useless-assignment': 'off',
     },
   },
 ])

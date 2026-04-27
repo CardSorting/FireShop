@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { Address, CardRarity, OrderStatus, ProductCategory, ProductStatus, ProductDraft, ProductUpdate, User } from '@domain/models';
+import type { Address, CardRarity, JsonValue, OrderStatus, ProductCategory, ProductStatus, ProductDraft, ProductUpdate, User } from '@domain/models';
 import { AuthError, DomainError, OrderNotFoundError, ProductNotFoundError, UnauthorizedError } from '@domain/errors';
 import { getSessionUser } from './session';
 import { logger } from '@utils/logger';
@@ -161,6 +161,24 @@ export function optionalString(value: unknown, field: string): string | undefine
 export function requireInteger(value: unknown, field: string): number {
     if (typeof value !== 'number' || !Number.isInteger(value)) {
         throw new DomainError(`${field} must be a whole number.`);
+    }
+    return value;
+}
+
+function isJsonValue(value: unknown): value is JsonValue {
+    if (value === null) return true;
+    const valueType = typeof value;
+    if (valueType === 'string' || valueType === 'number' || valueType === 'boolean') return true;
+    if (Array.isArray(value)) return value.every(isJsonValue);
+    if (valueType === 'object') {
+        return Object.values(value as Record<string, unknown>).every(isJsonValue);
+    }
+    return false;
+}
+
+export function requireJsonValue(value: unknown, field: string): JsonValue {
+    if (!isJsonValue(value)) {
+        throw new DomainError(`${field} must be a valid JSON value.`);
     }
     return value;
 }
