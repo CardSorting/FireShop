@@ -15,13 +15,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireAdminSession();
+    const user = await requireAdminSession();
     const body = await readJsonObject(request);
     const key = requireString(body.key, 'key');
     const value = body.value;
     
     const services = getInitialServices();
-    await services.settingsService.updateSetting(key, value);
+    await services.settingsService.updateSetting(key, value, { id: user.id, email: user.email });
     
     return NextResponse.json({ success: true });
   } catch (err) {

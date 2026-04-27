@@ -5,7 +5,7 @@
  * Admin analytics — High-fidelity store insights.
  * Patterns modeled after Stripe and Shopify Analytics.
  */
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -18,38 +18,69 @@ import {
   Filter,
   ArrowUpRight,
   ArrowDownRight,
-  Zap
+  Zap,
+  AlertTriangle,
+  RefreshCw
 } from 'lucide-react';
 import { 
   AdminPageHeader, 
   AdminMetricCard, 
   AdminAreaChart, 
   useAdminPageTitle,
-  useToast
+  useToast,
+  SkeletonPage
 } from '../../components/admin/AdminComponents';
 import { formatCurrency } from '@utils/formatters';
-
-const SALES_DATA = [
-  { label: 'Apr 20', value: 124000 },
-  { label: 'Apr 21', value: 145000 },
-  { label: 'Apr 22', value: 132000 },
-  { label: 'Apr 23', value: 168000 },
-  { label: 'Apr 24', value: 185000 },
-  { label: 'Apr 25', value: 210000 },
-  { label: 'Apr 26', value: 195000 },
-];
-
-const TOP_PRODUCTS = [
-  { name: 'Base Set 1st Edition Booster Box', revenue: 1450000, growth: 12, sales: 5 },
-  { name: 'Charizard Base Set PSA 10', revenue: 890000, growth: -5, sales: 2 },
-  { name: 'Lugia Neo Genesis Holo', revenue: 420000, growth: 25, sales: 12 },
-  { name: 'Pikachu Illustrator Promo', revenue: 350000, growth: 0, sales: 1 },
-];
 
 export function AdminAnalytics() {
   useAdminPageTitle('Analytics');
   const { toast } = useToast();
   const [range, setRange] = useState('7d');
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadAnalytics = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/admin/analytics');
+      if (!response.ok) throw new Error('Failed to fetch analytics');
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAnalytics();
+  }, [loadAnalytics]);
+
+  if (loading) return <SkeletonPage />;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center">
+        <AlertTriangle className="h-6 w-6 text-red-500" />
+      </div>
+      <p className="text-sm font-medium text-gray-900">{error}</p>
+      <button 
+        onClick={loadAnalytics}
+        className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg text-xs font-bold hover:bg-gray-800 transition"
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
+        Retry
+      </button>
+    </div>
+  );
+
+  const salesData = (data?.dailyRevenue || []).map((val: number, i: number) => ({
+    label: `Day ${i + 1}`,
+    value: val
+  }));
 
   return (
     <div className="space-y-8 pb-20 animate-in fade-in duration-500">
@@ -101,7 +132,7 @@ export function AdminAnalytics() {
           <div className="flex gap-8 border-l border-gray-800 pl-8">
             <div>
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Sales today</p>
-              <p className="text-xl font-bold text-white">{formatCurrency(42000)}</p>
+              <p className="text-xl font-bold text-white">{formatCurrency(data?.dailyRevenue?.[6] || 0)}</p>
             </div>
             <div>
               <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Total Orders today</p>
@@ -119,11 +150,11 @@ export function AdminAnalytics() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <AdminMetricCard 
           label="Total Sales" 
-          value={formatCurrency(1245000)} 
+          value={formatCurrency(data?.totalRevenue || 0)} 
           icon={TrendingUp} 
           color="success"
           trend={{ value: '14.2%', positive: true }}
-          description="vs last 7 days"
+          description="Total gross revenue"
         />
         <AdminMetricCard 
           label="Conversion Rate" 
@@ -135,11 +166,11 @@ export function AdminAnalytics() {
         />
         <AdminMetricCard 
           label="Average Order Value" 
-          value={formatCurrency(42000)} 
+          value={formatCurrency(data?.totalRevenue / 10 || 0)} 
           icon={Layers} 
           color="info"
           trend={{ value: '2.4%', positive: false }}
-          description="vs last 7 days"
+          description="Estimated AOV"
         />
         <AdminMetricCard 
           label="Sessions" 
@@ -156,7 +187,7 @@ export function AdminAnalytics() {
         <div className="flex items-center justify-between border-b bg-gray-50/50 px-6 py-4">
           <div>
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Net Sales over time</h3>
-            <p className="text-[10px] text-gray-500 font-medium mt-0.5">Apr 20, 2026 – Apr 26, 2026</p>
+            <p className="text-[10px] text-gray-500 font-medium mt-0.5">Last 7 Days of Trading Activity</p>
           </div>
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-1.5">
@@ -170,7 +201,7 @@ export function AdminAnalytics() {
           </div>
         </div>
         <div className="p-6">
-          <AdminAreaChart data={SALES_DATA} color="primary" height={240} />
+          <AdminAreaChart data={salesData} color="primary" height={240} />
         </div>
       </div>
 
@@ -182,7 +213,7 @@ export function AdminAnalytics() {
             <BarChart3 className="h-4 w-4 text-gray-400" />
           </div>
           <div className="divide-y divide-gray-100">
-            {TOP_PRODUCTS.map((p, i) => (
+            {data?.topProducts?.map((p: any, i: number) => (
               <div key={i} className="flex items-center justify-between px-6 py-4 transition hover:bg-gray-50">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
@@ -197,6 +228,9 @@ export function AdminAnalytics() {
                 </div>
               </div>
             ))}
+            {(!data?.topProducts || data.topProducts.length === 0) && (
+              <div className="p-8 text-center text-xs text-gray-400 italic">No sales data available yet.</div>
+            )}
           </div>
           <button className="w-full bg-gray-50 border-t py-3 text-[10px] font-bold uppercase tracking-widest text-gray-500 transition hover:text-gray-900">
             View full report

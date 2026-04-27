@@ -57,7 +57,8 @@ export function createApiClientServices() {
             createProduct: (data: ProductDraft, _actor: { id: string; email: string }) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
             updateProduct: (id: string, data: ProductUpdate, _actor: { id: string; email: string }) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
             deleteProduct: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
-            batchDeleteProducts: async (ids: string[], _actor: { id: string; email: string }) => { for (const id of ids) await request<void>(`/api/products/${id}`, { method: 'DELETE' }); },
+            batchUpdateProducts: (updates: { id: string; updates: ProductUpdate }[], _actor: { id: string; email: string }) => request<Product[]>('/api/admin/products/batch', { method: 'POST', body: JSON.stringify({ updates }) }),
+            batchDeleteProducts: (ids: string[], _actor: { id: string; email: string }) => request<void>('/api/admin/products/batch', { method: 'DELETE', body: JSON.stringify({ ids }) }),
         },
         cartService: {
             getCart: (userId: string) => (sessionScoped(userId), request<Cart | null>('/api/cart')),
@@ -80,7 +81,7 @@ export function createApiClientServices() {
                 return request<{ orders: Order[]; nextCursor?: string }>(`/api/admin/orders?${qs}`);
             },
             updateOrderStatus: (id: string, status: OrderStatus, _actor: { id: string; email: string }) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-            batchUpdateOrderStatus: async (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => { for (const id of ids) await request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }); },
+            batchUpdateOrderStatus: (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => request<void>('/api/admin/orders/batch', { method: 'PATCH', body: JSON.stringify({ ids, status }) }),
             getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
         },
         discountService: {

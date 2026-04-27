@@ -63,6 +63,7 @@ import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentPr
 import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
 import { SovereignLocker } from '@infrastructure/sqlite/SovereignLocker';
 import { SQLiteSettingsRepository } from '@infrastructure/repositories/sqlite/SQLiteSettingsRepository';
+import { SQLiteTransferRepository } from '@infrastructure/repositories/sqlite/SQLiteTransferRepository';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
@@ -77,6 +78,7 @@ import type {
   IOrderRepository,
   IDiscountRepository,
   ISettingsRepository,
+  ITransferRepository,
   IAuthProvider,
   IPaymentProcessor,
   ILockProvider,
@@ -96,6 +98,7 @@ let paymentProcessorInstance: IPaymentProcessor | null = null;
 let lockProviderInstance: ILockProvider | null = null;
 let checkoutGatewayInstance: ICheckoutGateway | null = null;
 let settingsRepoInstance: ISettingsRepository | null = null;
+let transferRepoInstance: ITransferRepository | null = null;
 let transferServiceInstance: TransferService | null = null;
 let auditServiceInstance: AuditService | null = null;
 
@@ -113,6 +116,7 @@ function createRepositories() {
     orderRepo: new SQLiteOrderRepository(),
     discountRepo: new SQLiteDiscountRepository(),
     settingsRepo: new SQLiteSettingsRepository(),
+    transferRepo: new SQLiteTransferRepository(),
   };
 }
 
@@ -125,7 +129,7 @@ function createRepositories() {
  * @returns Container with fresh repository instances
  */
 export function getServiceContainer() {
-  const { productRepo, cartRepo, orderRepo } = createRepositories();
+  const { productRepo, cartRepo, orderRepo, discountRepo, settingsRepo, transferRepo } = createRepositories();
   const authProvider = new SQLiteAuthAdapter();
   const authService = new AuthService(authProvider);
 
@@ -143,9 +147,9 @@ export function getServiceContainer() {
       new SovereignLocker(),
       createCheckoutGateway()
     ),
-    discountService: new DiscountService(new SQLiteDiscountRepository()),
-    settingsService: new SettingsService(new SQLiteSettingsRepository(), productRepo, new SQLiteDiscountRepository()),
-    transferService: new TransferService(),
+    discountService: new DiscountService(discountRepo, new AuditService()),
+    settingsService: new SettingsService(settingsRepo, productRepo, discountRepo, new AuditService()),
+    transferService: new TransferService(transferRepo, productRepo),
     auditService: new AuditService(),
   };
 }
@@ -159,13 +163,14 @@ export function getServiceContainer() {
  * @returns Container with cached singleton instances
  */
 export function getInitialServices() {
-  if (!productRepoInstance || !cartRepoInstance || !orderRepoInstance || !discountRepoInstance || !settingsRepoInstance) {
-    const { productRepo, cartRepo, orderRepo, discountRepo, settingsRepo } = createRepositories();
-    productRepoInstance = productRepo;
-    cartRepoInstance = cartRepo;
-    orderRepoInstance = orderRepo;
-    discountRepoInstance = discountRepo;
-    settingsRepoInstance = settingsRepo;
+  if (!productRepoInstance || !cartRepoInstance || !orderRepoInstance || !discountRepoInstance || !settingsRepoInstance || !transferRepoInstance) {
+    const repos = createRepositories();
+    productRepoInstance = repos.productRepo;
+    cartRepoInstance = repos.cartRepo;
+    orderRepoInstance = repos.orderRepo;
+    discountRepoInstance = repos.discountRepo;
+    settingsRepoInstance = repos.settingsRepo;
+    transferRepoInstance = repos.transferRepo;
   }
 
   // Auth selection
@@ -209,10 +214,16 @@ export function getInitialServices() {
       lockProviderInstance,
       checkoutGatewayInstance ?? undefined
     ),
-    discountService: new DiscountService(discountRepoInstance!),
-    settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!),
+    discountService: new DiscountService(discountRepoInstance!, (function() {
+      if (!auditServiceInstance) auditServiceInstance = new AuditService();
+      return auditServiceInstance;
+    })()),
+    settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, (function() {
+      if (!auditServiceInstance) auditServiceInstance = new AuditService();
+      return auditServiceInstance;
+    })()),
     transferService: (function() {
-      if (!transferServiceInstance) transferServiceInstance = new TransferService();
+      if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!);
       return transferServiceInstance;
     })(),
     auditService: (function() {

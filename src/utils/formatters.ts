@@ -8,12 +8,20 @@ export function formatCurrency(cents: number): string {
   }).format(cents / 100);
 }
 
-export function formatShortDate(date: Date): string {
+export function formatShortDate(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
+  
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  if (isNaN(d.getTime())) {
+    return 'Invalid Date';
+  }
+
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(date);
+  }).format(d);
 }
 
 export function humanizeOrderStatus(status: string): string {
@@ -28,9 +36,16 @@ export function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function formatRelativeTime(date: Date): string {
+export function formatRelativeTime(date: Date | string | null | undefined): string {
+  if (!date) return 'N/A';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  if (isNaN(d.getTime())) {
+    return 'Invalid Date';
+  }
+
   const now = Date.now();
-  const diffMs = now - date.getTime();
+  const diffMs = now - d.getTime();
   const seconds = Math.floor(diffMs / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -40,5 +55,5 @@ export function formatRelativeTime(date: Date): string {
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 7) return `${days}d ago`;
-  return formatShortDate(date);
+  return formatShortDate(d);
 }

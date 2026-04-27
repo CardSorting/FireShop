@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { useServices } from '../../hooks/useServices';
-import { formatCurrency, formatShortDate } from '../../../utils/formatters';
+import { formatCurrency, formatShortDate, formatRelativeTime } from '../../../utils/formatters';
 import type { AdminDashboardSummary, Order, Product } from '@domain/models';
 import { 
   TrendingUp, 
@@ -1010,7 +1010,7 @@ export function AdminAuditLogs({ logs }: { logs: any[] }) {
           {logs.map((log) => (
             <tr key={log.id} className="hover:bg-gray-50 transition">
               <td className="px-4 py-3.5 whitespace-nowrap text-gray-500 font-medium tabular-nums">
-                {new Date(log.createdAt).toLocaleString()}
+                {formatRelativeTime(log.createdAt)}
               </td>
               <td className="px-4 py-3.5">
                 <div className="flex flex-col">

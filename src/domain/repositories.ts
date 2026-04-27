@@ -54,6 +54,12 @@ export interface IOrderRepository {
     dailyRevenue: number[]; // Last 7 days, index 0 is 6 days ago, index 6 is today
     orderCountsByStatus: Record<OrderStatus, number>;
   }>;
+  getTopProducts(limit: number): Promise<Array<{
+    id: string;
+    name: string;
+    revenue: number;
+    sales: number;
+  }>>;
 }
 
 export interface IAuthProvider {
@@ -98,8 +104,14 @@ export interface IDiscountRepository {
   incrementUsage(id: string): Promise<void>;
 }
 
+export interface ITransferRepository {
+  getAll(): Promise<import('./models').Transfer[]>;
+  update(id: string, updates: Partial<import('./models').Transfer>): Promise<void>;
+  create?(transfer: import('./models').Transfer): Promise<void>;
+}
+
 export interface ISettingsRepository {
   get<T>(key: string): Promise<T | null>;
-  set<T>(key: string, value: T): Promise<void>;
+  set(key: string, value: any): Promise<void>;
   getAll(): Promise<Record<string, any>>;
 }

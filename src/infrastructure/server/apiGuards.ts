@@ -141,6 +141,12 @@ export function parseOrderStatus(value: unknown): OrderStatus | undefined {
     throw new DomainError('Invalid order status.');
 }
 
+export function requireOrderStatus(value: unknown): OrderStatus {
+    const status = parseOrderStatus(value);
+    if (!status) throw new DomainError('Order status is required.');
+    return status;
+}
+
 export function requireString(value: unknown, field: string): string {
     if (typeof value !== 'string' || !value.trim()) throw new DomainError(`${field} is required.`);
     return value.trim();

@@ -3,6 +3,7 @@
  * Manages store-wide configuration and setup progress.
  */
 import type { ISettingsRepository, IProductRepository, IDiscountRepository } from '@domain/repositories';
+import { AuditService } from './AuditService';
 
 export interface SetupGuideProgress {
   hasProducts: boolean;
@@ -18,7 +19,8 @@ export class SettingsService {
   constructor(
     private settingsRepo: ISettingsRepository,
     private productRepo: IProductRepository,
-    private discountRepo: IDiscountRepository
+    private discountRepo: IDiscountRepository,
+    private audit: AuditService
   ) {}
 
   async getSetupProgress(): Promise<SetupGuideProgress> {
@@ -57,7 +59,14 @@ export class SettingsService {
     return this.settingsRepo.getAll();
   }
 
-  async updateSetting(key: string, value: any): Promise<void> {
+  async updateSetting(key: string, value: any, actor: { id: string, email: string }): Promise<void> {
     await this.settingsRepo.set(key, value);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'settings_updated',
+      targetId: key,
+      details: { value }
+    });
   }
 }

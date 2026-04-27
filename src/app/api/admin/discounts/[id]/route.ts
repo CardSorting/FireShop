@@ -7,10 +7,10 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        await requireAdminSession();
+        const user = await requireAdminSession();
         const { id } = await params;
         const services = await getServerServices();
-        await services.discountService.deleteDiscount(id);
+        await services.discountService.deleteDiscount(id, { id: user.id, email: user.email });
         return NextResponse.json({ success: true });
     } catch (error) {
         return jsonError(error, 'Failed to delete discount');
@@ -22,7 +22,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        await requireAdminSession();
+        const user = await requireAdminSession();
         const { id } = await params;
         const data = await request.json();
         const services = await getServerServices();
@@ -30,7 +30,7 @@ export async function PATCH(
         if (data.startsAt) data.startsAt = new Date(data.startsAt);
         if (data.endsAt) data.endsAt = new Date(data.endsAt);
         
-        const updated = await services.discountService.updateDiscount(id, data);
+        const updated = await services.discountService.updateDiscount(id, data, { id: user.id, email: user.email });
         return NextResponse.json(updated);
     } catch (error) {
         return jsonError(error, 'Failed to update discount');

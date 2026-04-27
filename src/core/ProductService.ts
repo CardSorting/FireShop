@@ -87,18 +87,40 @@ export class ProductService {
     });
   }
 
-  async batchUpdateProducts(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {
+  async batchUpdateProducts(updates: { id: string; updates: ProductUpdate }[], actor: { id: string, email: string }): Promise<Product[]> {
     updates.forEach(({ updates: u }) => assertValidProductUpdate(u));
+    
+    let products: Product[];
     if (this.repo.batchUpdate) {
-      return this.repo.batchUpdate(updates);
+      products = await this.repo.batchUpdate(updates);
+    } else {
+      products = await Promise.all(updates.map(({ id, updates: u }) => this.repo.update(id, u)));
     }
-    return Promise.all(updates.map(({ id, updates: u }) => this.repo.update(id, u)));
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'product_batch_updated',
+      targetId: 'multiple',
+      details: { count: updates.length, ids: updates.map(u => u.id) }
+    });
+
+    return products;
   }
 
-  async batchDeleteProducts(ids: string[]): Promise<void> {
+  async batchDeleteProducts(ids: string[], actor: { id: string, email: string }): Promise<void> {
     if (this.repo.batchDelete) {
-      return this.repo.batchDelete(ids);
+      await this.repo.batchDelete(ids);
+    } else {
+      await Promise.all(ids.map((id) => this.repo.delete(id)));
     }
-    await Promise.all(ids.map((id) => this.repo.delete(id)));
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'product_batch_deleted',
+      targetId: 'multiple',
+      details: { count: ids.length, ids }
+    });
   }
 }

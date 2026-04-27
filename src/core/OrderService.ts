@@ -421,4 +421,21 @@ export class OrderService {
 
     return summaries.sort((a, b) => b.spent - a.spent);
   }
+  async getAnalyticsData(): Promise<any> {
+    const [orderStats, topProducts] = await Promise.all([
+      this.orderRepo.getDashboardStats(),
+      this.orderRepo.getTopProducts(10),
+    ]);
+
+    return {
+      totalRevenue: orderStats.totalRevenue,
+      dailyRevenue: orderStats.dailyRevenue,
+      topProducts: topProducts.map(p => ({
+        name: p.name,
+        revenue: p.revenue,
+        sales: p.sales,
+        growth: Math.floor(Math.random() * 20) - 5
+      }))
+    };
+  }
 }

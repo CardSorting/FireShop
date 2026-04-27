@@ -2,9 +2,13 @@
  * [LAYER: CORE]
  */
 import type { IDiscountRepository } from '@domain/repositories';
+import { AuditService } from './AuditService';
 
 export class DiscountService {
-  constructor(private discountRepo: IDiscountRepository) {}
+  constructor(
+    private discountRepo: IDiscountRepository,
+    private audit: AuditService
+  ) {}
 
   async getAllDiscounts() {
     return this.discountRepo.getAll();
@@ -17,16 +21,38 @@ export class DiscountService {
     status: 'active' | 'scheduled' | 'expired';
     startsAt: Date;
     endsAt?: Date;
-  }) {
-    return this.discountRepo.create(data);
+  }, actor: { id: string, email: string }) {
+    const discount = await this.discountRepo.create(data);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'discount_created',
+      targetId: discount.id,
+      details: { code: data.code }
+    });
+    return discount;
   }
 
-  async deleteDiscount(id: string) {
-    return this.discountRepo.delete(id);
+  async deleteDiscount(id: string, actor: { id: string, email: string }) {
+    await this.discountRepo.delete(id);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'discount_deleted',
+      targetId: id
+    });
   }
 
-  async updateDiscount(id: string, updates: any) {
-    return this.discountRepo.update(id, updates);
+  async updateDiscount(id: string, updates: any, actor: { id: string, email: string }) {
+    const discount = await this.discountRepo.update(id, updates);
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'discount_updated',
+      targetId: id,
+      details: updates
+    });
+    return discount;
   }
 
   async validateDiscount(code: string, cartTotal: number) {

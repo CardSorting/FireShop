@@ -15,7 +15,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        await requireAdminSession();
+        const user = await requireAdminSession();
         const data = await request.json();
         const services = await getServerServices();
         
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
         if (data.startsAt) data.startsAt = new Date(data.startsAt);
         if (data.endsAt) data.endsAt = new Date(data.endsAt);
         
-        const discount = await services.discountService.createDiscount(data);
+        const discount = await services.discountService.createDiscount(data, { id: user.id, email: user.email });
         return NextResponse.json(discount);
     } catch (error) {
         return jsonError(error, 'Failed to create discount');

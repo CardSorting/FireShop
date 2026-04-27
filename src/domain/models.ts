@@ -112,15 +112,23 @@ export interface AdminDashboardSummary {
   dailyRevenue: number[]; // Last 7 days
 }
 
+export interface TransferItem {
+  productId: string;
+  name: string;
+  quantity: number;
+}
+
 export interface Transfer {
   id: string;
   source: string;
   status: 'pending' | 'in_transit' | 'received' | 'cancelled';
+  items: TransferItem[];
   itemsCount: number;
   receivedCount: number;
   expectedAt: Date;
   createdAt: Date;
 }
+
 
 export type InventoryHealth = 'out_of_stock' | 'low_stock' | 'healthy';
 

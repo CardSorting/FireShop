@@ -10,8 +10,9 @@ import type { Database } from '@infrastructure/sqlite/schema';
 
 export type AuditAction = 
   | 'product_created' | 'product_updated' | 'product_deleted'
+  | 'product_batch_updated' | 'product_batch_deleted'
   | 'order_status_changed' | 'order_refunded'
-  | 'discount_created' | 'discount_deleted'
+  | 'discount_created' | 'discount_updated' | 'discount_deleted'
   | 'settings_updated' | 'staff_added' | 'staff_removed'
   | 'checkout_reconciliation_required';
 

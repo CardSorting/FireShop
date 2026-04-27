@@ -87,9 +87,12 @@ export function AdminInventory() {
         email: user?.email || 'system' 
       };
 
-      await Promise.all(
-        entries.map(([id, stock]) => services.productService.updateProduct(id, { stock }, actor))
-      );
+      const batchUpdates = entries.map(([id, stock]) => ({
+        id,
+        updates: { stock }
+      }));
+
+      await services.productService.batchUpdateProducts(batchUpdates, actor);
       toast('success', `Updated stock for ${entries.length} items`);
       setIsBulkEditing(false);
       setBulkChanges({});

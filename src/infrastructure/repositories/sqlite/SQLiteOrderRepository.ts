@@ -2,7 +2,7 @@
  * [LAYER: INFRASTRUCTURE]
  * SQLite Implementation of Order Repository using Kysely
  */
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { getSQLiteDB } from '../../sqlite/database';
 import type { Database } from '../../sqlite/schema';
 import type { OrderTable } from '../../sqlite/schema';
@@ -307,6 +307,29 @@ export class SQLiteOrderRepository implements IOrderRepository {
       dailyRevenue,
       orderCountsByStatus,
     };
+  }
+
+  async getTopProducts(limit: number): Promise<Array<{ id: string; name: string; revenue: number; sales: number }>> {
+    // BroccoliQ Level 8: Native SQL JSON Analytics
+    const result = await sql<any>`
+      SELECT 
+        json_extract(item.value, '$.productId') as id,
+        json_extract(item.value, '$.name') as name,
+        SUM(json_extract(item.value, '$.unitPrice') * json_extract(item.value, '$.quantity')) as revenue,
+        SUM(json_extract(item.value, '$.quantity')) as sales
+      FROM orders, json_each(orders.items) as item
+      WHERE orders.status != 'cancelled'
+      GROUP BY id
+      ORDER BY revenue DESC
+      LIMIT ${limit}
+    `.execute(this.db);
+
+    return result.rows.map(row => ({
+      id: String(row.id),
+      name: String(row.name),
+      revenue: Number(row.revenue),
+      sales: Number(row.sales)
+    }));
   }
 
   async seed(order: Order): Promise<void> {

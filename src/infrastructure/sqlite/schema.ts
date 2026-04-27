@@ -87,6 +87,7 @@ export interface TransferTable {
   id: string;
   source: string;
   status: string;
+  items: string; // JSON string of TransferItem[]
   itemsCount: number;
   receivedCount: number;
   expectedAt: string;
