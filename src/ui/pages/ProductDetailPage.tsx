@@ -10,6 +10,7 @@ import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import type { Product } from '@domain/models';
 import { ShoppingCart, ArrowLeft, Check } from 'lucide-react';
+import { MAX_CART_QUANTITY } from '@domain/rules';
 
 function emitCartUpdated(): void {
   window.dispatchEvent(new CustomEvent('cart:updated'));
@@ -17,6 +18,12 @@ function emitCartUpdated(): void {
 
 function toFriendlyError(err: unknown): string {
   if (err instanceof Error && err.message) {
+    if (/insufficient stock/i.test(err.message)) {
+      const available = err.message.match(/available\s+(\d+)/i)?.[1];
+      return available
+        ? `Only ${available} available right now. Please choose a lower quantity.`
+        : 'This item has limited availability. Please choose a lower quantity.';
+    }
     return err.message;
   }
   return 'Unable to add this item to your cart right now.';
@@ -42,12 +49,14 @@ export function ProductDetailPage() {
     void loadProduct();
   }, [loadProduct]);
 
+  const maxSelectableQuantity = product ? Math.max(1, Math.min(product.stock, MAX_CART_QUANTITY)) : 1;
+
   async function handleAddToCart() {
     if (!user || !product) return;
     setAdding(true);
     setError(null);
     try {
-      await services.cartService.addToCart(user.id, product.id, quantity);
+      await services.cartService.addToCart(user.id, product.id, Math.min(quantity, maxSelectableQuantity));
       emitCartUpdated();
       setAdded(true);
       setTimeout(() => setAdded(false), 2500);
@@ -94,21 +103,31 @@ export function ProductDetailPage() {
 
           {user ? (
             <div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border rounded-md">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-3 py-2 text-gray-600 hover:bg-gray-50"
-                  >
-                    -
-                  </button>
-                  <span className="px-3 py-2 text-sm font-medium w-12 text-center">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                    className="px-3 py-2 text-gray-600 hover:bg-gray-50"
-                  >
-                    +
-                  </button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Quantity</p>
+                  <div className="inline-flex items-center rounded-md border bg-white">
+                    <button
+                      type="button"
+                      aria-label={`Decrease quantity for ${product.name}`}
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1 || adding}
+                      className="px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      −
+                    </button>
+                    <span className="w-12 border-x px-3 py-2 text-center text-sm font-medium" aria-live="polite">{quantity}</span>
+                    <button
+                      type="button"
+                      aria-label={`Increase quantity for ${product.name}`}
+                      onClick={() => setQuantity(Math.min(maxSelectableQuantity, quantity + 1))}
+                      disabled={quantity >= maxSelectableQuantity || adding}
+                      className="px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">Up to {maxSelectableQuantity} available for this order.</p>
                 </div>
                 <button
                   onClick={handleAddToCart}

@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-04-26 — Cart navigation clarity and Shopify/Stripe-style UX pass
+
+### Problem verified
+
+- `src/ui/pages/CartPage.tsx` had functional cart management but still used a plain text loading state, bare quantity buttons, generic checkout CTA copy, and browser-native destructive copy for clearing a cart.
+- Cart stock/product refresh was supplemental but gave shoppers no visible availability-checking feedback while current product metadata loaded.
+- `src/ui/pages/ProductDetailPage.tsx` let shoppers increase quantity up to product stock without mirroring the Domain `MAX_CART_QUANTITY` limit, which could lead to avoidable server-side cart rejection.
+- Stock errors surfaced technical Domain wording instead of translating common insufficient-stock cases into shopper-readable guidance.
+
+### Remediation performed
+
+- Added a familiar cart progress indicator in `CartPage` showing `Cart → Checkout → Confirmation`, with Cart active.
+- Replaced the cart loading text with skeleton-style cart rows and order-summary placeholders.
+- Reworked signed-out, empty, error, and availability-checking states with plain-language guidance and clear `Sign in`, `Shop products`, `Try again`, and `Continue shopping` actions.
+- Reworked cart line items into clearer product cards with linked imagery/title, snapshot unit price, line total, stock/unavailable notices, labelled quantity controls, accessible increment/decrement labels, and max-quantity helper text.
+- Updated the summary panel with item count, estimated subtotal/shipping/total, “Checkout securely” CTA, secondary “Continue shopping” CTA, and Stripe/Shopify-style secure cart/payment/support trust copy.
+- Softened cart-wide deletion language from “Clear cart” to “Remove all items” while retaining confirmation before destructive action.
+- Updated `ProductDetailPage` to import `MAX_CART_QUANTITY`, clamp add-to-cart quantity to `Math.min(product.stock, MAX_CART_QUANTITY)`, add labelled quantity controls, and translate insufficient-stock errors into shopper-readable copy.
+
+### Verification evidence
+
+- Targeted ESLint completed successfully: `CI=1 npx eslint src/ui/pages/CartPage.tsx src/ui/pages/ProductDetailPage.tsx` returned `ESLINT_EXIT:0`.
+- Targeted TypeScript touched-file diagnostic scan completed with no touched-file diagnostics: `npx tsc --noEmit --incremental false --pretty false 2>&1 | grep -E "src/ui/pages/(CartPage|ProductDetailPage)" || true` returned no matches.
+- Generated `tsconfig.tsbuildinfo` was reverted; `git status --short` showed only `src/ui/pages/CartPage.tsx` and `src/ui/pages/ProductDetailPage.tsx` modified before ledger updates.
+
+### Files intentionally changed in this pass
+
+- `src/ui/pages/CartPage.tsx`
+- `src/ui/pages/ProductDetailPage.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+
+### Architectural notes
+
+- This pass is UI-layer only. It consumes Domain `MAX_CART_QUANTITY` and existing `CartItem` snapshot data without mutating Domain rules/models, Core services, or Infrastructure adapters.
+- Existing session-owned cart APIs and `readJsonObject()` mutation-origin protection were audited and left unchanged.
+- The navbar refresh mechanism remains the existing `cart:updated` browser event dispatched after successful cart mutations.
+
 ## 2026-04-26 — Storefront cart UX and snapshot pricing alignment
 
 ### Problem verified
