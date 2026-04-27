@@ -61,7 +61,7 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
       setUsers(staff);
       setAuditLogs(logs);
     } catch (err) {
-      console.error('Failed to load settings data', err);
+      services.logger.error('Failed to load settings data', err);
     } finally {
       setLoading(false);
     }
@@ -150,7 +150,10 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
               <div className="space-y-8">
                 <div className="flex items-center justify-between">
                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Manage Staff Members</h3>
-                   <button className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-gray-800 transition active:scale-95">
+                   <button 
+                      onClick={() => router.push('/admin/customers/new')}
+                      className="rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-gray-800 transition active:scale-95"
+                    >
                      Invite Member
                    </button>
                 </div>
@@ -209,14 +212,26 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Payment Capture</h3>
                    <div className="grid gap-4">
                       <label className="group relative flex cursor-pointer items-start gap-4 rounded-2xl border p-5 transition hover:bg-gray-50 has-checked:border-primary-500 has-checked:bg-primary-50/30">
-                         <input type="radio" name="capture" defaultChecked className="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" />
+                         <input 
+                            type="radio" 
+                            name="capture" 
+                            checked={settings.payment_capture_mode !== 'manual'} 
+                            onChange={() => saveSetting('payment_capture_mode', 'automatic')}
+                            className="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" 
+                          />
                          <div>
                             <p className="text-sm font-bold text-gray-900">Automatically capture payment for orders</p>
                             <p className="text-xs text-gray-500 font-medium mt-1">Funds are captured immediately when an order is placed.</p>
                          </div>
                       </label>
                       <label className="group relative flex cursor-pointer items-start gap-4 rounded-2xl border p-5 transition hover:bg-gray-50 has-checked:border-primary-500 has-checked:bg-primary-50/30">
-                         <input type="radio" name="capture" className="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" />
+                         <input 
+                            type="radio" 
+                            name="capture" 
+                            checked={settings.payment_capture_mode === 'manual'}
+                            onChange={() => saveSetting('payment_capture_mode', 'manual')}
+                            className="mt-1 h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500" 
+                          />
                          <div>
                             <p className="text-sm font-bold text-gray-900">Manually capture payment for orders</p>
                             <p className="text-xs text-gray-500 font-medium mt-1">Authorizes funds and allows manual capture within 7 days.</p>
@@ -231,7 +246,56 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
                    </p>
                 </div>
               </div>
+             ) : sectionId === 'shipping' ? (
+               <div className="space-y-8">
+                 <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Domestic Shipping</h3>
+                    <div className="grid gap-6 sm:grid-cols-2">
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-700">Standard Flat Rate</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                            <input 
+                              type="number" 
+                              defaultValue={settings.shipping_flat_rate || 5.00} 
+                              onBlur={(e) => saveSetting('shipping_flat_rate', parseFloat(e.target.value))}
+                              className="w-full rounded-xl border bg-gray-50 pl-8 pr-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
+                            />
+                          </div>
+                       </div>
+                       <div className="space-y-2">
+                          <label className="text-xs font-bold text-gray-700">Free Shipping Threshold</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                            <input 
+                              type="number" 
+                              defaultValue={settings.shipping_free_threshold || 50.00} 
+                              onBlur={(e) => saveSetting('shipping_free_threshold', parseFloat(e.target.value))}
+                              className="w-full rounded-xl border bg-gray-50 pl-8 pr-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
+                            />
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+
+                 <div className="space-y-4 pt-4">
+                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Carrier Integration</h3>
+                    <div className="rounded-2xl border border-dashed p-10 text-center space-y-4">
+                       <div className="mx-auto h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-300">
+                          <Truck className="h-6 w-6" />
+                       </div>
+                       <div>
+                          <p className="text-sm font-bold text-gray-900">Live Carrier Rates</p>
+                          <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto font-medium">Connect USPS, UPS, or FedEx to calculate real-time rates at checkout based on weight and dimensions.</p>
+                       </div>
+                       <button className="rounded-xl border bg-white px-6 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+                          Configure Carriers
+                       </button>
+                    </div>
+                 </div>
+               </div>
              ) : sectionId === 'security' ? (
+
                <div className="space-y-8">
                   <div className="flex items-center justify-between">
                      <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Security Audit Trail</h3>

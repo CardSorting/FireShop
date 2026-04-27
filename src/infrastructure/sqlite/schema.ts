@@ -25,8 +25,11 @@ export interface UserTable {
   passwordHash: string;
   displayName: string;
   role: string;
+  notes: string | null;
+  metadata: string | null; // JSON
   createdAt: string;
 }
+
 
 export interface CartTable {
   id: string;

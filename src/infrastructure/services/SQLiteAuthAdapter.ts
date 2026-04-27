@@ -114,9 +114,42 @@ export class SQLiteAuthAdapter implements IAuthProvider {
       email: u.email,
       displayName: u.displayName,
       role: toUserRole(u.role),
+      notes: u.notes || undefined,
+      metadata: u.metadata ? JSON.parse(u.metadata) : undefined,
       createdAt: new Date(u.createdAt),
     }));
   }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    const patch: any = {};
+    if (updates.displayName) patch.displayName = updates.displayName;
+    if (updates.role) patch.role = updates.role;
+    if (updates.notes !== undefined) patch.notes = updates.notes;
+    if (updates.metadata !== undefined) patch.metadata = JSON.stringify(updates.metadata);
+
+    await this.db
+      .updateTable('users')
+      .set(patch)
+      .where('id', '=', id)
+      .execute();
+
+    const row = await this.db
+      .selectFrom('users')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirstOrThrow();
+
+    return {
+      id: row.id,
+      email: row.email,
+      displayName: row.displayName,
+      role: toUserRole(row.role),
+      notes: row.notes || undefined,
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+      createdAt: new Date(row.createdAt),
+    };
+  }
+
 
   private setCurrentUser(user: User | null) {
     this.currentUser = user;

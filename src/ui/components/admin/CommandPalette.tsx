@@ -101,19 +101,12 @@ export function CommandPalette() {
       setSearching(true);
       try {
         const [prodRes, orderRes] = await Promise.all([
-          services.productService.getProducts({ limit: 10 }),
-          services.orderService.getAllOrders({ limit: 20 })
+          services.productService.getProducts({ limit: 10, query: needle }),
+          services.orderService.getAllOrders({ limit: 20, query: needle })
         ]);
 
-        const products = prodRes.products.filter(p => 
-          p.name.toLowerCase().includes(needle) || 
-          p.category.toLowerCase().includes(needle)
-        );
-
-        const orders = orderRes.orders.filter(o => 
-          o.id.toLowerCase().includes(needle) || 
-          o.userId.toLowerCase().includes(needle)
-        );
+        const products = prodRes.products;
+        const orders = orderRes.orders;
 
         const results: PaletteItem[] = [
           ...products.map(p => ({
@@ -129,9 +122,10 @@ export function CommandPalette() {
             label: `Order #${o.id.slice(0, 8).toUpperCase()}`,
             description: `${o.status} · ${formatCurrency(o.total)}`,
             icon: ClipboardList,
-            href: `/admin/orders`, // In real app, would deep link to order
+            href: `/admin/orders/${o.id}`,
             group: 'Orders'
           })),
+
           {
             id: 'search-cust',
             label: `Search customers for "${needle}"`,
@@ -144,7 +138,7 @@ export function CommandPalette() {
 
         setDynamicResults(results);
       } catch (err) {
-        console.error('Search failed', err);
+        services.logger.error('Search failed', err);
       } finally {
         setSearching(false);
       }

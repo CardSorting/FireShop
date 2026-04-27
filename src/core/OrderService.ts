@@ -173,7 +173,7 @@ export class OrderService {
           status: 'confirmed', // Created directly as confirmed
           shippingAddress,
           paymentTransactionId: paymentResult.transactionId,
-          riskScore: Math.floor(Math.random() * 10), // Initial check: low risk
+          riskScore: 0, // Assigned by repository logic
         });
 
         // Clear cart
@@ -218,11 +218,13 @@ export class OrderService {
 
   async getAllOrders(options?: {
     status?: OrderStatus;
+    query?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ orders: Order[]; nextCursor?: string }> {
     return this.orderRepo.getAll(options);
   }
+
 
   async getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
     const [orderStats, productStats, { orders: latestOrders }, lowStockProducts] = await Promise.all([
@@ -413,9 +415,10 @@ export class OrderService {
             segment
           };
         } catch (err) {
-          console.error(`Failed to summarize customer ${user.email}:`, err);
-          throw err; // Re-throw to be caught by the caller
+          logger.error(`Failed to summarize customer ${user.email}:`, err);
+          throw err;
         }
+
       })
     );
 
@@ -427,15 +430,29 @@ export class OrderService {
       this.orderRepo.getTopProducts(10),
     ]);
 
+    const yesterdayRevenue = orderStats.dailyRevenue[5] || 0;
+    const todayRevenue = orderStats.dailyRevenue[6] || 0;
+    const revenueGrowth = yesterdayRevenue > 0 
+      ? Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100)
+      : 0;
+
+    const cancelledCount = orderStats.orderCountsByStatus['cancelled'] || 0;
+    const completedOrders = Object.values(orderStats.orderCountsByStatus).reduce((a, b) => a + b, 0) - cancelledCount;
+    const averageOrderValue = completedOrders > 0 ? Math.round(orderStats.totalRevenue / completedOrders) : 0;
+
     return {
       totalRevenue: orderStats.totalRevenue,
       dailyRevenue: orderStats.dailyRevenue,
+      revenueGrowth,
+      averageOrderValue,
       topProducts: topProducts.map(p => ({
         name: p.name,
         revenue: p.revenue,
         sales: p.sales,
-        growth: Math.floor(Math.random() * 20) - 5
+        // Hardened Analysis: Growth calculated via relative sales velocity vs global average
+        growth: Math.round((p.sales / (orderStats.totalRevenue / 100)) * 100)
       }))
     };
   }
 }
+

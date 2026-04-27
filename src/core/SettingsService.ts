@@ -24,16 +24,20 @@ export class SettingsService {
   ) {}
 
   async getSetupProgress(): Promise<SetupGuideProgress> {
-    const [{ products }, storeName, paymentConfig] = await Promise.all([
+    const [
+      { products }, 
+      storeName, 
+      paymentConfig,
+      shippingRates,
+      customDomain
+    ] = await Promise.all([
       this.productRepo.getAll({ limit: 1 }),
       this.settingsRepo.get<string>('store_name'),
       this.settingsRepo.get<boolean>('payment_configured'),
+      this.settingsRepo.get<boolean>('shipping_configured'),
+      this.settingsRepo.get<boolean>('domain_configured'),
     ]);
-
-    // Mocking some advanced ones for now until we have infrastructure for them
-    const shippingRates = await this.settingsRepo.get<boolean>('shipping_configured');
-    const customDomain = await this.settingsRepo.get<boolean>('domain_configured');
-
+    
     const tasks = [
       { id: 'products', completed: products.length > 0 },
       { id: 'name', completed: !!storeName },
@@ -41,6 +45,7 @@ export class SettingsService {
       { id: 'shipping', completed: !!shippingRates },
       { id: 'domain', completed: !!customDomain },
     ];
+
 
     const completedCount = tasks.filter(t => t.completed).length;
 

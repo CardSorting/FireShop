@@ -93,7 +93,7 @@ export function AdminSettings() {
       const data = await services.settingsService.getSetupProgress();
       setProgress(data);
     } catch (err) {
-      console.error('Failed to load setup progress', err);
+      services.logger.error('Failed to load setup progress', err);
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ export function AdminSettings() {
       setSettings(data);
       setUsers(staff);
     } catch (err) {
-      console.error('Failed to load settings', err);
+      services.logger.error('Failed to load settings', err);
     }
   }, [services]);
 
@@ -117,7 +117,7 @@ export function AdminSettings() {
       const logs = await services.auditService.getRecentLogs();
       setAuditLogs(logs);
     } catch (err) {
-      console.error('Failed to load audit logs', err);
+      services.logger.error('Failed to load audit logs', err);
     }
   }, [services.auditService]);
 
@@ -126,9 +126,10 @@ export function AdminSettings() {
       const allUsers = await services.authService.getAllUsers();
       setUsers(allUsers);
     } catch (err) {
-      console.error('Failed to load users', err);
+      services.logger.error('Failed to load users', err);
     }
   }, [services.authService]);
+
 
   useEffect(() => {
     void loadProgress();

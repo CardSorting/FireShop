@@ -41,8 +41,11 @@ export interface User {
   email: string;
   displayName: string;
   role: UserRole;
+  notes?: string;
+  metadata?: Record<string, any>;
   createdAt: Date;
 }
+
 
 export type UserRole = 'customer' | 'admin';
 

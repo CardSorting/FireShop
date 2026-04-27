@@ -33,6 +33,11 @@ function reviveDates(value: unknown): unknown {
 
 export function createApiClientServices() {
     return {
+        logger: {
+            log: (...args: any[]) => console.log('[UI]', ...args),
+            error: (...args: any[]) => console.error('[UI]', ...args),
+            warn: (...args: any[]) => console.warn('[UI]', ...args),
+        },
         authService: {
             getCurrentUser: () => request<User | null>('/api/auth/me'),
             signIn: (email: string, password: string) => request<User>('/api/auth/sign-in', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -43,13 +48,15 @@ export function createApiClientServices() {
                 return () => { };
             },
             getAllUsers: () => request<User[]>('/api/auth/users'),
+            updateUser: (id: string, updates: Partial<User>) => request<User>(`/api/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         productService: {
-            getProducts: (options?: { category?: string; limit?: number; cursor?: string }) => {
+            getProducts: (options?: { category?: string; limit?: number; cursor?: string; query?: string }) => {
                 const qs = new URLSearchParams();
                 if (options?.category) qs.set('category', options.category);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);
+                if (options?.query) qs.set('query', options.query);
                 return request<{ products: Product[]; nextCursor?: string }>(`/api/products?${qs}`);
             },
             getProduct: (id: string) => request<Product>(`/api/products/${id}`),
@@ -73,11 +80,13 @@ export function createApiClientServices() {
             finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
             placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
             getOrders: (userId: string) => (sessionScoped(userId), request<Order[]>('/api/orders')),
-            getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string }) => {
+            getOrder: (id: string) => request<Order>(`/api/admin/orders/${id}`),
+            getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string; query?: string }) => {
                 const qs = new URLSearchParams();
                 if (options?.status) qs.set('status', options.status);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);
+                if (options?.query) qs.set('query', options.query);
                 return request<{ orders: Order[]; nextCursor?: string }>(`/api/admin/orders?${qs}`);
             },
             updateOrderStatus: (id: string, status: OrderStatus, _actor: { id: string; email: string }) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
@@ -86,13 +95,14 @@ export function createApiClientServices() {
         },
         discountService: {
             getAllDiscounts: () => request<any[]>('/api/admin/discounts'),
-            createDiscount: (data: any) => request<any>('/api/admin/discounts', { method: 'POST', body: JSON.stringify(data) }),
-            deleteDiscount: (id: string) => request<void>(`/api/admin/discounts/${id}`, { method: 'DELETE' }),
+            createDiscount: (data: any, _actor: { id: string; email: string }) => request<any>('/api/admin/discounts', { method: 'POST', body: JSON.stringify(data) }),
+            updateDiscount: (id: string, updates: any, _actor: { id: string; email: string }) => request<any>(`/api/admin/discounts/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+            deleteDiscount: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/discounts/${id}`, { method: 'DELETE' }),
         },
         settingsService: {
             getSetupProgress: () => request<import('./pages/admin/AdminSettings').SetupGuideProgress>('/api/admin/setup-guide'),
             getSettings: () => request<Record<string, any>>('/api/admin/settings'),
-            updateSetting: (key: string, value: any) => request<void>('/api/admin/settings', { method: 'POST', body: JSON.stringify({ key, value }) }),
+            updateSetting: (key: string, value: any, _actor?: { id: string; email: string }) => request<void>('/api/admin/settings', { method: 'POST', body: JSON.stringify({ key, value }) }),
         },
         transferService: {
             getAllTransfers: () => request<import('@domain/models').Transfer[]>('/api/admin/inventory/transfers'),
@@ -102,4 +112,5 @@ export function createApiClientServices() {
             getRecentLogs: () => request<any[]>('/api/admin/audit'),
         },
     };
+
 }

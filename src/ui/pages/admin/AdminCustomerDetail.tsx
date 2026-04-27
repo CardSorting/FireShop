@@ -39,22 +39,27 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
   const { toast } = useToast();
   const router = useRouter();
   const [customer, setCustomer] = useState<any | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadCustomer = useCallback(async () => {
     setLoading(true);
     try {
-      const users = await services.authService.getAllUsers();
+      const [users, orders] = await Promise.all([
+        services.authService.getAllUsers(),
+        services.orderService.getOrders(id)
+      ]);
       const summaries = await services.orderService.getCustomerSummaries(users);
       const found = summaries.find(c => c.id === id);
       if (found) {
         setCustomer(found);
+        setCustomerOrders(orders);
       } else {
         toast('error', 'Customer not found');
         router.push('/admin/customers');
       }
     } catch (err) {
-      console.error('Failed to load customer details:', err);
+      services.logger.error('Failed to load customer details:', err);
       toast('error', 'Failed to load customer details');
     } finally {
       setLoading(false);
@@ -113,24 +118,31 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
             <div className="border-b px-6 py-4 bg-gray-50/50">
               <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Order History</h3>
             </div>
-            {customer.orders > 0 ? (
+            {customerOrders.length > 0 ? (
               <div className="divide-y divide-gray-100">
-                {/* Simulated Order List */}
-                <div className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition cursor-pointer" onClick={() => router.push(`/admin/orders/latest`)}>
-                   <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
-                        <ShoppingBag className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-900">Order #1042</p>
-                        <p className="text-xs text-gray-500">{formatShortDate(customer.lastOrder || new Date())}</p>
-                      </div>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-sm font-bold text-gray-900">{formatCurrency(customer.spent / customer.orders)}</p>
-                      <span className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700 uppercase">Delivered</span>
-                   </div>
-                </div>
+                {customerOrders.map(order => (
+                  <div key={order.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition cursor-pointer" onClick={() => router.push(`/admin/orders/${order.id}`)}>
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
+                          <ShoppingBag className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+                          <p className="text-xs text-gray-500">{formatShortDate(order.createdAt)}</p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-sm font-bold text-gray-900">{formatCurrency(order.total)}</p>
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                          order.status === 'delivered' ? 'bg-green-50 text-green-700' :
+                          order.status === 'cancelled' ? 'bg-red-50 text-red-700' :
+                          'bg-blue-50 text-blue-700'
+                        }`}>
+                          {order.status}
+                        </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="p-12 text-center">
@@ -196,15 +208,37 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
           <div className="rounded-2xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Admin Notes</h3>
-              <button className="text-[10px] font-bold text-primary-600 uppercase hover:underline">Edit</button>
+              <button 
+                onClick={() => {
+                  const val = prompt('Edit admin notes:', customer.notes || '');
+                  if (val !== null) {
+                    services.authService.updateUser(customer.id, { notes: val })
+                      .then(() => {
+                        toast('success', 'Notes updated');
+                        loadCustomer();
+                      })
+                      .catch(() => toast('error', 'Failed to update notes'));
+                  }
+                }}
+                className="text-[10px] font-bold text-primary-600 uppercase hover:underline"
+              >
+                Edit
+              </button>
             </div>
-            <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-4">
-              <p className="text-xs text-amber-800 leading-relaxed italic">
-                "Prefer standard shipping over express. Collecting vintage base set booster boxes."
-              </p>
-            </div>
-            <p className="text-[10px] text-gray-400 mt-4 text-center">Last updated 2 days ago</p>
+            {customer.notes ? (
+              <div className="rounded-xl bg-amber-50/50 border border-amber-100 p-4">
+                <p className="text-xs text-amber-800 leading-relaxed italic">
+                  "{customer.notes}"
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed p-4 text-center">
+                <p className="text-[10px] text-gray-400 font-bold uppercase">No notes recorded</p>
+              </div>
+            )}
+            <p className="text-[10px] text-gray-400 mt-4 text-center">Admin-only visible notes</p>
           </div>
+
         </div>
       </div>
     </div>

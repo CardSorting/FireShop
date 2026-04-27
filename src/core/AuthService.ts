@@ -46,6 +46,12 @@ export class AuthService {
     if (!this.provider.getAllUsers) return [];
     return this.provider.getAllUsers();
   }
+ 
+  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+    if (!this.provider.updateUser) throw new Error('User updates not supported by this provider');
+    return this.provider.updateUser(id, updates);
+  }
+
 
   requireAuth(user: User | null): asserts user is User {
     if (!user) throw new AuthError();

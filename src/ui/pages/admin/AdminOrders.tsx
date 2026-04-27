@@ -140,7 +140,7 @@ export function AdminOrders() {
 
   function handlePostNote(orderId: string) {
     if (!noteInput.trim()) return;
-    const newNote = { id: Math.random().toString(36).slice(2), text: noteInput, date: new Date() };
+    const newNote = { id: crypto.randomUUID(), text: noteInput, date: new Date() };
     setInternalNotes(prev => ({
       ...prev,
       [orderId]: [...(prev[orderId] || []), newNote]

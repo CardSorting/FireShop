@@ -10,9 +10,9 @@ export class TransferService {
   async getAllTransfers(): Promise<Transfer[]> {
     const transfers = await this.transferRepo.getAll();
     
-    // Seed a mock one if empty for production hardening demonstration
+    // Initial Seed for production hardening (persists to physical SQLite DB)
     if (transfers.length === 0) {
-      const mock: Transfer = {
+      const initialSeed: Transfer = {
         id: 'TR-8042',
         source: 'Kanto Distribution',
         status: 'in_transit',
@@ -27,18 +27,39 @@ export class TransferService {
       };
       
       if (this.transferRepo.create) {
-        await this.transferRepo.create(mock);
+        await this.transferRepo.create(initialSeed);
+        return [initialSeed];
       }
-      
-      return [mock];
     }
+
 
     return transfers;
   }
 
   async receiveTransfer(id: string): Promise<void> {
-    // In a real app, we'd also update the product stocks here
-    await this.transferRepo.update(id, { status: 'received', receivedCount: 15 });
+    const transfers = await this.transferRepo.getAll();
+    const transfer = transfers.find(t => t.id === id);
+    
+    if (!transfer) throw new Error('Transfer not found');
+    if (transfer.status === 'received') return;
+
+    // Hardened Logic: Atomic Inventory Restocking
+    const restockingUpdates = transfer.items.map(item => ({
+      id: item.productId,
+      delta: item.quantity
+    }));
+
+    if (this.productRepo.batchUpdateStock) {
+      await this.productRepo.batchUpdateStock(restockingUpdates);
+    } else {
+      await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
+    }
+
+    await this.transferRepo.update(id, { 
+      status: 'received', 
+      receivedCount: transfer.itemsCount 
+    });
   }
 }
+
 

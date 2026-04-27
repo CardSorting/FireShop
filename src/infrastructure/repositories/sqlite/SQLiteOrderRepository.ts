@@ -100,7 +100,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
         status: order.status,
         shippingAddress: JSON.stringify(order.shippingAddress),
         paymentTransactionId: order.paymentTransactionId || null,
-        riskScore: Math.floor(Math.random() * 15), // Simulated analysis: low risk for new orders
+        riskScore: this.calculateRiskScore(order),
         createdAt: now,
         updatedAt: now,
       })
@@ -109,6 +109,24 @@ export class SQLiteOrderRepository implements IOrderRepository {
     const created = await this.getById(id);
     if (!created) throw new Error('Failed to create order');
     return created;
+  }
+
+  private calculateRiskScore(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): number {
+    let score = 5; // Base score
+    
+    // Rule 1: High value orders (>$1000)
+    if (order.total > 100000) score += 20;
+    
+    // Rule 2: Many items (>10 units)
+    const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
+    if (itemCount > 10) score += 10;
+    
+    // Rule 3: International shipping risk (Non-domestic addresses flagged for verification)
+    if (order.shippingAddress.country.toUpperCase() !== 'US') {
+      score += 15;
+    }
+
+    return Math.min(score, 100);
   }
 
   async getById(id: string): Promise<Order | null> {
@@ -162,6 +180,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
 
   async getAll(options?: {
     status?: OrderStatus;
+    query?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ orders: Order[]; nextCursor?: string }> {
@@ -185,6 +204,17 @@ export class SQLiteOrderRepository implements IOrderRepository {
 
     if (options?.status) {
       query = query.where('orders.status', '=', options.status);
+    }
+
+    if (options?.query) {
+      const q = `%${options.query}%`;
+      query = query.where((eb) => eb.or([
+        eb('orders.id', 'like', q),
+        eb('orders.userId', 'like', q),
+        eb('orders.items', 'like', q),
+        eb('users.displayName', 'like', q),
+        eb('users.email', 'like', q)
+      ]));
     }
 
     if (options?.cursor) {
@@ -217,6 +247,7 @@ export class SQLiteOrderRepository implements IOrderRepository {
 
     return { orders, nextCursor };
   }
+
 
   async updateStatus(id: string, status: OrderStatus): Promise<void> {
     const now = new Date().toISOString();

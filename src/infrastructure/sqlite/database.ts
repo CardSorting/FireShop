@@ -67,8 +67,19 @@ export async function initDatabase() {
     .addColumn('passwordHash', 'text', (col) => col.notNull())
     .addColumn('displayName', 'text', (col) => col.notNull())
     .addColumn('role', 'text', (col) => col.notNull())
+    .addColumn('notes', 'text')
+    .addColumn('metadata', 'text')
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute();
+
+  // Migration for users: add notes and metadata
+  try {
+    await db.schema.alterTable('users').addColumn('notes', 'text').execute();
+  } catch {}
+  try {
+    await db.schema.alterTable('users').addColumn('metadata', 'text').execute();
+  } catch {}
+
 
   await db.schema
     .createTable('carts')

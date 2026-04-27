@@ -43,6 +43,7 @@ export interface IOrderRepository {
   getByUserId(userId: string): Promise<Order[]>;
   getAll(options?: {
     status?: OrderStatus;
+    query?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
@@ -69,7 +70,9 @@ export interface IAuthProvider {
   signOut(): Promise<void>;
   onAuthStateChanged(callback: (user: User | null) => void): () => void;
   getAllUsers?(): Promise<User[]>;
+  updateUser?(id: string, updates: Partial<User>): Promise<User>;
 }
+
 
 export interface IPaymentProcessor {
   processPayment(params: {

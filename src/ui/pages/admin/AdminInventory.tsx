@@ -187,8 +187,12 @@ export function AdminInventory() {
            className={`pb-3 text-sm font-bold transition-colors relative ${activeSubTab === 'transfers' ? 'text-primary-600' : 'text-gray-400 hover:text-gray-900'}`}
          >
            Transfers
-           {activeSubTab === 'transfers' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full" />}
-           <span className="ml-2 rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] text-primary-700">1</span>
+            {activeSubTab === 'transfers' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-600 rounded-full" />}
+            {transfers.filter(t => t.status !== 'received').length > 0 && (
+              <span className="ml-2 rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] text-primary-700">
+                {transfers.filter(t => t.status !== 'received').length}
+              </span>
+            )}
          </button>
       </div>
 

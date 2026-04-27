@@ -18,7 +18,8 @@ import {
   Clock, 
   AlertCircle,
   MoreVertical,
-  Ticket
+  Ticket,
+  X
 } from 'lucide-react';
 import { 
   AdminPageHeader, 
@@ -74,10 +75,43 @@ export function AdminDiscounts() {
 
   const filtered = discounts.filter(d => {
     if (activeTab !== 'all' && d.status !== activeTab) return false;
-    const title = d.title || d.code || '';
-    if (query && !title.toLowerCase().includes(query.toLowerCase())) return false;
+    const code = d.code || '';
+    if (query && !code.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
+
+  async function handleDelete(id: string) {
+    if (!confirm('Are you sure you want to delete this discount? This cannot be undone.')) return;
+    try {
+      const user = await services.authService.getCurrentUser();
+      await services.discountService.deleteDiscount(id, { id: user?.id || 'admin', email: user?.email || 'admin@playmore.tcg' });
+      toast('success', 'Discount deleted');
+      void loadDiscounts();
+    } catch (err) {
+      toast('error', 'Failed to delete discount');
+    }
+  }
+
+  async function handleToggleStatus(id: string, currentStatus: string) {
+    try {
+      const nextStatus = currentStatus === 'active' ? 'expired' : 'active';
+      const user = await services.authService.getCurrentUser();
+      await services.discountService.updateDiscount(id, { status: nextStatus }, { id: user?.id || 'admin', email: user?.email || 'admin@playmore.tcg' });
+      toast('success', `Discount marked as ${nextStatus}`);
+      void loadDiscounts();
+    } catch (err) {
+      toast('error', 'Failed to update status');
+    }
+  }
+
+  function generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
 
   return (
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
@@ -98,18 +132,11 @@ export function AdminDiscounts() {
       {/* ── Marketing KPIs ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <AdminMetricCard 
-          label="Total Discounted Value" 
-          value={formatCurrency(0)} // Requires order-discount join
+          label="Total Redemptions" 
+          value={discounts.reduce((sum, d) => sum + d.usageCount, 0)} 
           icon={Tag} 
           color="success" 
-          description="Total revenue reduced by discounts"
-        />
-        <AdminMetricCard 
-          label="Conversion with Discounts" 
-          value="0%" 
-          icon={Zap} 
-          color="primary" 
-          description="Orders using a promotion"
+          description="Total times discounts were applied"
         />
         <AdminMetricCard 
           label="Active Promotions" 
@@ -117,6 +144,13 @@ export function AdminDiscounts() {
           icon={CheckCircle2} 
           color="info" 
           description="Live automatic and code-based offers"
+        />
+        <AdminMetricCard 
+          label="Scheduled" 
+          value={discounts.filter(d => d.status === 'scheduled').length} 
+          icon={Clock} 
+          color="primary" 
+          description="Promotions starting soon"
         />
       </div>
 
@@ -157,9 +191,9 @@ export function AdminDiscounts() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map((d) => (
-                <tr key={d.id} className="group transition hover:bg-gray-50 cursor-pointer">
+                <tr key={d.id} className="group transition hover:bg-gray-50">
                   <td className="px-4 py-3.5">
-                    <p className="font-bold text-gray-900 tracking-tight">{d.title || d.code}</p>
+                    <p className="font-bold text-gray-900 tracking-tight">{d.code}</p>
                     <p className="text-[10px] text-gray-500 font-medium">Started {formatShortDate(d.startsAt)}</p>
                   </td>
                   <td className="px-4 py-3.5">
@@ -179,18 +213,32 @@ export function AdminDiscounts() {
                     </div>
                   </td>
                   <td className="px-4 py-3.5 font-bold text-gray-900 tracking-tight">
-                    {d.value}
+                    {d.type === 'fixed' ? formatCurrency(d.value) : `${d.value}%`}
                   </td>
                   <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
                     {d.usageCount}
                   </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <button className="text-gray-400 hover:text-gray-900"><MoreVertical className="h-4 w-4" /></button>
+                  <td className="px-4 py-3.5 text-right relative">
+                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleToggleStatus(d.id, d.status)}
+                          className="text-[10px] font-bold text-primary-600 uppercase hover:underline"
+                        >
+                          {d.status === 'active' ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(d.id)}
+                          className="text-[10px] font-bold text-red-600 uppercase hover:underline"
+                        >
+                          Delete
+                        </button>
+                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
           {filtered.length === 0 && (
             <AdminEmptyState 
               title="No discounts found" 
@@ -216,12 +264,6 @@ export function AdminDiscounts() {
             </li>
           </ul>
         </div>
-        <div className="rounded-xl border bg-primary-50 p-5">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-primary-700 mb-3">Upcoming Features</h3>
-          <p className="text-xs text-primary-600 font-medium leading-relaxed">
-            We're building advanced segmentation so you can target discounts to specific customer cohorts (e.g. "Whale" status members).
-          </p>
-        </div>
       </div>
       {/* Create Discount Modal */}
       {showCreateModal && (
@@ -238,11 +280,31 @@ export function AdminDiscounts() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 const formData = new FormData(e.currentTarget);
-                const code = formData.get('code') as string;
-                // In a real app, we'd call services.discountService.createDiscount(...)
-                toast('success', `Discount ${code} created successfully.`);
-                setShowCreateModal(false);
-                void loadDiscounts();
+                const codeInput = formData.get('code') as string;
+                const type = formData.get('type') as 'code' | 'automatic';
+                const code = type === 'automatic' ? `AUTO_${Date.now()}` : codeInput.toUpperCase();
+                const valueType = formData.get('valueType') as 'percentage' | 'fixed';
+                const valueRaw = formData.get('value') as string;
+                const value = valueType === 'percentage' 
+                  ? parseFloat(valueRaw) 
+                  : Math.round(parseFloat(valueRaw) * 100); 
+
+                try {
+                  const user = await services.authService.getCurrentUser();
+                  await services.discountService.createDiscount({
+                    code,
+                    type: valueType,
+                    value,
+                    status: 'active',
+                    startsAt: new Date(),
+                  }, { id: user?.id || 'admin', email: user?.email || 'admin@playmore.tcg' });
+                  
+                  toast('success', `Discount created successfully.`);
+                  setShowCreateModal(false);
+                  void loadDiscounts();
+                } catch (err) {
+                  toast('error', 'Failed to create discount.');
+                }
               }}
               className="p-6 space-y-6"
             >
@@ -264,8 +326,17 @@ export function AdminDiscounts() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Code</label>
                   <div className="flex gap-2">
-                    <input required name="code" type="text" placeholder="e.g. SUMMER24" className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition font-mono uppercase" />
-                    <button type="button" onClick={() => {/* gen random */}} className="text-[10px] font-bold text-primary-600 uppercase hover:underline">Generate</button>
+                    <input id="code-input" name="code" type="text" placeholder="e.g. SUMMER24" className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition font-mono uppercase" />
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const input = document.getElementById('code-input') as HTMLInputElement;
+                        if (input) input.value = generateCode();
+                      }} 
+                      className="text-[10px] font-bold text-primary-600 uppercase hover:underline"
+                    >
+                      Generate
+                    </button>
                   </div>
                 </div>
 
@@ -273,8 +344,8 @@ export function AdminDiscounts() {
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Value Type</label>
                     <select name="valueType" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none transition">
-                       <option value="percentage">Percentage</option>
-                       <option value="fixed_amount">Fixed amount</option>
+                       <option value="percentage">Percentage (%)</option>
+                       <option value="fixed">Fixed Amount ($)</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -296,4 +367,3 @@ export function AdminDiscounts() {
   );
 }
 
-import { X } from 'lucide-react';

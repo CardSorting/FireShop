@@ -78,8 +78,9 @@ export function AdminProductForm() {
         imageUrl: p.imageUrl,
         set: p.set ?? '',
         rarity: p.rarity ?? '',
-        status: 'active', // Mock status
+        status: p.status,
       });
+
     } catch {
       setError('Failed to load product for editing.');
     } finally {

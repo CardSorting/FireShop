@@ -59,10 +59,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
   const loadOrder = useCallback(async () => {
     setLoading(true);
     try {
-      // In a real app, we'd have a getOrderById service
-      // For now, we'll fetch all and find (or simulate)
-      const result = await services.orderService.getAllOrders({ limit: 100 });
-      const found = result.orders.find(o => o.id === id);
+      const found = await services.orderService.getOrder(id);
       if (found) {
         setOrder(found);
       } else {
@@ -75,6 +72,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
       setLoading(false);
     }
   }, [id, services.orderService, router, toast]);
+
 
   useEffect(() => {
     void loadOrder();
@@ -98,7 +96,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
 
   function handlePostNote() {
     if (!noteInput.trim() || !order) return;
-    const newNote = { id: Math.random().toString(36).slice(2), text: noteInput, date: new Date() };
+    const newNote = { id: crypto.randomUUID(), text: noteInput, date: new Date() };
     setInternalNotes(prev => [...prev, newNote]);
     setNoteInput('');
     toast('success', 'Note added to timeline');

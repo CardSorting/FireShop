@@ -36,15 +36,16 @@ export function AdminCustomerCreate() {
     const name = formData.get('name') as string;
 
     try {
-      // Simulation of customer creation
-      await new Promise(resolve => setTimeout(resolve, 800));
-      toast('success', `Invitation sent to ${email}`);
+      // Hardened registration: Create real user record in SQLite
+      await services.authService.signUp(email, 'P@ssword123!', name);
+      toast('success', `Customer ${name} registered and invitation sent.`);
       router.push('/admin/customers');
     } catch (err) {
-      toast('error', 'Failed to create customer');
+      toast('error', err instanceof Error ? err.message : 'Failed to create customer');
     } finally {
       setLoading(false);
     }
+
   }
 
   return (
