@@ -1,8 +1,9 @@
 /**
  * [LAYER: INFRASTRUCTURE]
  */
-import type { Product } from '@domain/models';
-
+import type { Product, OrderStatus, Address } from '@domain/models';
+import { getInitialServices } from '../../core/container';
+import { logger } from '@utils/logger';
 
 const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
   {
@@ -118,9 +119,14 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
   },
 ];
 
-import { getInitialServices } from '../../core/container';
-import { logger } from '@utils/logger';
-
+const INITIAL_CUSTOMERS = [
+  { email: 'ash.ketchum@palette.town', password: 'Pikapika-password123', displayName: 'Ash Ketchum' },
+  { email: 'misty.williams@cerulean.city', password: 'Starmie-password123', displayName: 'Misty Williams' },
+  { email: 'brock.harrison@pewter.city', password: 'Onix-password123', displayName: 'Brock Harrison' },
+  { email: 'serena.yvonne@vaniville.town', password: 'Fennekin-password123', displayName: 'Serena Yvonne' },
+  { email: 'red.legend@kanto.region', password: 'Origin-password123', displayName: 'Red' },
+  { email: 'gary.oak@oak.lab', password: 'Smell-ya-later123', displayName: 'Gary Oak' },
+];
 
 export async function seedProducts(): Promise<number> {
   const services = getInitialServices();
@@ -128,14 +134,106 @@ export async function seedProducts(): Promise<number> {
 
   for (const product of INITIAL_CATALOG) {
     try {
-      await services.productService.createProduct(product, { id: 'system', email: 'system@playmore.tcg' });
-      created++;
+      const existing = await services.productService.getProducts({ limit: 1, query: product.name });
+      if (existing.products.length === 0) {
+        await services.productService.createProduct(product, { id: 'system', email: 'system@playmore.tcg' });
+        created++;
+      }
     } catch (err) {
-      logger.error(`Failed to seed ${product.name}.`, err);
+      logger.error(`Failed to seed product ${product.name}.`, err);
     }
   }
 
   logger.info(`Seeded ${created} products.`);
+  return created;
+}
+
+export async function seedCustomers(): Promise<number> {
+  const services = getInitialServices();
+  let created = 0;
+
+  for (const customer of INITIAL_CUSTOMERS) {
+    try {
+      const users = await services.authService.getAllUsers();
+      if (!users.some(u => u.email === customer.email)) {
+        await services.authService.signUp(customer.email, customer.password, customer.displayName);
+        created++;
+      }
+    } catch (err) {
+      logger.error(`Failed to seed customer ${customer.email}.`, err);
+    }
+  }
+
+  logger.info(`Seeded ${created} customers.`);
+  return created;
+}
+
+export async function seedOrders(): Promise<number> {
+  const services = getInitialServices();
+  const productsResult = await services.productService.getProducts({ limit: 100 });
+  const products = productsResult.products;
+  const customers = await services.authService.getAllUsers();
+  
+  if (products.length === 0 || customers.length === 0) {
+    logger.warn('Cannot seed orders without products and customers.');
+    return 0;
+  }
+
+  const statuses: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+  const addresses: Address[] = [
+    { street: '123 Pallet Lane', city: 'Pallet Town', state: 'Kanto', zip: '00101', country: 'US' },
+    { street: '456 Gym Road', city: 'Cerulean City', state: 'Kanto', zip: '00104', country: 'US' },
+    { street: '789 Boulder St', city: 'Pewter City', state: 'Kanto', zip: '00102', country: 'US' },
+  ];
+
+  let created = 0;
+
+  // Create 25 random orders
+  for (let i = 0; i < 25; i++) {
+    try {
+      const customer = customers[Math.floor(Math.random() * customers.length)];
+      if (customer.role === 'admin') continue;
+
+      const orderProducts = [...products].sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 3) + 1);
+      const items = orderProducts.map(p => ({
+        productId: p.id,
+        name: p.name,
+        quantity: Math.floor(Math.random() * 2) + 1,
+        unitPrice: p.price
+      }));
+
+      const total = items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const address = addresses[Math.floor(Math.random() * addresses.length)];
+
+      // Backdate some orders
+      const createdAt = new Date();
+      createdAt.setDate(createdAt.getDate() - Math.floor(Math.random() * 30));
+
+      // Accessing repo directly via cast for seeding purposes
+      if ((services.orderService as any).orderRepo.seed) {
+        await (services.orderService as any).orderRepo.seed({
+          id: crypto.randomUUID(),
+          userId: customer.id,
+          customerName: customer.displayName,
+          customerEmail: customer.email,
+          items,
+          total,
+          status,
+          shippingAddress: address,
+          paymentTransactionId: status === 'pending' ? null : `fake_tx_${Math.random().toString(36).slice(2)}`,
+          riskScore: Math.floor(Math.random() * 20),
+          createdAt,
+          updatedAt: createdAt
+        });
+        created++;
+      }
+    } catch (err) {
+      logger.error(`Failed to seed order ${i}.`, err);
+    }
+  }
+
+  logger.info(`Seeded ${created} orders.`);
   return created;
 }
 

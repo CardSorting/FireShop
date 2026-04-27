@@ -415,10 +415,12 @@ export function SkeletonPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[1, 2, 3, 4].map(i => <SkeletonCard key={i} />)}
       </div>
-      <div className="rounded-2xl border bg-white p-6 shadow-sm">
-        <div className="space-y-4">
-          {[1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} />)}
-        </div>
+      <div className="rounded-2xl border bg-white p-6 shadow-sm overflow-hidden">
+        <table className="w-full">
+          <tbody className="divide-y divide-gray-100">
+            {[1, 2, 3, 4, 5].map(i => <SkeletonRow key={i} />)}
+          </tbody>
+        </table>
       </div>
     </div>
   );

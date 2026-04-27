@@ -229,4 +229,22 @@ export class SQLiteOrderRepository implements IOrderRepository {
       .where('id', '=', id)
       .execute();
   }
+
+  async seed(order: Order): Promise<void> {
+    await this.db
+      .insertInto('orders')
+      .values({
+        id: order.id,
+        userId: order.userId,
+        items: JSON.stringify(order.items),
+        total: order.total,
+        status: order.status,
+        shippingAddress: JSON.stringify(order.shippingAddress),
+        paymentTransactionId: order.paymentTransactionId,
+        riskScore: order.riskScore,
+        createdAt: order.createdAt.toISOString(),
+        updatedAt: order.updatedAt.toISOString(),
+      })
+      .execute();
+  }
 }

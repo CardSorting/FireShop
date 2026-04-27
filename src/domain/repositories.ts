@@ -6,6 +6,7 @@ import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, Us
 export interface IProductRepository {
   getAll(options?: {
     category?: string;
+    query?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }>;
@@ -36,6 +37,7 @@ export interface IOrderRepository {
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
+  seed?(order: Order): Promise<void>;
 }
 
 export interface IAuthProvider {

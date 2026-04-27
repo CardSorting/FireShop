@@ -102,6 +102,7 @@ export class SQLiteProductRepository implements IProductRepository {
 
   async getAll(options?: {
     category?: string;
+    query?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
@@ -114,6 +115,14 @@ export class SQLiteProductRepository implements IProductRepository {
 
       if (options?.category) {
         query = query.where('category', '=', options.category);
+      }
+
+      if (options?.query) {
+        const q = `%${options.query}%`;
+        query = query.where((eb) => eb.or([
+          eb('name', 'like', q),
+          eb('description', 'like', q),
+        ]));
       }
 
       if (options?.cursor) {
@@ -157,6 +166,14 @@ export class SQLiteProductRepository implements IProductRepository {
 
     if (options?.category) {
       allProducts = allProducts.filter(p => p.category === options.category);
+    }
+
+    if (options?.query) {
+      const q = options.query.toLowerCase();
+      allProducts = allProducts.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.description.toLowerCase().includes(q)
+      );
     }
 
     if (options?.cursor) {
