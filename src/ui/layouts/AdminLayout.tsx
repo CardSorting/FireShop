@@ -26,6 +26,8 @@ import {
   ChevronDown,
   HelpCircle,
   Megaphone,
+  Shield,
+  BarChart3,
 } from 'lucide-react';
 import { AdminBreadcrumb, ToastProvider, ShortcutsHelp, AdminNotificationBell } from '../components/admin/AdminComponents';
 import { CommandPalette } from '../components/admin/CommandPalette';
@@ -63,6 +65,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Insights',
     items: [
       { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/admin/audit',     label: 'Audit Logs', icon: Shield },
     ]
   },
   {
@@ -72,8 +75,6 @@ const NAV_GROUPS: NavGroup[] = [
     ]
   }
 ];
-
-import { BarChart3 } from 'lucide-react';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();

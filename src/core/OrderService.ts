@@ -297,6 +297,34 @@ export class OrderService {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
+
+    // BroccoliQ Level 7: Inventory Restocking Logic
+    if (status === 'cancelled' && order.status !== 'cancelled') {
+      const restockingUpdates = order.items.map(item => ({
+        id: item.productId,
+        delta: item.quantity
+      }));
+      
+      try {
+        if (this.productRepo.batchUpdateStock) {
+          await this.productRepo.batchUpdateStock(restockingUpdates);
+        } else {
+          await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
+        }
+        
+        await this.audit.record({
+          userId: actor.id,
+          userEmail: actor.email,
+          action: 'order_status_changed', // Existing action
+          targetId: id,
+          details: { note: 'Inventory restocked automatically', items: restockingUpdates.length }
+        });
+      } catch (err) {
+        logger.error(`Critical Failure: Could not restock inventory for cancelled order ${id}`, err);
+        // We continue with status change but log the failure for forensic recovery
+      }
+    }
+
     await this.orderRepo.updateStatus(id, status);
     await this.audit.record({
       userId: actor.id,
@@ -311,6 +339,29 @@ export class OrderService {
     const orders = await Promise.all(ids.map((id) => this.orderRepo.getById(id)));
     for (const order of orders) {
       if (order) assertValidOrderStatusTransition(order.status, status);
+    }
+
+    if (status === 'cancelled') {
+      const restockingUpdates: { id: string, delta: number }[] = [];
+      for (const order of orders) {
+        if (order && order.status !== 'cancelled') {
+          order.items.forEach(item => {
+            restockingUpdates.push({ id: item.productId, delta: item.quantity });
+          });
+        }
+      }
+
+      if (restockingUpdates.length > 0) {
+        try {
+          if (this.productRepo.batchUpdateStock) {
+            await this.productRepo.batchUpdateStock(restockingUpdates);
+          } else {
+            await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
+          }
+        } catch (err) {
+          logger.error('Failed to restock inventory in batch cancellation', err);
+        }
+      }
     }
 
     if (this.orderRepo.batchUpdateStatus) {

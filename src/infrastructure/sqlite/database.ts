@@ -167,4 +167,40 @@ export async function initDatabase() {
     .addColumn('expectedAt', 'text', (col) => col.notNull())
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute();
+
+  // BroccoliQ Level 11: High-Velocity Performance Indices
+  await db.schema
+    .createIndex('idx_products_category')
+    .on('products')
+    .column('category')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_products_status')
+    .on('products')
+    .column('status')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_orders_userId')
+    .on('orders')
+    .column('userId')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_orders_status')
+    .on('orders')
+    .column('status')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_orders_createdAt')
+    .on('orders')
+    .column('createdAt')
+    .ifNotExists()
+    .execute();
 }
