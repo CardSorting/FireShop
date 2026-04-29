@@ -160,6 +160,31 @@ export function ProductDetailPage() {
           <span className="text-gray-900 truncate">{product.name}</span>
         </nav>
 
+        {/* Sticky Sub-Nav (Industry Standard) */}
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-12 hidden lg:block">
+          <div className="max-w-7xl mx-auto flex items-center justify-between h-16">
+            <div className="flex gap-8">
+              {['Overview', 'Specifications', 'Reviews', 'Expert Take'].map((tab) => (
+                <button 
+                  key={tab}
+                  className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 border-b-2 border-transparent hover:border-primary-600 h-16 transition-all"
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-6">
+              <p className="text-sm font-black text-gray-900">${(product.price / 100).toFixed(2)}</p>
+              <button 
+                onClick={handleAddToCart}
+                className="bg-gray-900 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+              >
+                Add to Bag
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
           {/* Left: Image Gallery (5 cols) */}
           <div className="lg:col-span-5 sticky top-32 space-y-6">
@@ -312,14 +337,24 @@ export function ProductDetailPage() {
           <div className="lg:col-span-3">
             <div className="bg-white rounded-5xl border border-gray-100 shadow-2xl shadow-black/5 p-10 sticky top-32 ring-1 ring-black/5">
               <div className="mb-10">
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="text-5xl font-black text-gray-900 tracking-tighter">
-                    ${(product.price / 100).toFixed(2)}
-                  </span>
-                  {product.compareAtPrice && (
-                    <span className="text-xl text-gray-300 line-through font-bold">
-                      ${(product.compareAtPrice / 100).toFixed(2)}
+                <div className="flex flex-col gap-1 mb-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-black text-gray-900 tracking-tighter">
+                      ${(product.price / 100).toFixed(2)}
                     </span>
+                    {product.compareAtPrice && (
+                      <span className="text-xl text-gray-300 line-through font-bold">
+                        ${(product.compareAtPrice / 100).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  {product.compareAtPrice && product.compareAtPrice > product.price && (
+                    <div className="flex items-center gap-2">
+                      <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                        Save {Math.round((1 - product.price / product.compareAtPrice) * 100)}%
+                      </span>
+                      <p className="text-[10px] font-bold text-gray-400 italic">Limited time deal</p>
+                    </div>
                   )}
                 </div>
                 
@@ -577,9 +612,35 @@ export function ProductDetailPage() {
           </div>
         </section>
 
+        {/* Customer Questions & Answers (Amazon Style) */}
+        <section className="mt-32 pt-20 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Customer questions & answers</h2>
+            <button className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline">Ask a question</button>
+          </div>
+          <div className="space-y-8 max-w-4xl">
+            {[
+              { q: `Is this ${product.name} from a first edition print?`, a: `This specific listing is for the unlimited print run from the ${product.set || 'Core'} collection. We verify every card manually for print edition accuracy.` },
+              { q: 'How is the card protected during shipping?', a: 'All cards are shipped in a pro-fit sleeve, inside a premium top-loader, which is then secured in a bubble-protected stay-flat mailer.' }
+            ].map((qa, i) => (
+              <div key={i} className="flex gap-6">
+                <div className="shrink-0 flex flex-col items-center gap-2 pt-1">
+                  <div className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] font-black text-gray-400">Q</div>
+                  <div className="w-px h-full bg-gray-100" />
+                  <div className="h-8 w-8 rounded-lg bg-primary-50 flex items-center justify-center text-[10px] font-black text-primary-600">A</div>
+                </div>
+                <div className="space-y-4 pb-8">
+                  <p className="text-sm font-black text-gray-900">{qa.q}</p>
+                  <p className="text-sm text-gray-500 font-medium leading-relaxed">{qa.a}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* Recommendations Section */}
         {relatedProducts.length > 0 && (
-          <section className="mt-32 pt-20 border-t border-gray-100">
+          <section className="mt-32 pt-20 border-t border-gray-100" id="recommendations">
             <div className="flex items-end justify-between mb-12">
               <div>
                 <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-2">Customers also viewed</h2>
