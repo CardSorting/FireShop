@@ -18,15 +18,17 @@ const SHOP_LINKS = [
   { href: '/products?category=accessory', label: 'Accessories', icon: Layers3 },
 ];
 
+import { SearchCommandPalette } from '../components/SearchCommandPalette';
+
 export function Navbar() {
   const { user, signOut } = useAuth();
   const { totalItems, openCart } = useCart();
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const searchRef = useRef<HTMLFormElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
 
   // Close menu on route change
   useEffect(() => {
@@ -40,15 +42,19 @@ export function Navbar() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
-      setSearchQuery('');
-      setIsSearchFocused(false);
-    }
+    openSearch();
+    setIsMenuOpen(false);
+  };
+
+  // Toggle Command Palette via window event or local state
+  const openSearch = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
   };
 
   return (
     <>
+      <SearchCommandPalette />
       <a 
         href="#main-content" 
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-100 focus:bg-white focus:px-6 focus:py-3 focus:font-bold focus:text-primary-600 focus:shadow-2xl focus:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -65,25 +71,23 @@ export function Navbar() {
               <span className="hidden sm:block tracking-tight">PlayMoreTCG</span>
             </Link>
 
-            {/* Global Search Bar - Desktop */}
-            <form 
+            {/* Command Palette Trigger - Desktop */}
+            <div 
               ref={searchRef}
-              onSubmit={handleSearchSubmit}
-              className="hidden md:flex flex-1 max-w-md relative group"
+              onClick={openSearch}
+              className="hidden md:flex flex-1 max-w-md relative group cursor-pointer"
             >
-              <div className={`relative w-full transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
-                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors ${isSearchFocused ? 'text-primary-600' : 'text-gray-400'}`} />
-                <input
-                  type="text"
-                  placeholder="Search cards, sets, or categories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setIsSearchFocused(false)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 pl-10 pr-4 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
-                />
+              <div className="relative w-full transition-all duration-300 group-hover:scale-[1.02]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-600 transition-colors" />
+                <div className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 pl-10 pr-4 text-sm text-gray-400 group-hover:bg-white group-hover:border-primary-500 transition-all flex items-center justify-between">
+                  <span>Search cards, sets, or categories...</span>
+                  <div className="flex items-center gap-1">
+                    <kbd className="h-5 rounded border bg-white px-1.5 font-mono text-[10px] font-bold text-gray-400">⌘</kbd>
+                    <kbd className="h-5 rounded border bg-white px-1.5 font-mono text-[10px] font-bold text-gray-400">K</kbd>
+                  </div>
+                </div>
               </div>
-            </form>
+            </div>
 
             <div className="hidden lg:flex items-center gap-5 shrink-0">
               <Link href="/" className={`text-sm font-bold transition-colors ${pathname === '/' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-900'}`}>

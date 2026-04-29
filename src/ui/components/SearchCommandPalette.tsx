@@ -1,0 +1,229 @@
+'use client';
+
+/**
+ * [LAYER: UI]
+ * Global Command Palette for high-velocity card discovery.
+ * Accessible via ⌘+K (Mac) or Ctrl+K (Windows).
+ */
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { Search, Sparkles, Archive, Layers3, X, Command, ShoppingCart, ArrowRight } from 'lucide-react';
+import { useServices } from '../hooks/useServices';
+import { useCart } from '../hooks/useCart';
+import { formatCurrency } from '@utils/formatters';
+import type { Product } from '@domain/models';
+
+export function SearchCommandPalette() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  
+  const router = useRouter();
+  const services = useServices();
+  const { addItem } = useCart();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Toggle palette with ⌘+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      } else if (e.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Focus input when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => inputRef.current?.focus(), 10);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      setQuery('');
+      setResults([]);
+    }
+  }, [isOpen]);
+
+  // Quick Search Logic
+  useEffect(() => {
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        // In a real app, this would hit a dedicated /api/search/quick endpoint
+        const result = await services.productService.getProducts({ 
+          query: query.trim(),
+          limit: 6 
+        });
+        setResults(result.products);
+        setSelectedIndex(0);
+      } catch (err) {
+        console.error('Search failed', err);
+      } finally {
+        setLoading(false);
+      }
+    }, 150); // Debounce
+
+    return () => clearTimeout(timer);
+  }, [query, services.productService]);
+
+  const handleSelect = useCallback((product: Product) => {
+    setIsOpen(false);
+    router.push(`/products/${product.id}`);
+  }, [router]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev + 1) % (results.length || 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev - 1 + results.length) % (results.length || 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (results[selectedIndex]) {
+        handleSelect(results[selectedIndex]);
+      }
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-100 flex items-start justify-center pt-[15vh] px-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200" 
+        onClick={() => setIsOpen(false)} 
+      />
+      
+      {/* Palette Container */}
+      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl shadow-black/20 border border-gray-100 overflow-hidden animate-in zoom-in-95 slide-in-from-top-4 duration-200">
+        <header className="flex items-center px-6 border-b">
+          <Search className="h-5 w-5 text-gray-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            className="flex-1 h-16 border-none focus:ring-0 text-lg font-medium placeholder:text-gray-400 text-gray-900 px-4"
+            placeholder="Search for cards, sets, or categories..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <div className="flex items-center gap-2">
+            <kbd className="hidden sm:flex h-6 items-center gap-1 rounded-md border bg-gray-50 px-2 font-mono text-[10px] font-bold text-gray-500">
+              <Command className="h-2.5 w-2.5" /> K
+            </kbd>
+            <button 
+              onClick={() => setIsOpen(false)}
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <X className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
+        </header>
+
+        <main className="max-h-[60vh] overflow-y-auto scrollbar-hide">
+          {query.length === 0 ? (
+            <div className="p-6">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Quick Links</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {[
+                  { label: 'Shop Singles', icon: Sparkles, href: '/products?category=single' },
+                  { label: 'Sealed Products', icon: Archive, href: '/products?category=booster' },
+                  { label: 'View All Orders', icon: ShoppingCart, href: '/orders' },
+                  { label: 'Accessories', icon: Layers3, href: '/products?category=accessory' },
+                ].map((link) => (
+                  <button
+                    key={link.label}
+                    onClick={() => { setIsOpen(false); router.push(link.href); }}
+                    className="flex items-center gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100 group"
+                  >
+                    <div className="p-2.5 rounded-xl bg-gray-100 text-gray-500 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
+                      <link.icon className="h-5 w-5" />
+                    </div>
+                    <span className="text-sm font-bold text-gray-700">{link.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : results.length > 0 ? (
+            <div className="p-2">
+              <h3 className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Products</h3>
+              {results.map((product, index) => (
+                <button
+                  key={product.id}
+                  onClick={() => handleSelect(product)}
+                  onMouseEnter={() => setSelectedIndex(index)}
+                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
+                    selectedIndex === index ? 'bg-primary-50 ring-1 ring-primary-100' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
+                    <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+                  </div>
+                  <div className="flex-1 text-left min-w-0">
+                    <p className={`text-sm font-black truncate transition-colors ${
+                      selectedIndex === index ? 'text-primary-900' : 'text-gray-900'
+                    }`}>
+                      {product.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.category}</span>
+                      <span className="text-gray-300">•</span>
+                      <span className="text-xs font-bold text-primary-600">{formatCurrency(product.price)}</span>
+                    </div>
+                  </div>
+                  <ArrowRight className={`h-4 w-4 transition-all ${
+                    selectedIndex === index ? 'text-primary-600 translate-x-0' : 'text-gray-300 -translate-x-2 opacity-0'
+                  }`} />
+                </button>
+              ))}
+            </div>
+          ) : !loading && query.length > 1 ? (
+            <div className="p-12 text-center">
+              <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-gray-50 mb-4">
+                <Search className="h-8 w-8 text-gray-300" />
+              </div>
+              <p className="text-sm font-bold text-gray-900">No results found for "{query}"</p>
+              <p className="text-xs text-gray-500 mt-1">Try searching for card names, sets, or attributes.</p>
+            </div>
+          ) : (
+            <div className="p-12 text-center animate-pulse">
+               <div className="flex justify-center gap-2">
+                 <div className="h-2 w-2 rounded-full bg-primary-200" />
+                 <div className="h-2 w-2 rounded-full bg-primary-400 animate-bounce" />
+                 <div className="h-2 w-2 rounded-full bg-primary-200" />
+               </div>
+            </div>
+          )}
+        </main>
+
+        <footer className="px-6 py-4 bg-gray-50 border-t flex items-center justify-between">
+           <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                 <kbd className="flex h-4 min-w-[16px] items-center justify-center rounded border bg-white px-1 shadow-sm">↑↓</kbd>
+                 Navigate
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                 <kbd className="flex h-4 min-w-[16px] items-center justify-center rounded border bg-white px-1 shadow-sm">Enter</kbd>
+                 Select
+              </div>
+           </div>
+           <p className="text-[10px] font-bold text-gray-400 italic">PlayMore Discovery Engine v1.0</p>
+        </footer>
+      </div>
+    </div>
+  );
+}
