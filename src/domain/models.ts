@@ -32,7 +32,8 @@ export interface Product {
   imageUrl: string;
   status: ProductStatus;
   set?: string;
-  rarity?: CardRarity;
+  rarity?: string;
+  metafields?: Record<string, string | number | boolean | null>;
   createdAt: Date;
   updatedAt: Date;
 }

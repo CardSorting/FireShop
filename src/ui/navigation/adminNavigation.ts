@@ -160,6 +160,36 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     ],
   },
   {
+    id: 'online-store',
+    label: 'Online Store',
+    items: [
+      {
+        id: 'themes',
+        href: '/admin/settings',
+        label: 'Themes',
+        description: 'Customize your store’s look and feel',
+        icon: Megaphone, // Placeholder until a better icon is chosen
+        aliases: ['design', 'theme', 'look', 'styling'],
+      },
+      {
+        id: 'pages',
+        href: '/admin/settings',
+        label: 'Pages',
+        description: 'Manage custom content pages',
+        icon: ClipboardCheck,
+        aliases: ['content', 'blog', 'about', 'contact'],
+      },
+      {
+        id: 'navigation-menu',
+        href: '/admin/settings',
+        label: 'Navigation',
+        description: 'Configure menus and links',
+        icon: ExternalLink,
+        aliases: ['menus', 'links', 'footer', 'header'],
+      },
+    ],
+  },
+  {
     id: 'marketing',
     label: 'Marketing',
     items: [
@@ -168,7 +198,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         href: '/admin/discounts',
         label: 'Discounts',
         description: 'Coupons and promotions',
-        icon: Megaphone,
+        icon: Tag,
         aliases: ['coupons', 'promo codes', 'promotions', 'offers', 'campaigns'],
       },
     ],

@@ -12,10 +12,9 @@ import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
 const SHOP_LINKS = [
-  { href: '/products', label: 'Shop all', icon: Package },
-  { href: '/products?category=single', label: 'Singles', icon: Sparkles },
-  { href: '/products?category=booster', label: 'Sealed', icon: Archive },
-  { href: '/products?category=accessory', label: 'Accessories', icon: Layers3 },
+  { href: '/products', label: 'All Products', icon: Package },
+  { href: '/products?category=new', label: 'New Arrivals', icon: Sparkles },
+  { href: '/products?category=featured', label: 'Featured', icon: Layers3 },
 ];
 
 import { SearchCommandPalette } from '../components/SearchCommandPalette';

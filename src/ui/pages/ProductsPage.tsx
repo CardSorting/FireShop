@@ -26,10 +26,8 @@ export function ProductsPage() {
 
   const categories: Array<{ id: ProductCategory | 'all'; name: string }> = [
     { id: 'all', name: 'All Products' },
-    { id: 'single', name: 'Singles' },
-    { id: 'booster', name: 'Sealed Boosters' },
-    { id: 'box', name: 'Booster Boxes' },
-    { id: 'deck', name: 'Decks' },
+    { id: 'booster', name: 'New Arrivals' },
+    { id: 'single', name: 'Featured' },
     { id: 'accessory', name: 'Accessories' },
   ];
 
@@ -116,9 +114,9 @@ export function ProductsPage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
             <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">
-              Explore the Catalog
+              Browse Products
             </h1>
-            <p className="text-gray-500 font-medium">Discover rare cards and complete your sets.</p>
+            <p className="text-gray-500 font-medium">Find everything you need for your next project.</p>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-3">
@@ -152,7 +150,7 @@ export function ProductsPage() {
               type="text"
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search by name, set, or rarity..."
+              placeholder="Search products, categories, or attributes..."
               className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl text-lg font-medium focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 transition-all shadow-sm"
             />
           </div>
@@ -287,6 +285,7 @@ function ProductCard({ product }: { product: Product }) {
         <h3 className="text-base font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-2">
           <Link href={`/products/${product.id}`}>{product.name}</Link>
         </h3>
+        <p className="text-[10px] text-gray-400 font-bold mb-2">Ref: {product.id.slice(0, 8).toUpperCase()}</p>
         
         <div className="flex items-baseline gap-2">
           <p className="text-xl font-black text-gray-900">
