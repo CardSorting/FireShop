@@ -80,12 +80,15 @@ export function ProductDetailPage() {
     }
   }
 
+  const [mainImage, setMainImage] = useState<string | null>(null);
+
   const loadProduct = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
       const loaded = await services.productService.getProduct(id);
       setProduct(loaded);
+      setMainImage(loaded.imageUrl);
       trackView(loaded);
       
       setLoadingRelated(true);
@@ -159,31 +162,46 @@ export function ProductDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
           {/* Left: Image Gallery (5 cols) */}
-          <div className="lg:col-span-5 sticky top-32">
-            <div className="aspect-4/5 rounded-5xl overflow-hidden bg-gray-50 border border-gray-100 shadow-2xl shadow-black/5 group">
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+          <div className="lg:col-span-5 sticky top-32 space-y-6">
+            <div className="aspect-4/5 rounded-5xl overflow-hidden bg-gray-50 border border-gray-100 shadow-2xl shadow-black/5 group relative">
+              <img src={mainImage || product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
               <div className="absolute top-6 left-6 flex flex-col gap-2">
                 <span className="bg-white/90 backdrop-blur-md border border-gray-100 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
                   Authentic Collector's Item
                 </span>
-                <span className="bg-gray-900 text-white px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl w-fit">
-                  {product.category}
-                </span>
               </div>
+            </div>
+            
+            {/* Thumbnails */}
+            <div className="grid grid-cols-4 gap-4">
+              {[product.imageUrl, product.imageUrl, product.imageUrl, product.imageUrl].map((url, i) => (
+                <button 
+                  key={i}
+                  onClick={() => setMainImage(url)}
+                  className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all ${mainImage === url && i === 0 ? 'border-primary-600 ring-4 ring-primary-50' : 'border-gray-100 hover:border-gray-300'}`}
+                >
+                  <img src={url} alt={`View ${i}`} className="w-full h-full object-cover opacity-80 hover:opacity-100 transition-opacity" />
+                </button>
+              ))}
             </div>
           </div>
 
           {/* Middle: Product Content (4 cols) */}
           <div className="lg:col-span-4 space-y-12">
             <section>
-              <div className="flex items-center gap-1 mb-6">
-                {[1, 2, 3, 4, 5].map(i => (
-                  <Star key={i} className={`w-3.5 h-3.5 ${i <= 4 ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
-                ))}
-                <span className="ml-2 text-xs font-black text-gray-900 tracking-tighter">{rating} Rating</span>
-                <span className="mx-3 text-gray-200">|</span>
-                <span className="text-xs font-bold text-primary-600 hover:underline cursor-pointer tracking-tight">{reviewCount} Verified Reviews</span>
+              <div className="flex flex-wrap items-center gap-y-4 mb-6">
+                <div className="flex items-center gap-1 mr-4">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <Star key={i} className={`w-3.5 h-3.5 ${i <= 4 ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
+                  ))}
+                  <span className="ml-2 text-xs font-black text-gray-900 tracking-tighter">{rating}</span>
+                </div>
+                <span className="text-xs font-bold text-primary-600 hover:underline cursor-pointer tracking-tight mr-4">{reviewCount} Reviews</span>
+                <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full">
+                  <Zap className="w-3 h-3 text-amber-500 fill-current" />
+                  <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Trending: 12 views recently</span>
+                </div>
               </div>
               
               <h1 className="text-4xl lg:text-6xl font-black text-gray-900 leading-[1.1] tracking-[-0.04em] mb-6">
@@ -197,6 +215,26 @@ export function ProductDetailPage() {
                 <p className="text-sm font-bold text-gray-400 italic">
                   Curated by <span className="text-primary-600 hover:underline cursor-pointer">{product.vendor || 'ShopMore Experts'}</span>
                 </p>
+              </div>
+            </section>
+
+            {/* Technical Specs Grid (TCG Focus) */}
+            <section className="bg-gray-50/50 rounded-4xl p-8 border border-gray-100">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Technical Specifications</h3>
+              <div className="grid grid-cols-2 gap-y-6 gap-x-8">
+                {[
+                  { label: 'Set Name', value: product.set || 'Core Collection' },
+                  { label: 'Release Year', value: product.metafields?.release_year || '2024' },
+                  { label: 'Rarity', value: product.rarity || 'Standard' },
+                  { label: 'Category', value: product.category },
+                  { label: 'SKU / ID', value: product.sku || product.id.slice(0, 8).toUpperCase() },
+                  { label: 'Certification', value: product.metafields?.certification || 'Authentic Raw' }
+                ].map(spec => (
+                  <div key={spec.label}>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{spec.label}</p>
+                    <p className="text-xs font-black text-gray-900">{spec.value}</p>
+                  </div>
+                ))}
               </div>
             </section>
 
@@ -308,10 +346,21 @@ export function ProductDetailPage() {
                   <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                     <Timer className="w-5 h-5 text-amber-600" />
                   </div>
-                  <div>
-                    <p className="font-black text-gray-900 tracking-tight">Scarcity Alert</p>
-                    <p className="text-[11px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">
-                      {product.stock > 10 ? 'High Stock Levels' : `${product.stock} items remaining`}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-black text-gray-900 tracking-tight">Scarcity Alert</p>
+                      <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest">
+                        {product.stock <= 5 ? 'Critical' : 'Low Stock'}
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ${product.stock <= 5 ? 'bg-red-500' : 'bg-amber-500'}`} 
+                        style={{ width: `${Math.min(100, (product.stock / 20) * 100)}%` }} 
+                      />
+                    </div>
+                    <p className="text-[10px] text-gray-400 font-bold mt-2 uppercase tracking-widest leading-none">
+                      {product.stock} items remaining at this price
                     </p>
                   </div>
                 </div>
@@ -344,7 +393,7 @@ export function ProductDetailPage() {
                     className="w-full h-16 flex items-center justify-center gap-3 bg-gray-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-gray-200 hover:bg-black hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50"
                   >
                     {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
-                    {adding ? 'Processing...' : added ? 'Added to bag' : 'Add to bag'}
+                    {adding ? 'Processing...' : added ? 'Added to bag' : quantity > 1 ? `Add ${quantity} to bag • $${((product.price * quantity) / 100).toFixed(2)}` : 'Add to bag'}
                   </button>
 
                   <div className="relative group">
@@ -411,8 +460,122 @@ export function ProductDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Value Props Bar (Premium Strategy) */}
+            <div className="mt-12 grid grid-cols-2 gap-4">
+              <div className="p-5 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col gap-3">
+                <Truck className="w-5 h-5 text-gray-900" />
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-900">Free Shipping</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-0.5">On all orders over $50</p>
+                </div>
+              </div>
+              <div className="p-5 rounded-3xl bg-gray-50 border border-gray-100 flex flex-col gap-3">
+                <LifeBuoy className="w-5 h-5 text-gray-900" />
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-900">24/7 Support</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-0.5">Dedicated TCG experts</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Frequently Bought Together (Dynamic Bundle) */}
+        {relatedProducts.length >= 2 && (
+          <section className="mt-32 pt-20 border-t border-gray-100">
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-12">Frequently bought together</h2>
+            <div className="flex flex-col lg:flex-row items-center gap-12 bg-gray-50/50 rounded-[3rem] p-10 ring-1 ring-gray-100">
+              <div className="flex flex-wrap items-center justify-center gap-6">
+                <div className="h-40 w-32 rounded-2xl bg-white shadow-xl overflow-hidden border border-gray-100 p-2">
+                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                </div>
+                <Plus className="w-6 h-6 text-gray-300" />
+                <div className="h-40 w-32 rounded-2xl bg-white shadow-xl overflow-hidden border border-gray-100 p-2">
+                  <img src={relatedProducts[0].imageUrl} alt={relatedProducts[0].name} className="w-full h-full object-contain" />
+                </div>
+                <Plus className="w-6 h-6 text-gray-300" />
+                <div className="h-40 w-32 rounded-2xl bg-white shadow-xl overflow-hidden border border-gray-100 p-2">
+                  <img src={relatedProducts[1].imageUrl} alt={relatedProducts[1].name} className="w-full h-full object-contain" />
+                </div>
+              </div>
+              
+              <div className="flex-1 space-y-4">
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" defaultChecked className="mt-1 h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500" />
+                  <p className="text-sm font-bold text-gray-600"><span className="text-gray-900 font-black">This item:</span> {product.name} — <span className="text-gray-400">${(product.price / 100).toFixed(2)}</span></p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" defaultChecked className="mt-1 h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500" />
+                  <p className="text-sm font-bold text-gray-600"><span className="text-gray-900 font-black">{relatedProducts[0].name}:</span> — <span className="text-gray-400">${(relatedProducts[0].price / 100).toFixed(2)}</span></p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <input type="checkbox" defaultChecked className="mt-1 h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500" />
+                  <p className="text-sm font-bold text-gray-600"><span className="text-gray-900 font-black">{relatedProducts[1].name}:</span> — <span className="text-gray-400">${(relatedProducts[1].price / 100).toFixed(2)}</span></p>
+                </div>
+              </div>
+
+              <div className="lg:w-72 space-y-6 pt-8 lg:pt-0 lg:pl-12 lg:border-l border-gray-200">
+                <div>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Bundle Total</p>
+                  <p className="text-4xl font-black text-gray-900 tracking-tighter">${((product.price + relatedProducts[0].price + relatedProducts[1].price) / 100).toFixed(2)}</p>
+                </div>
+                <button className="w-full h-14 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary-100 hover:bg-primary-700 transition-all flex items-center justify-center gap-3">
+                  Add Bundle to Bag
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Staff Editorial Review */}
+        <section className="mt-32 p-12 bg-gray-900 rounded-[4rem] text-white overflow-hidden relative group">
+          <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none group-hover:opacity-20 transition-opacity duration-1000">
+             <div className="absolute inset-0 bg-linear-to-l from-primary-500 to-transparent" />
+             <img src={product?.imageUrl} alt="" className="w-full h-full object-cover grayscale scale-125 rotate-12" />
+          </div>
+          
+          <div className="relative z-10 max-w-2xl">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-14 w-14 rounded-full border-2 border-primary-500 p-1">
+                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop" alt="Expert" className="w-full h-full rounded-full object-cover" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-primary-500 uppercase tracking-[0.3em]">Expert Take</p>
+                <p className="text-sm font-bold text-gray-400">Marcus Thorne, Senior Collector</p>
+              </div>
+            </div>
+            
+            <h2 className="text-4xl font-black tracking-tight leading-tight mb-8">
+              "The print quality on this release is unparalleled. A must-have for any serious vault."
+            </h2>
+            
+            <p className="text-gray-400 text-lg leading-relaxed font-medium mb-10 italic">
+              "When assessing this specific card, the first thing that strikes you is the texture. The holo pattern is deep and reactive. For players, the utility is obvious, but for investors, the low print run makes this a generational asset."
+            </p>
+            
+            <div className="flex flex-wrap gap-8">
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Grade Potential</p>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-16 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full w-[95%] bg-primary-500" />
+                  </div>
+                  <span className="text-xs font-black">9.5/10</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Market Scarcity</p>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-16 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-full w-[80%] bg-amber-500" />
+                  </div>
+                  <span className="text-xs font-black">Very High</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Recommendations Section */}
         {relatedProducts.length > 0 && (
@@ -452,16 +615,19 @@ export function ProductDetailPage() {
       </div>
 
       {/* Mobile Sticky CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-xl border-t border-gray-100 p-6 lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-xl border-t border-gray-100 p-6 lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom duration-500">
         <div className="flex items-center gap-4">
-          <div className="flex-1">
+          <div className="h-14 w-12 rounded-xl bg-gray-50 border overflow-hidden shrink-0">
+            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          </div>
+          <div className="flex-1 min-w-0">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 truncate">{product.name}</p>
             <p className="text-lg font-black text-gray-900">${(product.price / 100).toFixed(2)}</p>
           </div>
           <button
             onClick={handleAddToCart}
             disabled={adding || product.stock === 0}
-            className="flex-2 h-14 flex items-center justify-center gap-3 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl disabled:opacity-50"
+            className="flex-2 h-14 px-8 flex items-center justify-center gap-3 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl disabled:opacity-50"
           >
             {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
             {adding ? '...' : 'Add'}
