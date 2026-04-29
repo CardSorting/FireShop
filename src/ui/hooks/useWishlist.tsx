@@ -7,6 +7,7 @@ import type { Wishlist, Product } from '@domain/models';
 
 interface WishlistContextType {
   wishlists: Wishlist[];
+  recentlyViewed: Product[];
   loading: boolean;
   error: string | null;
   refreshWishlists: () => Promise<void>;
@@ -14,17 +15,42 @@ interface WishlistContextType {
   removeFromWishlist: (productId: string, wishlistId?: string) => Promise<void>;
   isInWishlist: (productId: string) => boolean;
   createCollection: (name: string) => Promise<Wishlist>;
+  trackView: (product: Product) => void;
 }
 
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
+
+const RECENTLY_VIEWED_KEY = 'playmore_recently_viewed';
+const MAX_RECENTLY_VIEWED = 10;
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const services = useServices();
   const [wishlists, setWishlists] = useState<Wishlist[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
   const [itemMap, setItemMap] = useState<Record<string, Set<string>>>({}); // wishlistId -> Set<productId>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load recently viewed from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(RECENTLY_VIEWED_KEY);
+    if (saved) {
+      try {
+        setRecentlyViewed(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to parse recently viewed', e);
+      }
+    }
+  }, []);
+
+  const trackView = useCallback((product: Product) => {
+    setRecentlyViewed(prev => {
+      const next = [product, ...prev.filter(p => p.id !== product.id)].slice(0, MAX_RECENTLY_VIEWED);
+      localStorage.setItem(RECENTLY_VIEWED_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const refreshWishlists = useCallback(async () => {
     if (!user) {
@@ -38,7 +64,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       const lists = await services.wishlistService.getWishlists();
       setWishlists(lists);
       
-      // Pre-populate items for each wishlist to make isInWishlist fast
       const map: Record<string, Set<string>> = {};
       for (const list of lists) {
         const detail = await services.wishlistService.getWishlist(list.id);
@@ -60,13 +85,11 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const addToWishlist = async (productId: string, wishlistId?: string) => {
     if (!user) throw new Error('Must be logged in');
     
-    // Use default wishlist if none provided
     const targetId = wishlistId || wishlists.find(w => w.isDefault)?.id;
     if (!targetId) throw new Error('No wishlist found');
 
     await services.wishlistService.addItem(targetId, productId);
     
-    // Optimistic update
     setItemMap(prev => ({
       ...prev,
       [targetId]: new Set([...(prev[targetId] || []), productId])
@@ -76,7 +99,6 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const removeFromWishlist = async (productId: string, wishlistId?: string) => {
     if (!user) throw new Error('Must be logged in');
 
-    // If wishlistId not provided, remove from all wishlists (standard "unfavorite" behavior)
     if (!wishlistId) {
       const listsWithItem = Object.entries(itemMap)
         .filter(([_, items]) => items.has(productId))
@@ -120,13 +142,15 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   return (
     <WishlistContext.Provider value={{ 
       wishlists, 
+      recentlyViewed,
       loading, 
       error, 
       refreshWishlists, 
       addToWishlist, 
       removeFromWishlist, 
       isInWishlist,
-      createCollection
+      createCollection,
+      trackView
     }}>
       {children}
     </WishlistContext.Provider>

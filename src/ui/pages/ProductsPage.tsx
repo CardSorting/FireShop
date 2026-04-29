@@ -283,13 +283,13 @@ function ProductCard({ product }: { product: Product }) {
         <button
           onClick={toggleFavorite}
           disabled={isFavoriting}
-          className={`absolute top-4 right-4 z-10 p-3 rounded-2xl transition-all duration-300 transform ${
+          className={`absolute top-4 right-4 z-10 p-3 rounded-2xl transition-all duration-500 transform ${
             isFavorite 
-              ? 'bg-red-500 text-white shadow-lg shadow-red-200' 
-              : 'bg-white/80 backdrop-blur-md text-gray-400 hover:text-red-500 hover:scale-110'
-          } ${isFavoriting ? 'opacity-50' : 'opacity-100'}`}
+              ? 'bg-red-500 text-white shadow-xl shadow-red-200 scale-110' 
+              : 'bg-white/80 backdrop-blur-md text-gray-400 hover:text-red-500 hover:bg-white hover:scale-125'
+          } ${isFavoriting ? 'opacity-50' : 'opacity-100 hover:rotate-12 active:scale-90 active:-rotate-12'}`}
         >
-          <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+          <Heart className={`w-5 h-5 transition-transform duration-300 ${isFavorite ? 'fill-current scale-110' : 'group-hover:scale-110'}`} />
         </button>
         
         {/* Quick Add Overlay */}
