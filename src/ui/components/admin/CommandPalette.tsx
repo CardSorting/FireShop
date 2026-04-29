@@ -9,21 +9,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Search,
-  LayoutDashboard,
   ClipboardList,
   Package,
-  Boxes,
-  Plus,
-  Settings,
-  ExternalLink,
   ArrowRight,
-  Command,
   User,
   type LucideIcon,
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { formatCurrency } from '@utils/formatters';
 import type { Product, Order } from '@domain/models';
+import { ADMIN_ALL_NAV_ITEMS, ADMIN_QUICK_ACTIONS } from '../../navigation/adminNavigation';
 
 interface PaletteItem {
   id: string;
@@ -33,16 +28,28 @@ interface PaletteItem {
   href?: string;
   action?: () => void;
   group: string;
+  keywords?: string[];
 }
 
 const STATIC_ITEMS: PaletteItem[] = [
-  { id: 'home', label: 'Home', description: 'Dashboard overview', icon: LayoutDashboard, href: '/admin', group: 'Navigate' },
-  { id: 'orders', label: 'Orders', description: 'View & manage orders', icon: ClipboardList, href: '/admin/orders', group: 'Navigate' },
-  { id: 'products', label: 'Products', description: 'Manage catalog', icon: Package, href: '/admin/products', group: 'Navigate' },
-  { id: 'inventory', label: 'Inventory', description: 'Stock levels', icon: Boxes, href: '/admin/inventory', group: 'Navigate' },
-  { id: 'settings', label: 'Settings', description: 'Store configuration', icon: Settings, href: '/admin/settings', group: 'Navigate' },
-  { id: 'new-product', label: 'Add product', description: 'Create a new product listing', icon: Plus, href: '/admin/products/new', group: 'Actions' },
-  { id: 'storefront', label: 'View storefront', description: 'Open customer-facing store', icon: ExternalLink, href: '/', group: 'Actions' },
+  ...ADMIN_ALL_NAV_ITEMS.map((item) => ({
+    id: item.id,
+    label: item.label,
+    description: item.description,
+    icon: item.icon,
+    href: item.href,
+    group: 'Navigate',
+    keywords: item.aliases,
+  })),
+  ...ADMIN_QUICK_ACTIONS.map((action) => ({
+    id: action.id,
+    label: action.label,
+    description: action.description,
+    icon: action.icon,
+    href: action.href,
+    group: action.group === 'Create' ? 'Actions' : 'Storefront',
+    keywords: action.aliases,
+  })),
 ];
 
 const RECENT_KEY = 'admin-palette-recent';
@@ -151,7 +158,8 @@ export function CommandPalette() {
     (item) =>
       !needle ||
       item.label.toLowerCase().includes(needle) ||
-      item.description?.toLowerCase().includes(needle)
+      item.description?.toLowerCase().includes(needle) ||
+      item.keywords?.some((keyword) => keyword.toLowerCase().includes(needle))
   );
 
   const grouped: Record<string, PaletteItem[]> = {};

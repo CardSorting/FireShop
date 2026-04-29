@@ -9,72 +9,18 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  Package, 
-  ClipboardList, 
-  LayoutDashboard, 
-  Boxes, 
   Plus,
   ChevronLeft,
-  Settings,
   Store,
-  ArrowLeft,
   Search,
   Command,
-  Bell,
-  User,
   ExternalLink,
   ChevronDown,
   HelpCircle,
-  Megaphone,
-  Shield,
-  BarChart3,
 } from 'lucide-react';
 import { AdminBreadcrumb, ToastProvider, ShortcutsHelp, AdminNotificationBell } from '../components/admin/AdminComponents';
 import { CommandPalette } from '../components/admin/CommandPalette';
-
-/* ── Nav Configuration ── */
-
-interface NavGroup {
-  title?: string;
-  items: NavItem[];
-}
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-  badge?: 'orders';
-}
-
-const NAV_GROUPS: NavGroup[] = [
-  {
-    items: [
-      { href: '/admin', label: 'Home', icon: LayoutDashboard },
-    ]
-  },
-  {
-    title: 'Management',
-    items: [
-      { href: '/admin/orders',    label: 'Orders',    icon: ClipboardList, badge: 'orders' },
-      { href: '/admin/products',  label: 'Products',  icon: Package },
-      { href: '/admin/inventory', label: 'Inventory', icon: Boxes },
-      { href: '/admin/customers', label: 'Customers', icon: User },
-    ]
-  },
-  {
-    title: 'Insights',
-    items: [
-      { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
-      { href: '/admin/audit',     label: 'Audit Logs', icon: Shield },
-    ]
-  },
-  {
-    title: 'Marketing',
-    items: [
-      { href: '/admin/discounts', label: 'Discounts', icon: Megaphone },
-    ]
-  }
-];
+import { ADMIN_NAV_GROUPS, ADMIN_QUICK_ACTIONS, ADMIN_UTILITY_NAV } from '../navigation/adminNavigation';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -182,18 +128,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           >
             {/* Store Switcher / Header */}
             <div className="p-3">
-              <div className={`flex items-center gap-3 rounded-lg p-2 transition hover:bg-gray-200 cursor-pointer ${collapsed ? 'justify-center' : ''}`}>
+              <Link href="/admin/settings" className={`flex items-center gap-3 rounded-lg p-2 transition hover:bg-gray-200 cursor-pointer ${collapsed ? 'justify-center' : ''}`} title="Store settings">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-black/5">
                   <Store className="h-4 w-4 text-gray-600" />
                 </div>
                 {!collapsed && (
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-gray-900 leading-tight">PlayMoreTCG</p>
-                    <p className="text-[10px] text-gray-500 font-medium">Merchant Admin</p>
+                    <p className="text-[10px] text-gray-500 font-medium">Online store · Live</p>
                   </div>
                 )}
                 {!collapsed && <ChevronDown className="h-3.5 w-3.5 text-gray-400" />}
-              </div>
+              </Link>
             </div>
 
             {/* Main Navigation Scroll Area */}
@@ -218,20 +164,21 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               </div>
 
               <div className="space-y-6">
-                {NAV_GROUPS.map((group, idx) => (
-                  <div key={idx}>
-                    {group.title && !collapsed && (
+                {ADMIN_NAV_GROUPS.map((group) => (
+                  <div key={group.id}>
+                    {group.label && !collapsed && (
                       <h4 className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                        {group.title}
+                        {group.label}
                       </h4>
                     )}
                     <div className="space-y-0.5">
-                      {group.items.map(({ href, label, icon: Icon, badge }) => {
+                      {group.items.map(({ href, label, description, icon: Icon }) => {
                         const active = isActive(href);
                         return (
                           <Link
                             key={href}
                             href={href}
+                            title={collapsed ? `${label} — ${description}` : description}
                             className={`
                               group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-150
                               ${active 
@@ -243,14 +190,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                           >
                             <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-700'}`} />
                             {!collapsed && <span>{label}</span>}
-                            {badge === 'orders' && !collapsed && (
-                              <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-[10px] font-bold text-white">
-                                3
-                              </span>
-                            )}
-                            {badge === 'orders' && collapsed && (
-                              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary-500 ring-2 ring-[#EBEBED]" />
-                            )}
                           </Link>
                         );
                       })}
@@ -268,6 +207,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 )}
                 <Link
                   href="/"
+                  title="Open the customer-facing online store"
                   className={`
                     group flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-200 hover:text-gray-900
                     ${collapsed ? 'justify-center px-0' : ''}
@@ -282,20 +222,25 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
             {/* Sidebar Footer */}
             <div className="border-t border-gray-300/50 p-2 space-y-0.5">
-              <Link
-                href="/admin/settings"
-                className={`
-                  flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-200
-                  ${isActive('/admin/settings') ? 'bg-white text-gray-900 shadow-sm' : ''}
-                  ${collapsed ? 'justify-center px-0' : ''}
-                `}
-              >
-                <Settings className="h-[18px] w-[18px]" />
-                {!collapsed && <span>Settings</span>}
-              </Link>
+              {ADMIN_UTILITY_NAV.map(({ href, label, description, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  title={collapsed ? `${label} — ${description}` : description}
+                  className={`
+                    flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-200
+                    ${isActive(href) ? 'bg-white text-gray-900 shadow-sm' : ''}
+                    ${collapsed ? 'justify-center px-0' : ''}
+                  `}
+                >
+                  <Icon className="h-[18px] w-[18px]" />
+                  {!collapsed && <span>{label}</span>}
+                </Link>
+              ))}
 
               {/* Help & Support */}
               <button
+                onClick={() => setShowShortcuts(true)}
                 className={`
                   flex w-full items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-200
                   ${collapsed ? 'justify-center px-0' : ''}
@@ -341,18 +286,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                     <ChevronDown className="h-3 w-3 opacity-60" />
                   </button>
                   <div className="invisible absolute right-0 top-full mt-2 w-48 origin-top-right rounded-xl border bg-white p-1 shadow-2xl transition-all opacity-0 group-hover:visible group-hover:opacity-100 z-50">
-                     <button onClick={() => router.push('/admin/products/new')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 transition">
-                       <Package className="h-3.5 w-3.5 text-gray-400" />
-                       Add product
-                     </button>
-                     <button onClick={() => router.push('/admin/orders')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 transition">
-                       <Plus className="h-3.5 w-3.5 text-gray-400" />
-                       Draft order
-                     </button>
-                     <button onClick={() => router.push('/admin/discounts')} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 transition">
-                       <Megaphone className="h-3.5 w-3.5 text-gray-400" />
-                       Create discount
-                     </button>
+                      {ADMIN_QUICK_ACTIONS.filter((action) => action.group === 'Create').map((action) => {
+                        const Icon = action.icon;
+                        return (
+                          <button key={action.id} onClick={() => router.push(action.href)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 transition">
+                            <Icon className="h-3.5 w-3.5 text-gray-400" />
+                            {action.label}
+                          </button>
+                        );
+                      })}
                   </div>
                 </div>
 

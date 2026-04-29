@@ -27,6 +27,8 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ## Current verified state
 
+- Navigation clarity pass verified: `src/ui/navigation/adminNavigation.ts` now centralizes admin merchant-console taxonomy, `AdminLayout` and `CommandPalette` consume that shared metadata, `/admin/analytics` and `/admin/discounts` have App Router page wrappers, and storefront navigation exposes familiar Shop all / Singles / Sealed / Accessories / Orders links backed by Domain-aligned product category query params.
+
 - Order-history architecture upgraded to a layered customer-view model: Domain now defines `OrderFulfillmentEvent*` types and optional order enrichment fields (`trackingUrl`, `estimatedDeliveryDate`, `fulfillmentEvents`) in `src/domain/models.ts`.
 - Pure customer-order derivation rules verified in `src/domain/rules.ts`: `deriveTrackingUrl`, `deriveEstimatedDeliveryDate`, and `deriveOrderFulfillmentEvents`, plus non-technical status copy helpers.
 - Core order orchestration verified in `src/core/OrderService.ts`: `getOrders()`/`getOrder()` now return enriched customer-view orders and `getOrdersForCustomerView()` applies status/query/date/sort filtering.
@@ -134,6 +136,8 @@ git status --short
 ```
 
 Latest verification for the third-pass checkout/order UX refinement: `npm run lint` and `npm run build` completed successfully. The production build generated 40 app routes, including the primary `/orders/[id]` and `/api/orders/[id]` routes, with consolidated formatters and robust state handling.
+
+Latest verification for the navigation clarity pass: targeted ESLint on changed navigation files returned `ESLINT_EXIT:0`, and `./node_modules/.bin/tsc --noEmit --pretty false` returned `TSC_EXIT:0`. Route coverage for `/admin/analytics` and `/admin/discounts` was confirmed with `find src/app/admin -maxdepth 2 -type f | sort | grep -E 'analytics|discounts'`.
 
 ## Mermaid: architectural bridge
 

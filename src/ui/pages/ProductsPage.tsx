@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
-import type { Product } from '@domain/models';
+import type { Product, ProductCategory } from '@domain/models';
 import { Search, Filter, ShoppingBag, ChevronRight, PackageSearch, RefreshCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -24,12 +24,13 @@ export function ProductsPage() {
   const [recommendations, setRecommendations] = useState<Product[]>([]);
   const [loadingRecs, setLoadingRecs] = useState(false);
 
-  const categories = [
+  const categories: Array<{ id: ProductCategory | 'all'; name: string }> = [
     { id: 'all', name: 'All Products' },
-    { id: 'pokemon', name: 'Pokemon' },
-    { id: 'mtg', name: 'Magic: The Gathering' },
-    { id: 'yugioh', name: 'Yu-Gi-Oh!' },
-    { id: 'booster-boxes', name: 'Booster Boxes' },
+    { id: 'single', name: 'Singles' },
+    { id: 'booster', name: 'Sealed Boosters' },
+    { id: 'box', name: 'Booster Boxes' },
+    { id: 'deck', name: 'Decks' },
+    { id: 'accessory', name: 'Accessories' },
   ];
 
   const loadProducts = useCallback(async (cursor?: string) => {
@@ -75,6 +76,13 @@ export function ProductsPage() {
   // Sync search from URL
   useEffect(() => {
     const query = searchParams.get('search');
+    const categoryParam = searchParams.get('category');
+    const validCategory = categories.some((cat) => cat.id === categoryParam);
+
+    if (validCategory && categoryParam) {
+      setCategory(categoryParam);
+    }
+
     if (query) {
       setSearch(query);
       handleSearch(query);

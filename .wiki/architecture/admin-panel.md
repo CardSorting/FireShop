@@ -42,6 +42,11 @@ Powerful marketing tools to drive conversion.
 - **Usage Tracking**: Real-time metrics on promotion performance and total discounted value.
 - **Scheduling**: Ability to set start and end dates for promotional campaigns.
 
+### 7. Navigation Taxonomy & Route Coverage
+The admin shell centralizes merchant navigation in `src/ui/navigation/adminNavigation.ts` so the sidebar, command palette, utility settings link, and quick-create actions share the same labels, descriptions, aliases, and route targets. The operator-facing groups are intentionally familiar to Shopify/Stripe users: **Home**, **Sales**, **Catalog**, **Marketing**, **Insights**, **Settings**, and **Sales Channels**.
+
+Visible admin navigation destinations are backed by App Router page wrappers. The `/admin/analytics` route renders `AdminAnalytics`, and `/admin/discounts` renders `AdminDiscounts`, eliminating dead-end navigation for those previously visible sections.
+
 ## Technical Implementation
 
 ### Authorization

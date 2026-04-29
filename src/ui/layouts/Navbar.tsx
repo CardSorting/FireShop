@@ -7,15 +7,20 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { ShoppingCart, Package, LogIn, LogOut, Shield, User, Home, Menu, X, ChevronRight, Search } from 'lucide-react';
-import { useServices } from '../hooks/useServices';
+import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, Search, Sparkles, Archive, Layers3 } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
+
+const SHOP_LINKS = [
+  { href: '/products', label: 'Shop all', icon: Package },
+  { href: '/products?category=single', label: 'Singles', icon: Sparkles },
+  { href: '/products?category=booster', label: 'Sealed', icon: Archive },
+  { href: '/products?category=accessory', label: 'Accessories', icon: Layers3 },
+];
 
 export function Navbar() {
   const { user, signOut } = useAuth();
   const { totalItems, openCart } = useCart();
-  const services = useServices();
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -80,13 +85,20 @@ export function Navbar() {
               </div>
             </form>
 
-            <div className="hidden lg:flex items-center gap-6 shrink-0">
+            <div className="hidden lg:flex items-center gap-5 shrink-0">
               <Link href="/" className={`text-sm font-bold transition-colors ${pathname === '/' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-900'}`}>
                 Home
               </Link>
-              <Link href="/products" className={`text-sm font-bold transition-colors ${pathname.startsWith('/products') ? 'text-primary-600' : 'text-gray-500 hover:text-gray-900'}`}>
-                Products
-              </Link>
+              {SHOP_LINKS.map((item) => (
+                <Link key={item.href} href={item.href} className={`text-sm font-bold transition-colors ${pathname.startsWith('/products') && item.href === '/products' ? 'text-primary-600' : 'text-gray-500 hover:text-gray-900'}`}>
+                  {item.label}
+                </Link>
+              ))}
+              {user && (
+                <Link href="/orders" className={`text-sm font-bold transition-colors ${pathname.startsWith('/orders') ? 'text-primary-600' : 'text-gray-500 hover:text-gray-900'}`}>
+                  Orders
+                </Link>
+              )}
             </div>
           </div>
 
@@ -161,10 +173,15 @@ export function Navbar() {
                 <span className="flex items-center gap-3"><Home className="w-5 h-5 text-gray-400" /> Home</span>
                 <ChevronRight className="h-4 w-4 text-gray-300" />
               </Link>
-              <Link href="/products" className="flex items-center justify-between rounded-xl px-4 py-3 text-base font-black text-gray-900 hover:bg-gray-50 transition-colors">
-                <span className="flex items-center gap-3"><Package className="w-5 h-5 text-gray-400" /> Products</span>
-                <ChevronRight className="h-4 w-4 text-gray-300" />
-              </Link>
+              {SHOP_LINKS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} className="flex items-center justify-between rounded-xl px-4 py-3 text-base font-black text-gray-900 hover:bg-gray-50 transition-colors">
+                    <span className="flex items-center gap-3"><Icon className="w-5 h-5 text-gray-400" /> {item.label}</span>
+                    <ChevronRight className="h-4 w-4 text-gray-300" />
+                  </Link>
+                );
+              })}
               {user && (
                 <Link href="/orders" className="flex items-center justify-between rounded-xl px-4 py-3 text-base font-black text-gray-900 hover:bg-gray-50 transition-colors">
                   <span className="flex items-center gap-3"><ShoppingCart className="w-5 h-5 text-gray-400" /> My Orders</span>

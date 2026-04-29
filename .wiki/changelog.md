@@ -1,5 +1,58 @@
 # Changelog
 
+## 2026-04-29 — Navigation clarity and Shopify/Stripe-style merchant taxonomy
+
+### Problem verified
+
+- Admin navigation metadata was embedded directly in `src/ui/layouts/AdminLayout.tsx`, creating drift risk between the sidebar, command palette, quick actions, and actual route coverage.
+- The visible admin sidebar exposed `/admin/analytics` and `/admin/discounts`, but matching App Router page wrappers were absent under `src/app/admin`, creating a dead-end risk for non-technical operators.
+- The command palette maintained a separate static navigation list, so labels and search aliases could diverge from the sidebar.
+- Storefront navigation used generic product wording and did not expose familiar ecommerce collection links such as singles, sealed product, accessories, customer orders, and account-oriented entry points.
+- `src/ui/pages/ProductsPage.tsx` had customer-facing category labels that did not align with the Domain `ProductCategory` union, so query-linked category navigation could be unclear or ineffective.
+
+### Remediation performed
+
+- Added `src/ui/navigation/adminNavigation.ts` as the shared UI-layer merchant-console taxonomy for admin navigation, utility links, quick actions, plain-language descriptions, and command-palette aliases.
+- Refactored `src/ui/layouts/AdminLayout.tsx` to consume the shared navigation taxonomy, using familiar Shopify/Stripe-style groups: Home, Sales, Catalog, Marketing, Insights, Settings, and Sales Channels.
+- Removed the hardcoded order badge from the sidebar instead of displaying an unwired fixed count.
+- Updated the admin store switcher affordance to link to Settings and added clearer online-store/live copy.
+- Wired the admin Help footer action to open the existing shortcut/help overlay.
+- Updated the desktop Create menu in `AdminLayout` to render from the shared quick-action metadata.
+- Refactored `src/ui/components/admin/CommandPalette.tsx` to derive navigation and quick actions from `adminNavigation.ts`, including aliases such as stock, catalog, coupons, reports, payments, Stripe, fulfillment, and sales.
+- Added route wrappers so every visible admin nav destination resolves through Next App Router:
+  - `src/app/admin/analytics/page.tsx` renders `AdminAnalytics`.
+  - `src/app/admin/discounts/page.tsx` renders `AdminDiscounts`.
+- Updated `src/ui/layouts/Navbar.tsx` with familiar storefront navigation links: Shop all, Singles, Sealed, Accessories, and Orders for signed-in customers.
+- Updated `src/ui/pages/ProductsPage.tsx` category options to align with verified Domain categories: `single`, `booster`, `box`, `deck`, and `accessory`, and added URL `category` param syncing for collection links.
+
+### Verification evidence
+
+- Targeted ESLint completed with no diagnostics for the changed navigation files:
+  - `./node_modules/.bin/eslint src/ui/navigation/adminNavigation.ts src/ui/layouts/AdminLayout.tsx src/ui/components/admin/CommandPalette.tsx src/ui/layouts/Navbar.tsx src/ui/pages/ProductsPage.tsx src/app/admin/analytics/page.tsx src/app/admin/discounts/page.tsx` returned `ESLINT_EXIT:0`.
+- TypeScript project check completed successfully:
+  - `./node_modules/.bin/tsc --noEmit --pretty false` returned `TSC_EXIT:0`.
+- Route coverage was physically verified with `find src/app/admin -maxdepth 2 -type f | sort | grep -E 'analytics|discounts'`, confirming both new admin page wrappers exist.
+
+### Files intentionally changed in this pass
+
+- `src/ui/navigation/adminNavigation.ts`
+- `src/ui/layouts/AdminLayout.tsx`
+- `src/ui/components/admin/CommandPalette.tsx`
+- `src/ui/layouts/Navbar.tsx`
+- `src/ui/pages/ProductsPage.tsx`
+- `src/app/admin/analytics/page.tsx`
+- `src/app/admin/discounts/page.tsx`
+- `.wiki/changelog.md`
+- `.wiki/index.md`
+- `.wiki/architecture/admin-panel.md`
+
+### Architectural notes
+
+- This pass is intentionally UI-focused with thin Next route wrappers only.
+- Domain and Core behavior were not changed; the product category UI now consumes the existing Domain category vocabulary instead of inventing unrelated storefront category ids.
+- `src/ui/navigation/adminNavigation.ts` stays in the UI layer because it contains presentation taxonomy, icons, labels, descriptions, and search aliases rather than business rules.
+- App Router files under `src/app/admin/analytics` and `src/app/admin/discounts` are framework adapters that only render existing UI pages.
+
 ## 2026-04-27 — Order history upgraded to Shopify/Stripe-style customer account patterns
 
 ### Problem verified
