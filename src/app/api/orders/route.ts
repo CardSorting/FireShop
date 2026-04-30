@@ -35,9 +35,9 @@ export async function POST(request: Request) {
     try {
         assertRateLimit(request, 'checkout:place-order', 12, 60_000);
         const user = await requireSessionUser();
-        const { shippingAddress, paymentMethodId, idempotencyKey } = parseCheckoutRequest(await readJsonObject(request));
+        const { shippingAddress, paymentMethodId, idempotencyKey, discountCode } = parseCheckoutRequest(await readJsonObject(request));
         const services = await getServerServices();
-        const order = await services.orderService.placeOrder(user.id, shippingAddress, paymentMethodId, idempotencyKey);
+        const order = await services.orderService.placeOrder(user.id, shippingAddress, paymentMethodId, idempotencyKey, discountCode);
         return NextResponse.json(order);
     } catch (error) {
         return jsonError(error, 'Failed to place order');

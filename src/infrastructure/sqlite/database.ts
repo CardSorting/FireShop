@@ -144,6 +144,9 @@ export async function initDatabase() {
     .addColumn('status', 'text', (col) => col.notNull())
     .addColumn('shippingAddress', 'text', (col) => col.notNull())
     .addColumn('paymentTransactionId', 'text')
+    .addColumn('idempotencyKey', 'text')
+    .addColumn('discountCode', 'text')
+    .addColumn('discountAmount', 'integer')
     .addColumn('trackingNumber', 'text')
     .addColumn('shippingCarrier', 'text')
     .addColumn('notes', 'text', (col) => col.notNull().defaultTo('[]'))
@@ -166,9 +169,21 @@ export async function initDatabase() {
   // Migration for riskScore if it doesn't exist
   try {
     await db.schema.alterTable('orders').addColumn('riskScore', 'integer', (col) => col.notNull().defaultTo(0)).execute();
-  } catch (err) {
-    // Ignore error if column already exists
-  }
+  } catch (err) {}
+
+  try { await db.schema.alterTable('orders').addColumn('idempotencyKey', 'text').execute(); } catch {}
+  try { await db.schema.alterTable('orders').addColumn('discountCode', 'text').execute(); } catch {}
+  try { await db.schema.alterTable('orders').addColumn('discountAmount', 'integer').execute(); } catch {}
+
+  try {
+    await db.schema
+      .createIndex('idx_orders_idempotency')
+      .on('orders')
+      .column('idempotencyKey')
+      .unique()
+      .ifNotExists()
+      .execute();
+  } catch {}
 
 
   // BroccoliQ Level 5: Sovereign Locking Table

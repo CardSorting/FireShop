@@ -161,7 +161,13 @@ export function CheckoutPage() {
     setCheckoutStatus('finalizing');
     try {
       const normalizedAddress = { ...address, country: address.country.trim().toUpperCase() || 'US' };
-      const order = await services.orderService.finalizeTrustedCheckout(user.id, normalizedAddress, paymentMethodId, checkoutAttemptKey.current);
+      const order = await services.orderService.finalizeTrustedCheckout(
+        user.id, 
+        normalizedAddress, 
+        paymentMethodId, 
+        checkoutAttemptKey.current,
+        appliedDiscount?.code
+      );
       setFinalOrder(order);
       checkoutAttemptKey.current = `checkout-ui:${crypto.randomUUID()}`;
       setIsSuccess(true);
@@ -282,7 +288,7 @@ export function CheckoutPage() {
 
                 <section>
                   <div className="mb-6 flex items-center justify-between">
-                    <h1 className="text-2xl font-black tracking-tight text-gray-900">Contact</h1>
+                  <h1 className="text-2xl font-black tracking-tight text-gray-900" data-testid="checkout-title">Contact</h1>
                     {!user && <Link href="/login" className="text-sm font-bold text-primary-600 hover:underline">Log in for faster checkout</Link>}
                   </div>
                   <label className="mb-1.5 block text-xs font-black uppercase tracking-widest text-gray-500">Email address</label>
@@ -355,7 +361,7 @@ export function CheckoutPage() {
 
                 <div className="flex flex-col-reverse gap-4 pt-4 sm:flex-row sm:items-center sm:justify-between">
                   <Link href="/cart" className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 hover:underline"><ArrowLeft className="h-4 w-4" /> Return to cart</Link>
-                  <button onClick={() => goToStep('shipping')} className="rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition hover:bg-black">Continue to shipping</button>
+                  <button onClick={() => goToStep('shipping')} data-testid="continue-to-shipping" className="rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition hover:bg-black">Continue to shipping</button>
                 </div>
               </div>
             )}
@@ -375,7 +381,7 @@ export function CheckoutPage() {
                 <div className="rounded-2xl bg-blue-50 p-5 text-sm text-blue-800"><div className="flex gap-3"><Info className="h-5 w-5 shrink-0" /><p><span className="font-black">Shopify-style review:</span> you can still change your contact and address before payment.</p></div></div>
                 <div className="flex flex-col-reverse gap-4 border-t border-gray-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
                   <button onClick={() => setStep('information')} className="inline-flex items-center gap-2 text-sm font-bold text-primary-600 hover:underline"><ArrowLeft className="h-4 w-4" /> Return to information</button>
-                  <button onClick={() => goToStep('payment')} className="rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition hover:bg-black">Continue to payment</button>
+                  <button onClick={() => goToStep('payment')} data-testid="continue-to-payment" className="rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition hover:bg-black">Continue to payment</button>
                 </div>
               </div>
             )}
@@ -384,7 +390,7 @@ export function CheckoutPage() {
               <div className="space-y-8 animate-in fade-in slide-in-from-right-3 duration-300">
                 <ReviewCard email={email} address={address} shipping={shipping} onChange={setStep} />
                 <section>
-                  <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-black tracking-tight text-gray-900">Payment</h1><span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-green-700"><ShieldCheck className="h-3.5 w-3.5" /> Secure</span></div>
+                  <div className="mb-6 flex items-center justify-between"><h1 className="text-2xl font-black tracking-tight text-gray-900" data-testid="payment-header">Payment</h1><span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-green-700"><ShieldCheck className="h-3.5 w-3.5" /> Secure</span></div>
                   <div className="mb-4 grid gap-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 text-xs font-medium text-gray-600 sm:grid-cols-3">
                     <span><strong className="block text-gray-900">1. Enter card</strong>Stripe securely collects card details.</span>
                     <span><strong className="block text-gray-900">2. Authorize</strong>Your bank verifies the payment.</span>
@@ -403,7 +409,20 @@ export function CheckoutPage() {
                         <StripeCheckoutForm address={address} onSuccess={handleSuccess} onPlaceOrder={(isPlacing) => { setPlacing(isPlacing); setCheckoutStatus(isPlacing ? 'authorizing' : 'idle'); }} isPlacing={placing || checkoutStatus !== 'idle'} />
                       </Suspense>
                     ) : (
-                      <div className="bg-amber-50 p-8 text-center"><AlertCircle className="mx-auto mb-4 h-10 w-10 text-amber-500" /><p className="text-sm font-black text-amber-900">Payment gateway unavailable</p><p className="mt-2 text-xs font-medium text-amber-700">Stripe is not configured for this environment. Please contact support or try again later.</p></div>
+                      <div className="bg-amber-50 p-8 text-center">
+                        <AlertCircle className="mx-auto mb-4 h-10 w-10 text-amber-500" />
+                        <p className="text-sm font-black text-amber-900">Payment gateway unavailable</p>
+                        <p className="mt-2 text-xs font-medium text-amber-700 mb-6">Stripe is not configured for this environment.</p>
+                        
+                        {/* Mock Checkout Button for E2E Testing */}
+                        <button 
+                          onClick={() => handleSuccess('mock_payment_method')}
+                          data-testid="mock-checkout-button"
+                          className="w-full rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white shadow-xl transition hover:bg-black"
+                        >
+                          Place Test Order (Mock)
+                        </button>
+                      </div>
                     )}
                   </div>
                 </section>

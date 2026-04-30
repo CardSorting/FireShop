@@ -67,6 +67,9 @@ export interface OrderTable {
   status: string;
   shippingAddress: string; // JSON string
   paymentTransactionId: string | null;
+  idempotencyKey: string | null;
+  discountCode: string | null;
+  discountAmount: number | null;
   trackingNumber: string | null;
   shippingCarrier: string | null;
   notes: string; // JSON string

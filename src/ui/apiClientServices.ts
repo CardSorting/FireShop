@@ -97,8 +97,8 @@ export function createApiClientServices() {
         },
         orderService: {
             getAdminDashboardSummary: () => request<AdminDashboardSummary>('/api/admin/dashboard'),
-            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
-            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey }) })),
+            finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
+            placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             getOrders: (userId: string, options?: {
                 status?: OrderStatus | 'all';
                 query?: string;

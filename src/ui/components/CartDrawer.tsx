@@ -160,7 +160,7 @@ export function CartDrawer() {
           ) : (
             <div className="space-y-8">
               {items.map((item) => (
-                <div key={item.productId} className="flex gap-5 group">
+                <div key={item.productId} className="flex gap-5 group" data-testid="cart-item">
                   <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border bg-gray-50 shadow-sm group-hover:shadow-md transition-shadow">
                     <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
                   </div>

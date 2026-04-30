@@ -148,7 +148,7 @@ export function CartPage() {
             {/* Left Side: Items */}
             <div className="lg:col-span-2 space-y-6">
               {cart?.items.map((item) => (
-                <article key={item.productId} className="bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 group">
+                <article key={item.productId} className="bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 group" data-testid="cart-item">
                   <div className="flex flex-col sm:flex-row gap-8">
                     <div className="relative w-full sm:w-40 aspect-square shrink-0">
                       <Link href={`/products/${item.productId}`}>

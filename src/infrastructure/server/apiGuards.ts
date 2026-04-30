@@ -334,11 +334,17 @@ export function parseIdempotencyKey(value: unknown): string | undefined {
     return trimmed;
 }
 
-export function parseCheckoutRequest(body: Record<string, unknown>): { shippingAddress: Address; paymentMethodId: string; idempotencyKey?: string } {
+export function parseCheckoutRequest(body: Record<string, unknown>): { 
+    shippingAddress: Address; 
+    paymentMethodId: string; 
+    idempotencyKey?: string;
+    discountCode?: string;
+} {
     return {
         shippingAddress: parseShippingAddress(body.shippingAddress),
         paymentMethodId: requireString(body.paymentMethodId, 'paymentMethodId'),
         idempotencyKey: parseIdempotencyKey(body.idempotencyKey),
+        discountCode: optionalString(body.discountCode, 'discountCode'),
     };
 }
 

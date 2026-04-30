@@ -174,6 +174,9 @@ export interface Order {
   status: OrderStatus;
   shippingAddress: Address;
   paymentTransactionId: string | null;
+  idempotencyKey?: string | null;
+  discountCode?: string | null;
+  discountAmount?: number | null;
   customerName?: string;
   customerEmail?: string;
   trackingNumber?: string | null;

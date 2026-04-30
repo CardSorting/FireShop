@@ -108,7 +108,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               </p>
             </div>
           </div>
-          <div className="relative rounded-[2rem] bg-white/50 p-6 text-left backdrop-blur-md md:text-right">
+          <div className="relative rounded-4xl bg-white/50 p-6 text-left backdrop-blur-md md:text-right">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Status updated</p>
             <p className="mt-2 text-2xl font-black text-gray-900">{formatDate(order.updatedAt || order.createdAt)}</p>
             <p className="mt-1 text-xs font-bold text-gray-400">Placed {formatDate(order.createdAt)}</p>
@@ -117,7 +117,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
           <main className="space-y-8 lg:col-span-8">
-            <section className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm">
+            <section className="overflow-hidden rounded-4xl border border-gray-100 bg-white shadow-sm">
               <div className="border-b border-gray-100 px-6 py-5 md:px-8">
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
@@ -178,7 +178,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               </InfoCard>
             </section>
 
-            <section className="rounded-[2rem] border border-blue-100 bg-blue-50 p-6 shadow-sm">
+            <section className="rounded-4xl border border-blue-100 bg-blue-50 p-6 shadow-sm">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <h2 className="text-base font-black text-blue-950">Tracking and delivery updates</h2>
@@ -192,7 +192,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm">
+            <section className="overflow-hidden rounded-4xl border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5 md:px-8">
                 <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400"><ShoppingBag className="h-4 w-4" /> Items in this order</h2>
                 <span className="text-xs font-bold text-gray-500">{order.items.length} item{order.items.length === 1 ? '' : 's'}</span>
@@ -210,11 +210,17 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
           </main>
 
           <aside className="space-y-6 lg:col-span-4">
-            <section className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-xl shadow-gray-200/40 md:p-8">
+            <section className="rounded-4xl border border-gray-100 bg-white p-6 shadow-xl shadow-gray-200/40 md:p-8">
               <h2 className="mb-6 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400"><ReceiptText className="h-4 w-4" /> Receipt summary</h2>
               <div className="space-y-4">
                 <SummaryRow label="Subtotal" value={formatMoney(subtotal)} />
                 <SummaryRow label="Shipping" value={shipping === 0 ? 'Free' : formatMoney(shipping)} />
+                {order.discountAmount && order.discountAmount > 0 && (
+                  <div className="flex justify-between text-sm font-bold text-green-600">
+                    <span>Discount {order.discountCode ? `(${order.discountCode})` : ''}</span>
+                    <span>-{formatMoney(order.discountAmount)}</span>
+                  </div>
+                )}
                 <SummaryRow label="Taxes" value="$0.00" />
                 <div className="flex items-end justify-between border-t border-gray-100 pt-5"><span className="text-lg font-black text-gray-900">Total paid</span><span className="text-3xl font-black tracking-tighter text-primary-600">{formatMoney(order.total)}</span></div>
               </div>
@@ -239,7 +245,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               </div>
             </section>
 
-            <section className="rounded-[2rem] border border-primary-100 bg-primary-50 p-6">
+            <section className="rounded-4xl border border-primary-100 bg-primary-50 p-6">
               <h3 className="flex items-center gap-2 text-sm font-black text-primary-950"><HelpCircle className="h-4 w-4" /> Need help?</h3>
               <p className="mt-2 text-xs font-medium leading-5 text-primary-800">Have a delivery question or need to update your order? Contact support with order #{orderNumber}.</p>
               <div className="mt-5 flex flex-wrap gap-3 text-xs font-black text-primary-700">
@@ -259,7 +265,7 @@ function NextStep({ icon, title, text }: { icon: React.ReactNode; title: string;
 }
 
 function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return <div className="rounded-[2rem] border border-gray-100 bg-white p-6 shadow-sm"><h2 className="mb-5 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400">{icon} {title}</h2>{children}</div>;
+  return <div className="rounded-4xl border border-gray-100 bg-white p-6 shadow-sm"><h2 className="mb-5 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-gray-400">{icon} {title}</h2>{children}</div>;
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {

@@ -78,6 +78,9 @@ export class SQLiteOrderRepository implements IOrderRepository {
       status: parseOrderStatus(row.status),
       shippingAddress: parseAddress(row.shippingAddress),
       paymentTransactionId: row.paymentTransactionId,
+      idempotencyKey: row.idempotencyKey,
+      discountCode: row.discountCode,
+      discountAmount: row.discountAmount,
       trackingNumber: row.trackingNumber,
       shippingCarrier: row.shippingCarrier,
       notes: row.notes ? JSON.parse(row.notes) : [],
@@ -91,6 +94,12 @@ export class SQLiteOrderRepository implements IOrderRepository {
 
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
+    // If idempotencyKey is provided, check if order already exists
+    if (order.idempotencyKey) {
+      const existing = await this.getByIdempotencyKey(order.idempotencyKey);
+      if (existing) return existing;
+    }
+
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -104,6 +113,9 @@ export class SQLiteOrderRepository implements IOrderRepository {
         status: order.status,
         shippingAddress: JSON.stringify(order.shippingAddress),
         paymentTransactionId: order.paymentTransactionId || null,
+        idempotencyKey: order.idempotencyKey || null,
+        discountCode: order.discountCode || null,
+        discountAmount: order.discountAmount || null,
         notes: JSON.stringify([]),
         riskScore: this.calculateRiskScore(order),
         createdAt: now,
@@ -114,6 +126,36 @@ export class SQLiteOrderRepository implements IOrderRepository {
     const created = await this.getById(id);
     if (!created) throw new Error('Failed to create order');
     return created;
+  }
+
+  async getByIdempotencyKey(key: string): Promise<Order | null> {
+    const result = await this.db
+      .selectFrom('orders')
+      .leftJoin('users', 'users.id', 'orders.userId')
+      .select([
+        'orders.id',
+        'orders.userId',
+        'orders.items',
+        'orders.total',
+        'orders.status',
+        'orders.shippingAddress',
+        'orders.paymentTransactionId',
+        'orders.idempotencyKey',
+        'orders.discountCode',
+        'orders.discountAmount',
+        'orders.trackingNumber',
+        'orders.shippingCarrier',
+        'orders.notes',
+        'orders.riskScore',
+        'orders.createdAt',
+        'orders.updatedAt',
+        'users.displayName',
+        'users.email'
+      ])
+      .where('orders.idempotencyKey', '=', key)
+      .executeTakeFirst();
+
+    return result ? this.mapTableToOrder(result) : null;
   }
 
   private calculateRiskScore(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): number {

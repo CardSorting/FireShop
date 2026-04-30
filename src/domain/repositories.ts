@@ -47,6 +47,7 @@ export interface ICartRepository {
 export interface IOrderRepository {
   create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order>;
   getById(id: string): Promise<Order | null>;
+  getByIdempotencyKey(key: string): Promise<Order | null>;
   getByUserId(userId: string): Promise<Order[]>;
   getAll(options?: {
     status?: OrderStatus;
@@ -97,6 +98,7 @@ export interface ICheckoutGateway {
     shippingAddress: import('./models').Address;
     paymentMethodId: string;
     idempotencyKey: string;
+    discountCode?: string;
   }): Promise<Order>;
 }
 

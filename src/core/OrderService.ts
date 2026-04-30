@@ -5,6 +5,7 @@ import type {
   IOrderRepository,
   IProductRepository,
   ICartRepository,
+  IDiscountRepository,
   IPaymentProcessor,
   ILockProvider,
   ICheckoutGateway,
@@ -17,6 +18,7 @@ import type {
   OrderStatus,
   Address,
   User,
+  Discount,
 } from '@domain/models';
 import { AuditService } from './AuditService';
 import {
@@ -63,6 +65,7 @@ export class OrderService {
     private orderRepo: IOrderRepository,
     private productRepo: IProductRepository,
     private cartRepo: ICartRepository,
+    private discountRepo: IDiscountRepository,
     private payment: IPaymentProcessor,
     private audit: AuditService,
     private locker: ILockProvider = new InMemoryLockProvider(),
@@ -73,7 +76,8 @@ export class OrderService {
     userId: string,
     shippingAddress: Address,
     paymentMethodId: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    discountCode?: string
   ): Promise<Order> {
     assertValidShippingAddress(shippingAddress);
     if (!paymentMethodId.trim()) {
@@ -87,6 +91,7 @@ export class OrderService {
         shippingAddress,
         paymentMethodId,
         idempotencyKey: trustedIdempotencyKey,
+        discountCode,
       });
     }
 
@@ -99,16 +104,22 @@ export class OrderService {
     userId: string,
     shippingAddress: Address,
     paymentMethodId?: string,
-    idempotencyKey?: string
+    idempotencyKey?: string,
+    discountCode?: string
   ): Promise<Order> {
     if (this.checkoutGateway && paymentMethodId) {
-      return this.finalizeTrustedCheckout(userId, shippingAddress, paymentMethodId, idempotencyKey);
+      return this.finalizeTrustedCheckout(userId, shippingAddress, paymentMethodId, idempotencyKey, discountCode);
     }
 
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_${userId}`;
     const checkoutAttemptId = crypto.randomUUID();
     const checkoutIdempotencyKey = idempotencyKey?.trim() || `checkout:${userId}:${checkoutAttemptId}`;
+
+    // IDEMPOTENCY CHECK: Check if order already exists
+    const existingOrder = await this.orderRepo.getByIdempotencyKey(checkoutIdempotencyKey);
+    if (existingOrder) return existingOrder;
+
     const acquired = await this.locker.acquireLock(lockId, userId, 30000); // 30 second lock
     if (!acquired) {
       throw new CheckoutInProgressError();
@@ -122,6 +133,23 @@ export class OrderService {
 
       assertValidOrderItems(cart.items);
 
+      // Validate Discount
+      let discountAmount = 0;
+      let validDiscountCode: string | undefined;
+      if (discountCode) {
+        const discount = await this.discountRepo.getByCode(discountCode);
+        if (discount && discount.status === 'active') {
+          const now = new Date();
+          if (now >= discount.startsAt && (!discount.endsAt || now <= discount.endsAt)) {
+            const subtotal = calculateCartTotal(cart.items);
+            discountAmount = discount.type === 'percentage' 
+              ? Math.floor(subtotal * (discount.value / 100))
+              : discount.value;
+            validDiscountCode = discount.code;
+          }
+        }
+      }
+
       // Build stock map and verify availability
       const stockMap = new Map<string, number>();
       for (const item of cart.items) {
@@ -134,19 +162,19 @@ export class OrderService {
         throw new InsufficientStockError('multiple', 0, 0);
       }
 
-      // BroccoliQ Level 6: Builder's Punch (Coalescing)
+      // Deduct stock (Compensating transaction pattern)
       const stockDeductions = coalesceCartStockDeductions(cart.items);
-
       if (this.productRepo.batchUpdateStock) {
         await this.productRepo.batchUpdateStock(stockDeductions);
       } else {
-        // Deduct stock iteratively (fallback)
         for (const update of stockDeductions) {
           await this.productRepo.updateStock(update.id, update.delta);
         }
       }
 
-      const total = calculateCartTotal(cart.items);
+      const subtotal = calculateCartTotal(cart.items);
+      const shipping = subtotal >= 10000 ? 0 : 599;
+      const total = Math.max(0, subtotal + shipping - discountAmount);
 
       // Process payment (External boundary)
       const paymentResult = await this.payment.processPayment({
@@ -157,7 +185,7 @@ export class OrderService {
       });
 
       if (!paymentResult.success || !paymentResult.transactionId) {
-        // BroccoliDB Agent Shadow: Rollback the unit of work (Compensating Transaction)
+        // Rollback stock
         if (this.productRepo.batchUpdateStock) {
           await this.productRepo.batchUpdateStock(
             stockDeductions.map((update) => ({ id: update.id, delta: -update.delta }))
@@ -170,8 +198,7 @@ export class OrderService {
         throw new PaymentFailedError();
       }
 
-      // Agent Shadow: Commit phase (Atomic Flush equivalent)
-      // Create order only after successful payment
+      // Commit phase
       try {
         const order = await this.orderRepo.create({
           userId,
@@ -183,38 +210,42 @@ export class OrderService {
             imageUrl: item.imageUrl,
           })),
           total,
-          status: 'confirmed', // Created directly as confirmed
+          status: 'confirmed',
           shippingAddress,
           paymentTransactionId: paymentResult.transactionId,
+          idempotencyKey: checkoutIdempotencyKey,
+          discountCode: validDiscountCode,
+          discountAmount,
           notes: [],
-          riskScore: 0, // Assigned by repository logic
+          riskScore: 0,
         });
 
-        // Clear cart
-        await this.cartRepo.clear(userId);
+        // Clear cart and increment discount usage
+        await Promise.all([
+          this.cartRepo.clear(userId),
+          validDiscountCode ? this.discountRepo.getByCode(validDiscountCode).then((d: Discount | null) => d && this.discountRepo.incrementUsage(d.id)) : Promise.resolve(),
+          this.audit.record({
+            userId,
+            userEmail: 'system-checkout@playmore.tcg',
+            action: 'order_placed',
+            targetId: order.id,
+            details: { total, items: cart.items.length, discount: validDiscountCode }
+          })
+        ]);
 
         return order;
       } catch (err) {
-        // [AUDIT] CRITICAL: Payment succeeded but DB record failed.
-        // We must log this to a persistent store that is unlikely to fail, or at least log to console.
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
         await this.audit.record({
           userId,
           userEmail: 'system-reconciliation@playmore.tcg',
           action: 'checkout_reconciliation_required',
           targetId: paymentResult.transactionId || 'unknown',
-          details: {
-            error: errorMessage,
-            userId,
-            total,
-            items: cart.items.length,
-          }
-        }).catch(auditErr => {
-          logger.error('CRITICAL: Failed to even record reconciliation audit!', auditErr);
-        });
+          details: { error: errorMessage, userId, total, items: cart.items.length, idempotencyKey: checkoutIdempotencyKey }
+        }).catch(auditErr => logger.error('CRITICAL: Reconciliation audit failed', auditErr));
 
         throw new CheckoutReconciliationError(
-          `Payment ${paymentResult.transactionId} succeeded, but checkout finalization failed: ${errorMessage}. Please contact support with your transaction ID.`
+          `Payment ${paymentResult.transactionId} succeeded, but DB record failed: ${errorMessage}.`
         );
       }
     } finally {
