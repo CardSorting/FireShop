@@ -6,12 +6,15 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useServices } from '../../hooks/useServices';
 import type { Product, ProductCategory as ProductCategoryModel, ProductSalesChannel, ProductType } from '@domain/models';
 import {
   ArrowLeft,
   BarChart3,
+  Check,
   CheckCircle2,
+  ExternalLink,
   Globe,
   Image as ImageIcon,
   Package,
@@ -25,6 +28,7 @@ import { validatePriceCents, validateStock } from '@utils/validators';
 import { formatCurrency, humanizeCategory } from '@utils/formatters';
 import { SkeletonPage, useToast } from '../../components/admin/AdminComponents';
 import { CategorySelect, TagInput } from '../../components/admin/AdminInputs';
+import { SeoSettings } from '../../components/admin/SeoSettings';
 
 
 
@@ -331,7 +335,7 @@ export function AdminProductForm() {
 
   return (
     <div className="animate-in fade-in duration-500 pb-20">
-      <div className="mb-6 flex items-center justify-between border-b pb-4">
+      <div className="sticky top-[-32px] z-30 mb-6 flex items-center justify-between border-b bg-[#F6F6F7]/80 pb-4 pt-8 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <button onClick={() => router.push('/admin/products')} className="flex h-8 w-8 items-center justify-center rounded-lg border bg-white text-gray-500 shadow-sm transition hover:text-gray-900">
             <ArrowLeft className="h-4 w-4" />
@@ -347,6 +351,11 @@ export function AdminProductForm() {
           <button form="product-form" type="submit" disabled={saving} className="flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50">
             <Save className="h-4 w-4" /> {saving ? 'Saving…' : 'Save product'}
           </button>
+          {isEdit && form.status === 'active' && (
+            <Link href={`/products/${id}`} target="_blank" className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+              <ExternalLink className="h-4 w-4 text-gray-400" /> View in store
+            </Link>
+          )}
         </div>
       </div>
 
@@ -355,7 +364,12 @@ export function AdminProductForm() {
       <form id="product-form" onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="space-y-6">
           <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">Title + description</h2>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Title + description</h2>
+              <span className={`text-[10px] font-bold ${form.description.length > 500 ? 'text-amber-600' : 'text-gray-400'}`}>
+                {form.description.length} / 500+
+              </span>
+            </div>
             <div className="space-y-4">
               <input name="name" value={form.name} onChange={handleChange} required placeholder="Product title" className="w-full rounded-lg border bg-gray-50 px-4 py-3 text-lg font-bold outline-none transition focus:ring-2 focus:ring-primary-500" />
               <textarea name="description" value={form.description} onChange={handleChange} required rows={6} placeholder="Describe condition, edition, contents, and sales details." className="w-full rounded-lg border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500" />
@@ -427,31 +441,42 @@ export function AdminProductForm() {
             </div>
           </section>
 
-          <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><Search className="h-4 w-4" /> SEO / handle</h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              <TextInput label="URL handle" name="handle" value={form.handle} onChange={handleChange} placeholder={previewHandle(form.name, '')} />
-              <TextInput label="SEO title" name="seoTitle" value={form.seoTitle} onChange={handleChange} />
-              <div className="md:col-span-2"><TextArea label="SEO description" name="seoDescription" value={form.seoDescription} onChange={handleChange} rows={3} /></div>
-            </div>
-            <div className="mt-4 rounded-lg border bg-gray-50 p-4">
-              <p className="truncate text-sm font-medium text-[#1a0dab]">{form.seoTitle || form.name || 'Your Product Title'} | ShopMore</p>
-              <p className="truncate text-xs text-[#006621]">https://shopmore.io/products/{previewHandle(form.name, form.handle)}</p>
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#4d5156]">{form.seoDescription || form.description || 'Add SEO details to preview how this product could appear in search results.'}</p>
-            </div>
-          </section>
+          <SeoSettings
+            name={form.name}
+            description={form.description}
+            seoTitle={form.seoTitle}
+            seoDescription={form.seoDescription}
+            handle={form.handle}
+            isEdit={isEdit}
+            onChange={(name, value) => {
+              setForm(f => ({ ...f, [name]: value }));
+              setUnsaved(true);
+            }}
+          />
         </div>
 
         <aside className="space-y-6">
-          <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><Globe className="h-4 w-4" /> Publishing</h2>
-            <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold outline-none transition focus:ring-2 focus:ring-primary-500">
-              <option value="active">Active</option>
-              <option value="draft">Draft</option>
-              <option value="archived">Archived</option>
-            </select>
-            <div className="mt-4 space-y-2">
-              {SALES_CHANNELS.map((channel) => <Checkbox key={channel.value} label={channel.label} checked={form.salesChannels.includes(channel.value)} onChange={() => toggleSalesChannel(channel.value)} />)}
+          <section className="rounded-xl border bg-white p-5 shadow-sm overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-primary-500" />
+            <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><CheckCircle2 className="h-4 w-4" /> Setup checklist</h2>
+            <div className="space-y-4">
+              <div className="relative h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                  className="absolute top-0 left-0 h-full bg-green-500 transition-all duration-700" 
+                  style={{ width: `${(setupChecklist.filter(i => i.done).length / setupChecklist.length) * 100}%` }} 
+                />
+              </div>
+              <div className="space-y-3">
+                {setupChecklist.map((item) => (
+                  <div key={item.label} className="flex items-center justify-between text-xs font-bold">
+                    <span className={item.done ? 'text-gray-900' : 'text-gray-400'}>{item.label}</span>
+                    <span className={item.done ? 'text-green-600' : 'text-amber-600'}>
+                      {item.done ? <Check className="h-3 w-3 inline mr-1" /> : null}
+                      {item.done ? 'Done' : 'Needs work'}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
 
@@ -542,11 +567,15 @@ export function AdminProductForm() {
             </div>
           </section>
 
-
           <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><CheckCircle2 className="h-4 w-4" /> Setup checklist</h2>
-            <div className="space-y-3">
-              {setupChecklist.map((item) => <div key={item.label} className="flex items-center justify-between text-xs font-bold"><span className={item.done ? 'text-gray-900' : 'text-gray-500'}>{item.label}</span><span className={item.done ? 'text-green-600' : 'text-amber-600'}>{item.done ? 'Done' : 'Needs work'}</span></div>)}
+            <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><Globe className="h-4 w-4" /> Publishing</h2>
+            <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold outline-none transition focus:ring-2 focus:ring-primary-500">
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+            <div className="mt-4 space-y-2">
+              {SALES_CHANNELS.map((channel) => <Checkbox key={channel.value} label={channel.label} checked={form.salesChannels.includes(channel.value)} onChange={() => toggleSalesChannel(channel.value)} />)}
             </div>
           </section>
 

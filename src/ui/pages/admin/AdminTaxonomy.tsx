@@ -25,6 +25,7 @@ import {
   useAdminPageTitle, 
   useToast 
 } from '../../components/admin/AdminComponents';
+import { SeoSettings } from '../../components/admin/SeoSettings';
 
 export function AdminTaxonomy() {
   useAdminPageTitle('Product Organization');
@@ -228,6 +229,25 @@ export function AdminTaxonomy() {
                   </div>
                 )}
               </div>
+              
+              {activeTab === 'categories' && (
+                <div className="mt-6 border-t pt-6">
+                  <SeoSettings 
+                    name={editItem.name}
+                    description={editItem.description ?? ''}
+                    handle={editItem.slug ?? ''}
+                    seoTitle=""
+                    seoDescription=""
+                    onChange={(name, value) => {
+                      if (name === 'handle') setEditItem(prev => ({ ...prev!, slug: value }));
+                      else if (name === 'seoDescription') setEditItem(prev => ({ ...prev!, description: value }));
+                      // Note: seoTitle is not supported yet for categories in the model, but we show it in preview
+                    }}
+                    baseUrl="shopmore.io/collections"
+                  />
+                </div>
+              )}
+
               <div className="mt-6 flex items-center justify-end gap-3">
                 <button 
                   onClick={() => setEditItem(null)}

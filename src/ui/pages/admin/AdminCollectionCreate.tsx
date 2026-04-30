@@ -21,6 +21,7 @@ import {
   useAdminPageTitle,
 } from '../../components/admin/AdminComponents';
 import { useServices } from '../../hooks/useServices';
+import { SeoSettings } from '../../components/admin/SeoSettings';
 
 export function AdminCollectionCreate() {
   useAdminPageTitle('Create Collection');
@@ -29,6 +30,12 @@ export function AdminCollectionCreate() {
   const services = useServices();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const [formData, setFormData] = useState({
+    name: '',
+    handle: '',
+    description: '',
+    status: 'active' as 'active' | 'draft' | 'archived',
+  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -37,15 +44,22 @@ export function AdminCollectionCreate() {
     const data = Object.fromEntries(formData.entries());
 
     try {
-      await services.collectionService.create(data);
+      await services.collectionService.create({
+        ...formData,
+        imageUrl
+      });
       toast('success', 'Collection created successfully');
       router.push('/admin/collections');
-      router.refresh();
     } catch (error) {
       toast('error', error instanceof Error ? error.message : 'Failed to create collection');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   return (
@@ -97,9 +111,13 @@ export function AdminCollectionCreate() {
             
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Collection Name</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Collection Name</label>
+                </div>
                 <input 
                   name="name" 
+                  value={formData.name}
+                  onChange={handleInputChange}
                   required 
                   className="mt-1.5 w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
                   placeholder="e.g. Scarlet & Violet: 151" 
@@ -111,6 +129,8 @@ export function AdminCollectionCreate() {
                   <LinkIcon className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   <input 
                     name="handle" 
+                    value={formData.handle}
+                    onChange={handleInputChange}
                     className="w-full rounded-xl border bg-gray-50 py-3 pl-11 pr-4 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
                     placeholder="scarlet-violet-151" 
                   />
@@ -119,12 +139,19 @@ export function AdminCollectionCreate() {
               </div>
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Description</label>
-                <textarea 
-                  name="description" 
-                  rows={4} 
-                  className="mt-1.5 w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
-                  placeholder="Marketing copy for this collection..." 
-                />
+                <div className="relative mt-1.5">
+                  <textarea 
+                    name="description" 
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows={4} 
+                    className="w-full rounded-xl border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500 focus:bg-white" 
+                    placeholder="Marketing copy for this collection..." 
+                  />
+                  <span className={`absolute bottom-3 right-3 text-[10px] font-bold ${formData.description.length > 200 ? 'text-amber-600' : 'text-gray-400'}`}>
+                    {formData.description.length} / 200+
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -160,6 +187,16 @@ export function AdminCollectionCreate() {
               )}
             </div>
           </div>
+
+          <SeoSettings 
+            name={formData.name}
+            description={formData.description}
+            handle={formData.handle}
+            seoTitle=""
+            seoDescription=""
+            isEdit={false}
+            onChange={(name, value) => setFormData(prev => ({ ...prev, [name]: value }))}
+          />
         </div>
 
         <div className="space-y-6">
@@ -172,7 +209,12 @@ export function AdminCollectionCreate() {
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold text-gray-600">Status</label>
-                <select name="status" className="mt-1 w-full rounded-xl border bg-gray-50 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary-500">
+                <select 
+                  name="status" 
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="mt-1 w-full rounded-xl border bg-gray-50 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-primary-500"
+                >
                   <option value="active">Active (Visible)</option>
                   <option value="draft">Draft (Hidden)</option>
                   <option value="archived">Archived</option>
