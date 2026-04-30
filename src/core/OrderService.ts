@@ -150,12 +150,19 @@ export class OrderService {
         }
       }
 
-      // Build stock map and verify availability
+      // Build stock and price map (Real-time Source of Truth)
       const stockMap = new Map<string, number>();
+      const priceMap = new Map<string, number>();
+      const nameMap = new Map<string, string>();
+      const imageMap = new Map<string, string>();
+
       for (const item of cart.items) {
         const product = await this.productRepo.getById(item.productId);
         if (!product) throw new ProductNotFoundError(item.productId);
         stockMap.set(item.productId, product.stock);
+        priceMap.set(item.productId, product.price);
+        nameMap.set(item.productId, product.name);
+        imageMap.set(item.productId, product.imageUrl);
       }
 
       if (!canPlaceOrder(cart.items, stockMap)) {
@@ -172,7 +179,12 @@ export class OrderService {
         }
       }
 
-      const subtotal = calculateCartTotal(cart.items);
+      // Recalculate Subtotal using verified prices
+      let subtotal = 0;
+      for (const item of cart.items) {
+        const price = priceMap.get(item.productId) || 0;
+        subtotal += price * item.quantity;
+      }
       const shipping = subtotal >= 10000 ? 0 : 599;
       const total = Math.max(0, subtotal + shipping - discountAmount);
 
@@ -204,10 +216,10 @@ export class OrderService {
           userId,
           items: cart.items.map((item) => ({
             productId: item.productId,
-            name: item.name,
+            name: nameMap.get(item.productId) || item.name,
             quantity: item.quantity,
-            unitPrice: item.priceSnapshot,
-            imageUrl: item.imageUrl,
+            unitPrice: priceMap.get(item.productId) || 0,
+            imageUrl: imageMap.get(item.productId) || item.imageUrl,
           })),
           total,
           status: 'confirmed',

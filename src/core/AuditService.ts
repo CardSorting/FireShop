@@ -49,6 +49,8 @@ export class AuditService {
     action: AuditAction;
     targetId: string;
     details?: any;
+    ip?: string;
+    userAgent?: string;
   }): Promise<void> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -82,6 +84,10 @@ export class AuditService {
         createdAt: now,
       })
       .execute();
+
+    if (params.ip || params.userAgent) {
+      logger.info(`[Forensic] Audit Event: ${params.action} by ${params.userEmail} (${params.ip || 'no-ip'})`);
+    }
   }
 
 
