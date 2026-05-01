@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { Address, JsonValue, OrderStatus, ProductStatus, ProductDraft, ProductUpdate, User, ProductSalesChannel } from '@domain/models';
+import type { Address, JsonValue, OrderStatus, ProductStatus, ProductDraft, ProductUpdate, User, ProductSalesChannel, ProductMedia } from '@domain/models';
 import { AuthError, DomainError, OrderNotFoundError, ProductNotFoundError, UnauthorizedError } from '@domain/errors';
 import { getSessionUser } from './session';
 import { logger } from '@utils/logger';
@@ -229,6 +229,29 @@ export function optionalSalesChannels(value: unknown): ProductSalesChannel[] | u
     });
 }
 
+export function parseProductMedia(value: unknown): ProductMedia {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new DomainError('Media item must be a JSON object.');
+    }
+    const body = value as Record<string, unknown>;
+    return {
+        id: requireString(body.id, 'media.id'),
+        url: requireString(body.url, 'media.url'),
+        altText: optionalString(body.altText, 'media.altText'),
+        position: requireInteger(body.position, 'media.position'),
+        width: optionalInteger(body.width, 'media.width'),
+        height: optionalInteger(body.height, 'media.height'),
+        size: optionalInteger(body.size, 'media.size'),
+        createdAt: body.createdAt ? new Date(body.createdAt as string) : new Date(),
+    };
+}
+
+export function parseProductMediaArray(value: unknown): ProductMedia[] {
+    if (value === undefined || value === null || value === '') return [];
+    if (!Array.isArray(value)) throw new DomainError('media must be a list.');
+    return value.map((item) => parseProductMedia(item));
+}
+
 export function parseCartItemMutation(body: Record<string, unknown>): { productId: string; quantity: number } {
     return {
         productId: requireString(body.productId, 'productId'),
@@ -286,6 +309,7 @@ export function parseProductDraft(body: Record<string, unknown>): ProductDraft {
         status: requireProductStatus(body.status ?? 'active'),
         set: optionalString(body.set, 'set'),
         rarity: optionalClassification(body.rarity),
+        media: parseProductMediaArray(body.media),
     };
 }
 
@@ -321,6 +345,7 @@ export function parseProductUpdate(body: Record<string, unknown>): ProductUpdate
     if ('status' in body) update.status = requireProductStatus(body.status);
     if ('set' in body) update.set = optionalString(body.set, 'set');
     if ('rarity' in body) update.rarity = optionalClassification(body.rarity);
+    if ('media' in body) update.media = parseProductMediaArray(body.media);
     return update;
 }
 

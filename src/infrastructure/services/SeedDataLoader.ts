@@ -17,6 +17,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=400',
     set: 'Scarlet & Violet',
+    media: [],
   },
   {
     name: 'Charizard EX (Holo)',
@@ -29,6 +30,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     imageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=400',
     set: 'XY Evolutions',
     rarity: 'holo',
+    media: [],
   },
   {
     name: 'Paldean Fates Elite Trainer Box',
@@ -40,6 +42,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400',
     set: 'Paldean Fates',
+    media: [],
   },
   {
     name: 'Mewtwo V (Secret Rare)',
@@ -52,6 +55,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     imageUrl: 'https://images.unsplash.com/photo-1605901309584-818e25960a8f?w=400',
     set: 'Pokemon GO',
     rarity: 'secret',
+    media: [],
   },
   {
     name: 'Obsidian Flames Booster Pack',
@@ -63,6 +67,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=400',
     set: 'Obsidian Flames',
+    media: [],
   },
   {
     name: 'Lugia VSTAR Deck',
@@ -74,6 +79,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400',
     set: 'Silver Tempest',
+    media: [],
   },
   {
     name: 'Ultra Pro Card Sleeves (100ct)',
@@ -84,6 +90,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     stock: 100,
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=400',
+    media: [],
   },
   {
     name: 'Pikachu VMAX (Rainbow Rare)',
@@ -96,6 +103,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     imageUrl: 'https://images.unsplash.com/photo-1605901309584-818e25960a8f?w=400',
     set: 'Vivid Voltage',
     rarity: 'holo',
+    media: [],
   },
   {
     name: 'Paradox Rift Booster Box',
@@ -107,6 +115,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=400',
     set: 'Paradox Rift',
+    media: [],
   },
   {
     name: 'Deck Builder’s Toolkit',
@@ -117,6 +126,7 @@ const INITIAL_CATALOG: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>[] = [
     stock: 30,
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=400',
+    media: [],
   },
 ];
 

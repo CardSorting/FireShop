@@ -2,13 +2,14 @@
  * [LAYER: INFRASTRUCTURE]
  */
 import { NextResponse } from 'next/server';
-import { requireAdmin } from '@infrastructure/server/apiGuards';
-import { services } from '@infrastructure/server/services';
+import { requireAdminSession } from '@infrastructure/server/apiGuards';
+import { getServerServices } from '@infrastructure/server/services';
 import type { NavigationMenu } from '@domain/models';
 
 export async function GET(request: Request) {
   try {
-    await requireAdmin();
+    await requireAdminSession();
+    const services = await getServerServices();
     
     const { searchParams } = new URL(request.url);
     const menuId = searchParams.get('id') || 'main-nav';
@@ -37,7 +38,8 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdminSession();
+    const services = await getServerServices();
     
     const { searchParams } = new URL(request.url);
     const menuId = searchParams.get('id') || 'main-nav';

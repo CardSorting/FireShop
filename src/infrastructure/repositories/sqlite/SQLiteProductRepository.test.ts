@@ -33,7 +33,8 @@ describe('SQLiteProductRepository', () => {
       stock: 5,
       category: 'Test Category',
       imageUrl: 'http://test.com/image.png',
-      status: 'active'
+      status: 'active',
+      media: []
     };
 
     const created = await repo.create(draft);
@@ -53,7 +54,8 @@ describe('SQLiteProductRepository', () => {
       stock: 10,
       category: 'Cat',
       imageUrl: 'img',
-      status: 'active'
+      status: 'active',
+      media: []
     };
 
     const product = await repo.create(draft);
@@ -71,7 +73,8 @@ describe('SQLiteProductRepository', () => {
       stock: 5,
       category: 'Cat',
       imageUrl: 'img',
-      status: 'active'
+      status: 'active',
+      media: []
     });
 
     await expect(repo.updateStock(product.id, -10)).rejects.toThrow(/Insufficient stock/i);

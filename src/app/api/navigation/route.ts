@@ -2,11 +2,12 @@
  * [LAYER: INFRASTRUCTURE]
  */
 import { NextResponse } from 'next/server';
-import { services } from '@infrastructure/server/services';
+import { getServerServices } from '@infrastructure/server/services';
 import type { NavigationMenu } from '@domain/models';
 
 export async function GET(request: Request) {
   try {
+    const services = await getServerServices();
     const { searchParams } = new URL(request.url);
     const menuId = searchParams.get('id') || 'main-nav';
 
