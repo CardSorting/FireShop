@@ -102,9 +102,11 @@ export interface HiveAuditTable {
 export interface DiscountTable {
   id: string;
   code: string;
-  type: string; // 'percentage' | 'fixed'
+  type: string; // 'percentage' | 'fixed' | 'free_shipping'
   value: number;
   status: string; // 'active' | 'expired' | 'scheduled'
+  isAutomatic: number; // 0 | 1
+  metadata: string | null; // JSON string for selection, requirements, eligibility, limits, combinations
   startsAt: string;
   endsAt: string | null;
   usageCount: number;

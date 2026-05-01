@@ -368,23 +368,56 @@ export interface InventoryOverview {
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 
-export type DiscountType = 'percentage' | 'fixed';
+export type DiscountType = 'percentage' | 'fixed' | 'free_shipping';
 export type DiscountStatus = 'active' | 'scheduled' | 'expired';
+export type DiscountSelectionType = 'all_products' | 'specific_products' | 'specific_collections';
+export type DiscountRequirementType = 'none' | 'minimum_amount' | 'minimum_quantity';
+export type DiscountEligibilityType = 'everyone' | 'specific_customers' | 'specific_segments';
 
 export interface Discount {
   id: string;
   code: string;
   type: DiscountType;
-  value: number;
+  value: number; // cents or percentage
   status: DiscountStatus;
+  
+  // Method
+  isAutomatic: boolean;
+  
+  // Selection
+  selectionType: DiscountSelectionType;
+  selectedProductIds: string[];
+  selectedCollectionIds: string[];
+  
+  // Requirements
+  minimumRequirementType: DiscountRequirementType;
+  minimumAmount: number | null; // cents
+  minimumQuantity: number | null;
+  
+  // Eligibility
+  eligibilityType: DiscountEligibilityType;
+  eligibleCustomerIds: string[];
+  eligibleCustomerSegments: string[];
+  
+  // Limits
+  usageLimit: number | null;
+  oncePerCustomer: boolean;
+  usageCount: number;
+  
+  // Combinations
+  combinesWith: {
+    orderDiscounts: boolean;
+    productDiscounts: boolean;
+    shippingDiscounts: boolean;
+  };
+
   startsAt: Date;
   endsAt: Date | null;
-  usageCount: number;
   createdAt: Date;
 }
 
 export type DiscountDraft = Omit<Discount, 'id' | 'usageCount' | 'createdAt'>;
-export type DiscountUpdate = Partial<Omit<DiscountDraft, 'code'>>;
+export type DiscountUpdate = Partial<DiscountDraft>;
 
 export interface CustomerSummary {
   id: string;

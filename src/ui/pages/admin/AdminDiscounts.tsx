@@ -3,9 +3,11 @@
 /**
  * [LAYER: UI]
  * Admin discounts — Marketing and promotion management.
- * Patterns modeled after Shopify Discounts.
+ * Patterns modeled after Shopify Discounts and Stripe Promotions.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { 
   Tag, 
@@ -19,7 +21,12 @@ import {
   AlertCircle,
   MoreVertical,
   Ticket,
-  X
+  X,
+  ArrowUpRight,
+  ChevronRight,
+  SearchCode,
+  TrendingUp,
+  RotateCcw
 } from 'lucide-react';
 import { 
   AdminPageHeader, 
@@ -28,34 +35,38 @@ import {
   AdminStatusBadge, 
   AdminTab,
   useToast, 
-  useAdminPageTitle 
+  useAdminPageTitle,
+  SkeletonRow 
 } from '../../components/admin/AdminComponents';
 import { formatCurrency, formatShortDate } from '@utils/formatters';
+import type { Discount } from '@domain/models';
 
-type DiscountType = 'code' | 'automatic';
-type DiscountStatus = 'active' | 'scheduled' | 'expired';
+function getDiscountSummary(discount: Discount) {
+  let text = '';
+  if (discount.type === 'percentage') text = `${discount.value}% off`;
+  else if (discount.type === 'fixed') text = `${formatCurrency(discount.value)} off`;
+  else text = 'Free shipping';
 
-interface Discount {
-  id: string;
-  title: string;
-  type: DiscountType;
-  value: string;
-  usageCount: number;
-  status: DiscountStatus;
-  startDate: Date;
-  endDate?: Date;
+  if (discount.selectionType === 'all_products') text += ' all products';
+  else if (discount.selectionType === 'specific_products') text += ' specific products';
+  else text += ' specific collections';
+
+  if (discount.minimumRequirementType === 'minimum_amount') text += ` · Min. ${formatCurrency(discount.minimumAmount || 0)}`;
+  else if (discount.minimumRequirementType === 'minimum_quantity') text += ` · Min. ${discount.minimumQuantity || 1} items`;
+
+  return text;
 }
-
 
 export function AdminDiscounts() {
   useAdminPageTitle('Discounts');
   const services = useServices();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('all');
+  const router = useRouter();
+  
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'scheduled' | 'expired'>('all');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const [discounts, setDiscounts] = useState<any[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
 
   async function loadDiscounts() {
     setLoading(true);
@@ -73,296 +84,189 @@ export function AdminDiscounts() {
     void loadDiscounts();
   }, [services]);
 
-  const filtered = discounts.filter(d => {
-    if (activeTab !== 'all' && d.status !== activeTab) return false;
-    const code = d.code || '';
-    if (query && !code.toLowerCase().includes(query.toLowerCase())) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    return discounts.filter(d => {
+      if (activeTab !== 'all' && d.status !== activeTab) return false;
+      const term = query.toLowerCase();
+      if (query && !(d.code.toLowerCase().includes(term) || getDiscountSummary(d).toLowerCase().includes(term))) return false;
+      return true;
+    });
+  }, [discounts, activeTab, query]);
 
-  async function handleDelete(id: string) {
-    if (!confirm('Are you sure you want to delete this discount? This cannot be undone.')) return;
-    try {
-      const user = await services.authService.getCurrentUser();
-      await services.discountService.deleteDiscount(id, { id: user?.id || 'admin', email: user?.email || 'admin@playmore.tcg' });
-      toast('success', 'Discount deleted');
-      void loadDiscounts();
-    } catch (err) {
-      toast('error', 'Failed to delete discount');
-    }
-  }
-
-  async function handleToggleStatus(id: string, currentStatus: string) {
-    try {
-      const nextStatus = currentStatus === 'active' ? 'expired' : 'active';
-      const user = await services.authService.getCurrentUser();
-      await services.discountService.updateDiscount(id, { status: nextStatus }, { id: user?.id || 'admin', email: user?.email || 'admin@playmore.tcg' });
-      toast('success', `Discount marked as ${nextStatus}`);
-      void loadDiscounts();
-    } catch (err) {
-      toast('error', 'Failed to update status');
-    }
-  }
-
-  function generateCode() {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-  }
+  const stats = useMemo(() => {
+    return {
+      totalRedemptions: discounts.reduce((sum, d) => sum + d.usageCount, 0),
+      activeCount: discounts.filter(d => d.status === 'active').length,
+      scheduledCount: discounts.filter(d => d.status === 'scheduled').length,
+      expiredCount: discounts.filter(d => d.status === 'expired').length,
+    };
+  }, [discounts]);
 
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-500">
+    <div className="space-y-6 pb-24 animate-in fade-in duration-500">
       <AdminPageHeader 
         title="Discounts" 
-        subtitle="Manage promotional codes and automatic discounts"
+        subtitle="Drive sales with targeted promotions, automatic discounts, and coupon codes."
         actions={
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95"
+          <Link 
+            href="/admin/discounts/new"
+            className="flex items-center gap-2 rounded-xl bg-gray-900 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-gray-800 active:scale-95"
           >
             <Plus className="h-4 w-4" />
             Create discount
-          </button>
+          </Link>
         }
       />
 
-      {/* ── Marketing KPIs ── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <AdminMetricCard 
-          label="Total Redemptions" 
-          value={discounts.reduce((sum, d) => sum + d.usageCount, 0)} 
-          icon={Tag} 
-          color="success" 
-          description="Total times discounts were applied"
-        />
-        <AdminMetricCard 
-          label="Active Promotions" 
-          value={discounts.filter(d => d.status === 'active').length} 
-          icon={CheckCircle2} 
-          color="info" 
-          description="Live automatic and code-based offers"
-        />
-        <AdminMetricCard 
-          label="Scheduled" 
-          value={discounts.filter(d => d.status === 'scheduled').length} 
-          icon={Clock} 
-          color="primary" 
-          description="Promotions starting soon"
-        />
+      {/* ── Dashboard KPIs ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminMetricCard label="Total Redemptions" value={stats.totalRedemptions} icon={TrendingUp} color="success" />
+        <AdminMetricCard label="Active" value={stats.activeCount} icon={CheckCircle2} color="info" />
+        <AdminMetricCard label="Scheduled" value={stats.scheduledCount} icon={Clock} color="warning" />
+        <AdminMetricCard label="Expired" value={stats.expiredCount} icon={RotateCcw} />
       </div>
 
-      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-        {/* ── Tabs ── */}
-        <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
-          <AdminTab label="All" active={activeTab === 'all'} onClick={() => setActiveTab('all')} count={discounts.length} />
-          <AdminTab label="Active" active={activeTab === 'active'} onClick={() => setActiveTab('active')} count={discounts.filter(d => d.status === 'active').length} />
-          <AdminTab label="Scheduled" active={activeTab === 'scheduled'} onClick={() => setActiveTab('scheduled')} count={discounts.filter(d => d.status === 'scheduled').length} />
-          <AdminTab label="Expired" active={activeTab === 'expired'} onClick={() => setActiveTab('expired')} count={discounts.filter(d => d.status === 'expired').length} />
+      <div className="rounded-2xl border bg-white shadow-sm overflow-hidden flex flex-col">
+        {/* Tabs */}
+        <div className="border-b px-4 bg-gray-50/30">
+          <div className="flex items-center overflow-x-auto scrollbar-hide">
+            <AdminTab label="All" active={activeTab === 'all'} onClick={() => setActiveTab('all')} count={discounts.length} />
+            <AdminTab label="Active" active={activeTab === 'active'} onClick={() => setActiveTab('active')} count={stats.activeCount} />
+            <AdminTab label="Scheduled" active={activeTab === 'scheduled'} onClick={() => setActiveTab('scheduled')} count={stats.scheduledCount} />
+            <AdminTab label="Expired" active={activeTab === 'expired'} onClick={() => setActiveTab('expired')} count={stats.expiredCount} />
+          </div>
         </div>
 
-        {/* ── Search ── */}
-        <div className="p-4 border-b">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        {/* Search */}
+        <div className="p-4 border-b bg-white">
+          <div className="relative group">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
             <input 
               value={query} 
               onChange={(e) => setQuery(e.target.value)} 
-              placeholder="Search discounts by title or code…" 
-              className="w-full rounded-lg border bg-gray-50 py-2 pl-9 pr-3 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition" 
+              placeholder="Search by code or promotion summary…" 
+              className="w-full rounded-xl border bg-gray-50 py-2.5 pl-10 pr-3 text-sm focus:ring-2 focus:ring-primary-500 focus:bg-white outline-none transition-all shadow-sm" 
             />
           </div>
         </div>
 
-        {/* ── Table ── */}
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-gray-50 text-gray-500 border-b">
               <tr>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Title</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Status</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Method</th>
-                <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Value</th>
-                <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">Used</th>
-                <th className="w-10"></th>
+                <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest">Promotion Code</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest">Status</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest">Summary</th>
+                <th className="px-6 py-3 text-left text-[10px] font-black uppercase tracking-widest">Type</th>
+                <th className="px-6 py-3 text-right text-[10px] font-black uppercase tracking-widest">Usage</th>
+                <th className="w-12 px-6"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map((d) => (
-                <tr key={d.id} className="group transition hover:bg-gray-50">
-                  <td className="px-4 py-3.5">
-                    <p className="font-bold text-gray-900 tracking-tight">{d.code}</p>
-                    <p className="text-[10px] text-gray-500 font-medium">Started {formatShortDate(d.startsAt)}</p>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                      d.status === 'active' ? 'bg-green-100 text-green-700' : 
-                      d.status === 'scheduled' ? 'bg-blue-100 text-blue-700' : 
-                      'bg-gray-100 text-gray-500'
-                    }`}>
-                      <div className={`h-1 w-1 rounded-full ${d.status === 'active' ? 'bg-green-500' : d.status === 'scheduled' ? 'bg-blue-500' : 'bg-gray-400'}`} />
-                      {d.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2 text-xs font-medium text-gray-700">
-                      {d.type === 'code' ? <Ticket className="h-3.5 w-3.5 text-gray-400" /> : <Zap className="h-3.5 w-3.5 text-amber-500" />}
-                      {d.type === 'code' ? 'Discount code' : 'Automatic'}
+              {loading && [1, 2, 3].map(i => <SkeletonRow key={i} columns={6} />)}
+              {!loading && filtered.map((d) => (
+                <tr 
+                  key={d.id} 
+                  onClick={() => router.push(`/admin/discounts/${d.id}`)}
+                  className="group cursor-pointer transition hover:bg-gray-50/80"
+                >
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                       <div className={`rounded-lg p-2 ${d.status === 'active' ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>
+                          <Tag className="h-4 w-4" />
+                       </div>
+                       <div>
+                          <p className="font-black text-gray-900 tracking-tight group-hover:text-primary-600 transition-colors uppercase">{d.code}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{d.isAutomatic ? 'Automatic' : 'Code'}</p>
+                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 font-bold text-gray-900 tracking-tight">
-                    {d.type === 'fixed' ? formatCurrency(d.value) : `${d.value}%`}
+                  <td className="px-6 py-4">
+                    <AdminStatusBadge 
+                      status={d.status === 'active' ? 'active' : d.status === 'scheduled' ? 'pending' : 'cancelled'} 
+                      type="order" 
+                    />
                   </td>
-                  <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
-                    {d.usageCount}
+                  <td className="px-6 py-4">
+                    <p className="text-xs font-bold text-gray-700 leading-relaxed italic truncate max-w-xs group-hover:text-gray-900 transition-colors">
+                      "{getDiscountSummary(d)}"
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-medium">Starts {formatShortDate(d.startsAt)}</p>
                   </td>
-                  <td className="px-4 py-3.5 text-right relative">
-                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => handleToggleStatus(d.id, d.status)}
-                          className="text-[10px] font-bold text-primary-600 uppercase hover:underline"
-                        >
-                          {d.status === 'active' ? 'Deactivate' : 'Activate'}
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(d.id)}
-                          className="text-[10px] font-bold text-red-600 uppercase hover:underline"
-                        >
-                          Delete
-                        </button>
-                     </div>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                       {d.type === 'percentage' ? (
+                         <div className="rounded bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700 uppercase tracking-widest ring-1 ring-indigo-200">Percentage</div>
+                       ) : d.type === 'fixed' ? (
+                         <div className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 uppercase tracking-widest ring-1 ring-emerald-200">Fixed</div>
+                       ) : (
+                         <div className="rounded bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-700 uppercase tracking-widest ring-1 ring-amber-200">Shipping</div>
+                       )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex flex-col items-end gap-1.5">
+                       <span className="text-sm font-black text-gray-900">{d.usageCount} used</span>
+                       {d.usageLimit && (
+                         <div className="w-24 h-1 rounded-full bg-gray-100 overflow-hidden">
+                            <div 
+                              className="h-full bg-primary-600 transition-all duration-1000" 
+                              style={{ width: `${Math.min(100, (d.usageCount / d.usageLimit) * 100)}%` }} 
+                            />
+                         </div>
+                       )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {filtered.length === 0 && (
+          {!loading && filtered.length === 0 && (
             <AdminEmptyState 
               title="No discounts found" 
-              description="Create a new promotion to boost your store's sales."
-              icon={Tag}
+              description={query ? "We couldn't find anything matching your search." : "Ready to launch your first sale? Create a discount code or automatic promotion to get started."} 
+              icon={SearchCode}
+              action={!query && (
+                <Link href="/admin/discounts/new" className="rounded-xl bg-gray-900 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-gray-800">
+                   Create your first discount
+                </Link>
+              )}
             />
           )}
         </div>
-      </div>
 
-      {/* ── Tips / Documentation ── */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border bg-gray-50 p-5">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 mb-3">Best Practices</h3>
-          <ul className="space-y-3 text-xs text-gray-600 font-medium leading-relaxed">
-            <li className="flex items-start gap-3">
-              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-              <span>Use discount codes for influencer marketing and email campaigns to track source attribution.</span>
-            </li>
-            <li className="flex items-start gap-3">
-              <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
-              <span>Automatic discounts reduce checkout friction and are great for store-wide sales.</span>
-            </li>
-          </ul>
+        {/* Footer info */}
+        <div className="bg-gray-50 border-t px-6 py-3 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+           <div>Showing {filtered.length} promotions</div>
+           <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-green-500" /> {stats.activeCount} Active</span>
+              <span className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-amber-500" /> {stats.scheduledCount} Scheduled</span>
+           </div>
         </div>
       </div>
-      {/* Create Discount Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowCreateModal(false)} />
-          <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl animate-in zoom-in duration-200">
-            <div className="border-b px-6 py-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-gray-900">Create Discount</h2>
-              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-900 transition">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <form 
-              onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                const codeInput = formData.get('code') as string;
-                const type = formData.get('type') as 'code' | 'automatic';
-                const code = type === 'automatic' ? `AUTO_${Date.now()}` : codeInput.toUpperCase();
-                const valueType = formData.get('valueType') as 'percentage' | 'fixed';
-                const valueRaw = formData.get('value') as string;
-                const value = valueType === 'percentage' 
-                  ? parseFloat(valueRaw) 
-                  : Math.round(parseFloat(valueRaw) * 100); 
 
-                try {
-                  const user = await services.authService.getCurrentUser();
-                  await services.discountService.createDiscount({
-                    code,
-                    type: valueType,
-                    value,
-                    status: 'active',
-                    startsAt: new Date(),
-                  }, { id: user?.id || 'admin', email: user?.email || 'admin@playmore.tcg' });
-                  
-                  toast('success', `Discount created successfully.`);
-                  setShowCreateModal(false);
-                  void loadDiscounts();
-                } catch (err) {
-                  toast('error', 'Failed to create discount.');
-                }
-              }}
-              className="p-6 space-y-6"
-            >
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Type</label>
-                  <div className="grid grid-cols-2 gap-3">
-                     <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:bg-gray-50 transition">
-                        <input type="radio" name="type" value="code" defaultChecked className="h-4 w-4 text-primary-600 focus:ring-primary-500" />
-                        <span className="text-xs font-bold text-gray-700">Discount code</span>
-                     </label>
-                     <label className="flex items-center gap-3 rounded-xl border p-3 cursor-pointer hover:bg-gray-50 transition">
-                        <input type="radio" name="type" value="automatic" className="h-4 w-4 text-primary-600 focus:ring-primary-500" />
-                        <span className="text-xs font-bold text-gray-700">Automatic</span>
-                     </label>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Code</label>
-                  <div className="flex gap-2">
-                    <input id="code-input" name="code" type="text" placeholder="e.g. SUMMER24" className="flex-1 rounded-lg border bg-gray-50 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none transition font-mono uppercase" />
-                    <button 
-                      type="button" 
-                      onClick={() => {
-                        const input = document.getElementById('code-input') as HTMLInputElement;
-                        if (input) input.value = generateCode();
-                      }} 
-                      className="text-[10px] font-bold text-primary-600 uppercase hover:underline"
-                    >
-                      Generate
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Value Type</label>
-                    <select name="valueType" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none transition">
-                       <option value="percentage">Percentage (%)</option>
-                       <option value="fixed">Fixed Amount ($)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount Value</label>
-                    <input required name="value" type="text" placeholder="10" className="w-full rounded-lg border bg-gray-50 px-3 py-2 text-sm outline-none transition" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setShowCreateModal(false)} className="rounded-lg border px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="rounded-lg bg-primary-600 px-6 py-2 text-xs font-bold text-white shadow-sm hover:bg-primary-700">Save Discount</button>
-              </div>
-            </form>
+      {/* ── Pro Tips ── */}
+      <div className="grid gap-6 lg:grid-cols-2 animate-in slide-in-from-bottom-4 duration-700">
+        <div className="rounded-2xl border bg-gray-50 p-6 flex items-start gap-4 shadow-xs">
+          <div className="rounded-xl bg-white p-3 text-primary-600 shadow-sm"><TrendingUp className="h-5 w-5" /></div>
+          <div className="space-y-1">
+             <h3 className="text-xs font-black uppercase tracking-widest text-gray-900">Optimization Tip</h3>
+             <p className="text-xs text-gray-500 font-medium leading-relaxed">Discounts with a minimum purchase amount have a 25% higher average order value. Try setting a "Spend $50, Get 10% Off" rule.</p>
           </div>
         </div>
-      )}
+        <div className="rounded-2xl border bg-gray-50 p-6 flex items-start gap-4 shadow-xs">
+          <div className="rounded-xl bg-white p-3 text-amber-600 shadow-sm"><Users className="h-5 w-5" /></div>
+          <div className="space-y-1">
+             <h3 className="text-xs font-black uppercase tracking-widest text-gray-900">Targeting Strategy</h3>
+             <p className="text-xs text-gray-500 font-medium leading-relaxed">Use automatic discounts for store-wide clearance events to reduce friction during checkout and increase conversion rates.</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
