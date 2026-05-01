@@ -10,7 +10,12 @@ import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import type { Product } from '@domain/models';
-import { ShoppingCart, ArrowLeft, Check, ShieldCheck, Truck, LifeBuoy, PackageCheck, ChevronRight, AlertCircle, Heart, Plus, Star, Info, Timer, Zap, MapPin } from 'lucide-react';
+import { 
+  X, ShoppingBag, Trash2, ChevronRight, LockKeyhole, Truck, 
+  ShieldCheck, ArrowRight, Minus, Plus, CreditCard, Shield,
+  Heart, Star, Zap, ShoppingCart, RefreshCcw, Info, Users,
+  PackageCheck, Timer, Check, LifeBuoy
+} from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
 
 import { MAX_CART_QUANTITY } from '@domain/rules';
@@ -223,9 +228,15 @@ export function ProductDetailPage() {
                   <span className="ml-2 text-xs font-black text-gray-900 tracking-tighter">{rating}</span>
                 </div>
                 <span className="text-xs font-bold text-primary-600 hover:underline cursor-pointer tracking-tight mr-4">{reviewCount} Reviews</span>
-                <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full">
-                  <Zap className="w-3 h-3 text-amber-500 fill-current" />
-                  <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Trending: 12 views recently</span>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 rounded-full">
+                    <Zap className="w-3 h-3 text-amber-500 fill-current" />
+                    <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">Trending: 12 views recently</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full animate-pulse">
+                    <Users className="w-3 h-3 text-green-600" />
+                    <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">34 people currently viewing</span>
+                  </div>
                 </div>
               </div>
               
@@ -476,6 +487,21 @@ export function ProductDetailPage() {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Guaranteed Safe Checkout Badge Set */}
+                <div className="mt-8 p-6 rounded-4xl bg-gray-50/50 border border-gray-100 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Guaranteed Safe Checkout</p>
+                    <LockKeyhole className="h-3 w-3 text-green-500" />
+                  </div>
+                  <div className="flex items-center justify-center gap-6 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all duration-700 cursor-default">
+                    <CreditCard className="h-6 w-6" />
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="text-[9px] font-black tracking-tighter uppercase italic px-1.5 py-0.5 border border-gray-300 rounded leading-none">Visa</div>
+                    <div className="text-[9px] font-black tracking-tighter uppercase px-1.5 py-0.5 border border-gray-300 rounded leading-none">Stripe</div>
+                    <div className="text-[9px] font-black tracking-tighter uppercase px-1.5 py-0.5 border border-gray-300 rounded leading-none">PayPal</div>
                   </div>
                 </div>
               </div>

@@ -144,6 +144,30 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
             {/* Main Navigation Scroll Area */}
             <div className="flex-1 overflow-y-auto px-2 py-1 scrollbar-hide">
+              {/* Quick Create - Inlined from Dashboard */}
+              {!collapsed && (
+                <div className="mb-6 px-1">
+                  <h4 className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Quick Actions</h4>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {ADMIN_QUICK_ACTIONS.filter(a => a.group === 'Create').slice(0, 4).map((action) => {
+                      const Icon = action.icon;
+                      return (
+                        <Link 
+                          key={action.id} 
+                          href={action.href}
+                          className="flex flex-col items-center justify-center gap-1.5 rounded-xl border bg-white p-2 text-center transition-all hover:border-primary-500 hover:shadow-sm active:scale-95 group"
+                        >
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-50 text-gray-500 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <span className="text-[9px] font-bold text-gray-700 leading-tight">{action.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Sidebar Search Button */}
               <div className="mb-4 mt-1">
                 <button
@@ -278,26 +302,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <header className="hidden lg:flex h-12 shrink-0 items-center justify-between border-b bg-white/50 px-8 backdrop-blur-sm">
               <AdminBreadcrumb />
               <div className="flex items-center gap-6">
-                {/* Quick Actions Menu */}
-                <div className="relative group">
-                  <button className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-3 py-1.5 text-[10px] font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95">
-                    <Plus className="h-3.5 w-3.5" />
-                    Create
-                    <ChevronDown className="h-3 w-3 opacity-60" />
-                  </button>
-                  <div className="invisible absolute right-0 top-full mt-2 w-48 origin-top-right rounded-xl border bg-white p-1 shadow-2xl transition-all opacity-0 group-hover:visible group-hover:opacity-100 z-50">
-                      {ADMIN_QUICK_ACTIONS.filter((action) => action.group === 'Create').map((action) => {
-                        const Icon = action.icon;
-                        return (
-                          <button key={action.id} onClick={() => router.push(action.href)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-gray-700 hover:bg-gray-50 transition">
-                            <Icon className="h-3.5 w-3.5 text-gray-400" />
-                            {action.label}
-                          </button>
-                        );
-                      })}
-                  </div>
-                </div>
-
                 <AdminNotificationBell />
                 <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                   <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />

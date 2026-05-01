@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, ChevronDown, Search, Sparkles, Archive, Layers3, Heart, RefreshCcw, Zap } from 'lucide-react';
+import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, ChevronDown, Search, Sparkles, Archive, Layers3, Heart, RefreshCcw, Zap, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
@@ -90,6 +90,30 @@ export function Navbar() {
         Skip to main content
       </a>
 
+      <div className="bg-gray-900 py-2.5 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center sm:justify-between text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
+           <div className="hidden sm:flex items-center gap-4">
+              <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-primary-500" /> Free Global Shipping Over $100</span>
+              <span className="w-1 h-1 rounded-full bg-white/20" />
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Authentic TCG Guarantee</span>
+           </div>
+           <div className="flex items-center gap-6">
+              <Link href="/products?category=sale" className="group flex items-center gap-2 hover:text-white transition-colors">
+                 <Zap className="w-3.5 h-3.5 text-amber-500 fill-current animate-pulse" />
+                 Limited: Summer Drop is Live
+                 <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
+              </Link>
+           </div>
+           <div className="hidden lg:flex items-center gap-4">
+              <span className="text-white/40">Support: 24/7 Experts</span>
+              <span className="w-1 h-1 rounded-full bg-white/20" />
+              <span className="flex items-center gap-1.5 cursor-pointer hover:text-white">
+                 US / USD <ChevronDown className="w-3 h-3" />
+              </span>
+           </div>
+        </div>
+      </div>
+
       <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -101,18 +125,18 @@ export function Navbar() {
               <span className="hidden sm:block">ShopMore</span>
             </Link>
 
-            {/* Command Palette Trigger - Desktop */}
+            {/* Search Trigger - Desktop - Professional Shopify Style */}
             <div 
               ref={searchRef}
               onClick={openSearch}
-              className="hidden md:flex flex-1 max-w-sm relative group cursor-pointer"
+              className="hidden md:flex flex-1 max-w-md relative group cursor-pointer"
             >
-              <div className="relative w-full transition-all duration-300 group-hover:scale-[1.02]">
+              <div className="relative w-full transition-all duration-300">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-600 transition-colors" />
-                <div className="w-full bg-gray-50/50 border border-gray-100 rounded-2xl py-2.5 pl-12 pr-4 text-sm text-gray-400 font-bold group-hover:bg-white group-hover:border-primary-500 group-hover:shadow-lg group-hover:shadow-black/5 transition-all flex items-center justify-between">
-                  <span>Search...</span>
-                  <div className="flex items-center gap-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
-                    <kbd className="h-6 rounded-lg border bg-white px-2 font-mono text-[10px] font-black text-gray-400 shadow-sm">⌘K</kbd>
+                <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 pl-12 pr-4 text-sm text-gray-500 font-bold group-hover:bg-white group-hover:border-primary-500 group-hover:shadow-xl group-hover:shadow-primary-500/5 transition-all flex items-center justify-between">
+                  <span>Search cards, sets, and more...</span>
+                  <div className="flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+                    <kbd className="h-6 rounded-lg border bg-white px-2 font-mono text-[9px] font-black text-gray-400 shadow-sm">⌘K</kbd>
                   </div>
                 </div>
               </div>
@@ -120,44 +144,66 @@ export function Navbar() {
 
             <div className="hidden lg:flex items-center gap-8 shrink-0">
               <div className="relative group">
-                <button className="flex items-center gap-1 text-sm font-bold text-gray-600 group-hover:text-primary-600 transition-colors py-8 h-20">
+                <button className="flex items-center gap-2 text-sm font-black text-gray-900 group-hover:text-primary-600 transition-colors py-8 h-20 uppercase tracking-widest">
                   Shop <ChevronDown className="w-4 h-4 transition-transform group-hover:rotate-180 opacity-50" />
                 </button>
                 
-                {/* Mega-menu style dropdown - Shopify style */}
+                {/* Mega-menu style dropdown - High Fidelity */}
                 {navMenu && (
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-[600px] bg-white rounded-2xl shadow-xl border border-gray-100 p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
-                    <div className="grid grid-cols-3 gap-8">
-                      <div className="col-span-2">
-                         <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-[700px] bg-white rounded-4xl shadow-2xl border border-gray-100 p-10 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-50 ring-1 ring-black/5">
+                    <div className="grid grid-cols-3 gap-10">
+                      <div className="col-span-2 space-y-8">
+                         <div className="grid grid-cols-2 gap-x-10 gap-y-8">
                            <div>
-                              <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">{navMenu.shopCategories.title || 'Categories'}</h4>
-                              <ul className="space-y-3">
+                              <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                <Archive className="w-3 h-3 text-primary-500" />
+                                {navMenu.shopCategories.title || 'Categories'}
+                              </h4>
+                              <ul className="space-y-4">
                                 {navMenu.shopCategories.links.map((link, i) => (
-                                  <li key={i}><Link href={link.href} className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium">{link.label}</Link></li>
+                                  <li key={i}>
+                                    <Link href={link.href} className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-bold flex items-center justify-between group/link">
+                                      {link.label}
+                                      <ChevronRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-2 group-hover/link:translate-x-0 transition-all" />
+                                    </Link>
+                                  </li>
                                 ))}
                               </ul>
                            </div>
                            <div>
-                              <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">{navMenu.shopCollections.title || 'Collections'}</h4>
-                              <ul className="space-y-3">
+                              <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                <Sparkles className="w-3 h-3 text-amber-500" />
+                                {navMenu.shopCollections.title || 'Collections'}
+                              </h4>
+                              <ul className="space-y-4">
                                 {navMenu.shopCollections.links.map((link, i) => (
-                                  <li key={i}><Link href={link.href} className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium">{link.label}</Link></li>
+                                  <li key={i}>
+                                    <Link href={link.href} className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-bold flex items-center justify-between group/link">
+                                      {link.label}
+                                      <ChevronRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-2 group-hover/link:translate-x-0 transition-all" />
+                                    </Link>
+                                  </li>
                                 ))}
                               </ul>
                            </div>
                          </div>
+                         <div className="pt-8 border-t border-gray-50">
+                            <Link href="/products" className="text-[10px] font-black text-primary-600 uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform">
+                               Browse Complete Catalog <ArrowRight className="w-3 h-3" />
+                            </Link>
+                         </div>
                       </div>
                       {navMenu.featuredPromotion && (
-                        <div className="col-span-1 bg-gray-50 rounded-xl p-4 flex flex-col justify-between">
-                           <div>
-                             <div className="aspect-square rounded-lg bg-white overflow-hidden mb-3 shadow-sm border border-gray-100">
-                               <img src={navMenu.featuredPromotion.imageUrl} alt={navMenu.featuredPromotion.title} className="w-full h-full object-cover" />
+                        <div className="col-span-1 bg-gray-50 rounded-3xl p-5 flex flex-col justify-between border border-gray-100 hover:bg-white hover:shadow-xl transition-all duration-500 group/promo">
+                           <div className="relative">
+                             <div className="aspect-square rounded-2xl bg-white overflow-hidden mb-4 shadow-sm border border-gray-100 ring-4 ring-white">
+                               <img src={navMenu.featuredPromotion.imageUrl} alt={navMenu.featuredPromotion.title} className="w-full h-full object-cover group-hover/promo:scale-110 transition duration-700" />
                              </div>
-                             <p className="text-sm font-bold text-gray-900 line-clamp-1">{navMenu.featuredPromotion.title}</p>
-                             {navMenu.featuredPromotion.subtitle && <p className="text-xs text-gray-500 font-medium">{navMenu.featuredPromotion.subtitle}</p>}
+                             <div className="absolute top-2 right-2 px-2 py-1 bg-primary-600 text-[8px] font-black text-white uppercase rounded-lg shadow-lg">New</div>
+                             <p className="text-sm font-black text-gray-900 line-clamp-1">{navMenu.featuredPromotion.title}</p>
+                             {navMenu.featuredPromotion.subtitle && <p className="text-xs text-gray-500 font-bold mt-0.5">{navMenu.featuredPromotion.subtitle}</p>}
                            </div>
-                           <Link href={navMenu.featuredPromotion.linkHref} className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline mt-4 inline-block">{navMenu.featuredPromotion.linkText}</Link>
+                           <Link href={navMenu.featuredPromotion.linkHref} className="w-full bg-gray-900 text-white text-center py-3 rounded-xl text-[10px] font-black uppercase tracking-widest mt-6 hover:bg-primary-600 transition-colors shadow-lg shadow-gray-200">{navMenu.featuredPromotion.linkText}</Link>
                         </div>
                       )}
                     </div>
@@ -165,7 +211,7 @@ export function Navbar() {
                 )}
               </div>
               {navMenu?.otherLinks.map((link, i) => (
-                <Link key={i} href={link.href} className="text-sm font-bold text-gray-600 hover:text-primary-600 transition-colors py-8 h-20 flex items-center">
+                <Link key={i} href={link.href} className="text-sm font-black text-gray-900 hover:text-primary-600 transition-colors py-8 h-20 flex items-center uppercase tracking-widest">
                   {link.label}
                 </Link>
               ))}
@@ -273,79 +319,100 @@ export function Navbar() {
           </div>
         </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - Upgrade to Drawer */}
       {isMenuOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white animate-in slide-in-from-top-4 duration-300 shadow-2xl overflow-hidden fixed inset-x-0 top-20 z-50 h-[calc(100vh-5rem)]">
-          <div className="px-6 py-8 space-y-8 h-full overflow-y-auto">
-            {/* Mobile Search */}
-            <form onSubmit={handleSearchSubmit} className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search catalog..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-50 border-none rounded-2xl py-4 pl-12 pr-4 text-sm font-bold focus:ring-2 focus:ring-primary-500"
-              />
-            </form>
-
-            <div className="grid grid-cols-2 gap-4">
-              <Link href="/" className="flex flex-col gap-3 rounded-3xl p-6 bg-gray-50 hover:bg-primary-50 transition-colors group">
-                <Home className="w-6 h-6 text-gray-400 group-hover:text-primary-600" />
-                <span className="text-sm font-black text-gray-900">Home</span>
-              </Link>
-              <Link href="/products" className="flex flex-col gap-3 rounded-3xl p-6 bg-gray-50 hover:bg-primary-50 transition-colors group">
-                <Package className="w-6 h-6 text-gray-400 group-hover:text-primary-600" />
-                <span className="text-sm font-black text-gray-900">Catalog</span>
-              </Link>
-              {user && (
-                <>
-                  <Link href="/wishlist" className="flex flex-col gap-3 rounded-3xl p-6 bg-gray-50 hover:bg-red-50 transition-colors group">
-                    <Heart className="w-6 h-6 text-gray-400 group-hover:text-red-500" />
-                    <span className="text-sm font-black text-gray-900">Favorites</span>
-                  </Link>
-                  <Link href="/orders" className="flex flex-col gap-3 rounded-3xl p-6 bg-gray-50 hover:bg-primary-50 transition-colors group">
-                    <ShoppingCart className="w-6 h-6 text-gray-400 group-hover:text-primary-600" />
-                    <span className="text-sm font-black text-gray-900">Orders</span>
-                  </Link>
-                </>
-              )}
+        <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" onClick={() => setIsMenuOpen(false)} />
+          <div className="absolute inset-y-0 left-0 w-full max-w-xs bg-white shadow-2xl animate-in slide-in-from-left duration-300 ease-out flex flex-col">
+            <div className="flex items-center justify-between px-6 py-6 border-b">
+               <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-900 font-black text-xl tracking-tighter">
+                 <Package className="w-6 h-6" />
+                 ShopMore
+               </Link>
+               <button onClick={() => setIsMenuOpen(false)} className="p-2 rounded-xl bg-gray-50 text-gray-400"><X className="w-5 h-5" /></button>
             </div>
-            
-            <div className="pt-8 border-t border-gray-100">
-              {user ? (
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4 bg-gray-50 p-6 rounded-3xl">
-                    <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center shadow-sm">
-                      <User className="w-7 h-7 text-primary-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black text-gray-900 uppercase tracking-tight">{user.displayName}</p>
-                      <p className="text-xs text-gray-500 font-medium">{user.email}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-3">
-                    <button 
-                      onClick={handleSignOut}
-                      className="w-full rounded-2xl bg-gray-900 py-5 text-sm font-black text-white hover:bg-black shadow-xl shadow-gray-200 transition-all"
-                    >
-                      Sign Out
-                    </button>
-                    {user.role === 'admin' && (
-                      <Link href="/admin" className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary-50 py-5 text-sm font-black text-primary-600 transition-colors">
-                        <Shield className="w-4 h-4" /> Admin Panel
-                      </Link>
-                    )}
-                  </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
+              {/* Mobile Search - More prominent */}
+              <div 
+                onClick={openSearch}
+                className="relative group cursor-pointer"
+              >
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-4 pl-12 pr-4 text-sm text-gray-400 font-black">
+                  Search catalog...
                 </div>
-              ) : (
-                <Link
-                  href="/login"
-                  className="flex w-full items-center justify-center rounded-2xl bg-primary-600 py-5 text-base font-black text-white shadow-2xl shadow-primary-200"
-                >
-                  Sign In to ShopMore
-                </Link>
-              )}
+              </div>
+
+              <nav className="space-y-6">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Main Navigation</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-primary-50 text-gray-900 font-black text-sm transition-colors">
+                    <Home className="w-5 h-5 text-gray-400" /> Home
+                  </Link>
+                  <Link href="/products" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-primary-50 text-gray-900 font-black text-sm transition-colors">
+                    <Package className="w-5 h-5 text-gray-400" /> All Products
+                  </Link>
+                  <Link href="/wishlist" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-red-50 text-gray-900 font-black text-sm transition-colors">
+                    <Heart className="w-5 h-5 text-gray-400" /> Favorites
+                  </Link>
+                </div>
+
+                {navMenu && (
+                  <>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-8">Categories</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {navMenu.shopCategories.links.map((link, i) => (
+                        <Link key={i} href={link.href} onClick={() => setIsMenuOpen(false)} className="px-4 py-3 rounded-xl border border-gray-100 text-sm font-bold text-gray-600 hover:border-primary-200 hover:text-primary-600 transition-all">
+                          {link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </nav>
+
+              <div className="pt-8 border-t border-gray-100">
+                {user ? (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-4 bg-gray-50 p-6 rounded-3xl">
+                      <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center shadow-sm">
+                        <User className="w-7 h-7 text-primary-600" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-gray-900 uppercase tracking-tight truncate">{user.displayName}</p>
+                        <p className="text-xs text-gray-500 font-medium truncate">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <Link href="/orders" onClick={() => setIsMenuOpen(false)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-4 text-sm font-black text-white hover:bg-black transition-all shadow-xl">
+                         My Orders
+                      </Link>
+                      <button 
+                        onClick={handleSignOut}
+                        className="w-full rounded-2xl border-2 border-gray-100 py-4 text-sm font-black text-gray-600 hover:bg-gray-50 transition-all"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex w-full items-center justify-center rounded-2xl bg-primary-600 py-5 text-base font-black text-white shadow-2xl shadow-primary-200"
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t bg-gray-50">
+               <div className="flex items-center justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  <span>US / USD</span>
+                  <span>ShopMore v12.4</span>
+               </div>
             </div>
           </div>
         </div>

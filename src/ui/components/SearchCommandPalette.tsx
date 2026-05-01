@@ -7,9 +7,14 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sparkles, Archive, Layers3, X, Command, ShoppingCart, ArrowRight } from 'lucide-react';
+import { 
+  Search, Sparkles, Archive, Layers3, X, Command, 
+  ShoppingCart, ArrowRight, Zap, Truck, ShieldCheck, 
+  Users, LockKeyhole, CreditCard 
+} from 'lucide-react';
 import { useServices } from '../hooks/useServices';
 import { useCart } from '../hooks/useCart';
+import { useWishlist } from '../hooks/useWishlist';
 import { formatCurrency } from '@utils/formatters';
 import type { Product } from '@domain/models';
 
@@ -23,6 +28,7 @@ export function SearchCommandPalette() {
   const router = useRouter();
   const services = useServices();
   const { addItem } = useCart();
+  const { recentlyViewed } = useWishlist();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Toggle palette with ⌘+K
@@ -109,7 +115,7 @@ export function SearchCommandPalette() {
       />
       
       {/* Palette Container */}
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl shadow-black/20 border border-gray-100 overflow-hidden animate-in zoom-in-95 slide-in-from-top-4 duration-200">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl shadow-black/20 border border-gray-100 overflow-hidden animate-in zoom-in-95 slide-in-from-top-4 duration-200">
         <header className="flex items-center px-6 border-b">
           <Search className="h-5 w-5 text-gray-400" />
           <input
@@ -127,7 +133,7 @@ export function SearchCommandPalette() {
             </kbd>
             <button 
               onClick={() => setIsOpen(false)}
-              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="h-5 w-5 text-gray-400" />
             </button>
@@ -136,27 +142,53 @@ export function SearchCommandPalette() {
 
         <main className="max-h-[60vh] overflow-y-auto scrollbar-hide">
           {query.length === 0 ? (
-            <div className="p-6">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Quick Links</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {[
-                  { label: 'Shop Singles', icon: Sparkles, href: '/products?category=single' },
-                  { label: 'Sealed Products', icon: Archive, href: '/products?category=booster' },
-                  { label: 'View All Orders', icon: ShoppingCart, href: '/orders' },
-                  { label: 'Accessories', icon: Layers3, href: '/products?category=accessory' },
-                ].map((link) => (
-                  <button
-                    key={link.label}
-                    onClick={() => { setIsOpen(false); router.push(link.href); }}
-                    className="flex items-center gap-4 p-4 rounded-2xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100 group"
-                  >
-                    <div className="p-2.5 rounded-xl bg-gray-100 text-gray-500 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
-                      <link.icon className="h-5 w-5" />
-                    </div>
-                    <span className="text-sm font-bold text-gray-700">{link.label}</span>
-                  </button>
-                ))}
-              </div>
+            <div className="p-8 space-y-10">
+              <section>
+                <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Discovery Shortcuts</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Singles', icon: Sparkles, href: '/products?category=single', color: 'bg-amber-50 text-amber-600' },
+                    { label: 'Sealed', icon: Archive, href: '/products?category=booster', color: 'bg-blue-50 text-blue-600' },
+                    { label: 'Supplies', icon: Layers3, href: '/products?category=accessory', color: 'bg-purple-50 text-purple-600' },
+                    { label: 'New', icon: ArrowRight, href: '/products?category=new', color: 'bg-primary-50 text-primary-600' },
+                  ].map((link) => (
+                    <button
+                      key={link.label}
+                      onClick={() => { setIsOpen(false); router.push(link.href); }}
+                      className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-50/50 hover:bg-white transition-all border border-transparent hover:border-gray-100 hover:shadow-xl group"
+                    >
+                      <div className={`p-3 rounded-xl ${link.color} transition-colors group-hover:scale-110 duration-300`}>
+                        <link.icon className="h-6 w-6" />
+                      </div>
+                      <span className="text-xs font-black text-gray-900">{link.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              {recentlyViewed.length > 0 && (
+                <section>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Continue Browsing</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {recentlyViewed.slice(0, 4).map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => handleSelect(product)}
+                        className="flex items-center gap-4 p-4 rounded-xl bg-white border border-gray-100 hover:border-primary-200 hover:shadow-lg transition-all group"
+                      >
+                        <div className="h-14 w-14 rounded-lg bg-gray-50 overflow-hidden border">
+                          <img src={product.imageUrl} alt="" className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
+                        </div>
+                        <div className="flex-1 text-left min-w-0">
+                          <p className="text-sm font-black text-gray-900 truncate group-hover:text-primary-600 transition-colors">{product.name}</p>
+                          <p className="text-[10px] font-bold text-primary-600">{formatCurrency(product.price)}</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-primary-600 transition-all group-hover:translate-x-1" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           ) : results.length > 0 ? (
             <div className="p-2">
@@ -166,27 +198,34 @@ export function SearchCommandPalette() {
                   key={product.id}
                   onClick={() => handleSelect(product)}
                   onMouseEnter={() => setSelectedIndex(index)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all group ${
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all group ${
                     selectedIndex === index ? 'bg-primary-50 ring-1 ring-primary-100' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <div className="h-12 w-12 rounded-xl bg-gray-100 overflow-hidden shrink-0">
-                    <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+                  <div className="h-12 w-12 rounded-lg bg-gray-100 overflow-hidden shrink-0 ring-1 ring-gray-100 group-hover:ring-primary-200 transition-all">
+                    <img src={product.imageUrl} alt="" className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
                   </div>
                   <div className="flex-1 text-left min-w-0">
-                    <p className={`text-sm font-black truncate transition-colors ${
-                      selectedIndex === index ? 'text-primary-900' : 'text-gray-900'
-                    }`}>
-                      {product.name}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className={`text-sm font-black truncate transition-colors ${
+                        selectedIndex === index ? 'text-primary-900' : 'text-gray-900'
+                      }`}>
+                        {product.name}
+                      </p>
+                      {index === 0 && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-amber-50 text-amber-600 text-[8px] font-black uppercase tracking-widest ring-1 ring-amber-100">
+                          <Zap className="h-2 w-2 fill-current" /> Trending
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.category}</span>
-                      <span className="text-gray-300">•</span>
-                      <span className="text-xs font-bold text-primary-600">{formatCurrency(product.price)}</span>
+                      <span className="text-gray-200">•</span>
+                      <span className="text-xs font-black text-primary-600 tracking-tight">{formatCurrency(product.price)}</span>
                     </div>
                   </div>
-                  <ArrowRight className={`h-4 w-4 transition-all ${
-                    selectedIndex === index ? 'text-primary-600 translate-x-0' : 'text-gray-300 -translate-x-2 opacity-0'
+                  <ArrowRight className={`h-4 w-4 transition-all duration-300 ${
+                    selectedIndex === index ? 'text-primary-600 translate-x-0 opacity-100' : 'text-gray-200 -translate-x-4 opacity-0'
                   }`} />
                 </button>
               ))}
