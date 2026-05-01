@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, Search, Sparkles, Archive, Layers3, Heart, RefreshCcw } from 'lucide-react';
+import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, ChevronDown, Search, Sparkles, Archive, Layers3, Heart, RefreshCcw, Zap } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
@@ -20,6 +20,8 @@ const SHOP_LINKS = [
 import { SearchCommandPalette } from '../components/SearchCommandPalette';
 
 import { useWishlist } from '../hooks/useWishlist';
+
+import { usePathname } from 'next/navigation';
 
 export function Navbar() {
   const { user, signOut } = useAuth();
@@ -105,47 +107,53 @@ export function Navbar() {
               </div>
             </div>
 
-            <div className="hidden lg:flex items-center gap-10 shrink-0">
+            <div className="hidden lg:flex items-center gap-8 shrink-0">
               <div className="relative group">
-                <button className="flex items-center gap-1 text-sm font-black tracking-tight text-gray-400 group-hover:text-gray-900 transition-colors py-8">
-                  Catalog <ChevronRight className="w-3 h-3 rotate-90 transition-transform group-hover:-rotate-90" />
+                <button className="flex items-center gap-1 text-sm font-bold text-gray-600 group-hover:text-primary-600 transition-colors py-8 h-20">
+                  Shop <ChevronDown className="w-4 h-4 transition-transform group-hover:rotate-180 opacity-50" />
                 </button>
                 
-                {/* Mega-menu style dropdown */}
-                <div className="absolute top-full left-0 w-[480px] bg-white rounded-4xl shadow-2xl border border-gray-100 p-8 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-50 ring-1 ring-black/5">
-                  <div className="grid grid-cols-2 gap-8">
-                    <div>
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Categories</h4>
-                      <div className="space-y-4">
-                        {SHOP_LINKS.map(link => (
-                          <Link key={link.href} href={link.href} className="flex items-center gap-4 group/item">
-                            <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover/item:bg-primary-50 group-hover/item:text-primary-600 transition-colors">
-                              <link.icon className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-xs font-black text-gray-900 group-hover/item:text-primary-600 transition-colors">{link.label}</p>
-                              <p className="text-[10px] text-gray-400 font-bold italic">Explore the latest</p>
-                            </div>
-                          </Link>
-                        ))}
-                      </div>
+                {/* Mega-menu style dropdown - Shopify style */}
+                <div className="absolute top-full left-1/2 -translate-x-1/2 w-[600px] bg-white rounded-2xl shadow-xl border border-gray-100 p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-200 z-50">
+                  <div className="grid grid-cols-3 gap-8">
+                    <div className="col-span-2">
+                       <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                         <div>
+                            <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Categories</h4>
+                            <ul className="space-y-3">
+                              <li><Link href="/products?category=Singles" className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium">Rare Singles</Link></li>
+                              <li><Link href="/products?category=sealed" className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium">Sealed Boxes</Link></li>
+                              <li><Link href="/products?category=accessories" className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium">Accessories</Link></li>
+                            </ul>
+                         </div>
+                         <div>
+                            <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest mb-4">Collections</h4>
+                            <ul className="space-y-3">
+                              <li><Link href="/products?category=new" className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium flex items-center gap-2">New Arrivals <Zap className="w-3 h-3 text-amber-400 fill-current" /></Link></li>
+                              <li><Link href="/products?category=bestsellers" className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-medium">Bestsellers</Link></li>
+                              <li><Link href="/products?category=sale" className="text-sm text-red-500 hover:text-red-700 transition-colors font-medium">Clearance Event</Link></li>
+                            </ul>
+                         </div>
+                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-3xl p-6">
-                      <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Featured</h4>
-                      <div className="aspect-4/3 rounded-2xl bg-white overflow-hidden mb-4 shadow-sm border border-gray-100">
-                        <img src="https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=400&h=300&fit=crop" alt="Featured Card" className="w-full h-full object-cover" />
-                      </div>
-                      <p className="text-xs font-black text-gray-900 mb-1">Weekly Highlights</p>
-                      <Link href="/products" className="text-[10px] font-bold text-primary-600 uppercase tracking-widest hover:underline">Shop Now</Link>
+                    <div className="col-span-1 bg-gray-50 rounded-xl p-4 flex flex-col justify-between">
+                       <div>
+                         <div className="aspect-square rounded-lg bg-white overflow-hidden mb-3 shadow-sm border border-gray-100">
+                           <img src="https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=400&h=400&fit=crop" alt="Featured" className="w-full h-full object-cover" />
+                         </div>
+                         <p className="text-sm font-bold text-gray-900 line-clamp-1">Charizard Base Set</p>
+                         <p className="text-xs text-gray-500 font-medium">Trending Artifact</p>
+                       </div>
+                       <Link href="/products" className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline mt-4 inline-block">View Item</Link>
                     </div>
                   </div>
                 </div>
               </div>
-              <Link href="/products?category=new" className="text-sm font-black tracking-tight text-gray-400 hover:text-gray-900 transition-colors">
-                New Arrivals
+              <Link href="/products" className="text-sm font-bold text-gray-600 hover:text-primary-600 transition-colors py-8 h-20 flex items-center">
+                All Products
               </Link>
-              <Link href="/wishlist" className="text-sm font-black tracking-tight text-gray-400 hover:text-gray-900 transition-colors">
-                Personal Collection
+              <Link href="/products?category=featured" className="text-sm font-bold text-gray-600 hover:text-primary-600 transition-colors py-8 h-20 flex items-center">
+                Featured
               </Link>
             </div>
           </div>

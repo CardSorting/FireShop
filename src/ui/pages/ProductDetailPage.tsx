@@ -149,7 +149,7 @@ export function ProductDetailPage() {
   const installmentPrice = (product.price / 400).toFixed(2);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white pb-24 lg:pb-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Breadcrumb */}
         <nav aria-label="Breadcrumb" className="mb-10 flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-400">
@@ -676,21 +676,21 @@ export function ProductDetailPage() {
       </div>
 
       {/* Mobile Sticky CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-xl border-t border-gray-100 p-6 lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.05)] animate-in slide-in-from-bottom duration-500">
-        <div className="flex items-center gap-4">
-          <div className="h-14 w-12 rounded-xl bg-gray-50 border overflow-hidden shrink-0">
-            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 p-4 lg:hidden shadow-[0_-10px_40px_rgba(0,0,0,0.1)] pb-safe animate-in slide-in-from-bottom duration-500">
+        <div className="max-w-md mx-auto flex items-center gap-4">
+          <div className="h-12 w-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden shrink-0">
+            <img src={mainImage || product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 truncate">{product.name}</p>
-            <p className="text-lg font-black text-gray-900">${(product.price / 100).toFixed(2)}</p>
+            <p className="text-xs font-black text-gray-900 truncate">{product.name}</p>
+            <p className="text-sm font-black text-primary-600">${(product.price / 100).toFixed(2)}</p>
           </div>
           <button
             onClick={handleAddToCart}
             disabled={adding || product.stock === 0}
-            className="flex-2 h-14 px-8 flex items-center justify-center gap-3 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl disabled:opacity-50"
+            className="h-12 px-6 flex items-center justify-center gap-2 bg-gray-900 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-black active:scale-95 disabled:opacity-50 transition-all shrink-0"
           >
-            {added ? <Check className="w-5 h-5" /> : <ShoppingCart className="w-5 h-5" />}
+            {added ? <Check className="w-4 h-4" /> : <ShoppingCart className="w-4 h-4" />}
             {adding ? '...' : 'Add'}
           </button>
         </div>
