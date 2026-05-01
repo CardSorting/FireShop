@@ -1,5 +1,63 @@
 # Changelog
 
+## 2026-05-01 — Admin product management search, filtering, and identification upgrade
+
+### Problem verified
+
+- The admin products page had saved views, text search, category/vendor/inventory/setup dropdowns, grid/list display, and bulk operations, but the filtering experience remained closer to an internal table than a familiar Shopify/Stripe-style merchant list.
+- Product search and filtering were split between UI-local state and saved-view loading, with no first-class product-management query contract for facets, active filter metadata, and explicit sort keys.
+- Non-technical operators lacked common ecommerce affordances such as active filter chips, a clear `More filters` panel, a visible sort control, and stronger product identity hierarchy for SKU/barcode/vendor/setup context.
+- The admin saved-view API accepted only `query`, `limit`, and `cursor`, so the UI client had no transport path for richer product-management filters.
+
+### Remediation performed
+
+- Extended `src/domain/models.ts` with pure product-management list contracts:
+  - added `needs_attention` to `ProductSavedView`,
+  - added `ProductManagementSortKey`,
+  - added `ProductManagementFilters`,
+  - added `ProductManagementFacetOption`, `ProductManagementFacets`, and `ProductManagementActiveFilter`,
+  - expanded `ProductSavedViewResult` with `filteredCount`, `facets`, `activeFilters`, `sort`, and optional `nextCursor`.
+- Updated `src/core/ProductService.ts` so `getProductSavedView()` now orchestrates saved-view matching, explicit management filters, facet generation, active-filter metadata, sorting, and cursor/limit slicing.
+- Added `isProductManagementSort()` and `getProductManagementList()` to `src/core/ProductService.ts`.
+- Updated the protected saved-view route `src/app/api/admin/products/views/[view]/route.ts` to parse product-management filters and sort query parameters before delegating to Core.
+- Updated `src/ui/apiClientServices.ts` so `productService.getProductSavedView()` accepts `ProductManagementFilters` and forwards filter/sort query parameters to the admin saved-view endpoint.
+- Reworked `src/ui/pages/admin/AdminProducts.tsx` with Shopify/Stripe-style admin list patterns:
+  - `Needs attention` saved-view tab and metric shortcut,
+  - status filter and explicit sort dropdown,
+  - collapsible `More filters` panel for product type, margin health, SKU, photo, and cost completeness,
+  - active filter chips with individual remove controls and `Clear all`,
+  - merchant-readable search guidance and result summary,
+  - stronger product identification using SKU, barcode, manufacturer SKU fallback, vendor/supplier, setup warnings, updated date, stock, and margin context.
+
+### Verification evidence
+
+- Targeted ESLint completed without diagnostics for the changed files:
+  - `npx eslint src/domain/models.ts src/core/ProductService.ts 'src/app/api/admin/products/views/[view]/route.ts' src/ui/apiClientServices.ts src/ui/pages/admin/AdminProducts.tsx`
+- `npm run lint` was run and reported pre-existing unrelated lint errors in:
+  - `src/core/container.ts`
+  - `src/ui/pages/WishlistPage.tsx`
+  - `src/ui/pages/admin/AdminPOS.tsx`
+- `npm run build` was run and failed on a pre-existing Server/Client Component boundary issue in `src/ui/pages/admin/product-form/hooks/useProductForm.ts`, not in this product-management list update.
+- `npm run typecheck -- --noEmit` was attempted, but the project has no `typecheck` script in `package.json`.
+- `npx tsc --noEmit --pretty false` was run and returned no TypeScript diagnostics in the captured output.
+
+### Files intentionally changed in this pass
+
+- `src/domain/models.ts`
+- `src/core/ProductService.ts`
+- `src/app/api/admin/products/views/[view]/route.ts`
+- `src/ui/apiClientServices.ts`
+- `src/ui/pages/admin/AdminProducts.tsx`
+- `.wiki/architecture/product-management.md`
+- `.wiki/changelog.md`
+
+### Architectural notes
+
+- Domain additions are serializable product-management types only; no I/O, UI, database, or framework imports were added to Domain.
+- Core owns saved-view orchestration, derived filters, facet construction, active-filter metadata, and sort behavior.
+- Infrastructure route changes remain transport parsing and admin endpoint delegation only.
+- UI renders the merchant-friendly controls and product identity hierarchy while dispatching list intentions through the API client service.
+
 ## 2026-04-29 — Product intake and receiving workspace modernization
 
 ### Problem verified

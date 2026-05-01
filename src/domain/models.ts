@@ -89,6 +89,7 @@ export type ProductSavedView =
   | 'all'
   | 'active'
   | 'drafts'
+  | 'needs_attention'
   | 'low_stock'
   | 'missing_sku'
   | 'missing_cost'
@@ -96,6 +97,60 @@ export type ProductSavedView =
   | 'archived';
 
 export type MarginHealth = 'unknown' | 'at_risk' | 'healthy' | 'premium';
+
+export type ProductManagementSortKey =
+  | 'updated_desc'
+  | 'created_desc'
+  | 'name_asc'
+  | 'name_desc'
+  | 'inventory_asc'
+  | 'inventory_desc'
+  | 'price_asc'
+  | 'price_desc'
+  | 'margin_asc'
+  | 'margin_desc';
+
+export interface ProductManagementFilters {
+  query?: string;
+  status?: ProductStatus | 'all';
+  category?: string | 'all';
+  vendor?: string | 'all';
+  productType?: string | 'all';
+  inventoryHealth?: InventoryHealth | 'all';
+  setupStatus?: ProductSetupStatus | 'all';
+  setupIssue?: ProductSetupIssue | 'all';
+  marginHealth?: MarginHealth | 'all';
+  tag?: string;
+  hasSku?: boolean;
+  hasImage?: boolean;
+  hasCost?: boolean;
+  sort?: ProductManagementSortKey;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ProductManagementFacetOption {
+  label: string;
+  value: string;
+  count: number;
+}
+
+export interface ProductManagementFacets {
+  statuses: ProductManagementFacetOption[];
+  categories: ProductManagementFacetOption[];
+  vendors: ProductManagementFacetOption[];
+  productTypes: ProductManagementFacetOption[];
+  inventoryHealth: ProductManagementFacetOption[];
+  setupIssues: ProductManagementFacetOption[];
+  marginHealth: ProductManagementFacetOption[];
+  tags: ProductManagementFacetOption[];
+}
+
+export interface ProductManagementActiveFilter {
+  key: keyof ProductManagementFilters;
+  label: string;
+  value: string;
+}
 
 export type ProductManagementProduct = Product & {
   setupStatus: ProductSetupStatus;
@@ -108,7 +163,12 @@ export type ProductManagementProduct = Product & {
 export interface ProductSavedViewResult {
   view: ProductSavedView;
   totalCount: number;
+  filteredCount: number;
   products: ProductManagementProduct[];
+  facets: ProductManagementFacets;
+  activeFilters: ProductManagementActiveFilter[];
+  sort: ProductManagementSortKey;
+  nextCursor?: string;
 }
 
 export interface ProductManagementOverview {

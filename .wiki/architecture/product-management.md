@@ -68,6 +68,38 @@ The form loads the same metadata when editing existing products and sends cent-b
 
 `src/ui/pages/admin/AdminProducts.tsx` now exposes expanded category tabs, forwards product search to the backend, searches visible products by SKU/supplier/manufacturer/manufacturer SKU/barcode, and displays SKU/supplier intake details in list/grid cards.
 
+### 2026-05-01 admin product search/filter/navigation update
+
+`src/domain/models.ts` now defines product-management query/read-model contracts used by the admin saved-view list:
+
+- `ProductSavedView` includes `needs_attention` in addition to `all`, `active`, `drafts`, `low_stock`, `missing_sku`, `missing_cost`, `needs_photos`, and `archived`.
+- `ProductManagementSortKey` defines the supported admin product sorts: recently updated, newest created, title A–Z/Z–A, inventory low/high, price low/high, and margin low/high.
+- `ProductManagementFilters` defines optional admin list filters for status, category, vendor, product type, inventory health, setup status/issue, margin health, tag, SKU presence, image presence, cost presence, sort, limit, and cursor.
+- `ProductManagementFacets`, `ProductManagementFacetOption`, and `ProductManagementActiveFilter` define the saved-view facet and active-filter metadata returned to the UI.
+- `ProductSavedViewResult` now includes `filteredCount`, `facets`, `activeFilters`, `sort`, and optional `nextCursor` in addition to `view`, `totalCount`, and `products`.
+
+`src/core/ProductService.ts` now treats product management saved views as a Core orchestration concern:
+
+- Validates product saved-view values including the new `needs_attention` view.
+- Validates product-management sort keys through `isProductManagementSort()`.
+- Enriches products for management, applies saved-view matching, applies explicit product-management filters, builds facets, builds active-filter metadata, sorts the result, and applies cursor/limit slicing in `getProductSavedView()`.
+- Exposes `getProductManagementList()` as a convenience delegator to the saved-view path.
+
+`src/app/api/admin/products/views/[view]/route.ts` now parses product-management query parameters for the protected admin saved-view endpoint:
+
+- `query`, `limit`, `cursor`, `status`, `category`, `vendor`, `productType`, `inventoryHealth`, `setupStatus`, `setupIssue`, `marginHealth`, `tag`, `hasSku`, `hasImage`, `hasCost`, and `sort`.
+- Boolean URL values are accepted only as `true` or `false`; sort values are passed only when accepted by `isProductManagementSort()`.
+
+`src/ui/apiClientServices.ts` now sends the same product-management filter and sort options to `/api/admin/products/views/{view}` through `productService.getProductSavedView(view, options)`.
+
+`src/ui/pages/admin/AdminProducts.tsx` now mirrors more familiar Shopify/Stripe admin list patterns:
+
+- Adds a `Needs attention` saved-view tab and metric-card shortcut.
+- Adds a status filter, explicit sort dropdown, product-type filter, margin-health filter, SKU/photo/cost presence filters, and a collapsible `More filters` panel.
+- Adds active filter chips with individual remove actions and a `Clear all` action.
+- Adds merchant-friendly search guidance text and a result summary showing filtered count, saved-view count, and current sort label.
+- Emphasizes product identification in list/grid presentation with SKU, barcode, manufacturer SKU fallback, vendor/supplier, setup warnings, stock, margin, and updated-date context.
+
 `src/utils/formatters.ts::humanizeCategory()` now humanizes underscore-delimited category ids, so values such as `elite_trainer_box` render as `Elite Trainer Box`.
 
 ## Verification evidence
@@ -79,3 +111,11 @@ CI=1 npm run lint && CI=1 npm run build
 ```
 
 The command completed successfully after the final product-management changes. The production build compiled successfully, completed TypeScript validation, generated static pages, and listed `/api/products`, `/api/products/[id]`, `/admin/products`, `/admin/products/new`, and `/admin/products/[id]/edit` routes.
+
+The 2026-05-01 admin product search/filter/navigation update was additionally checked with:
+
+```bash
+npx eslint src/domain/models.ts src/core/ProductService.ts 'src/app/api/admin/products/views/[view]/route.ts' src/ui/apiClientServices.ts src/ui/pages/admin/AdminProducts.tsx
+```
+
+The targeted ESLint command returned with no diagnostics for the files changed in the 2026-05-01 update. Full-project `npm run lint` was also run and reported pre-existing unrelated lint failures in `src/core/container.ts`, `src/ui/pages/WishlistPage.tsx`, and `src/ui/pages/admin/AdminPOS.tsx`. `npm run build` was run and failed on a pre-existing Server/Client Component boundary issue in `src/ui/pages/admin/product-form/hooks/useProductForm.ts`, outside the files changed in the 2026-05-01 product list update.

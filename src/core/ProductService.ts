@@ -2,7 +2,24 @@
  * [LAYER: CORE]
  */
 import type { IProductRepository } from '@domain/repositories';
-import type { InventoryOverview, MarginHealth, Product, ProductDraft, ProductManagementOverview, ProductManagementProduct, ProductSavedView, ProductSavedViewResult, ProductSetupIssue, ProductStatus, ProductUpdate } from '@domain/models';
+import type {
+  InventoryOverview,
+  MarginHealth,
+  Product,
+  ProductDraft,
+  ProductManagementActiveFilter,
+  ProductManagementFacetOption,
+  ProductManagementFacets,
+  ProductManagementFilters,
+  ProductManagementOverview,
+  ProductManagementProduct,
+  ProductManagementSortKey,
+  ProductSavedView,
+  ProductSavedViewResult,
+  ProductSetupIssue,
+  ProductStatus,
+  ProductUpdate,
+} from '@domain/models';
 import { AuditService } from './AuditService';
 import { ProductNotFoundError } from '@domain/errors';
 import {
@@ -19,6 +36,7 @@ const PRODUCT_SAVED_VIEWS: ProductSavedView[] = [
   'all',
   'active',
   'drafts',
+  'needs_attention',
   'low_stock',
   'missing_sku',
   'missing_cost',
@@ -26,8 +44,27 @@ const PRODUCT_SAVED_VIEWS: ProductSavedView[] = [
   'archived',
 ];
 
+const DEFAULT_MANAGEMENT_SORT: ProductManagementSortKey = 'updated_desc';
+
+const MANAGEMENT_SORTS: ProductManagementSortKey[] = [
+  'updated_desc',
+  'created_desc',
+  'name_asc',
+  'name_desc',
+  'inventory_asc',
+  'inventory_desc',
+  'price_asc',
+  'price_desc',
+  'margin_asc',
+  'margin_desc',
+];
+
 export function isProductSavedView(value: string): value is ProductSavedView {
   return PRODUCT_SAVED_VIEWS.includes(value as ProductSavedView);
+}
+
+export function isProductManagementSort(value: string): value is ProductManagementSortKey {
+  return MANAGEMENT_SORTS.includes(value as ProductManagementSortKey);
 }
 
 export class ProductService {
@@ -120,29 +157,42 @@ export class ProductService {
 
   async getProductSavedView(
     view: ProductSavedView,
-    options?: { query?: string; limit?: number; cursor?: string }
+    options?: ProductManagementFilters
   ): Promise<ProductSavedViewResult> {
     const { products } = await this.repo.getAll({
       query: options?.query,
-      limit: options?.limit ?? 500,
-      cursor: options?.cursor,
+      limit: 1000,
     });
-    const enriched = products
+    const savedViewProducts = products
       .map((product) => this.enrichProductForManagement(product))
-      .filter((product) => this.matchesSavedView(product, view))
-      .sort((a, b) => {
-        if (view === 'low_stock') return a.stock - b.stock || a.name.localeCompare(b.name);
-        if (view === 'missing_sku' || view === 'missing_cost' || view === 'needs_photos') {
-          return b.setupIssues.length - a.setupIssues.length || a.name.localeCompare(b.name);
-        }
-        return b.updatedAt.getTime() - a.updatedAt.getTime() || a.name.localeCompare(b.name);
-      });
+      .filter((product) => this.matchesSavedView(product, view));
+
+    const facets = this.buildManagementFacets(savedViewProducts);
+    const activeFilters = this.buildActiveFilters(options);
+    const sort = options?.sort && MANAGEMENT_SORTS.includes(options.sort) ? options.sort : DEFAULT_MANAGEMENT_SORT;
+    const filtered = savedViewProducts
+      .filter((product) => this.matchesManagementFilters(product, options))
+      .sort((a, b) => this.compareManagedProducts(a, b, sort, view));
+
+    const cursorIndex = options?.cursor ? filtered.findIndex((product) => product.id === options.cursor) : -1;
+    const cursorFiltered = cursorIndex >= 0 ? filtered.slice(cursorIndex + 1) : filtered;
+    const limit = Math.min(Math.max(options?.limit ?? 100, 1), 500);
+    const limited = cursorFiltered.slice(0, limit);
 
     return {
       view,
-      totalCount: enriched.length,
-      products: enriched,
+      totalCount: savedViewProducts.length,
+      filteredCount: filtered.length,
+      products: limited,
+      facets,
+      activeFilters,
+      sort,
+      nextCursor: cursorFiltered.length > limit ? limited[limited.length - 1]?.id : undefined,
     };
+  }
+
+  async getProductManagementList(options?: ProductManagementFilters & { view?: ProductSavedView }): Promise<ProductSavedViewResult> {
+    return this.getProductSavedView(options?.view ?? 'all', options);
   }
 
   private enrichProductForManagement(
@@ -166,11 +216,113 @@ export class ProductService {
     if (view === 'active') return product.status === 'active';
     if (view === 'drafts') return product.status === 'draft';
     if (view === 'archived') return product.status === 'archived';
+    if (view === 'needs_attention') return product.setupStatus === 'needs_attention';
     if (view === 'low_stock') return product.stock > 0 && product.stock < (product.reorderPoint ?? 5);
     if (view === 'missing_sku') return product.setupIssues.includes('missing_sku');
     if (view === 'missing_cost') return product.setupIssues.includes('missing_cost');
     if (view === 'needs_photos') return product.setupIssues.includes('missing_image');
     return false;
+  }
+
+  private matchesManagementFilters(product: ProductManagementProduct, filters?: ProductManagementFilters): boolean {
+    if (!filters) return true;
+    if (filters.status && filters.status !== 'all' && product.status !== filters.status) return false;
+    if (filters.category && filters.category !== 'all' && product.category !== filters.category) return false;
+    if (filters.vendor && filters.vendor !== 'all' && this.vendorLabel(product) !== filters.vendor) return false;
+    if (filters.productType && filters.productType !== 'all' && product.productType !== filters.productType) return false;
+    if (filters.inventoryHealth && filters.inventoryHealth !== 'all' && product.inventoryHealth !== filters.inventoryHealth) return false;
+    if (filters.setupStatus && filters.setupStatus !== 'all' && product.setupStatus !== filters.setupStatus) return false;
+    if (filters.setupIssue && filters.setupIssue !== 'all' && !product.setupIssues.includes(filters.setupIssue)) return false;
+    if (filters.marginHealth && filters.marginHealth !== 'all' && product.marginHealth !== filters.marginHealth) return false;
+    if (filters.tag && !(product.tags ?? []).some((tag) => tag.toLowerCase() === filters.tag?.toLowerCase())) return false;
+    if (filters.hasSku !== undefined && Boolean(product.sku?.trim()) !== filters.hasSku) return false;
+    if (filters.hasImage !== undefined && Boolean(product.imageUrl?.trim()) !== filters.hasImage) return false;
+    if (filters.hasCost !== undefined && Boolean(product.cost !== undefined) !== filters.hasCost) return false;
+    return true;
+  }
+
+  private compareManagedProducts(a: ProductManagementProduct, b: ProductManagementProduct, sort: ProductManagementSortKey, view: ProductSavedView): number {
+    if (sort === 'name_asc') return a.name.localeCompare(b.name);
+    if (sort === 'name_desc') return b.name.localeCompare(a.name);
+    if (sort === 'created_desc') return b.createdAt.getTime() - a.createdAt.getTime() || a.name.localeCompare(b.name);
+    if (sort === 'inventory_asc') return a.stock - b.stock || a.name.localeCompare(b.name);
+    if (sort === 'inventory_desc') return b.stock - a.stock || a.name.localeCompare(b.name);
+    if (sort === 'price_asc') return a.price - b.price || a.name.localeCompare(b.name);
+    if (sort === 'price_desc') return b.price - a.price || a.name.localeCompare(b.name);
+    if (sort === 'margin_asc') return (a.grossMarginPercent ?? -1) - (b.grossMarginPercent ?? -1) || a.name.localeCompare(b.name);
+    if (sort === 'margin_desc') return (b.grossMarginPercent ?? -1) - (a.grossMarginPercent ?? -1) || a.name.localeCompare(b.name);
+    if (view === 'low_stock') return a.stock - b.stock || a.name.localeCompare(b.name);
+    if (view === 'missing_sku' || view === 'missing_cost' || view === 'needs_photos' || view === 'needs_attention') {
+      return b.setupIssues.length - a.setupIssues.length || a.name.localeCompare(b.name);
+    }
+    return b.updatedAt.getTime() - a.updatedAt.getTime() || a.name.localeCompare(b.name);
+  }
+
+  private buildManagementFacets(products: ProductManagementProduct[]): ProductManagementFacets {
+    return {
+      statuses: this.toFacetOptions(this.countBy(products, (product) => product.status), this.statusLabel),
+      categories: this.toFacetOptions(this.countBy(products, (product) => product.category), this.titleize),
+      vendors: this.toFacetOptions(this.countBy(products, (product) => this.vendorLabel(product), (value) => value !== '—')),
+      productTypes: this.toFacetOptions(this.countBy(products, (product) => product.productType ?? 'No type')),
+      inventoryHealth: this.toFacetOptions(this.countBy(products, (product) => product.inventoryHealth), this.titleize),
+      setupIssues: this.toFacetOptions(this.countBy(products.flatMap((product) => product.setupIssues), (issue) => issue), this.titleize),
+      marginHealth: this.toFacetOptions(this.countBy(products, (product) => product.marginHealth), this.titleize),
+      tags: this.toFacetOptions(this.countBy(products.flatMap((product) => product.tags ?? []), (tag) => tag)).slice(0, 25),
+    };
+  }
+
+  private buildActiveFilters(filters?: ProductManagementFilters): ProductManagementActiveFilter[] {
+    if (!filters) return [];
+    const active: ProductManagementActiveFilter[] = [];
+    const add = (key: keyof ProductManagementFilters, label: string, value: string | undefined | boolean) => {
+      if (value === undefined || value === '' || value === 'all') return;
+      active.push({ key, label, value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : this.titleize(value) });
+    };
+    add('query', 'Search', filters.query);
+    add('status', 'Status', filters.status);
+    add('category', 'Category', filters.category);
+    add('vendor', 'Vendor', filters.vendor);
+    add('productType', 'Product type', filters.productType);
+    add('inventoryHealth', 'Inventory', filters.inventoryHealth);
+    add('setupStatus', 'Setup', filters.setupStatus);
+    add('setupIssue', 'Issue', filters.setupIssue);
+    add('marginHealth', 'Margin', filters.marginHealth);
+    add('tag', 'Tag', filters.tag);
+    add('hasSku', 'Has SKU', filters.hasSku);
+    add('hasImage', 'Has photo', filters.hasImage);
+    add('hasCost', 'Has cost', filters.hasCost);
+    return active;
+  }
+
+  private countBy<T>(items: T[], picker: (item: T) => string, include: (value: string) => boolean = Boolean): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const value = picker(item);
+      if (!include(value)) continue;
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  private toFacetOptions(counts: Map<string, number>, labeler: (value: string) => string = (value) => value): ProductManagementFacetOption[] {
+    return Array.from(counts.entries())
+      .map(([value, count]) => ({ value, label: labeler(value), count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }
+
+  private vendorLabel(product: Product): string {
+    return product.vendor || product.supplier || product.manufacturer || '—';
+  }
+
+  private statusLabel(value: string): string {
+    if (value === 'active') return 'Active';
+    if (value === 'draft') return 'Draft';
+    if (value === 'archived') return 'Archived';
+    return value;
+  }
+
+  private titleize(value: string): string {
+    return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   async getProduct(id: string): Promise<Product> {

@@ -3,7 +3,7 @@
  */
 'use client';
 
-import type { Address, AdminDashboardSummary, Cart, InventoryOverview, Order, OrderStatus, Product, ProductDraft, ProductManagementOverview, ProductSavedView, ProductSavedViewResult, ProductUpdate, User, OrderNote, PurchaseOrder, InventoryLocation, Supplier, Collection, ProductCategory, ProductType } from '@domain/models';
+import type { Address, AdminDashboardSummary, Cart, InventoryOverview, Order, OrderStatus, Product, ProductDraft, ProductManagementFilters, ProductManagementOverview, ProductSavedView, ProductSavedViewResult, ProductUpdate, User, OrderNote, PurchaseOrder, InventoryLocation, Supplier, Collection, ProductCategory, ProductType } from '@domain/models';
 
 const sessionScoped = (userId: string) => void userId;
 const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt', 'estimatedDeliveryDate', 'at']);
@@ -74,11 +74,24 @@ export function createApiClientServices() {
             getProduct: (id: string) => request<Product>(`/api/products/${id}`),
             getInventoryOverview: () => request<InventoryOverview>('/api/admin/inventory'),
             getProductManagementOverview: () => request<ProductManagementOverview>('/api/admin/products/overview'),
-            getProductSavedView: (view: ProductSavedView, options?: { query?: string; limit?: number; cursor?: string }) => {
+            getProductSavedView: (view: ProductSavedView, options?: ProductManagementFilters) => {
                 const qs = new URLSearchParams();
                 if (options?.query) qs.set('query', options.query);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);
+                if (options?.status && options.status !== 'all') qs.set('status', options.status);
+                if (options?.category && options.category !== 'all') qs.set('category', options.category);
+                if (options?.vendor && options.vendor !== 'all') qs.set('vendor', options.vendor);
+                if (options?.productType && options.productType !== 'all') qs.set('productType', options.productType);
+                if (options?.inventoryHealth && options.inventoryHealth !== 'all') qs.set('inventoryHealth', options.inventoryHealth);
+                if (options?.setupStatus && options.setupStatus !== 'all') qs.set('setupStatus', options.setupStatus);
+                if (options?.setupIssue && options.setupIssue !== 'all') qs.set('setupIssue', options.setupIssue);
+                if (options?.marginHealth && options.marginHealth !== 'all') qs.set('marginHealth', options.marginHealth);
+                if (options?.tag) qs.set('tag', options.tag);
+                if (options?.hasSku !== undefined) qs.set('hasSku', String(options.hasSku));
+                if (options?.hasImage !== undefined) qs.set('hasImage', String(options.hasImage));
+                if (options?.hasCost !== undefined) qs.set('hasCost', String(options.hasCost));
+                if (options?.sort) qs.set('sort', options.sort);
                 return request<ProductSavedViewResult>(`/api/admin/products/views/${view}?${qs}`);
             },
             createProduct: (data: ProductDraft, _actor: { id: string; email: string }) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
