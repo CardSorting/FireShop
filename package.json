@@ -13,7 +13,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "seed": "tsx --tsconfig tsconfig.json migrate-and-seed.ts"
+    "seed": "tsx --tsconfig tsconfig.json migrate-and-seed.ts",
+    "setup": "./scripts/setup.sh"
   },
   "engines": {
     "node": ">=23.5.0"

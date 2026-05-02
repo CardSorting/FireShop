@@ -1,102 +1,94 @@
-# PlayMoreTCG — E-Commerce Platform
+# ShopMore: The Sovereign Commerce Engine
 
-A full-stack ecommerce application for trading card game products, built with **Next.js**, **React**, **TypeScript**, **Tailwind CSS**, and **SQLite**.
+ShopMore is a neutral, high-performance, and deeply customizable e-commerce engine designed for merchants who prioritize data ownership and operational sovereignty. Built on a hardened TypeScript substrate, ShopMore provides an industry-leading alternative to SaaS platforms, offering absolute control over the entire commerce lifecycle.
 
-## Architecture (Joy-Zoning)
+---
+
+## 🏗 Architecture (Joy-Zoning)
+
+ShopMore adheres to a strict layered architecture (Clean Architecture / DDD) to ensure business logic remains pure, testable, and decoupled from infrastructure.
 
 | Layer | Path | Responsibility |
-|---|---|---|
-| **Domain** | `src/domain/` | Pure business logic: models, rules, errors, repository contracts |
-| **Core** | `src/core/` | Application orchestration: services coordinate domain + infrastructure |
-| **Infrastructure** | `src/infrastructure/` | Adapters: SQLite repositories, API-backed client services, payment processors |
-| **UI** | `src/ui/` | React components, pages, hooks, layouts |
-| **Plumbing** | `src/utils/` | Stateless helpers: constants, formatters, validators |
+| :--- | :--- | :--- |
+| **Domain** | `src/domain/` | Pure business logic: models, rules, and repository contracts. **Zero dependencies.** |
+| **Core** | `src/core/` | Application orchestration: services coordinate domain logic and infrastructure adapters. |
+| **Infrastructure** | `src/infrastructure/` | Adapters for SQLite, API-backed services, and payment processors. |
+| **UI** | `src/ui/` | React 19 components, Next.js pages, and high-fidelity layouts. |
+| **Plumbing** | `src/utils/` | Stateless helpers, formatters, and global constants. |
 
-## Features
+---
 
-### Customer
-- Browse products with category filtering
-- Product detail pages with SEO-friendly handles and canonical routing
-- Digital Locker: Access purchased digital assets securely from the account dashboard
-- Support Center: Submit tickets and browse a merchant-managed knowledgebase
-- Add to cart (quantity selector)
-- Full cart management (update qty, remove items)
-- Checkout with shipping address + mock payment
-- Order history with status tracking
-- Account creation & login
+## ✨ Industrial Features
 
-### Admin
-- **Support CRM**: Full-stack ticketing system with "Quick Reply" macros, real-time agent collision detection, and customer feedback loops.
-- **Digital Vault**: Memory-efficient, streaming-first ingestion for massive digital assets and high-fidelity fulfillment tracking.
-- **Unified Dashboard**: Real-time stats, revenue charts, fulfillment pipeline, and priority action items.
-- **Order Management**: Fulfillment tracking, status transitions, and detailed order insights.
-- **Inventory Health**: Automated stock classification (Healthy, Low, Out) and restock recommendations.
-- **Bulk Product Editor**: High-speed spreadsheet-style interface for mass price and stock updates.
-- **Customer CRM**: LTV tracking, automated segmentation (Big Spenders, New, etc.), and CSV exports.
-- **SEO Management**: Canonical handle generation, JSON-LD structured data, and automated sitemap/robots orchestration.
-- **Command Palette**: Global `Cmd+K` interface for rapid navigation across the admin panel.
-- **Role-based Access Control**: Hardened session-based protection for all administrative routes.
+### 🛒 Customer Experience
+- **Handle-Based Routing**: Canonical, SEO-optimized URLs for products and collections.
+- **Digital Locker**: Secure, authenticated access to purchased digital assets via ephemeral signed URLs.
+- **Support Center**: Integrated ticketing and knowledgebase for frictionless customer lifecycle management.
+- **Trusted Checkout**: Hardened payment orchestration with real Stripe integration and idempotency guards.
 
-## Tech Stack
+### 🛡 Merchant Administration
+- **Support CRM**: Full-stack interaction management with agent collision detection and "Quick Reply" macros.
+- **Digital Vault**: Memory-efficient, streaming-first ingestion for massive digital asset management.
+- **Inventory Intelligence**: Automated stock health tracking, restock recommendations, and supplier management.
+- **Bulk Operations**: High-speed spreadsheet-style editor for mass inventory, price, and metadata updates.
+- **Sovereign Analytics**: Real-time sales, conversion, AOV, and customer LTV insights.
 
-| Concern | Technology |
-|---|---|
-| Framework | Next.js App Router + React 19 + TypeScript |
-| Styling | Tailwind CSS 4 |
-| Router | Next.js App Router |
-| Auth | SQLite-backed auth via Next API routes and HTTP-only session cookie |
-| Database | SQLite via better-sqlite3 + Kysely |
-| Icons | Lucide React |
+---
 
-## Quick Start
+## 🚀 Quick Start
 
-### 1. Install Dependencies
+Follow these steps to initialize your sovereign commerce workspace.
+
+### 1. Prerequisites
+- **Node.js**: 20.x or higher
+- **npm**: 10.x or higher
+
+### 2. Quick Initialization
 ```bash
-npm install
+# Install dependencies, initialize .env, and seed the database
+npm run setup
 ```
+> [!TIP]
+> The setup script automatically copies `.env.example` to `.env` and generates a fresh `SESSION_SECRET` for you.
 
-### 2. Configure Environment
-Copy `.env.example` to `.env` and adjust local values if needed:
+### 3. Launch Engine
 ```bash
-cp .env.example .env
-```
-
-Required environment variables:
-- `SQLITE_DATABASE_PATH`
-- `SESSION_SECRET`
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (optional until Stripe checkout is configured)
-
-### 3. Seed Mock Products
-```bash
-npx tsx src/infrastructure/services/SeedDataLoader.ts
-```
-
-### 4. Start Dev Server
-```bash
+# Start development server
 npm run dev
 ```
 
-### 5. Build for Production
-```bash
-npm run build
-```
+---
 
-## Admin Setup
-Users are stored in SQLite. You can use the pre-created admin account for development. See the [Admin Access Guide](.wiki/admin-access.md) for credentials and instructions.
+## 🛠 Tech Stack
 
-## Project Structure
+- **Framework**: Next.js 15 (App Router) + React 19
+- **Logic**: TypeScript 5+ (Strict Mode)
+- **Persistence**: SQLite via Kysely & better-sqlite3
+- **Styling**: Tailwind CSS 4
+- **Security**: Signed HTTP-only session cookies & Rate-limiting guards
+- **Monitoring**: PRODUCTION_READY_METRICS.md
 
-```
-src/
-├── domain/          # Models, rules, errors, repository interfaces
-├── core/            # Services (CartService, OrderService, etc.)
-├── app/             # Next.js routes and API route handlers
-├── infrastructure/  # SQLite repositories, server session/database helpers
-├── ui/              # Pages, components, hooks, layouts
-├── utils/           # Constants, helpers
-└── index.css        # Tailwind theme
-```
+---
 
-## License
+## 📖 Knowledge Base
 
-MIT
+For deep technical dives and operational guides, refer to the internal **[Knowledge Ledger](.wiki/index.md)**:
+
+> [!TIP]
+> Use the [Architecture Overview](.wiki/architecture/overview.md) to understand the request lifecycle and [Troubleshooting](.wiki/onboarding/troubleshooting.md) for common setup issues.
+
+- [Support CRM Architecture](.wiki/architecture/support-crm.md)
+- [Digital Fulfillment Strategy](.wiki/architecture/digital-fulfillment.md)
+- [SEO & Navigation Hardening](.wiki/architecture/seo-routing.md)
+- [Admin Access Guide](.wiki/admin-access.md)
+
+---
+
+> [!NOTE]
+> **Industrial Neutrality**: ShopMore is designed to be industry-agnostic. While the current workspace includes TCG-focused mock data, the underlying models and services are ready for any vertical (Apparel, Digital Goods, etc.).
+
+---
+
+## 📄 License
+
+MIT © [ShopMore Contributors](LICENSE)
