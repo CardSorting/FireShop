@@ -15,6 +15,8 @@ import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
+import { getProductUrl, STORE_PATHS } from '@utils/navigation';
+
 
 function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -63,7 +65,8 @@ export function CartPage() {
         {/* Breadcrumbs & Header */}
         <div className="mb-12">
           <nav className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400 mb-6">
-            <Link href="/" className="hover:text-primary-600 transition-colors">Home</Link>
+            <Link href={STORE_PATHS.HOME} className="hover:text-primary-600 transition-colors">Home</Link>
+
             <ChevronRight className="h-3 w-3" />
             <span className="text-gray-900">Your Shopping Cart</span>
           </nav>
@@ -100,13 +103,14 @@ export function CartPage() {
                   Looks like you haven't added anything to your cart yet. Let's find some amazing cards for your collection!
                 </p>
                 <div className="mt-12 flex flex-wrap justify-center gap-4">
-                  <Link href="/products" className="rounded-2xl bg-primary-600 px-10 py-5 text-lg font-black text-white shadow-2xl shadow-primary-200 transition hover:bg-primary-700 hover:-translate-y-1 active:translate-y-0 active:scale-95">
+                  <Link href={STORE_PATHS.PRODUCTS} className="rounded-2xl bg-primary-600 px-10 py-5 text-lg font-black text-white shadow-2xl shadow-primary-200 transition hover:bg-primary-700 hover:-translate-y-1 active:translate-y-0 active:scale-95">
                     Start Shopping
                   </Link>
-                  <Link href="/" className="rounded-2xl border-2 border-gray-100 bg-white px-10 py-5 text-lg font-black text-gray-700 transition hover:bg-gray-50 hover:border-gray-200">
+                  <Link href={STORE_PATHS.HOME} className="rounded-2xl border-2 border-gray-100 bg-white px-10 py-5 text-lg font-black text-gray-700 transition hover:bg-gray-50 hover:border-gray-200">
                     Back to Home
                   </Link>
                 </div>
+
                </div>
             </div>
 
@@ -114,21 +118,23 @@ export function CartPage() {
               <section>
                 <div className="mb-10 flex items-center justify-between">
                   <h2 className="text-3xl font-black text-gray-900 tracking-tight">Handpicked for you</h2>
-                  <Link href="/products" className="text-sm font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1">
+                  <Link href={STORE_PATHS.PRODUCTS} className="text-sm font-bold text-primary-600 hover:text-primary-700 flex items-center gap-1">
                     View All <ChevronRight className="h-4 w-4" />
                   </Link>
+
                 </div>
                 <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                   {featuredProducts.map((p) => (
                     <article key={p.id} className="group bg-white rounded-3xl border border-gray-100 p-4 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
-                      <Link href={`/products/${p.handle || p.id}`} className="block aspect-square overflow-hidden rounded-2xl bg-gray-50 mb-6">
+                      <Link href={getProductUrl(p)} className="block aspect-square overflow-hidden rounded-2xl bg-gray-50 mb-6">
                         <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                       </Link>
                       <div>
                         <h4 className="text-xs font-black text-gray-900 group-hover:text-primary-600 transition-colors truncate">
-                          <Link href={`/products/${p.handle || p.id}`}>{p.name}</Link>
+                          <Link href={getProductUrl(p)}>{p.name}</Link>
                         </h4>
                       </div>
+
                       <div className="flex items-center justify-between pt-2">
                         <p className="text-xl font-black text-gray-900">{formatMoney(p.price)}</p>
                         <button 
@@ -152,17 +158,19 @@ export function CartPage() {
                 <article key={item.productId} className="bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 group" data-testid="cart-item">
                   <div className="flex flex-col sm:flex-row gap-8">
                     <div className="relative w-full sm:w-40 aspect-square shrink-0">
-                      <Link href={`/products/${item.productHandle || item.productId}`}>
+                      <Link href={getProductUrl({ id: item.productId, handle: item.productHandle })}>
                         <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover rounded-2xl ring-1 ring-gray-100 group-hover:scale-[1.02] transition-transform duration-500" />
                       </Link>
                     </div>
+
                     
                     <div className="flex-1 flex flex-col justify-between py-2">
                       <div className="flex justify-between items-start gap-4">
                         <div>
                           <h3 className="text-xl font-black text-gray-900 group-hover:text-primary-600 transition-colors mb-2">
-                            <Link href={`/products/${item.productHandle || item.productId}`}>{item.name}</Link>
+                            <Link href={getProductUrl({ id: item.productId, handle: item.productHandle })}>{item.name}</Link>
                           </h3>
+
                           <div className="flex items-center gap-4">
                              <p className="text-sm font-bold text-gray-400">Unit Price: <span className="text-gray-900">{formatMoney(item.priceSnapshot)}</span></p>
                              <div className="h-4 w-px bg-gray-200" />
@@ -282,11 +290,12 @@ export function CartPage() {
 
                 <div className="space-y-4">
                   <Link 
-                    href="/checkout"
+                    href={STORE_PATHS.CHECKOUT}
                     className="flex w-full items-center justify-center gap-3 bg-primary-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-primary-200 transition-all hover:bg-primary-700 hover:-translate-y-1 active:translate-y-0"
                   >
                     Checkout Securely <LockKeyhole className="h-5 w-5" />
                   </Link>
+
                   <button 
                     onClick={() => setShowPromo(!showPromo)}
                     className="w-full py-4 text-sm font-bold text-gray-400 hover:text-primary-600 transition-colors"
@@ -317,9 +326,10 @@ export function CartPage() {
                 </div>
               </div>
               
-              <Link href="/products" className="mt-8 flex items-center justify-center gap-2 text-sm font-bold text-gray-500 hover:text-primary-600 transition-colors group">
+              <Link href={STORE_PATHS.PRODUCTS} className="mt-8 flex items-center justify-center gap-2 text-sm font-bold text-gray-500 hover:text-primary-600 transition-colors group">
                  <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" /> Continue Shopping
               </Link>
+
             </aside>
           </div>
         )}

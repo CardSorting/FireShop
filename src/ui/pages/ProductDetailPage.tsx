@@ -22,6 +22,8 @@ import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { ProductReviews } from '../components/ProductReviews';
 import { Breadcrumbs } from '../components/Breadcrumbs';
+import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+
 
 function toFriendlyError(err: unknown): string {
   if (err instanceof Error && err.message) {
@@ -181,11 +183,12 @@ export function ProductDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs 
           items={[
-            { label: 'Catalog', href: '/products' },
-            { label: product.category, href: `/collections/${product.category.toLowerCase()}` },
+            { label: 'Catalog', href: STORE_PATHS.PRODUCTS },
+            { label: product.category, href: getCollectionUrl(product.category) },
             { label: product.name }
           ]} 
         />
+
 
         {/* Sticky Sub-Nav (Industry Standard) */}
         <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 mb-12 hidden lg:block">
@@ -575,13 +578,14 @@ export function ProductDetailPage() {
              <h2 className="text-3xl font-black text-gray-900 mb-8 tracking-tighter">Recently Viewed</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
                 {recentlyViewed.filter(p => p.id !== product?.id).slice(0, 5).map(p => (
-                  <Link key={p.id} href={`/products/${p.handle || p.id}`} className="group block">
+                  <Link key={p.id} href={getProductUrl(p)} className="group block">
                     <div className="aspect-square rounded-2xl bg-gray-50 border overflow-hidden mb-3 transition-transform duration-500 group-hover:-translate-y-1">
                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                     </div>
                     <p className="text-xs font-black text-gray-900 line-clamp-1 group-hover:text-primary-600 transition-colors">{p.name}</p>
                     <p className="text-xs font-bold text-gray-400 mt-1">${(p.price / 100).toFixed(2)}</p>
                   </Link>
+
                 ))}
              </div>
           </div>
@@ -725,14 +729,16 @@ export function ProductDetailPage() {
                 <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-2">Customers also viewed</h2>
                 <p className="text-gray-400 font-bold italic">Based on your recent interests</p>
               </div>
-              <Link href="/products" className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-2">
+              <Link href={STORE_PATHS.PRODUCTS} className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-2">
                 Explore Full Catalog <ChevronRight className="w-4 h-4" />
               </Link>
+
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
               {relatedProducts.map(p => (
-                <Link key={p.id} href={`/products/${p.handle || p.id}`} className="group block space-y-6">
+                <Link key={p.id} href={getProductUrl(p)} className="group block space-y-6">
+
                   <div className="aspect-4/5 rounded-4xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>

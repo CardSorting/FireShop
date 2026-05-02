@@ -12,18 +12,21 @@ import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
 const SHOP_LINKS = [
-  { href: '/products', label: 'All Products', icon: Package },
-  { href: '/collections/singles', label: 'Rare Singles' },
-  { href: '/collections/sealed', label: 'Sealed Boxes' },
-  { href: '/collections/accessories', label: 'Accessories' },
-  { href: '/collections/featured', label: 'Featured', icon: Layers3 },
+  { href: STORE_PATHS.PRODUCTS, label: 'All Products', icon: Package },
+  { href: getCollectionUrl('singles'), label: 'Rare Singles' },
+  { href: getCollectionUrl('sealed'), label: 'Sealed Boxes' },
+  { href: getCollectionUrl('accessories'), label: 'Accessories' },
+  { href: getCollectionUrl('featured'), label: 'Featured', icon: Layers3 },
 ];
+
 
 import { SearchCommandPalette } from '../components/SearchCommandPalette';
 
 import { useWishlist } from '../hooks/useWishlist';
+import { getProductUrl, getCollectionUrl, STORE_PATHS, getSearchUrl } from '@utils/navigation';
 
 import type { NavigationMenu } from '@domain/models';
+
 
 export function Navbar() {
   const { user, signOut } = useAuth();
@@ -68,7 +71,8 @@ export function Navbar() {
 
   const handleSignOut = async () => {
     await signOut();
-    router.push('/');
+    router.push(STORE_PATHS.HOME);
+
   };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -100,7 +104,7 @@ export function Navbar() {
               <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Authentic TCG Guarantee</span>
            </div>
            <div className="flex items-center gap-6">
-              <Link href="/collections/sale" className="group flex items-center gap-2 hover:text-white transition-colors">
+              <Link href={getCollectionUrl('sale')} className="group flex items-center gap-2 hover:text-white transition-colors">
                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-current animate-pulse" />
                  Limited: Summer Drop is Live
                  <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
@@ -120,12 +124,13 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-6 lg:gap-12 flex-1">
-            <Link href="/" className="flex items-center gap-3 text-gray-900 font-black text-2xl tracking-tighter transition-transform hover:scale-105 shrink-0">
+            <Link href={STORE_PATHS.HOME} className="flex items-center gap-3 text-gray-900 font-black text-2xl tracking-tighter transition-transform hover:scale-105 shrink-0">
               <div className="h-10 w-10 rounded-xl bg-gray-900 flex items-center justify-center text-white shadow-xl shadow-gray-200">
                 <Package className="w-6 h-6" />
               </div>
               <span className="hidden sm:block">ShopMore</span>
             </Link>
+
 
             {/* Search Trigger - Desktop - Professional Shopify Style */}
             <div 
@@ -240,7 +245,8 @@ export function Navbar() {
                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Recently Viewed</h4>
                       <div className="space-y-4">
                         {recentlyViewed.slice(0, 4).map(p => (
-                          <Link key={p.id} href={`/products/${p.handle || p.id}`} className="flex items-center gap-4 group">
+                          <Link key={p.id} href={getProductUrl(p)} className="flex items-center gap-4 group">
+
                             <div className="h-14 w-14 rounded-xl bg-gray-50 border overflow-hidden shrink-0">
                               <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                             </div>
@@ -252,9 +258,10 @@ export function Navbar() {
                         ))}
                       </div>
                       <div className="mt-6 pt-6 border-t border-gray-50">
-                        <Link href="/products" className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:text-primary-700 transition-colors flex items-center justify-between">
+                        <Link href={STORE_PATHS.PRODUCTS} className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:text-primary-700 transition-colors flex items-center justify-between">
                           Browse More <ChevronRight className="w-3 h-3" />
                         </Link>
+
                       </div>
                     </div>
                   )}
@@ -263,12 +270,13 @@ export function Navbar() {
 
               {user && (
                 <Link 
-                  href="/wishlist" 
-                  className={`p-3 rounded-2xl transition-all ${pathname === '/wishlist' ? 'bg-red-50 text-red-500 shadow-inner' : 'text-gray-400 hover:bg-gray-50 hover:text-red-500'}`}
+                  href={STORE_PATHS.WISHLIST} 
+                  className={`p-3 rounded-2xl transition-all ${pathname === STORE_PATHS.WISHLIST ? 'bg-red-50 text-red-500 shadow-inner' : 'text-gray-400 hover:bg-gray-50 hover:text-red-500'}`}
                   aria-label="View favorites"
                 >
-                  <Heart className={`w-5 h-5 ${pathname === '/wishlist' ? 'fill-current' : ''}`} />
+                  <Heart className={`w-5 h-5 ${pathname === STORE_PATHS.WISHLIST ? 'fill-current' : ''}`} />
                 </Link>
+
               )}
               
               <button 
@@ -297,18 +305,20 @@ export function Navbar() {
                         <Shield className="w-5 h-5" />
                       </Link>
                     ) : (
-                      <Link href="/account" className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center shadow-sm">
+                      <Link href={STORE_PATHS.ACCOUNT} className="h-10 w-10 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition-all flex items-center justify-center shadow-sm">
                         <User className="w-5 h-5" />
                       </Link>
+
                     )}
                   </div>
                 ) : (
                   <Link
-                    href="/login"
+                    href={STORE_PATHS.LOGIN}
                     className="text-sm font-black text-gray-900 hover:text-primary-600 transition-colors uppercase tracking-widest"
                   >
                     Login
                   </Link>
+
                 )}
               </div>
 
@@ -330,10 +340,11 @@ export function Navbar() {
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" onClick={() => setIsMenuOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-full max-w-xs bg-white shadow-2xl animate-in slide-in-from-left duration-300 ease-out flex flex-col">
             <div className="flex items-center justify-between px-6 py-6 border-b">
-               <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-900 font-black text-xl tracking-tighter">
+               <Link href={STORE_PATHS.HOME} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-900 font-black text-xl tracking-tighter">
                  <Package className="w-6 h-6" />
                  ShopMore
                </Link>
+
                <button onClick={() => setIsMenuOpen(false)} className="p-2 rounded-xl bg-gray-50 text-gray-400"><X className="w-5 h-5" /></button>
             </div>
 
@@ -352,15 +363,16 @@ export function Navbar() {
               <nav className="space-y-6">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Main Navigation</h3>
                 <div className="grid grid-cols-1 gap-2">
-                  <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-primary-50 text-gray-900 font-black text-sm transition-colors">
+                  <Link href={STORE_PATHS.HOME} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-primary-50 text-gray-900 font-black text-sm transition-colors">
                     <Home className="w-5 h-5 text-gray-400" /> Home
                   </Link>
-                  <Link href="/products" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-primary-50 text-gray-900 font-black text-sm transition-colors">
+                  <Link href={STORE_PATHS.PRODUCTS} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-primary-50 text-gray-900 font-black text-sm transition-colors">
                     <Package className="w-5 h-5 text-gray-400" /> All Products
                   </Link>
-                  <Link href="/wishlist" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-red-50 text-gray-900 font-black text-sm transition-colors">
+                  <Link href={STORE_PATHS.WISHLIST} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-red-50 text-gray-900 font-black text-sm transition-colors">
                     <Heart className="w-5 h-5 text-gray-400" /> Favorites
                   </Link>
+
                   <Link href="/track-order" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-blue-50 text-gray-900 font-black text-sm transition-colors">
                     <Truck className="w-5 h-5 text-gray-400" /> Track Order
                   </Link>
@@ -393,9 +405,10 @@ export function Navbar() {
                       </div>
                     </div>
                     <div className="grid grid-cols-1 gap-3">
-                      <Link href="/account" onClick={() => setIsMenuOpen(false)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-4 text-sm font-black text-white hover:bg-black transition-all shadow-xl">
+                      <Link href={STORE_PATHS.ACCOUNT} onClick={() => setIsMenuOpen(false)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 py-4 text-sm font-black text-white hover:bg-black transition-all shadow-xl">
                          My Account
                       </Link>
+
                       <button 
                         onClick={handleSignOut}
                         className="w-full rounded-2xl border-2 border-gray-100 py-4 text-sm font-black text-gray-600 hover:bg-gray-50 transition-all"
@@ -406,12 +419,13 @@ export function Navbar() {
                   </div>
                 ) : (
                   <Link
-                    href="/login"
+                    href={STORE_PATHS.LOGIN}
                     onClick={() => setIsMenuOpen(false)}
                     className="flex w-full items-center justify-center rounded-2xl bg-primary-600 py-5 text-base font-black text-white shadow-2xl shadow-primary-200"
                   >
                     Sign In
                   </Link>
+
                 )}
               </div>
             </div>

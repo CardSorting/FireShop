@@ -24,6 +24,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -88,7 +90,8 @@ export function Footer() {
           {/* Brand and Description */}
           <div className="lg:col-span-4 space-y-8">
             <div className="space-y-4">
-              <Link href="/" className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
+              <Link href={STORE_PATHS.HOME} className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
+
                 <Package className="w-10 h-10" />
                 PlayMoreTCG
               </Link>
@@ -131,10 +134,11 @@ export function Footer() {
             <div className="space-y-6">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Shop</h3>
               <ul className="space-y-4">
-                <li><Link href="/products" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">New Releases</Link></li>
-                <li><Link href="/collections/singles" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Single Cards</Link></li>
-                <li><Link href="/collections/sealed" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Sealed Boxes</Link></li>
-                <li><Link href="/collections/sale" className="text-sm font-semibold text-primary-600 flex items-center">Clearance <Zap className="w-3 h-3 ml-1 fill-current" /></Link></li>
+                <li><Link href={STORE_PATHS.PRODUCTS} className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">New Releases</Link></li>
+                <li><Link href={getCollectionUrl('singles')} className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Single Cards</Link></li>
+                <li><Link href={getCollectionUrl('sealed')} className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Sealed Boxes</Link></li>
+                <li><Link href={getCollectionUrl('sale')} className="text-sm font-semibold text-primary-600 flex items-center">Clearance <Zap className="w-3 h-3 ml-1 fill-current" /></Link></li>
+
               </ul>
             </div>
 

@@ -13,6 +13,8 @@ import { useWishlist } from '../hooks/useWishlist';
 import Link from 'next/link';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { Breadcrumbs } from '../components/Breadcrumbs';
+import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+
 
 export function ProductsPage() {
   const searchParams = useSearchParams();
@@ -59,8 +61,16 @@ export function ProductsPage() {
   // Sync state to URL
   useEffect(() => {
     const params = new URLSearchParams();
-    if (selectedCategories.length > 0) params.set('category', selectedCategories.join(','));
-    if (selectedConditions.length > 0) params.set('condition', selectedConditions.join(','));
+    
+    // Standardize filters: mirror Shopify's readable pattern
+    if (selectedCategories.length > 0) {
+      params.set('category', selectedCategories.join(','));
+    }
+    
+    if (selectedConditions.length > 0) {
+      params.set('condition', selectedConditions.join(','));
+    }
+    
     if (priceRange[0] > 0) params.set('min_price', priceRange[0].toString());
     if (priceRange[1] < 100000) params.set('max_price', priceRange[1].toString());
     if (sortBy !== 'newest') params.set('sort_by', sortBy);
@@ -70,9 +80,11 @@ export function ProductsPage() {
     const currentPath = window.location.pathname;
     const newUrl = queryString ? `${currentPath}?${queryString}` : currentPath;
     
-    // Use replaceState to avoid cluttering history while the user is actively filtering
-    window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
-  }, [selectedCategories, selectedConditions, priceRange, sortBy, search]);
+    // Industry standard: Use router.replace for non-invasive URL updates during filtering
+    // and keep state synchronized with the URL as the source of truth.
+    router.replace(newUrl, { scroll: false });
+  }, [selectedCategories, selectedConditions, priceRange, sortBy, search, router]);
+
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -130,7 +142,8 @@ export function ProductsPage() {
     setPriceRange([0, 100000]);
     setSearch('');
     setSortBy('newest');
-    router.push('/products');
+    router.push(STORE_PATHS.PRODUCTS);
+
   };
 
   useEffect(() => {
@@ -435,7 +448,8 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <article className="group relative" data-testid="product-card">
       <div className="aspect-square overflow-hidden rounded-3xl bg-gray-50 border shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
-        <Link href={`/products/${product.handle || product.id}`} className="block h-full w-full">
+        <Link href={getProductUrl(product)} className="block h-full w-full">
+
           <img
             src={product.imageUrl}
             alt={product.name}
@@ -492,9 +506,8 @@ function ProductCard({ product }: { product: Product }) {
           )}
         </div>
         
-        <h3 className="text-base font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-2">
-          <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
-        </h3>
+          <Link href={getProductUrl(product)}>{product.name}</Link>
+
         <p className="text-[10px] text-gray-400 font-bold mb-2">Ref: {product.id.slice(0, 8).toUpperCase()}</p>
         
         <div className="flex items-baseline gap-2">

@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { useCart } from '../hooks/useCart';
 import type { Product, Wishlist } from '@domain/models';
 import { useServices } from '../hooks/useServices';
+import { getProductUrl, STORE_PATHS } from '@utils/navigation';
+
 
 export function WishlistPage() {
   const { wishlists, recentlyViewed, loading, removeFromWishlist, createCollection } = useWishlist();
@@ -207,9 +209,10 @@ export function WishlistPage() {
                 <h3 className="text-3xl font-black text-gray-900 mb-4">Nothing saved yet</h3>
                 <p className="text-gray-500 mb-10 max-w-xs mx-auto leading-relaxed">Browse our collection and hit the heart icon to save cards you love.</p>
                 <Link 
-                  href="/products"
+                  href={STORE_PATHS.PRODUCTS}
                   className="inline-flex items-center gap-3 rounded-2xl bg-gray-900 px-10 py-4 font-black text-white shadow-2xl shadow-gray-200 transition hover:bg-black hover:-translate-y-1 active:translate-y-0"
                 >
+
                   Explore Catalog
                   <ChevronRight className="h-4 w-4" />
                 </Link>
@@ -239,7 +242,8 @@ export function WishlistPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
               {recentlyViewed.slice(0, 5).map(p => (
-                <Link key={p.id} href={`/products/${p.handle || p.id}`} className="group block space-y-4">
+                <Link key={p.id} href={getProductUrl(p)} className="group block space-y-4">
+
                   <div className="aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>
@@ -283,7 +287,8 @@ function WishlistItemCard({ product, onRemove }: { product: Product, onRemove: (
   return (
     <div className="group bg-white rounded-5xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
       <div className="relative aspect-4/5 overflow-hidden bg-gray-50">
-        <Link href={`/products/${product.handle || product.id}`} className="block h-full w-full">
+        <Link href={getProductUrl(product)} className="block h-full w-full">
+
           <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
         </Link>
         
@@ -316,8 +321,9 @@ function WishlistItemCard({ product, onRemove }: { product: Product, onRemove: (
         </div>
         
         <h3 className="text-lg font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-3">
-          <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
+          <Link href={getProductUrl(product)}>{product.name}</Link>
         </h3>
+
         
         <div className="flex items-center justify-between">
           <p className="text-2xl font-black text-gray-900 tracking-tight">${(product.price / 100).toFixed(2)}</p>

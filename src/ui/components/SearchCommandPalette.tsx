@@ -17,6 +17,8 @@ import { useCart } from '../hooks/useCart';
 import { useWishlist } from '../hooks/useWishlist';
 import { formatCurrency } from '@utils/formatters';
 import type { Product, ProductCategory } from '@domain/models';
+import { getProductUrl, getCollectionUrl, getSearchUrl, STORE_PATHS } from '@utils/navigation';
+
 
 export function SearchCommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
@@ -112,8 +114,9 @@ export function SearchCommandPalette() {
   const handleSelect = useCallback((product: Product) => {
     saveSearch(product.name);
     setIsOpen(false);
-    router.push(`/products/${product.handle || product.id}`);
+    router.push(getProductUrl(product));
   }, [router, recentSearches]);
+
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -129,8 +132,9 @@ export function SearchCommandPalette() {
       } else if (query.trim()) {
         saveSearch(query.trim());
         setIsOpen(false);
-        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+        router.push(getSearchUrl(query.trim()));
       }
+
     }
   };
 
@@ -233,7 +237,7 @@ export function SearchCommandPalette() {
                     return (
                       <button
                         key={cat.id}
-                        onClick={() => { setIsOpen(false); router.push(`/collections/${cat.slug}`); }}
+                        onClick={() => { setIsOpen(false); router.push(getCollectionUrl(cat.slug)); }}
                         className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-50/50 hover:bg-white transition-all border border-transparent hover:border-gray-100 hover:shadow-xl group"
                       >
                         <div className={`p-3 rounded-xl ${colorClass} transition-colors group-hover:scale-110 duration-300`}>
