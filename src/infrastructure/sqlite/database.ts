@@ -668,5 +668,24 @@ export async function initDatabase() {
   try {
     await db.schema.alterTable('ticket_messages').addColumn('visibility', 'text', (col) => col.notNull().defaultTo('public')).execute();
   } catch (err) {}
+
+  await db.schema
+    .createTable('support_macros')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('name', 'text', (col) => col.notNull())
+    .addColumn('content', 'text', (col) => col.notNull())
+    .addColumn('category', 'text', (col) => col.notNull())
+    .execute();
+
+  await db.schema
+    .createTable('support_article_feedback')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('articleId', 'text', (col) => col.notNull())
+    .addColumn('isHelpful', 'integer', (col) => col.notNull())
+    .addColumn('userId', 'text')
+    .addColumn('createdAt', 'text', (col) => col.notNull())
+    .execute();
 }
 

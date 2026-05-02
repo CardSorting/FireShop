@@ -161,5 +161,17 @@ export const knowledgebaseRepository = {
       a.content.toLowerCase().includes(q) ||
       a.tags?.some(t => t.toLowerCase().includes(q))
     );
+  },
+
+  async addFeedback(articleId: string, isHelpful: boolean, userId?: string) {
+    const { getSQLiteDB } = await import('../sqlite/database');
+    const db = getSQLiteDB();
+    await db.insertInto('support_article_feedback').values({
+      id: crypto.randomUUID(),
+      articleId,
+      isHelpful: isHelpful ? 1 : 0,
+      userId: userId || null,
+      createdAt: new Date().toISOString()
+    }).execute();
   }
 };

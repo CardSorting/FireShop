@@ -112,6 +112,14 @@ export const ticketRepository = {
       .execute();
   },
 
+  async updateTicketPriority(id: string, priority: string) {
+    const db = getSQLiteDB();
+    await db.updateTable('support_tickets')
+      .set({ priority, updatedAt: new Date().toISOString() })
+      .where('id', '=', id)
+      .execute();
+  },
+
   async addMessage(message: TicketMessage) {
     const db = getSQLiteDB();
     await db.insertInto('ticket_messages').values({
@@ -128,5 +136,19 @@ export const ticketRepository = {
       .set({ updatedAt: new Date().toISOString() })
       .where('id', '=', message.ticketId)
       .execute();
+  },
+
+  async getMacros() {
+    const db = getSQLiteDB();
+    const rows = await db.selectFrom('support_macros').selectAll().execute();
+    return rows;
+  },
+
+  async addMacro(macro: { name: string; content: string; category: string }) {
+    const db = getSQLiteDB();
+    await db.insertInto('support_macros').values({
+      id: crypto.randomUUID(),
+      ...macro
+    }).execute();
   }
 };

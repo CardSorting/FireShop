@@ -308,6 +308,21 @@ export interface TicketMessageTable {
   createdAt: string;
 }
 
+export interface SupportMacroTable {
+  id: string;
+  name: string;
+  content: string;
+  category: string;
+}
+
+export interface SupportArticleFeedbackTable {
+  id: string;
+  articleId: string;
+  isHelpful: number;
+  userId: string | null;
+  createdAt: string;
+}
+
 export interface Database {
   products: ProductTable;
   product_media: ProductMediaTable;
@@ -333,5 +348,7 @@ export interface Database {
   wishlist_items: WishlistItemTable;
   support_tickets: SupportTicketTable;
   ticket_messages: TicketMessageTable;
+  support_macros: SupportMacroTable;
+  support_article_feedback: SupportArticleFeedbackTable;
 }
 

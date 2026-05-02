@@ -701,6 +701,13 @@ export interface TicketMessage {
   createdAt: Date;
 }
 
+export interface SupportMacro {
+  id: string;
+  name: string;
+  content: string;
+  category: string;
+}
+
 // ─────────────────────────────────────────────
 // Knowledgebase & FAQ
 // ─────────────────────────────────────────────

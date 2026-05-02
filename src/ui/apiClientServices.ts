@@ -3,7 +3,14 @@
  */
 'use client';
 
-import type { Address, AdminDashboardSummary, Cart, InventoryOverview, Order, OrderStatus, Product, ProductDraft, ProductManagementFilters, ProductManagementOverview, ProductSavedView, ProductSavedViewResult, ProductUpdate, User, OrderNote, PurchaseOrder, InventoryLocation, Supplier, Collection, ProductCategory, ProductType, SupportTicket, TicketMessage, KnowledgebaseCategory, KnowledgebaseArticle } from '@domain/models';
+import type { 
+    Address, Cart, CartItem, Collection, Discount, InventoryLevel, InventoryLocation, 
+    Product, ProductMedia, PurchaseOrder, SupportTicket, TicketMessage, User, 
+    KnowledgebaseCategory, KnowledgebaseArticle, SupportMacro, AdminDashboardSummary, 
+    OrderStatus, ProductDraft, ProductManagementFilters, ProductManagementOverview, 
+    ProductSavedView, ProductSavedViewResult, ProductUpdate, Order, OrderNote, Supplier,
+    InventoryOverview, ProductCategory, ProductType
+} from '@domain/models';
 
 const sessionScoped = (userId: string) => void userId;
 const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt', 'estimatedDeliveryDate', 'at']);
@@ -254,7 +261,9 @@ export function createApiClientServices() {
             getUserTicket: (id: string, userId: string) => request<SupportTicket>(`/api/tickets/${id}?userId=${userId}`),
             createTicket: (data: Partial<SupportTicket>) => request<SupportTicket>('/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
             updateTicketStatus: (id: string, status: string) => request<SupportTicket>(`/api/admin/tickets/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+            updateTicketPriority: (id: string, priority: string) => request<SupportTicket>(`/api/admin/tickets/${id}/priority`, { method: 'PATCH', body: JSON.stringify({ priority }) }),
             addMessage: (id: string, content: string, senderId?: string, senderType?: string, visibility: 'public' | 'internal' = 'public') => request<TicketMessage>(`/api/tickets/${id}/messages`, { method: 'POST', body: JSON.stringify({ content, senderId, senderType, visibility }) }),
+            getMacros: () => request<SupportMacro[]>('/api/support/macros'),
         },
         knowledgebaseService: {
             getCategories: () => request<KnowledgebaseCategory[]>('/api/support/categories'),
@@ -265,6 +274,7 @@ export function createApiClientServices() {
                 return request<KnowledgebaseArticle[]>(`/api/support/articles?${qs}`);
             },
             getArticle: (slug: string) => request<KnowledgebaseArticle>(`/api/support/articles/${slug}`),
+            submitFeedback: (articleId: string, isHelpful: boolean, userId?: string) => request<void>('/api/support/feedback', { method: 'POST', body: JSON.stringify({ articleId, isHelpful, userId }) }),
         },
     };
 }

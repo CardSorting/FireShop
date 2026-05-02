@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ArrowLeft, ChevronRight, FileText, ThumbsUp, ThumbsDown, 
-  MessageSquare, ExternalLink, Calendar, User, Search
+  MessageSquare, ExternalLink, Calendar, User, Search, CheckCircle2,
+  Send
 } from 'lucide-react';
-import type { KnowledgebaseArticle, KnowledgebaseCategory } from '@domain/models';
+import type { KnowledgebaseArticle, KnowledgebaseCategory, SupportTicket } from '@domain/models';
 import Link from 'next/link';
+import { useServices } from '../hooks/useServices';
+import { useAuth } from '../hooks/useAuth';
 
 export function KnowledgebaseCategoryCard({ category, onClick }: { category: KnowledgebaseCategory, onClick: (c: KnowledgebaseCategory) => void }) {
   return (
@@ -18,7 +21,7 @@ export function KnowledgebaseCategoryCard({ category, onClick }: { category: Kno
       <h3 className="text-lg font-bold mb-2 group-hover:text-primary-600 transition-colors">{category.name}</h3>
       <p className="text-sm font-medium text-gray-500 line-clamp-2">{category.description}</p>
       <div className="mt-4 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary-500 transition-colors">
-        <span>{category.articleCount} Articles</span>
+        <span>View {category.articleCount} articles</span>
         <ChevronRight className="h-3 w-3" />
       </div>
     </button>
@@ -27,19 +30,21 @@ export function KnowledgebaseCategoryCard({ category, onClick }: { category: Kno
 
 export function KnowledgebaseArticleList({ articles, categoryName, onBack, onArticleClick }: { 
   articles: KnowledgebaseArticle[], 
-  categoryName: string, 
+  categoryName: string,
   onBack: () => void,
-  onArticleClick: (article: KnowledgebaseArticle) => void
+  onArticleClick: (a: KnowledgebaseArticle) => void
 }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-4">
-        <button onClick={onBack} className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div>
-          <h2 className="text-2xl font-black text-gray-900">{categoryName}</h2>
-          <p className="text-sm font-medium text-gray-500">Browse all articles in this category</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tight">{categoryName}</h2>
+            <p className="text-sm font-medium text-gray-500">{articles.length} helpful articles</p>
+          </div>
         </div>
       </div>
 
@@ -51,7 +56,7 @@ export function KnowledgebaseArticleList({ articles, categoryName, onBack, onArt
             className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-primary-100 hover:shadow-lg transition-all group text-left"
           >
             <div className="flex items-center gap-5">
-              <div className="p-3 rounded-2xl bg-gray-50 text-gray-400 group-hover:text-primary-500 group-hover:bg-primary-50 transition-colors">
+              <div className="p-3 rounded-2xl bg-gray-50 text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
                 <FileText className="h-6 w-6" />
               </div>
               <div>
@@ -73,6 +78,20 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
   onBack: () => void,
   onArticleClick: (a: KnowledgebaseArticle) => void
 }) {
+  const [voted, setVoted] = useState(false);
+  const services = useServices();
+  const { user } = useAuth();
+
+  const handleFeedback = async (isHelpful: boolean) => {
+    if (voted) return;
+    try {
+      await services.knowledgebaseService.submitFeedback(article.id, isHelpful, user?.id);
+      setVoted(true);
+    } catch (err) {
+      console.error('Failed to submit feedback', err);
+    }
+  };
+
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -92,24 +111,44 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div className="lg:col-span-8">
-          <div className="prose prose-gray max-w-none prose-h1:text-2xl prose-h1:font-black prose-h2:text-xl prose-h2:font-black prose-p:text-gray-600 prose-p:leading-relaxed prose-strong:text-gray-900">
-             <div className="whitespace-pre-wrap font-medium text-gray-600 leading-relaxed text-base">
+        <div className="lg:col-span-8 space-y-12">
+          <article className="bg-white rounded-4xl p-8 md:p-12 border border-gray-100 shadow-xl max-w-none">
+            <div className="whitespace-pre-wrap font-medium text-gray-600 leading-relaxed text-base">
                {article.content}
-             </div>
-          </div>
+            </div>
+          </article>
 
-          <div className="mt-16 pt-10 border-t border-gray-100 text-center">
-            <p className="text-sm font-bold text-gray-900 mb-6">Was this article helpful?</p>
-            <div className="flex items-center justify-center gap-4">
-              <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-gray-100 hover:border-primary-500 hover:text-primary-600 transition-all font-black text-xs uppercase tracking-widest text-gray-400">
-                <ThumbsUp className="h-4 w-4" />
-                Yes
-              </button>
-              <button className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-gray-100 hover:border-red-500 hover:text-red-600 transition-all font-black text-xs uppercase tracking-widest text-gray-400">
-                <ThumbsDown className="h-4 w-4" />
-                No
-              </button>
+          {/* Helpful Section */}
+          <div className="bg-gray-900 rounded-[2.5rem] p-8 md:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
+            <div className="relative z-10 text-center md:text-left">
+              <h3 className="text-xl font-black tracking-tight">Was this article helpful?</h3>
+              <p className="text-white/50 text-sm font-medium mt-1">Your feedback helps us improve our support.</p>
+            </div>
+            
+            <div className="flex items-center gap-4 relative z-10">
+              {voted ? (
+                <div className="bg-white/10 px-6 py-3 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-300">
+                  <CheckCircle2 className="h-5 w-5 text-green-400" />
+                  <span className="text-sm font-black uppercase tracking-widest">Thank you!</span>
+                </div>
+              ) : (
+                <>
+                  <button 
+                    onClick={() => handleFeedback(true)}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl transition-all group"
+                  >
+                    <ThumbsUp className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-widest">Yes</span>
+                  </button>
+                  <button 
+                    onClick={() => handleFeedback(false)}
+                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl transition-all group"
+                  >
+                    <ThumbsDown className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-widest">No</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -272,8 +311,8 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
   onBack: () => void,
   onReply: (content: string) => Promise<void>
 }) {
-  const [reply, setReply] = React.useState('');
-  const [isSending, setIsSending] = React.useState(false);
+  const [reply, setReply] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,16 +329,21 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
-              ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
-            }`}>
-              {ticket.status.replace('_', ' ')}
-            </span>
-            <span className="text-[10px] font-bold text-gray-300">Ticket #{ticket.id.slice(0, 8).toUpperCase()}</span>
+        <div className="flex items-center gap-4">
+           <button onClick={onBack} className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
+                ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                {ticket.status.replace('_', ' ')}
+              </span>
+              <span className="text-[10px] font-bold text-gray-300">Ticket #{ticket.id.slice(0, 8).toUpperCase()}</span>
+            </div>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight">{ticket.subject}</h1>
           </div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">{ticket.subject}</h1>
         </div>
       </div>
 
@@ -309,7 +353,7 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
             const isAgent = msg.senderType === 'agent' || msg.senderType === 'system';
             return (
               <div key={msg.id} className={`flex ${isAgent ? 'justify-start' : 'justify-end'}`}>
-                <div className={`max-w-[85%] space-y-1`}>
+                <div className="max-w-[85%] space-y-1">
                   <div className={`flex items-center gap-2 mb-1 ${!isAgent ? 'flex-row-reverse' : ''}`}>
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
                       {isAgent ? 'Support Team' : 'You'}

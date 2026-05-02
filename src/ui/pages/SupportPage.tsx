@@ -146,31 +146,11 @@ export function SupportPage() {
   };
 
   const handleCategoryClick = async (category: KnowledgebaseCategory) => {
-    setLoading(true);
-    try {
-      const categoryArticles = await services.knowledgebaseService.getArticles({ categoryId: category.id });
-      setSelectedCategory(category);
-      setArticles(categoryArticles);
-      setViewMode('category');
-    } catch (err) {
-      setError('Failed to load category articles');
-    } finally {
-      setLoading(false);
-    }
+    router.push(`/support/categories/${category.slug || category.id}`);
   };
 
   const handleArticleClick = async (article: KnowledgebaseArticle) => {
-    setSelectedArticle(article);
-    setViewMode('article');
-    setSearchQuery('');
-    
-    // Fetch related articles (same category)
-    try {
-      const rel = await services.knowledgebaseService.getArticles({ categoryId: article.categoryId });
-      setArticles(rel.filter(a => a.id !== article.id).slice(0, 3));
-    } catch (err) {
-      console.error('Failed to load related articles', err);
-    }
+    router.push(`/support/articles/${article.slug}`);
   };
 
   const handleTicketClick = async (ticket: SupportTicket) => {

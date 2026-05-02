@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { useAuth } from '../../hooks/useAuth';
-import type { SupportTicket, TicketMessage, TicketStatus, TicketPriority } from '@domain/models';
+import type { SupportTicket, TicketMessage, TicketStatus, TicketPriority, SupportMacro } from '@domain/models';
 import { formatShortDate, formatFullDateTime } from '@utils/formatters';
 import { 
   AdminPageHeader, 
@@ -58,6 +58,31 @@ export function AdminTicketDetail() {
   }, [ticket?.messages]);
 
   const [isInternal, setIsInternal] = useState(false);
+  const [macros, setMacros] = useState<SupportMacro[]>([]);
+  const [customerTickets, setCustomerTickets] = useState<SupportTicket[]>([]);
+
+  useEffect(() => {
+    const loadSecondaryData = async () => {
+      try {
+        const [m, t] = await Promise.all([
+          services.ticketService.getMacros(),
+          ticket ? services.ticketService.getUserTickets(ticket.userId) : Promise.resolve([])
+        ]);
+        setMacros(m);
+        if (ticket) {
+          setCustomerTickets(t.filter(x => x.id !== id));
+        }
+      } catch (err) {
+        console.error('Failed to load secondary support data', err);
+      }
+    };
+    loadSecondaryData();
+  }, [services.ticketService, ticket, id]);
+
+  const handleApplyMacro = (macro: SupportMacro) => {
+    setReply(prev => prev + (prev ? '\n\n' : '') + macro.content);
+    toast('success', `Applied macro: ${macro.name}`);
+  };
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +108,25 @@ export function AdminTicketDetail() {
     setStatusLoading(true);
     try {
       await services.ticketService.updateTicketStatus(id, newStatus);
-      setTicket({ ...ticket, status: newStatus });
-      toast('success', `Status updated to ${newStatus.replace('_', ' ')}`);
+      await services.ticketService.addMessage(id, `Status changed to ${newStatus.replace('_', ' ')}`, 'system', 'system', 'public');
+      await loadTicket();
+      toast('success', `Ticket marked as ${newStatus.replace('_', ' ')}`);
     } catch (err) {
       toast('error', 'Failed to update status');
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  const handlePriorityChange = async (newPriority: TicketPriority) => {
+    if (!ticket) return;
+    try {
+      await services.ticketService.updateTicketPriority(id, newPriority);
+      await services.ticketService.addMessage(id, `Priority changed to ${newPriority}`, 'system', 'system', 'public');
+      await loadTicket();
+      toast('success', `Priority updated to ${newPriority}`);
+    } catch (err) {
+      toast('error', 'Failed to update priority');
     }
   };
 
@@ -135,10 +173,32 @@ export function AdminTicketDetail() {
             <h1 className="text-2xl font-black text-gray-900 tracking-tight">
               Ticket <span className="text-gray-400 font-medium">#{ticket.id.slice(0, 8).toUpperCase()}</span>
             </h1>
-            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest ${statusCfg.bg} ${statusCfg.text}`}>
-              <statusCfg.icon className="h-3 w-3" />
-              {statusCfg.label}
-            </span>
+            <div className="flex items-center gap-2">
+              <select 
+                value={ticket.status}
+                onChange={(e) => handleStatusChange(e.target.value as any)}
+                className={`h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm outline-none transition-all ${statusCfg.bg} ${statusCfg.text} border-transparent focus:border-gray-200`}
+              >
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="waiting_on_customer">Waiting</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+
+              <select 
+                value={ticket.priority}
+                onChange={(e) => handlePriorityChange(e.target.value as any)}
+                className={`h-7 px-3 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm outline-none transition-all ${
+                  ticket.priority === 'urgent' ? 'bg-red-600 text-white border-red-700' : 'bg-gray-100 text-gray-600 border-transparent'
+                }`}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
           </div>
           <p className="text-sm font-medium text-gray-500">{ticket.subject}</p>
         </div>
@@ -259,21 +319,42 @@ export function AdminTicketDetail() {
             {/* Reply Input */}
             <div className="p-4 border-t bg-white">
               <form onSubmit={handleSendReply} className="space-y-4">
-                <div className="flex items-center gap-4 mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsInternal(false)}
-                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all ${!isInternal ? 'bg-primary-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    Public Reply
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsInternal(true)}
-                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all ${isInternal ? 'bg-amber-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                  >
-                    Internal Note
-                  </button>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsInternal(false)}
+                      className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all ${!isInternal ? 'bg-primary-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                    >
+                      Public Reply
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsInternal(true)}
+                      className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all ${isInternal ? 'bg-amber-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                    >
+                      Internal Note
+                    </button>
+                  </div>
+                  
+                  {macros.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-300">Quick Replies</p>
+                      <select 
+                        onChange={(e) => {
+                          const m = macros.find(x => x.id === e.target.value);
+                          if (m) handleApplyMacro(m);
+                          e.target.value = '';
+                        }}
+                        className="text-[10px] font-bold bg-white border border-gray-100 rounded-lg px-2 py-1 outline-none hover:border-gray-300 transition-all cursor-pointer shadow-sm"
+                      >
+                        <option value="">Select Macro...</option>
+                        {macros.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <div className="relative">
                   <textarea
@@ -364,8 +445,16 @@ export function AdminTicketDetail() {
           </div>
 
           {/* Internal Metadata */}
-          <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-xl mb-6">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">Internal Stats</h4>
+          <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40">Internal Stats</h4>
+              <div className="flex items-center gap-2">
+                 <div className="h-5 w-5 rounded-full bg-primary-500 flex items-center justify-center border-2 border-gray-900">
+                    <span className="text-[8px] font-black text-white">AD</span>
+                 </div>
+                 <span className="text-[10px] font-black text-white/60">Admin User</span>
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-white/40 text-[9px] font-bold uppercase mb-1">Created</p>
@@ -382,6 +471,38 @@ export function AdminTicketDetail() {
                   <p className="text-xs font-bold uppercase">{ticket.priority}</p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Customer History Sidebar */}
+          <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b bg-gray-50/50">
+              <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">Previous Tickets</h3>
+            </div>
+            <div className="p-4 space-y-3">
+              {customerTickets.length > 0 ? (
+                customerTickets.map(t => (
+                  <Link 
+                    key={t.id} 
+                    href={`/admin/tickets/${t.id}`}
+                    className="block p-3 rounded-xl hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-all group"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                       <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${
+                         t.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                       }`}>
+                         {t.status}
+                       </span>
+                       <span className="text-[9px] text-gray-300 font-medium">{formatShortDate(t.createdAt.toString())}</span>
+                    </div>
+                    <p className="text-xs font-bold text-gray-900 group-hover:text-primary-600 transition-colors truncate">{t.subject}</p>
+                  </Link>
+                ))
+              ) : (
+                <div className="py-4 text-center">
+                  <p className="text-[10px] text-gray-400 font-bold italic">No previous interactions</p>
+                </div>
+              )}
             </div>
           </div>
 
