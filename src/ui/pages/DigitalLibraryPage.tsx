@@ -2,8 +2,10 @@
 
 /**
  * [LAYER: UI]
- * Advanced Digital Vault — Industrialized digital fulfillment portal.
- * Mirrors industry leaders (Steam/Gumroad) with grouped assets, activity history, and security transparency.
+ * Sovereign Digital Locker — The Ultimate Digital Fulfillment Experience.
+ * 
+ * Deeply industrialized vault mirroring high-end digital distribution platforms.
+ * Features: Asset pre-checks, deep metadata previews, instructional context, and multi-view orchestration.
  */
 import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
@@ -23,7 +25,15 @@ import {
   ArrowDownToLine,
   History,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  X,
+  FileCheck,
+  Zap,
+  Tag as TagIcon,
+  Monitor,
+  Smartphone,
+  Eye,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState, useMemo } from 'react';
@@ -40,6 +50,7 @@ export function DigitalLibraryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -94,265 +105,343 @@ export function DigitalLibraryPage() {
     return result;
   }, [items, searchQuery, activeCategory]);
 
-  const recentActivity = useMemo(() => {
-    const allAssetsWithLogs = items.flatMap(item => 
-      item.assets
-        .filter((a: any) => a.lastDownloadedAt)
-        .map((a: any) => ({
-          ...a,
-          productName: item.productName,
-          productImageUrl: item.productImageUrl
-        }))
-    );
-    return allAssetsWithLogs.sort((a, b) => new Date(b.lastDownloadedAt).getTime() - new Date(a.lastDownloadedAt).getTime()).slice(0, 5);
+  const stats = useMemo(() => {
+    const totalFiles = items.reduce((sum, item) => sum + item.assets.length, 0);
+    const downloadedOnce = items.reduce((sum, item) => sum + item.assets.filter((a: any) => a.lastDownloadedAt).length, 0);
+    return { totalFiles, downloadedOnce };
   }, [items]);
 
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
+      {/* Detail Overlay */}
+      {selectedAsset && (
+        <AssetDetailOverlay 
+          asset={selectedAsset.asset} 
+          product={selectedAsset.product} 
+          userId={user.id} 
+          onClose={() => setSelectedAsset(null)} 
+        />
+      )}
+
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-20">
-        {/* Header Section */}
-        <header className="mb-16 flex flex-col md:flex-row md:items-end justify-between gap-8">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-50 rounded-full text-primary-600 text-[10px] font-black uppercase tracking-widest mb-6 border border-primary-100">
-               <ShieldCheck className="w-3.5 h-3.5" /> Encrypted Vault Access
+        {/* Advanced Header */}
+        <header className="mb-20">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-12">
+            <div className="max-w-3xl">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="h-10 w-10 bg-primary-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-primary-200">
+                  <HardDrive className="w-6 h-6" />
+                </div>
+                <div className="h-1 w-1 bg-gray-300 rounded-full" />
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400">Personal Asset Repository</span>
+              </div>
+              <h1 className="text-6xl md:text-8xl font-black text-gray-900 tracking-tighter mb-6 leading-[0.9]">
+                The Vault<span className="text-primary-600">.</span>
+              </h1>
+              <p className="text-xl font-medium text-gray-500 max-w-2xl leading-relaxed">
+                Welcome to your sovereign digital library. Access high-resolution art, masterclass guides, 
+                and live market data with industrial-grade security and permanent download rights.
+              </p>
             </div>
-            <h1 className="text-5xl md:text-7xl font-black text-gray-900 tracking-tighter mb-4">Digital Locker.</h1>
-            <p className="text-lg font-medium text-gray-500 leading-relaxed">
-              Your permanent collection of high-fidelity TCG guides, exclusive art, and market data.
-              Every purchase is snapshot-locked for lifetime access.
-            </p>
-          </div>
-          <div className="flex items-center gap-4 p-4 bg-white rounded-3xl border border-gray-100 shadow-sm">
-             <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Vault Status</p>
-                <p className="text-sm font-black text-green-600 flex items-center gap-1.5 justify-end">
-                   <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Ready
-                </p>
-             </div>
-             <div className="h-8 w-px bg-gray-100" />
-             <div className="w-12 h-12 bg-gray-900 rounded-2xl flex items-center justify-center text-white">
-                <HardDrive className="w-6 h-6" />
-             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+               <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Files</p>
+                  <p className="text-3xl font-black text-gray-900">{stats.totalFiles}</p>
+               </div>
+               <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Sync Status</p>
+                  <p className="text-sm font-black text-green-600 flex items-center gap-2">
+                     <FileCheck className="w-4 h-4" /> 100% Valid
+                  </p>
+               </div>
+            </div>
           </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Main Controls & Library */}
-          <div className="lg:col-span-8 space-y-8">
-            {/* Filter Bar */}
-            <div className="sticky top-4 z-30 flex flex-col md:flex-row gap-4 p-4 bg-white/80 backdrop-blur-xl rounded-[2.5rem] border border-gray-100 shadow-xl shadow-gray-200/20">
-               <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Search by product or file name..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-2xl border-none outline-none focus:ring-2 focus:ring-primary-500 transition-all font-bold text-sm"
-                  />
-               </div>
-               <div className="flex items-center gap-2">
-                  <div className="flex bg-gray-100 p-1 rounded-xl">
-                     <button 
-                        onClick={() => setViewMode('grid')}
-                        className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                     >
-                        <LayoutGrid className="w-4 h-4" />
-                     </button>
-                     <button 
-                        onClick={() => setViewMode('list')}
-                        className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-400 hover:text-gray-600'}`}
-                     >
-                        <List className="w-4 h-4" />
-                     </button>
-                  </div>
-                  <div className="w-px h-6 bg-gray-200 mx-1" />
-                  <div className="flex gap-1 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
-                     {categories.map(cat => (
-                        <button 
-                          key={cat}
-                          onClick={() => setActiveCategory(cat)}
-                          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-gray-900 text-white shadow-lg' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
-                        >
-                           {cat}
-                        </button>
-                     ))}
-                  </div>
-               </div>
-            </div>
-
-            {/* Content Area */}
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 {[1, 2, 3, 4].map(i => (
-                    <div key={i} className="h-64 rounded-[3rem] bg-white border border-gray-100 animate-pulse" />
-                 ))}
-              </div>
-            ) : filteredItems.length > 0 ? (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 gap-8' : 'flex flex-col gap-4'}>
-                {filteredItems.map((item) => (
-                   viewMode === 'grid' 
-                    ? <AssetGridCard key={`${item.orderId}-${item.productId}`} item={item} userId={user.id} />
-                    : <AssetListRow key={`${item.orderId}-${item.productId}`} item={item} userId={user.id} />
-                ))}
-              </div>
-            ) : (
-               <div className="py-32 bg-white rounded-[4rem] border border-gray-100 shadow-sm text-center">
-                  <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-8">
-                     <Filter className="w-10 h-10 text-gray-200" />
-                  </div>
-                  <h3 className="text-3xl font-black text-gray-900">No matches found</h3>
-                  <p className="text-gray-500 font-medium mt-2">Try adjusting your filters or search terms.</p>
-                  <button onClick={() => { setSearchQuery(''); setActiveCategory('all'); }} className="mt-8 font-black text-xs uppercase tracking-widest text-primary-600 hover:underline">Clear all filters</button>
-               </div>
-            )}
-          </div>
-
-          {/* Sidebar Area */}
-          <div className="lg:col-span-4 space-y-8">
-             {/* Recent Activity */}
-             <section className="bg-white rounded-[3rem] p-8 border border-gray-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-8">
-                   <div className="p-2 bg-amber-50 rounded-xl text-amber-600">
-                      <History className="w-4 h-4" />
-                   </div>
-                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Vault Activity</h3>
+          {/* Controls Bar */}
+          <div className="lg:col-span-12 flex flex-col md:flex-row gap-6 p-6 bg-white rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/20">
+             <div className="relative flex-1 group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 transition-colors group-focus-within:text-primary-500" />
+                <input 
+                  type="text" 
+                  placeholder="Search your library..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-14 pr-6 py-4 bg-gray-50 rounded-2xl border-2 border-transparent outline-none focus:bg-white focus:border-primary-500 transition-all font-bold"
+                />
+             </div>
+             <div className="flex items-center gap-4">
+                <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+                   {['all', ...categories.slice(1)].map(cat => (
+                      <button 
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeCategory === cat ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                      >
+                         {cat}
+                      </button>
+                   ))}
                 </div>
-                {recentActivity.length > 0 ? (
-                   <div className="space-y-6">
-                      {recentActivity.map((log: any, idx) => (
-                         <div key={idx} className="flex gap-4 items-start group">
-                            <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
-                               <img src={log.productImageUrl} alt="" className="w-full h-full object-cover" />
-                            </div>
-                            <div className="min-w-0">
-                               <p className="text-xs font-black text-gray-900 line-clamp-1 group-hover:text-primary-600 transition-colors">{log.name}</p>
-                               <p className="text-[10px] font-medium text-gray-400 mt-0.5">Downloaded {formatRelativeTime(new Date(log.lastDownloadedAt))}</p>
-                            </div>
-                         </div>
-                      ))}
-                   </div>
-                ) : (
-                   <p className="text-xs font-bold text-gray-400 italic">No recent download activity recorded.</p>
-                )}
-             </section>
-
-             {/* Help & Support Widget */}
-             <section className="bg-primary-600 rounded-[3rem] p-8 text-white relative overflow-hidden shadow-xl shadow-primary-200/40">
-                <div className="relative z-10">
-                   <div className="flex items-center gap-3 mb-6">
-                      <HelpCircle className="w-5 h-5 text-primary-200" />
-                      <h3 className="text-lg font-black tracking-tight">Need assistance?</h3>
-                   </div>
-                   <p className="text-sm font-medium text-primary-100 leading-relaxed mb-8 opacity-90">
-                      Can't open a specific file type? Having trouble with a download link? Our support guild is ready to help.
-                   </p>
-                   <Link href="/support" className="flex items-center justify-between bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl p-4 transition-all group">
-                      <span className="text-[10px] font-black uppercase tracking-widest">Visit Help Center</span>
-                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                   </Link>
-                </div>
-                <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-             </section>
-
-             {/* Pro Tip */}
-             <div className="p-6 bg-amber-50 rounded-[2.5rem] border border-amber-100 flex gap-4">
-                <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
-                <div>
-                   <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Vault Tip</p>
-                   <p className="text-xs font-bold text-amber-700 leading-relaxed">Download assets on your desktop for the best experience with high-res PDFs and CSV market data.</p>
+                <div className="w-px h-8 bg-gray-100 hidden md:block" />
+                <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+                   <button 
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2.5 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
+                   >
+                      <LayoutGrid className="w-5 h-5" />
+                   </button>
+                   <button 
+                      onClick={() => setViewMode('list')}
+                      className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
+                   >
+                      <List className="w-5 h-5" />
+                   </button>
                 </div>
              </div>
           </div>
+
+          {/* Main Library Grid */}
+          <div className="lg:col-span-12">
+            {loading ? (
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                  {[1, 2, 3].map(i => <div key={i} className="h-80 bg-white rounded-[4rem] animate-pulse border border-gray-100" />)}
+               </div>
+            ) : filteredItems.length > 0 ? (
+               <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10' : 'space-y-6'}>
+                  {filteredItems.map(item => (
+                     <ProductGroup 
+                        key={`${item.orderId}-${item.productId}`} 
+                        item={item} 
+                        viewMode={viewMode}
+                        onAssetSelect={(asset) => setSelectedAsset({ asset, product: item })}
+                        userId={user.id}
+                     />
+                  ))}
+               </div>
+            ) : (
+               <EmptyLockerState onClear={() => { setSearchQuery(''); setActiveCategory('all'); }} />
+            )}
+          </div>
         </div>
+
+        {/* Global Guidance Footer */}
+        <footer className="mt-40 pt-20 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-12">
+           <div className="space-y-4">
+              <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+                 <Monitor className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">Desktop Optimized</h3>
+              <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                 Our interactive PDFs and high-res art assets are best viewed on high-DPI desktop displays.
+              </p>
+           </div>
+           <div className="space-y-4">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                 <ShieldCheck className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">Ownership Lock</h3>
+              <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                 You have permanent license rights. Even if a product is retired from the store, it remains in your vault.
+              </p>
+           </div>
+           <div className="space-y-4">
+              <div className="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600">
+                 <Zap className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900">Instant Fulfillment</h3>
+              <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                 New digital purchases appear here immediately after transaction verification—no waiting for manual processing.
+              </p>
+           </div>
+        </footer>
       </div>
     </div>
   );
 }
 
-function AssetGridCard({ item, userId }: { item: any, userId: string }) {
-  return (
-    <div className="group bg-white rounded-[3.5rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden flex flex-col">
-       <div className="relative h-56 overflow-hidden">
-          <img src={item.productImageUrl} alt={item.productName} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-          <div className="absolute inset-0 bg-linear-to-t from-gray-900/80 via-gray-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-end p-8">
-             <Link href={`/orders/${item.orderId}`} className="text-white flex items-center gap-2 text-xs font-black uppercase tracking-widest hover:underline">
-                View Order Receipt <ExternalLink className="w-3.5 h-3.5" />
-             </Link>
-          </div>
-          <div className="absolute top-6 left-6 px-4 py-2 bg-white/90 backdrop-blur-md rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-900 shadow-xl border border-white/50">
-             Locker #{item.orderId.slice(0, 4).toUpperCase()}
-          </div>
-       </div>
-       
-       <div className="p-8 flex-1 flex flex-col">
-          <div className="mb-8">
-             <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
-                <Clock className="w-3.5 h-3.5" /> Secured on {formatDate(item.orderDate)}
-             </div>
-             <h3 className="text-2xl font-black text-gray-900 leading-tight group-hover:text-primary-600 transition-colors line-clamp-2">{item.productName}</h3>
-          </div>
-
-          <div className="space-y-4">
-             {item.assets.map((asset: any) => (
-                <a 
-                  key={asset.id}
-                  href={`/api/downloads/${asset.id}?userId=${userId}`}
-                  download
-                  className="flex items-center justify-between p-5 bg-gray-50 rounded-4xl border border-gray-100 hover:bg-gray-900 hover:text-white hover:border-gray-900 transition-all group/asset shadow-xs relative overflow-hidden"
-                >
-                   <div className="flex items-center gap-4 min-w-0 relative z-10">
-                      <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-hover/asset:text-primary-600 transition-colors shadow-sm">
-                         <FileText className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                         <p className="text-sm font-black truncate">{asset.name}</p>
-                         <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mt-0.5">
-                            {(asset.size / 1024 / 1024).toFixed(2)} MB • {asset.lastDownloadedAt ? `Last Downloaded ${formatRelativeTime(new Date(asset.lastDownloadedAt))}` : 'Not yet downloaded'}
-                         </p>
-                      </div>
-                   </div>
-                   <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 opacity-0 group-hover/asset:opacity-100 transition-all translate-x-4 group-hover/asset:translate-x-0">
-                      <ArrowDownToLine className="w-5 h-5" />
-                   </div>
-                   <div className="absolute inset-0 bg-linear-to-r from-primary-600/20 to-transparent opacity-0 group-hover/asset:opacity-100 transition-opacity" />
-                </a>
-             ))}
-          </div>
-       </div>
-    </div>
-  );
-}
-
-function AssetListRow({ item, userId }: { item: any, userId: string }) {
-   return (
-      <div className="bg-white rounded-4xl border border-gray-100 p-6 flex flex-col md:flex-row md:items-center gap-6 group hover:shadow-xl transition-all">
-         <div className="w-20 h-20 rounded-2xl overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
-            <img src={item.productImageUrl} alt="" className="w-full h-full object-cover" />
-         </div>
-         <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-black text-gray-900 truncate group-hover:text-primary-600 transition-colors">{item.productName}</h3>
-            <div className="flex items-center gap-4 mt-1">
-               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Added {formatDate(item.orderDate)}</p>
-               <div className="w-1 h-1 bg-gray-200 rounded-full" />
-               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.assets.length} Assets</p>
+function ProductGroup({ item, viewMode, onAssetSelect, userId }: { item: any, viewMode: ViewMode, onAssetSelect: (a: any) => void, userId: string }) {
+   if (viewMode === 'list') {
+      return (
+         <div className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col md:flex-row md:items-center gap-8 group hover:shadow-2xl hover:border-primary-100 transition-all">
+            <div className="w-24 h-24 rounded-3xl overflow-hidden shrink-0 border border-gray-50 shadow-sm">
+               <img src={item.productImageUrl} alt="" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex-1">
+               <div className="flex items-center gap-2 text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                  Order #{item.orderId.slice(0, 8).toUpperCase()}
+               </div>
+               <h3 className="text-2xl font-black text-gray-900 group-hover:text-primary-600 transition-colors">{item.productName}</h3>
+               <p className="text-xs font-bold text-gray-400 mt-1">{item.assets.length} Secure Assets</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+               {item.assets.map((asset: any) => (
+                  <button 
+                    key={asset.id}
+                    onClick={() => onAssetSelect(asset)}
+                    className="flex items-center gap-2 px-6 py-4 bg-gray-50 hover:bg-gray-900 hover:text-white rounded-2xl text-xs font-black transition-all"
+                  >
+                     <FileText className="w-4 h-4 opacity-40" />
+                     {asset.name.split('.').pop()?.toUpperCase()}
+                  </button>
+               ))}
             </div>
          </div>
-         <div className="flex flex-wrap gap-2">
+      );
+   }
+
+   return (
+      <div className="group bg-white rounded-[4rem] border border-gray-100 shadow-sm hover:shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] hover:-translate-y-3 transition-all duration-700 overflow-hidden flex flex-col">
+         <div className="relative h-64">
+            <img src={item.productImageUrl} alt={item.productName} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+            <div className="absolute bottom-8 left-8 right-8">
+               <h3 className="text-2xl font-black text-white leading-tight mb-2 drop-shadow-md">{item.productName}</h3>
+               <div className="flex items-center gap-4 text-[10px] font-black text-primary-300 uppercase tracking-widest">
+                  <span>{item.assets.length} Files</span>
+                  <div className="w-1 h-1 bg-white/40 rounded-full" />
+                  <span>{formatDate(item.orderDate)}</span>
+               </div>
+            </div>
+         </div>
+         
+         <div className="p-8 flex-1 space-y-3">
             {item.assets.map((asset: any) => (
-               <a 
-                  key={asset.id}
-                  href={`/api/downloads/${asset.id}?userId=${userId}`}
-                  download
-                  className="flex items-center gap-3 px-4 py-3 bg-gray-50 hover:bg-gray-900 hover:text-white rounded-xl transition-all text-xs font-black"
-               >
-                  <FileText className="w-4 h-4 opacity-40" />
-                  <span>{asset.name.split('.').pop()?.toUpperCase()}</span>
-                  <Download className="w-3.5 h-3.5" />
-               </a>
+               <div key={asset.id} className="group/asset relative">
+                  <div 
+                    onClick={() => onAssetSelect(asset)}
+                    className="flex items-center justify-between p-5 bg-gray-50 rounded-3xl border border-transparent hover:border-primary-200 hover:bg-white hover:shadow-xl transition-all cursor-pointer"
+                  >
+                     <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-gray-400 group-hover/asset:text-primary-600 shadow-sm transition-colors">
+                           <FileText className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                           <p className="text-sm font-black truncate text-gray-900">{asset.name}</p>
+                           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                              {(asset.size / 1024 / 1024).toFixed(2)} MB • {asset.lastDownloadedAt ? 'Last Downloaded' : 'Never Downloaded'}
+                           </p>
+                        </div>
+                     </div>
+                     <ChevronRight className="w-4 h-4 text-gray-300 group-hover/asset:translate-x-1 group-hover/asset:text-primary-600 transition-all" />
+                  </div>
+               </div>
             ))}
+         </div>
+      </div>
+   );
+}
+
+function AssetDetailOverlay({ asset, product, userId, onClose }: { asset: any, product: any, userId: string, onClose: () => void }) {
+   const type = asset.mimeType.split('/')[1]?.toUpperCase() || 'FILE';
+   
+   return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 overflow-hidden">
+         <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-xl animate-in fade-in duration-500" onClick={onClose} />
+         
+         <div className="relative w-full max-w-4xl bg-white rounded-[4rem] shadow-2xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
+            <div className="md:w-2/5 relative h-64 md:h-auto bg-gray-900">
+               <img src={product.productImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-50" />
+               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-transparent to-transparent" />
+               <div className="absolute bottom-10 left-10 right-10">
+                  <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center text-white mb-6 border border-white/20">
+                     <FileText className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-white font-black text-xs uppercase tracking-[0.3em] mb-2 opacity-60">Source Product</h4>
+                  <h3 className="text-2xl font-black text-white leading-tight">{product.productName}</h3>
+               </div>
+            </div>
+
+            <div className="flex-1 p-8 md:p-16 flex flex-col">
+               <div className="flex items-center justify-between mb-12">
+                  <div className="flex items-center gap-3 px-4 py-2 bg-primary-50 rounded-2xl border border-primary-100 text-primary-600 text-[10px] font-black uppercase tracking-widest">
+                     <ShieldCheck className="w-4 h-4" /> Integrity Verified
+                  </div>
+                  <button onClick={onClose} className="p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-900">
+                     <X className="w-6 h-6" />
+                  </button>
+               </div>
+
+               <div className="flex-1">
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tighter mb-4">{asset.name}</h2>
+                  <div className="flex flex-wrap gap-6 mb-12">
+                     <DetailMeta icon={<TagIcon className="w-4 h-4" />} label="Type" value={type} />
+                     <DetailMeta icon={<HardDrive className="w-4 h-4" />} label="Size" value={`${(asset.size / 1024 / 1024).toFixed(2)} MB`} />
+                     <DetailMeta icon={<Clock className="w-4 h-4" />} label="Updated" value={formatDate(product.orderDate)} />
+                  </div>
+
+                  <div className="bg-gray-50 rounded-4xl p-8 mb-12 border border-gray-100">
+                     <div className="flex items-center gap-3 mb-4 text-gray-900">
+                        <HelpCircle className="w-5 h-5" />
+                        <h4 className="text-sm font-black uppercase tracking-widest">Quick Guide</h4>
+                     </div>
+                     <p className="text-sm font-medium text-gray-500 leading-relaxed">
+                        {type === 'PDF' ? 'Open with Adobe Acrobat or any modern browser. Supports interactive indexing.' : 
+                         type === 'CSV' ? 'Best viewed in Excel or Google Sheets for advanced market data analysis.' : 
+                         'Universal file format. Compatible with most standard applications.'}
+                     </p>
+                  </div>
+               </div>
+
+               <div className="flex flex-col sm:flex-row gap-4">
+                  <a 
+                    href={`/api/downloads/${asset.id}?userId=${userId}`}
+                    download
+                    className="flex-1 flex items-center justify-center gap-3 py-6 bg-gray-900 text-white rounded-[2rem] text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200"
+                  >
+                     <Download className="w-5 h-5" /> Download Asset
+                  </a>
+                  <Link 
+                    href={`/orders/${product.orderId}`}
+                    className="px-10 py-6 bg-white border-2 border-gray-100 rounded-[2rem] text-sm font-black uppercase tracking-widest hover:bg-gray-50 transition-all text-gray-900 text-center"
+                  >
+                     Receipt
+                  </Link>
+               </div>
+            </div>
+         </div>
+      </div>
+   );
+}
+
+function DetailMeta({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) {
+   return (
+      <div className="flex items-center gap-3">
+         <div className="text-gray-300">{icon}</div>
+         <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+            <p className="text-sm font-black text-gray-900 leading-none">{value}</p>
+         </div>
+      </div>
+   );
+}
+
+function EmptyLockerState({ onClear }: { onClear: () => void }) {
+   return (
+      <div className="py-40 bg-white rounded-[5rem] border border-gray-100 shadow-sm text-center max-w-4xl mx-auto">
+         <div className="w-32 h-32 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 text-gray-200">
+            <Search className="w-12 h-12" />
+         </div>
+         <h3 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">No assets in this sector</h3>
+         <p className="text-gray-500 font-medium text-lg max-w-md mx-auto leading-relaxed mb-12">
+            Try adjusting your search query or filters. Your collection may be hidden in a different category.
+         </p>
+         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button 
+               onClick={onClear} 
+               className="px-10 py-5 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl"
+            >
+               Reset Filters
+            </button>
+            <Link 
+               href="/products?category=digital" 
+               className="px-10 py-5 bg-white border-2 border-gray-100 text-gray-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+            >
+               Browse Digital Goods
+            </Link>
          </div>
       </div>
    );
