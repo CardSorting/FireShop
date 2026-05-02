@@ -35,8 +35,19 @@ export interface Product {
   set?: string;
   rarity?: string;
   metafields?: Record<string, string | number | boolean | null>;
+  isDigital?: boolean;
+  digitalAssets?: DigitalAsset[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface DigitalAsset {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  mimeType: string;
+  createdAt: Date;
 }
 
 export interface ProductMedia {
@@ -309,6 +320,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number; // cents
   imageUrl?: string;
+  digitalAssets?: DigitalAsset[];
 }
 
 export type OrderStatus =

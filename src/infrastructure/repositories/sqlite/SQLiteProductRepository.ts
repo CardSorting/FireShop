@@ -140,6 +140,8 @@ export class SQLiteProductRepository implements IProductRepository {
       status: parseProductStatus(row.status),
       set: row.set || undefined,
       rarity: parseClassification(row.rarity),
+      isDigital: parseNullableBoolean(row.isDigital),
+      digitalAssets: row.digitalAssets ? JSON.parse(row.digitalAssets) : undefined,
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
     };
@@ -421,6 +423,8 @@ export class SQLiteProductRepository implements IProductRepository {
           status: product.status || 'active',
           set: product.set || null,
           rarity: product.rarity || null,
+          isDigital: nullableBoolean(product.isDigital),
+          digitalAssets: product.digitalAssets ? JSON.stringify(product.digitalAssets) : null,
           createdAt: now,
           updatedAt: now,
         })
@@ -459,7 +463,7 @@ export class SQLiteProductRepository implements IProductRepository {
     const now = new Date().toISOString();
     
     const validFields: (keyof ProductUpdate)[] = [
-      'name', 'description', 'price', 'compareAtPrice', 'cost', 'category', 'productType', 'vendor', 'tags', 'collections', 'handle', 'seoTitle', 'seoDescription', 'salesChannels', 'stock', 'trackQuantity', 'continueSellingWhenOutOfStock', 'reorderPoint', 'reorderQuantity', 'physicalItem', 'weightGrams', 'sku', 'manufacturer', 'supplier', 'manufacturerSku', 'barcode', 'imageUrl', 'set', 'rarity', 'status'
+      'name', 'description', 'price', 'compareAtPrice', 'cost', 'category', 'productType', 'vendor', 'tags', 'collections', 'handle', 'seoTitle', 'seoDescription', 'salesChannels', 'stock', 'trackQuantity', 'continueSellingWhenOutOfStock', 'reorderPoint', 'reorderQuantity', 'physicalItem', 'weightGrams', 'sku', 'manufacturer', 'supplier', 'manufacturerSku', 'barcode', 'imageUrl', 'set', 'rarity', 'status', 'isDigital', 'digitalAssets'
     ];
 
     const finalUpdates: Partial<ProductTable> = { updatedAt: now };

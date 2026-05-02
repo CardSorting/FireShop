@@ -1,7 +1,5 @@
 "use client";
 
-'use client';
-
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -18,12 +16,17 @@ import {
   Truck,
   AlertCircle,
   AlertTriangle,
+  FileText,
+  FileUp,
+  Download,
 } from 'lucide-react';
+import type { DigitalAsset } from '@domain/models';
 import { formatCurrency } from '@utils/formatters';
 import { SkeletonPage, AdminConfirmDialog } from '../../../components/admin/AdminComponents';
 import { CategorySelect, TagInput } from '../../../components/admin/AdminInputs';
 import { SeoSettings } from '../../../components/admin/SeoSettings';
 import { AdminMediaManager } from '../../../components/admin/AdminMediaManager';
+import { DigitalAssetManager } from '@ui/components/admin/DigitalAssetManager';
 
 import { useProductForm } from './hooks/useProductForm';
 import { TextInput, MoneyInput, Checkbox } from './components/FormInputs';
@@ -198,11 +201,45 @@ export function AdminProductForm() {
           </section>
 
           <section className="rounded-xl border bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <FileText className="h-4 w-4" /> Digital Downloads
+              </h2>
+              <Checkbox label="This is a digital product" checked={form.isDigital} onChange={(checked) => handleCheckbox('isDigital', checked)} />
+            </div>
+            
+            {form.isDigital ? (
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Digital Assets</p>
+                <DigitalAssetManager 
+                  assets={form.digitalAssets} 
+                  onChange={(assets: DigitalAsset[]) => setFieldValue('digitalAssets', assets)} 
+                />
+                <div className="rounded-lg bg-primary-50 p-4 text-xs font-medium text-primary-700">
+                  Customers will receive download links for these assets after their order is paid.
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed bg-gray-50/50 p-8 text-center">
+                <FileText className="mb-2 h-8 w-8 text-gray-300" />
+                <p className="text-xs font-bold text-gray-400">Not a digital product</p>
+                <p className="mt-1 text-[10px] text-gray-400 max-w-[200px]">Enable the toggle above to attach files for customers to download after purchase.</p>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border bg-white p-5 shadow-sm">
             <h2 className="mb-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400"><Truck className="h-4 w-4" /> Shipping / physical item</h2>
             <div className="grid gap-4 md:grid-cols-2">
               <Checkbox label="This is a physical item" checked={form.physicalItem} onChange={(checked) => handleCheckbox('physicalItem', checked)} />
-              <TextInput label="Weight (grams)" name="weightGrams" value={form.weightGrams} onChange={handleChange} type="number" />
+              <TextInput label="Weight (grams)" name="weightGrams" value={form.weightGrams} onChange={handleChange} type="number" disabled={!form.physicalItem} />
             </div>
+            {form.isDigital && form.physicalItem && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-[10px] font-bold text-amber-700 uppercase tracking-tight">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>Note: This product is marked as both Digital and Physical. Shipping will be calculated for the physical component.</span>
+              </div>
+            )}
           </section>
 
           <section className="rounded-xl border bg-white p-5 shadow-sm">

@@ -35,6 +35,8 @@ export interface ProductTable {
   imageUrl: string;
   set: string | null;
   rarity: string | null;
+  isDigital: number | null;
+  digitalAssets: string | null; // JSON string
   status: string; // 'active' | 'draft' | 'archived'
   createdAt: string; // ISO string for SQLite
   updatedAt: string;

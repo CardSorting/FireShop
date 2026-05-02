@@ -19,6 +19,8 @@ import {
   Trash2,
   Truck,
   RotateCcw,
+  Download,
+  FileText,
 } from 'lucide-react';
 import type { Order } from '@domain/models';
 import { formatDate, formatMoney, estimateDelivery } from '@utils/formatters';
@@ -68,6 +70,8 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
   const shipping = Math.max(0, order.total - subtotal);
   const displayEmail = order.customerEmail || userEmail;
   const orderNumber = order.id.toUpperCase().slice(0, 12);
+  const digitalItems = order.items.filter(item => item.digitalAssets && item.digitalAssets.length > 0);
+  const hasDigitalItems = digitalItems.length > 0;
 
   const handleReorder = async () => {
     setReordering(true);
@@ -180,6 +184,64 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                 </div>
               </InfoCard>
             </section>
+
+            {hasDigitalItems && (
+              <section className="overflow-hidden rounded-[3rem] border border-primary-100 bg-primary-50/30 shadow-xl shadow-primary-200/20 backdrop-blur-xl">
+                <div className="border-b border-primary-100/50 px-8 py-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">Digital Assets</p>
+                      <h2 className="mt-1 text-2xl font-black text-gray-900">Your Downloads</h2>
+                    </div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-600 text-white shadow-lg">
+                      <Download className="h-6 w-6" />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-8 space-y-6">
+                  <div className="rounded-2xl bg-white/50 p-4 text-sm text-primary-800 border border-primary-100/50 flex gap-4 items-center">
+                    <ShieldCheck className="h-5 w-5 shrink-0 text-primary-600" />
+                    <p className="font-medium">These links are exclusive to your account. Do not share them.</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    {digitalItems.map((item) => (
+                      <div key={item.productId} className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white">
+                            <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                          </div>
+                          <h3 className="text-sm font-black text-gray-900">{item.name}</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-4 border-l-2 border-primary-100">
+                          {item.digitalAssets?.map((asset) => (
+                            <a 
+                              key={asset.id} 
+                              href={asset.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="group flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm border border-gray-100 transition-all hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
+                                  <FileText className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-black text-gray-900">{asset.name}</p>
+                                  <p className="text-[10px] font-bold text-gray-400">{(asset.size / 1024 / 1024).toFixed(2)} MB • {asset.mimeType.split('/')[1].toUpperCase()}</p>
+                                </div>
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="overflow-hidden rounded-[3rem] border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6">

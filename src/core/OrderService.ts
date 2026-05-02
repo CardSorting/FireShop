@@ -155,6 +155,7 @@ export class OrderService {
       const priceMap = new Map<string, number>();
       const nameMap = new Map<string, string>();
       const imageMap = new Map<string, string>();
+      const digitalAssetsMap = new Map<string, any[]>();
 
       for (const item of cart.items) {
         const product = await this.productRepo.getById(item.productId);
@@ -163,6 +164,9 @@ export class OrderService {
         priceMap.set(item.productId, product.price);
         nameMap.set(item.productId, product.name);
         imageMap.set(item.productId, product.imageUrl);
+        if (product.digitalAssets) {
+          digitalAssetsMap.set(item.productId, product.digitalAssets);
+        }
       }
 
       if (!canPlaceOrder(cart.items, stockMap)) {
@@ -220,6 +224,7 @@ export class OrderService {
             quantity: item.quantity,
             unitPrice: priceMap.get(item.productId) || 0,
             imageUrl: imageMap.get(item.productId) || item.imageUrl,
+            digitalAssets: digitalAssetsMap.get(item.productId),
           })),
           total,
           status: 'confirmed',

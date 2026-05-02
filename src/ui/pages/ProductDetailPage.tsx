@@ -14,7 +14,7 @@ import {
   X, ShoppingBag, Trash2, ChevronRight, LockKeyhole, Truck, 
   ShieldCheck, ArrowRight, Minus, Plus, CreditCard, Shield,
   Heart, Star, Zap, ShoppingCart, RefreshCcw, Info, Users,
-  PackageCheck, Timer, Check, LifeBuoy
+  PackageCheck, Timer, Check, LifeBuoy, Download
 } from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
 
@@ -249,6 +249,13 @@ export function ProductDetailPage() {
           <div className="lg:col-span-4 space-y-12">
             <section>
               <div className="flex flex-wrap items-center gap-y-4 mb-6">
+                {product.isDigital && (
+                  <div className="w-full mb-2">
+                    <span className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      <Download className="h-3 w-3" /> Digital Product
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-1 mr-4">
                   {[1, 2, 3, 4, 5].map(i => (
                     <Star key={i} className={`w-3.5 h-3.5 ${i <= 4 ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
@@ -347,7 +354,7 @@ export function ProductDetailPage() {
               <div className="space-y-2">
                 {[
                   { id: 'about', label: 'Product Narrative', icon: Info, content: product.description },
-                  { id: 'shipping', label: 'Shipping & Returns', icon: Truck, content: 'Free express shipping on orders over $50. 30-day money-back guarantee for mint condition items.' },
+                  { id: 'shipping', label: product.isDigital ? 'Instant Fulfillment' : 'Shipping & Returns', icon: product.isDigital ? Download : Truck, content: product.isDigital ? 'Access your digital files immediately upon checkout. No physical item will be shipped. Links are sent via email and available in your order dashboard.' : 'Free express shipping on orders over $50. 30-day money-back guarantee for mint condition items.' },
                   { id: 'authenticity', label: 'Our Authenticity Promise', icon: ShieldCheck, content: 'Every card is manually inspected by our TCG experts to ensure original print and stated condition.' }
                 ].map(item => (
                   <div key={item.id} className="border-b border-gray-50 last:border-none">

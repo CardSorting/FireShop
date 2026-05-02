@@ -82,6 +82,8 @@ export function useProductForm(id?: string) {
         set: product.set ?? '',
         rarity: product.rarity ?? '',
         adminNotes: '',
+        isDigital: product.isDigital ?? false,
+        digitalAssets: product.digitalAssets ?? [],
       });
       setUnsaved(false);
     } catch {
@@ -173,6 +175,8 @@ export function useProductForm(id?: string) {
       status: form.status,
       set: form.set || undefined,
       rarity: form.rarity || undefined,
+      isDigital: form.isDigital,
+      digitalAssets: form.digitalAssets,
     };
 
     try {
@@ -275,6 +279,8 @@ export function useProductForm(id?: string) {
         status: copyData.status,
         set: copyData.set || undefined,
         rarity: copyData.rarity || undefined,
+        isDigital: copyData.isDigital,
+        digitalAssets: copyData.digitalAssets,
       };
 
       const newProduct = await services.productService.createProduct(data, actor);
