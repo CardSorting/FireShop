@@ -7,6 +7,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 ### Onboarding
 - [Getting Started](./onboarding/getting-started.md) — environment requirements, install, first run, verification commands.
 - [Walkthrough](./onboarding/walkthrough.md) — guided tour through Domain, Core, Infrastructure, UI, and Plumbing.
+- [Day 2 Operations](./onboarding/day-2.md) — extending the engine, building features, and maintenance.
 - [Troubleshooting](./onboarding/troubleshooting.md) — verified operational pitfalls and recovery commands.
 
 ### Architecture

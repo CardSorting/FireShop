@@ -75,7 +75,7 @@ npm run dev
 For deep technical dives and operational guides, refer to the internal **[Knowledge Ledger](.wiki/index.md)**:
 
 > [!TIP]
-> Use the [Architecture Overview](.wiki/architecture/overview.md) to understand the request lifecycle and [Troubleshooting](.wiki/onboarding/troubleshooting.md) for common setup issues.
+> Use the [Architecture Overview](.wiki/architecture/overview.md) to understand the request lifecycle and [Day 2 Operations](.wiki/onboarding/day-2.md) for a guide on extending the engine.
 
 - [Support CRM Architecture](.wiki/architecture/support-crm.md)
 - [Digital Fulfillment Strategy](.wiki/architecture/digital-fulfillment.md)

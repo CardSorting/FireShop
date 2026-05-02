@@ -39,16 +39,25 @@ Admin-protected routes:
 - `src/app/api/admin/dashboard/route.ts` - Aggregate store metrics
 - `src/app/api/admin/inventory/route.ts` - Inventory health and stock levels
 - `src/app/api/admin/orders/route.ts` - Global order management
-- `src/app/api/admin/orders/[id]/route.ts` - Status updates and order detail
+- `src/app/api/admin/tickets/route.ts` - Support CRM ticketing
+- `src/app/api/support/macros/route.ts` - CRM response macros
+- `src/app/api/downloads/route.ts` - Secure digital fulfillment
 - `src/app/api/products/route.ts` - Product creation and bulk listing
 - `src/app/api/products/[id]/route.ts` - Product updates and deletion
+
+### Handle-Based SEO Routes:
+- `src/app/products/[handle]/page.tsx`
+- `src/app/collections/[slug]/page.tsx`
+- `src/app/sitemap.ts`
+- `src/app/robots.ts`
 
 ## 4. UI layer: `src/ui/`
 
 UI presents state and dispatches intentions.
 
 - `src/ui/apiClientServices.ts` is the browser API facade. It preserves Domain service-like method signatures but must not be trusted for authorization.
-- Page components under `src/ui/pages/` render flows for browsing products, cart, checkout, orders, auth, and admin views.
+- **Industrial Admin Components**: `src/ui/pages/admin/AdminTickets.tsx`, `src/ui/pages/admin/AdminTicketDetail.tsx`, and `src/ui/components/admin/DigitalAssetManager.tsx`.
+- **Customer Digital Locker**: `src/ui/pages/DigitalLibraryPage.tsx`.
 - Hooks under `src/ui/hooks/` expose services/auth state to components.
 
 Constraint: UI must not import Infrastructure directly. It should communicate with server APIs over HTTP or consume Domain types.
