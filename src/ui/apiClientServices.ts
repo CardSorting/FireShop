@@ -250,9 +250,11 @@ export function createApiClientServices() {
                 return request<SupportTicket[]>(`/api/admin/tickets?${qs}`);
             },
             getTicket: (id: string) => request<SupportTicket>(`/api/admin/tickets/${id}`),
+            getUserTickets: (userId: string) => request<SupportTicket[]>(`/api/tickets?userId=${userId}`),
+            getUserTicket: (id: string, userId: string) => request<SupportTicket>(`/api/tickets/${id}?userId=${userId}`),
             createTicket: (data: Partial<SupportTicket>) => request<SupportTicket>('/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
             updateTicketStatus: (id: string, status: string) => request<SupportTicket>(`/api/admin/tickets/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-            addMessage: (id: string, content: string, senderId?: string, senderType?: string) => request<TicketMessage>(`/api/tickets/${id}/messages`, { method: 'POST', body: JSON.stringify({ content, senderId, senderType }) }),
+            addMessage: (id: string, content: string, senderId?: string, senderType?: string, visibility: 'public' | 'internal' = 'public') => request<TicketMessage>(`/api/tickets/${id}/messages`, { method: 'POST', body: JSON.stringify({ content, senderId, senderType, visibility }) }),
         },
         knowledgebaseService: {
             getCategories: () => request<KnowledgebaseCategory[]>('/api/support/categories'),

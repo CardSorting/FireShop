@@ -24,18 +24,23 @@ function mapMessage(row: any): TicketMessage {
     ticketId: row.ticketId,
     senderId: row.senderId,
     senderType: row.senderType as 'customer' | 'agent' | 'system',
+    visibility: (row.visibility || 'public') as 'public' | 'internal',
     content: row.content,
     createdAt: new Date(row.createdAt),
   };
 }
 
 export const ticketRepository = {
-  async getTickets(options?: { status?: string; limit?: number }) {
+  async getTickets(options?: { status?: string; userId?: string; limit?: number }) {
     const db = getSQLiteDB();
     let query = db.selectFrom('support_tickets').selectAll();
     
     if (options?.status && options.status !== 'all') {
       query = query.where('status', '=', options.status);
+    }
+
+    if (options?.userId) {
+      query = query.where('userId', '=', options.userId);
     }
     
     query = query.orderBy('createdAt', 'desc');
@@ -57,6 +62,15 @@ export const ticketRepository = {
     
     const ticket = mapTicket(row);
     ticket.messages = messagesRow.map(mapMessage);
+    return ticket;
+  },
+
+  async getTicketForCustomer(id: string, userId: string) {
+    const ticket = await this.getTicketById(id);
+    if (!ticket || ticket.userId !== userId) return null;
+    
+    // Security: Filter out internal messages from customer view
+    ticket.messages = ticket.messages.filter(m => m.visibility === 'public');
     return ticket;
   },
 
@@ -82,6 +96,7 @@ export const ticketRepository = {
         ticketId: ticket.id,
         senderId: m.senderId,
         senderType: m.senderType,
+        visibility: m.visibility || 'public',
         content: m.content,
         createdAt: m.createdAt.toISOString(),
       }));
@@ -104,6 +119,7 @@ export const ticketRepository = {
       ticketId: message.ticketId,
       senderId: message.senderId,
       senderType: message.senderType,
+      visibility: message.visibility || 'public',
       content: message.content,
       createdAt: message.createdAt.toISOString(),
     }).execute();

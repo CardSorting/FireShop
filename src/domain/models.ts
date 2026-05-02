@@ -696,6 +696,7 @@ export interface TicketMessage {
   ticketId: string;
   senderId: string;
   senderType: 'customer' | 'agent' | 'system';
+  visibility: 'public' | 'internal';
   content: string;
   createdAt: Date;
 }

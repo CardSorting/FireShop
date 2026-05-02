@@ -303,6 +303,7 @@ export interface TicketMessageTable {
   ticketId: string;
   senderId: string;
   senderType: string;
+  visibility: string;
   content: string;
   createdAt: string;
 }

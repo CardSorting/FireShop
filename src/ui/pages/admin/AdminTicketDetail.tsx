@@ -57,16 +57,19 @@ export function AdminTicketDetail() {
     }
   }, [ticket?.messages]);
 
+  const [isInternal, setIsInternal] = useState(false);
+
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reply.trim() || !currentUser || isSending) return;
 
     setIsSending(true);
     try {
-      await services.ticketService.addMessage(id, reply, currentUser.id, 'agent');
+      await services.ticketService.addMessage(id, reply, currentUser.id, 'agent', isInternal ? 'internal' : 'public');
       setReply('');
+      setIsInternal(false);
       await loadTicket(); // Refresh to show new message
-      toast('success', 'Reply sent successfully');
+      toast('success', isInternal ? 'Internal note added' : 'Reply sent successfully');
     } catch (err) {
       toast('error', 'Failed to send reply');
     } finally {
@@ -212,6 +215,7 @@ export function AdminTicketDetail() {
               {ticket.messages.map((msg, idx) => {
                 const isAgent = msg.senderType === 'agent';
                 const isSystem = msg.senderType === 'system';
+                const isInternal = msg.visibility === 'internal';
                 
                 if (isSystem) {
                   return (
@@ -229,7 +233,7 @@ export function AdminTicketDetail() {
                     <div className={`max-w-[85%] space-y-1`}>
                       <div className={`flex items-center gap-2 mb-1 ${isAgent ? 'flex-row-reverse' : ''}`}>
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          {isAgent ? 'Support Team' : (ticket.customerName || 'Customer')}
+                          {isAgent ? (isInternal ? 'Internal Note' : 'Support Team') : (ticket.customerName || 'Customer')}
                         </span>
                         <span className="text-[9px] text-gray-300 font-medium">
                           {formatFullDateTime(msg.createdAt.toString())}
@@ -237,9 +241,11 @@ export function AdminTicketDetail() {
                       </div>
                       <div className={`
                         relative px-5 py-3.5 rounded-2xl text-sm leading-relaxed
-                        ${isAgent 
-                          ? 'bg-primary-600 text-white rounded-tr-none shadow-lg shadow-primary-500/10' 
-                          : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none shadow-sm'
+                        ${isInternal 
+                          ? 'bg-amber-50 text-amber-900 border border-amber-200 rounded-tr-none shadow-sm'
+                          : isAgent 
+                            ? 'bg-primary-600 text-white rounded-tr-none shadow-lg shadow-primary-500/10' 
+                            : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none shadow-sm'
                         }
                       `}>
                         <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -252,23 +258,45 @@ export function AdminTicketDetail() {
 
             {/* Reply Input */}
             <div className="p-4 border-t bg-white">
-              <form onSubmit={handleSendReply} className="relative">
-                <textarea
-                  value={reply}
-                  onChange={(e) => setReply(e.target.value)}
-                  placeholder="Type your response..."
-                  rows={3}
-                  className="w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-4 pb-12 text-sm font-medium focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 outline-none transition"
-                />
-                <div className="absolute right-3 bottom-3 flex items-center gap-3">
-                  <p className="text-[10px] text-gray-400 font-bold hidden md:block">Press ⌘+Enter to send</p>
+              <form onSubmit={handleSendReply} className="space-y-4">
+                <div className="flex items-center gap-4 mb-2">
                   <button
-                    type="submit"
-                    disabled={!reply.trim() || isSending}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-900 text-white shadow-xl hover:bg-black transition-all disabled:opacity-50"
+                    type="button"
+                    onClick={() => setIsInternal(false)}
+                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all ${!isInternal ? 'bg-primary-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
                   >
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    Public Reply
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsInternal(true)}
+                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full transition-all ${isInternal ? 'bg-amber-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                  >
+                    Internal Note
+                  </button>
+                </div>
+                <div className="relative">
+                  <textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder={isInternal ? "Add an internal note only agents can see..." : "Type your response..."}
+                    rows={3}
+                    className={`w-full resize-none rounded-xl border p-4 pb-12 text-sm font-medium focus:ring-4 outline-none transition ${
+                      isInternal 
+                        ? 'bg-amber-50/50 border-amber-200 focus:bg-white focus:border-amber-500 focus:ring-amber-500/5' 
+                        : 'bg-gray-50 border-gray-200 focus:bg-white focus:border-primary-500 focus:ring-primary-500/5'
+                    }`}
+                  />
+                  <div className="absolute right-3 bottom-3 flex items-center gap-3">
+                    <p className="text-[10px] text-gray-400 font-bold hidden md:block">Press ⌘+Enter to send</p>
+                    <button
+                      type="submit"
+                      disabled={!reply.trim() || isSending}
+                      className={`flex h-10 w-10 items-center justify-center rounded-lg text-white shadow-xl transition-all disabled:opacity-50 ${isInternal ? 'bg-amber-600 hover:bg-amber-700' : 'bg-gray-900 hover:bg-black'}`}
+                    >
+                      {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>

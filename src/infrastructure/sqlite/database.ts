@@ -660,8 +660,13 @@ export async function initDatabase() {
     .addColumn('ticketId', 'text', (col) => col.notNull())
     .addColumn('senderId', 'text', (col) => col.notNull())
     .addColumn('senderType', 'text', (col) => col.notNull())
+    .addColumn('visibility', 'text', (col) => col.notNull().defaultTo('public'))
     .addColumn('content', 'text', (col) => col.notNull())
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute();
+
+  try {
+    await db.schema.alterTable('ticket_messages').addColumn('visibility', 'text', (col) => col.notNull().defaultTo('public')).execute();
+  } catch (err) {}
 }
 

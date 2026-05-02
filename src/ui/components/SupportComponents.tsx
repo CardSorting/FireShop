@@ -67,7 +67,12 @@ export function KnowledgebaseArticleList({ articles, categoryName, onBack, onArt
   );
 }
 
-export function KnowledgebaseArticleView({ article, onBack }: { article: KnowledgebaseArticle, onBack: () => void }) {
+export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onArticleClick }: { 
+  article: KnowledgebaseArticle, 
+  relatedArticles: KnowledgebaseArticle[],
+  onBack: () => void,
+  onArticleClick: (a: KnowledgebaseArticle) => void
+}) {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -89,7 +94,6 @@ export function KnowledgebaseArticleView({ article, onBack }: { article: Knowled
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8">
           <div className="prose prose-gray max-w-none prose-h1:text-2xl prose-h1:font-black prose-h2:text-xl prose-h2:font-black prose-p:text-gray-600 prose-p:leading-relaxed prose-strong:text-gray-900">
-             {/* Note: In a real app we'd use a markdown renderer here */}
              <div className="whitespace-pre-wrap font-medium text-gray-600 leading-relaxed text-base">
                {article.content}
              </div>
@@ -130,6 +134,24 @@ export function KnowledgebaseArticleView({ article, onBack }: { article: Knowled
                 </div>
              </div>
            </div>
+
+           {relatedArticles.length > 0 && (
+             <div className="bg-white rounded-4xl p-8 border border-gray-100 shadow-sm">
+               <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Related Articles</h3>
+               <div className="space-y-4">
+                 {relatedArticles.map(rel => (
+                   <button 
+                    key={rel.id} 
+                    onClick={() => onArticleClick(rel)}
+                    className="w-full text-left group"
+                   >
+                     <p className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-2">{rel.title}</p>
+                     <p className="text-[10px] font-medium text-gray-400 mt-1">{rel.categoryName}</p>
+                   </button>
+                 ))}
+               </div>
+             </div>
+           )}
 
            <div className="bg-primary-600 rounded-4xl p-8 text-white shadow-xl shadow-primary-500/20 relative overflow-hidden group">
              <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10 blur-2xl group-hover:scale-150 transition-transform duration-1000" />
@@ -193,6 +215,140 @@ export function SupportSearchOverlay({ query, results, onClose, onResultClick }:
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+export function TicketList({ tickets, onTicketClick }: { 
+  tickets: SupportTicket[], 
+  onTicketClick: (t: SupportTicket) => void 
+}) {
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-black text-gray-900">My Support Tickets</h2>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4">
+        {tickets.length > 0 ? (
+          tickets.map(ticket => (
+            <button 
+              key={ticket.id}
+              onClick={() => onTicketClick(ticket)}
+              className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-primary-100 hover:shadow-lg transition-all group text-left"
+            >
+              <div className="flex items-center gap-5">
+                <div className={`p-3 rounded-2xl ${ticket.status === 'resolved' ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'} group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors`}>
+                  <MessageSquare className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{ticket.subject}</p>
+                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
+                      ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                    }`}>
+                      {ticket.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-500 mt-1">Ticket #{ticket.id.slice(0, 8).toUpperCase()} • Last updated {new Date(ticket.updatedAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-gray-500 transition-colors" />
+            </button>
+          ))
+        ) : (
+          <div className="p-12 text-center bg-gray-50 rounded-4xl border border-dashed border-gray-200">
+            <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-sm font-bold text-gray-400">You haven't submitted any tickets yet.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function TicketDetailView({ ticket, onBack, onReply }: { 
+  ticket: SupportTicket, 
+  onBack: () => void,
+  onReply: (content: string) => Promise<void>
+}) {
+  const [reply, setReply] = React.useState('');
+  const [isSending, setIsSending] = React.useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reply.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      await onReply(reply);
+      setReply('');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
+              ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+            }`}>
+              {ticket.status.replace('_', ' ')}
+            </span>
+            <span className="text-[10px] font-bold text-gray-300">Ticket #{ticket.id.slice(0, 8).toUpperCase()}</span>
+          </div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight">{ticket.subject}</h1>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-4xl border border-gray-100 shadow-xl overflow-hidden flex flex-col h-[600px]">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50">
+          {ticket.messages.map((msg) => {
+            const isAgent = msg.senderType === 'agent' || msg.senderType === 'system';
+            return (
+              <div key={msg.id} className={`flex ${isAgent ? 'justify-start' : 'justify-end'}`}>
+                <div className={`max-w-[85%] space-y-1`}>
+                  <div className={`flex items-center gap-2 mb-1 ${!isAgent ? 'flex-row-reverse' : ''}`}>
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      {isAgent ? 'Support Team' : 'You'}
+                    </span>
+                    <span className="text-[9px] text-gray-300 font-medium">{new Date(msg.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className={`
+                    px-5 py-3 rounded-2xl text-sm leading-relaxed shadow-sm
+                    ${isAgent ? 'bg-white text-gray-800 border border-gray-100 rounded-tl-none' : 'bg-primary-600 text-white rounded-tr-none'}
+                  `}>
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {ticket.status !== 'resolved' && (
+          <div className="p-4 bg-white border-t">
+            <form onSubmit={handleSubmit} className="relative">
+              <textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                placeholder="Type your message..."
+                rows={3}
+                className="w-full resize-none rounded-2xl border border-gray-100 bg-gray-50 p-4 pb-12 text-sm font-medium focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 outline-none transition"
+              />
+              <button
+                type="submit"
+                disabled={!reply.trim() || isSending}
+                className="absolute right-3 bottom-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gray-900 text-white shadow-lg hover:bg-black transition-all disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

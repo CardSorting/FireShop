@@ -18,10 +18,12 @@ import {
   KnowledgebaseCategoryCard, 
   KnowledgebaseArticleList, 
   KnowledgebaseArticleView,
-  SupportSearchOverlay
+  SupportSearchOverlay,
+  TicketList,
+  TicketDetailView
 } from '../components/SupportComponents';
 
-type ViewMode = 'home' | 'contact' | 'category' | 'article';
+type ViewMode = 'home' | 'contact' | 'category' | 'article' | 'tickets' | 'ticket_detail';
 
 export function SupportPage() {
   const router = useRouter();
@@ -45,6 +47,8 @@ export function SupportPage() {
   const [success, setSuccess] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<KnowledgebaseArticle[]>([]);
+  const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   
   const services = useServices();
   const { user } = useAuth();
@@ -61,16 +65,24 @@ export function SupportPage() {
         if (article) {
           setSelectedArticle(article);
           setViewMode('article');
+          // Fetch related
+          const rel = await services.knowledgebaseService.getArticles({ categoryId: article.categoryId });
+          setArticles(rel.filter(a => a.id !== article.id).slice(0, 3));
         }
       } else if (orderId || productId || forceContact) {
         setViewMode('contact');
+      } else if (searchParams?.get('tickets') === 'true' && user) {
+        setLoading(true);
+        const tickets = await services.ticketService.getUserTickets(user.id);
+        setUserTickets(tickets);
+        setViewMode('tickets');
       }
     } catch (err) {
       console.error('Failed to load help categories or article', err);
     } finally {
       setLoading(false);
     }
-  }, [services.knowledgebaseService, searchParams, orderId, productId, forceContact]);
+  }, [services.knowledgebaseService, services.ticketService, searchParams, orderId, productId, forceContact, user]);
 
   useEffect(() => {
     void loadInitialData();
@@ -118,6 +130,7 @@ export function SupportPage() {
             ticketId: '',
             senderId: user.id,
             senderType: 'customer',
+            visibility: 'public',
             content: message,
             createdAt: new Date()
           }
@@ -146,16 +159,52 @@ export function SupportPage() {
     }
   };
 
-  const handleArticleClick = (article: KnowledgebaseArticle) => {
+  const handleArticleClick = async (article: KnowledgebaseArticle) => {
     setSelectedArticle(article);
     setViewMode('article');
     setSearchQuery('');
+    
+    // Fetch related articles (same category)
+    try {
+      const rel = await services.knowledgebaseService.getArticles({ categoryId: article.categoryId });
+      setArticles(rel.filter(a => a.id !== article.id).slice(0, 3));
+    } catch (err) {
+      console.error('Failed to load related articles', err);
+    }
+  };
+
+  const handleTicketClick = async (ticket: SupportTicket) => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const t = await services.ticketService.getUserTicket(ticket.id, user.id);
+      setSelectedTicket(t);
+      setViewMode('ticket_detail');
+    } catch (err) {
+      console.error('Failed to load ticket', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReplyToTicket = async (content: string) => {
+    if (!selectedTicket || !user) return;
+    try {
+      await services.ticketService.addMessage(selectedTicket.id, content, user.id, 'customer');
+      // Refresh ticket
+      const t = await services.ticketService.getUserTicket(selectedTicket.id, user.id);
+      setSelectedTicket(t);
+    } catch (err) {
+      console.error('Failed to send reply', err);
+    }
   };
 
   const handleBack = () => {
     if (viewMode === 'article' && selectedCategory) {
       setViewMode('category');
-    } else if (viewMode === 'category' || viewMode === 'contact') {
+    } else if (viewMode === 'ticket_detail') {
+      setViewMode('tickets');
+    } else if (viewMode === 'category' || viewMode === 'contact' || viewMode === 'tickets') {
       setViewMode('home');
       setSelectedCategory(null);
     } else {
@@ -265,6 +314,57 @@ export function SupportPage() {
             </div>
           </div>
 
+          {/* Popular Articles Section */}
+          <div className="bg-gray-50 rounded-[3rem] p-8 md:p-12 border border-gray-100 shadow-sm">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900">Popular Articles</h3>
+                <p className="text-sm font-medium text-gray-500 mt-1">Most frequently asked questions</p>
+              </div>
+              <div className="flex items-center gap-4">
+                {user && (
+                  <button 
+                    onClick={async () => {
+                      setLoading(true);
+                      const tickets = await services.ticketService.getUserTickets(user.id);
+                      setUserTickets(tickets);
+                      setViewMode('tickets');
+                      setLoading(false);
+                    }}
+                    className="text-xs font-black uppercase tracking-widest text-primary-600 hover:bg-primary-50 px-4 py-2 rounded-xl transition-colors"
+                  >
+                    My Tickets
+                  </button>
+                )}
+                <Link href="/support?all=true" className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 px-4 py-2">View All</Link>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {searchResults.slice(0, 4).map(article => (
+                <button 
+                  key={article.id}
+                  onClick={() => handleArticleClick(article)}
+                  className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-gray-200 transition-all group text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="p-2.5 rounded-xl bg-gray-50 text-gray-400 group-hover:text-primary-600 group-hover:bg-primary-50 transition-colors">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{article.title}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-1">{article.categoryName}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
+                </button>
+              ))}
+              {/* If no search results (initial state), show some hardcoded looking placeholders or just skip */}
+              {searchResults.length === 0 && categories.length > 0 && (
+                <p className="text-sm font-medium text-gray-400 italic">Select a category above to browse popular topics.</p>
+              )}
+            </div>
+          </div>
+
           {/* Featured Support Section */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-8 bg-gray-900 rounded-[3rem] p-10 md:p-16 text-white relative overflow-hidden group shadow-2xl">
@@ -312,7 +412,24 @@ export function SupportPage() {
       {viewMode === 'article' && selectedArticle && (
         <KnowledgebaseArticleView 
           article={selectedArticle}
+          relatedArticles={articles}
           onBack={handleBack}
+          onArticleClick={handleArticleClick}
+        />
+      )}
+
+      {viewMode === 'tickets' && (
+        <TicketList 
+          tickets={userTickets}
+          onTicketClick={handleTicketClick}
+        />
+      )}
+
+      {viewMode === 'ticket_detail' && selectedTicket && (
+        <TicketDetailView 
+          ticket={selectedTicket}
+          onBack={handleBack}
+          onReply={handleReplyToTicket}
         />
       )}
 

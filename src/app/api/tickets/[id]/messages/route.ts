@@ -10,6 +10,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       ticketId: id,
       senderId: data.senderId || 'customer',
       senderType: data.senderType || 'customer',
+      visibility: data.visibility || 'public',
       content: data.content,
       createdAt: new Date(),
     };
