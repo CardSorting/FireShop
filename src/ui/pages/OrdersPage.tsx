@@ -221,43 +221,37 @@ export function OrdersPage() {
               const ui = STATUS_UI[order.status];
               
               return (
-                <article key={order.id} className={`group overflow-hidden rounded-4xl border transition-all duration-300 ${expanded ? 'border-primary-200 bg-primary-50/10 shadow-xl' : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-md'}`}>
+                <article key={order.id} className={`group overflow-hidden rounded-4xl border transition-all duration-300 ${expanded ? 'border-primary-200 bg-white shadow-2xl' : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'}`}>
+                  {/* Amazon-style CSX Header */}
+                  <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+                     <div className="flex flex-wrap gap-8">
+                        <div>
+                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Order Placed</p>
+                           <p className="text-sm font-bold text-gray-900">{formatShortDate(order.createdAt)}</p>
+                        </div>
+                        <div>
+                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Total</p>
+                           <p className="text-sm font-bold text-gray-900">{formatMoney(order.total)}</p>
+                        </div>
+                        <div className="hidden md:block">
+                           <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Ship To</p>
+                           <p className="text-sm font-bold text-primary-600 cursor-pointer hover:underline">{order.customerName || 'Collector'}</p>
+                        </div>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Order # {formatOrderNumber(order.id)}</p>
+                        <div className="flex gap-3 justify-end">
+                           <Link href={`/orders/${order.id}`} className="text-xs font-bold text-primary-600 hover:underline">View details</Link>
+                           <span className="text-gray-300">|</span>
+                           <Link href={`/orders/${order.id}/invoice`} className="text-xs font-bold text-primary-600 hover:underline">View invoice</Link>
+                        </div>
+                     </div>
+                  </div>
+
                   <div className="p-6 lg:p-8">
                     <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">
-                      <div className="lg:col-span-3">
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-900 text-white shadow-lg">
-                            <Package className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="font-mono text-sm font-black text-gray-900">{formatOrderNumber(order.id)}</p>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Placed {formatShortDate(order.createdAt)}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="lg:col-span-3">
+                      <div className="lg:col-span-8">
                         <OrderTimeline order={order} variant="compact" />
-                      </div>
-
-                      <div className="lg:col-span-2">
-                        <div className="flex -space-x-3 overflow-hidden">
-                          {order.items.slice(0, 3).map((item, i) => (
-                            <div key={i} className="relative inline-block h-10 w-10 overflow-hidden rounded-full border-2 border-white bg-gray-100 shadow-sm transition-transform group-hover:translate-x-1">
-                              <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
-                            </div>
-                          ))}
-                          {order.items.length > 3 && (
-                            <div className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-gray-900 text-[10px] font-black text-white shadow-sm">
-                              +{order.items.length - 3}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="lg:col-span-2 text-right">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Total Amount</p>
-                        <p className="text-xl font-black text-gray-900">{formatMoney(order.total)}</p>
                       </div>
 
                       <div className="lg:col-span-2 flex flex-col justify-end gap-2">
@@ -291,7 +285,7 @@ export function OrdersPage() {
                           <h3 className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-gray-400">Order Items</h3>
                           <div className="space-y-4">
                             {order.items.map((item) => (
-                              <div key={item.productId} className="flex items-center gap-4 rounded-2xl border border-white bg-white/50 p-4 shadow-sm transition hover:shadow-md">
+                              <div key={item.productId} className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-white bg-white/50 p-4 shadow-sm transition hover:shadow-md">
                                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
                                   <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
                                 </div>
@@ -299,7 +293,10 @@ export function OrdersPage() {
                                   <p className="truncate text-sm font-black text-gray-900">{item.name}</p>
                                   <p className="text-xs font-bold text-gray-400">Qty: {item.quantity} • {formatMoney(item.unitPrice)} each</p>
                                 </div>
-                                <p className="text-sm font-black text-gray-900">{formatMoney(item.unitPrice * item.quantity)}</p>
+                                <div className="flex flex-col gap-2 shrink-0">
+                                  <button onClick={(e) => e.preventDefault()} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">Return or Replace</button>
+                                  <button onClick={(e) => e.preventDefault()} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm">Get Support</button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -307,7 +304,7 @@ export function OrdersPage() {
 
                         <div className="lg:col-span-5">
                           <h3 className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-gray-400">Shipment Timeline</h3>
-                          <div className="rounded-[2rem] border border-white bg-white/50 p-6 shadow-sm">
+                          <div className="rounded-4xl border border-white bg-white/50 p-6 shadow-sm">
                             <OrderTimeline order={order} />
                             
                             <div className="mt-10 grid grid-cols-1 gap-3">
@@ -376,7 +373,7 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
 
 function SupportCard({ icon, title, text, href, action }: { icon: React.ReactNode; title: string; text: string; href: string; action: string }) {
   return (
-    <Link href={href} className="group relative overflow-hidden rounded-[2rem] border border-gray-100 bg-white p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
+    <Link href={href} className="group relative overflow-hidden rounded-4xl border border-gray-100 bg-white p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
       <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary-50 transition-transform group-hover:scale-150" />
       <div className="relative">
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white">{icon}</div>

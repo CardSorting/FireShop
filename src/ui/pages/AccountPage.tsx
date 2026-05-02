@@ -180,38 +180,50 @@ function OrderCard({ order }: { order: Order }) {
   const itemLimit = order.items.length;
 
   return (
-    <Link href={`/orders/${order.id}`} className="block bg-white rounded-4xl p-5 border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group">
-      <div className="flex items-center justify-between mb-4">
-         <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
-               <Clock className="w-5 h-5" />
+    <Link href={`/orders/${order.id}`} className="block bg-white rounded-4xl border border-gray-100 hover:shadow-xl hover:-translate-y-1 transition-all group overflow-hidden">
+      <div className="bg-gray-50 border-b border-gray-100 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+         <div className="flex items-center gap-6">
+            <div>
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Order Placed</p>
+               <p className="text-xs font-black text-gray-900">{formatDate(order.createdAt)}</p>
             </div>
             <div>
-               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{order.id.slice(0, 8)}</p>
-               <p className="text-sm font-black text-gray-900">{formatDate(order.createdAt)}</p>
+               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Total</p>
+               <p className="text-xs font-black text-gray-900">{formatCurrency(order.total)}</p>
             </div>
+         </div>
+         <div className="text-right">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Order # {order.id.slice(0, 8)}</p>
+            <span className="text-xs font-bold text-primary-600 hover:underline">View details</span>
          </div>
       </div>
       
-      <div className="mb-4">
-        <OrderTimeline order={order} variant="compact" />
-      </div>
-      
-      {firstItem && (
-        <div className="flex items-center gap-4 mt-2 mb-4 bg-gray-50/50 p-3 rounded-2xl">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-white border border-gray-100">
-            <img src={firstItem.imageUrl} alt={firstItem.name} className="h-full w-full object-cover" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-black text-gray-900">{firstItem.name}</p>
-            {itemLimit > 1 && <p className="text-[10px] font-bold text-gray-400">+{itemLimit - 1} more item{itemLimit - 1 !== 1 ? 's' : ''}</p>}
-          </div>
+      <div className="p-6">
+        <div className="mb-6">
+          <OrderTimeline order={order} variant="compact" />
         </div>
-      )}
+        
+        {firstItem && (
+          <div className="flex items-center gap-4 mt-2 mb-6 bg-white border border-gray-100 shadow-sm p-4 rounded-2xl group-hover:border-gray-200 transition-colors">
+            <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-gray-50 border border-gray-100">
+              <img src={firstItem.imageUrl} alt={firstItem.name} className="h-full w-full object-cover" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-black text-gray-900">{firstItem.name}</p>
+              <p className="text-[10px] font-bold text-gray-400 mt-1">
+                 Qty: {firstItem.quantity} {itemLimit > 1 ? ` • +${itemLimit - 1} more items` : ''}
+              </p>
+            </div>
+            <div className="shrink-0 text-gray-400 group-hover:text-primary-600 group-hover:translate-x-1 transition-all">
+               <ChevronRight className="w-5 h-5" />
+            </div>
+          </div>
+        )}
 
-      <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-         <p className="text-xs font-bold text-gray-400">{itemLimit} item{itemLimit !== 1 ? 's' : ''}</p>
-         <p className="text-lg font-black text-gray-900">{formatCurrency(order.total)}</p>
+        <div className="grid grid-cols-2 gap-3 mt-2 pt-6 border-t border-gray-50">
+           <button onClick={(e) => e.preventDefault()} className="text-[10px] font-black uppercase tracking-widest py-3 rounded-xl bg-gray-900 text-white hover:bg-black transition-colors shadow-md text-center">Track Package</button>
+           <button onClick={(e) => e.preventDefault()} className="text-[10px] font-black uppercase tracking-widest py-3 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm text-center">Buy Again</button>
+        </div>
       </div>
     </Link>
   );
