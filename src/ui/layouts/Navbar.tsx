@@ -134,7 +134,10 @@ export function Navbar() {
               <div className="relative w-full transition-all duration-300">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-hover:text-primary-600 transition-colors" />
                 <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 pl-12 pr-4 text-sm text-gray-500 font-bold group-hover:bg-white group-hover:border-primary-500 group-hover:shadow-xl group-hover:shadow-primary-500/5 transition-all flex items-center justify-between">
-                  <span>Search cards, sets, and more...</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Search</span>
+                    <span>Search cards, sets, and more...</span>
+                  </div>
                   <div className="flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
                     <kbd className="h-6 rounded-lg border bg-white px-2 font-mono text-[9px] font-black text-gray-400 shadow-sm">⌘K</kbd>
                   </div>

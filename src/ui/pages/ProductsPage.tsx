@@ -17,50 +17,68 @@ export function ProductsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const services = useServices();
+  const [sortBy, setSortBy] = useState<string>('newest');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState<string>('all');
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
-  const [recommendations, setRecommendations] = useState<Product[]>([]);
-  const [loadingRecs, setLoadingRecs] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  const categories: Array<{ id: string; name: string }> = [
-    { id: 'all', name: 'All Products' },
-    { id: 'booster', name: 'New Arrivals' },
-    { id: 'single', name: 'Featured' },
-    { id: 'accessory', name: 'Accessories' },
+  const categories = [
+    { id: 'Singles', name: 'Rare Singles' },
+    { id: 'sealed', name: 'Sealed Product' },
+    { id: 'accessories', name: 'Accessories' },
+    { id: 'promo', name: 'Promo Cards' },
   ];
+
+  const conditions = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Damaged'];
 
   const loadProducts = useCallback(async (cursor?: string) => {
     setLoading(true);
     setError(null);
     try {
       const result = await services.productService.getProducts({
-        category: category === 'all' ? undefined : category,
+        category: selectedCategories.length > 0 ? selectedCategories[0] : undefined,
         limit: 20,
         cursor,
       });
-      setProducts(result.products);
-      setNextCursor(result.nextCursor);
+      
+      let filtered = result.products;
+      
+      // Client-side filtering simulation
+      if (selectedConditions.length > 0) {
+        filtered = filtered.filter(p => selectedConditions.includes(String(p.metafields?.condition || 'Near Mint')));
+      }
+      
+      filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+
+      // Sorting
+      if (sortBy === 'price_asc') filtered.sort((a, b) => a.price - b.price);
+      if (sortBy === 'price_desc') filtered.sort((a, b) => b.price - a.price);
+      if (sortBy === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+      setProducts(filtered);
+      setNextCursor(result.nextCursor ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load products');
     } finally {
       setLoading(false);
     }
-  }, [category, services.productService]);
+  }, [selectedCategories, selectedConditions, priceRange, sortBy, services.productService]);
 
   const handleSearch = useCallback(async (value: string) => {
     setSearch(value);
     if (value.trim()) {
       setLoading(true);
       try {
-        const result = await services.productService.getProducts({
-          limit: 20,
-        });
+        const result = await services.productService.getProducts({ limit: 50 });
         const filtered = result.products.filter((p: Product) =>
-          p.name.toLowerCase().includes(value.toLowerCase())
+          p.name.toLowerCase().includes(value.toLowerCase()) ||
+          p.category.toLowerCase().includes(value.toLowerCase())
         );
         setProducts(filtered);
       } catch (err) {
@@ -69,18 +87,16 @@ export function ProductsPage() {
         setLoading(false);
       }
     } else {
-      setProducts([]);
+      void loadProducts();
     }
-  }, [services.productService]);
+  }, [services.productService, loadProducts]);
 
-  // Sync search from URL
   useEffect(() => {
     const query = searchParams.get('search');
     const categoryParam = searchParams.get('category');
-    const validCategory = categories.some((cat) => cat.id === categoryParam);
-
-    if (validCategory && categoryParam) {
-      setCategory(categoryParam);
+    
+    if (categoryParam && !selectedCategories.includes(categoryParam)) {
+      setSelectedCategories([categoryParam]);
     }
 
     if (query) {
@@ -91,135 +107,191 @@ export function ProductsPage() {
     }
   }, [searchParams, loadProducts, handleSearch]);
 
-  // Load recommendations for empty states
-  const loadRecommendations = useCallback(async () => {
-    setLoadingRecs(true);
-    try {
-      const result = await services.productService.getProducts({ limit: 4 });
-      setRecommendations(result.products);
-    } catch (err) {
-      console.error('Failed to load recommendations', err);
-    } finally {
-      setLoadingRecs(false);
-    }
-  }, [services.productService]);
-
-  useEffect(() => {
-    void loadRecommendations();
-  }, [loadRecommendations]);
-
 
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Hero / Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-          <div>
-            <h1 className="text-4xl font-black text-gray-900 tracking-tight mb-2">
-              Browse Products
-            </h1>
-            <p className="text-gray-500 font-medium">Find everything you need for your next project.</p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Category Filter */}
-            <div className="relative min-w-[200px]">
-              <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={category}
-                onChange={(e) => {
-                  setCategory(e.target.value);
-                  setSearch('');
-                  // Update URL would be better, but let's keep it simple for now
-                }}
-                className="w-full pl-10 pr-10 py-3 bg-gray-50 border-none rounded-2xl font-bold text-gray-700 focus:ring-2 focus:ring-primary-500 appearance-none transition-all cursor-pointer hover:bg-gray-100"
-              >
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Search Bar (Secondary on this page since it's in Navbar too) */}
+        {/* Header */}
         <div className="mb-12">
-          <div className="relative group max-w-2xl">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              placeholder="Search products, categories, or attributes..."
-              className="w-full pl-12 pr-4 py-4 bg-white border-2 border-gray-100 rounded-2xl text-lg font-medium focus:outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/5 transition-all shadow-sm"
-            />
-          </div>
+           <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-4">The Catalog</h1>
+           <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated selection of verified TCG singles, sealed products, and premium accessories. Every item is inspected by our experts.</p>
         </div>
 
-        {/* Results Container */}
-        {error && (
-          <div className="mb-8 p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="font-bold">{error}</span>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-              <div key={i} className="animate-pulse space-y-4">
-                <div className="aspect-square bg-gray-100 rounded-3xl" />
-                <div className="space-y-2">
-                  <div className="h-3 w-1/4 bg-gray-100 rounded" />
-                  <div className="h-5 w-3/4 bg-gray-100 rounded" />
-                  <div className="h-4 w-1/2 bg-gray-50 rounded" />
-                </div>
+        {/* Search & Sort Bar */}
+        <div className="flex flex-col lg:flex-row items-center gap-4 mb-12">
+           <div className="relative flex-1 group w-full">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="Search by card name, set, or rarity..."
+                className="w-full pl-14 pr-6 py-5 bg-gray-50 border-2 border-transparent rounded-4xl text-lg font-bold focus:bg-white focus:border-primary-500 transition-all outline-none"
+              />
+           </div>
+           <div className="flex items-center gap-3 w-full lg:w-auto">
+              <button 
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-5 rounded-4xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:bg-black transition-all"
+              >
+                <Filter className="w-4 h-4" /> Filters
+              </button>
+              <div className="relative flex-1 lg:flex-none min-w-[200px]">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent rounded-4xl font-black text-xs uppercase tracking-widest text-gray-900 appearance-none focus:bg-white focus:border-primary-500 outline-none cursor-pointer"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="name">Alphabetical</option>
+                </select>
+                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 text-gray-400 pointer-events-none" />
               </div>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <div className="py-20 text-center">
-            <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-gray-50 mb-6">
-              <PackageSearch className="h-10 w-10 text-gray-300" />
-            </div>
-            <h3 className="text-2xl font-black text-gray-900 mb-2">No results found</h3>
-            <p className="text-gray-500 mb-8 max-w-xs mx-auto">We couldn't find any products matching "{search}". Try a different term or browse our favorites below.</p>
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Filter Sidebar */}
+          <aside className={`lg:col-span-3 space-y-10 ${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
+            <section>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Product Type</h3>
+              <div className="space-y-3">
+                {categories.map((cat) => (
+                  <label key={cat.id} className="flex items-center gap-3 group cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(cat.id)}
+                      onChange={(e) => {
+                        const next = e.target.checked 
+                          ? [...selectedCategories, cat.id]
+                          : selectedCategories.filter(id => id !== cat.id);
+                        setSelectedCategories(next);
+                      }}
+                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cat.name}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Condition</h3>
+              <div className="space-y-3">
+                {conditions.map((cond) => (
+                  <label key={cond} className="flex items-center gap-3 group cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedConditions.includes(cond)}
+                      onChange={(e) => {
+                        const next = e.target.checked 
+                          ? [...selectedConditions, cond]
+                          : selectedConditions.filter(c => c !== cond);
+                        setSelectedConditions(next);
+                      }}
+                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cond}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Price Range</h3>
+              <div className="space-y-6">
+                 <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                       <p className="text-[8px] font-black uppercase text-gray-400 mb-1">Min</p>
+                       <input 
+                         type="number" 
+                         value={priceRange[0]} 
+                         onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                         className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
+                       />
+                    </div>
+                    <div className="flex-1">
+                       <p className="text-[8px] font-black uppercase text-gray-400 mb-1">Max</p>
+                       <input 
+                         type="number" 
+                         value={priceRange[1]} 
+                         onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                         className="w-full bg-gray-50 border-none rounded-xl px-3 py-2 text-xs font-bold"
+                       />
+                    </div>
+                 </div>
+              </div>
+            </section>
             
-            {/* Recommendations in Empty State */}
-            {recommendations.length > 0 && (
-              <div className="mt-12 pt-12 border-t">
-                <h4 className="text-lg font-black text-gray-900 mb-8 uppercase tracking-widest">Recommended for you</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                  {recommendations.map(p => (
+            <button 
+              onClick={() => {
+                setSelectedCategories([]);
+                setSelectedConditions([]);
+                setPriceRange([0, 100000]);
+                setSortBy('newest');
+              }}
+              className="w-full py-4 border-2 border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:bg-gray-50 hover:text-gray-900 transition-all"
+            >
+              Clear All Filters
+            </button>
+          </aside>
+
+          {/* Results Grid */}
+          <div className="lg:col-span-9">
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+                {[1, 2, 3, 4, 5, 6].map(i => (
+                  <div key={i} className="animate-pulse space-y-4">
+                    <div className="aspect-square bg-gray-100 rounded-[2.5rem]" />
+                    <div className="space-y-2">
+                      <div className="h-3 w-1/4 bg-gray-100 rounded" />
+                      <div className="h-5 w-3/4 bg-gray-100 rounded" />
+                      <div className="h-4 w-1/2 bg-gray-50 rounded" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : products.length === 0 ? (
+              <div className="py-32 text-center rounded-[3rem] bg-gray-50 border border-gray-100 px-6">
+                <div className="inline-flex h-24 w-24 items-center justify-center rounded-full bg-white shadow-xl mb-8">
+                  <PackageSearch className="h-10 w-10 text-gray-200" />
+                </div>
+                <h3 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">No results matched your filters</h3>
+                <p className="text-gray-500 mb-10 max-w-sm mx-auto font-medium">Try broadening your search or adjusting your price range to discover more items.</p>
+                <button 
+                  onClick={() => { setSelectedCategories([]); setSelectedConditions([]); setPriceRange([0, 100000]); }}
+                  className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-8">
+                   <p className="text-sm font-bold text-gray-400 tracking-tight">Showing <span className="text-gray-900">{products.length}</span> items</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+                  {products.map((p) => (
                     <ProductCard key={p.id} product={p} />
                   ))}
                 </div>
-              </div>
+
+                {nextCursor && !search && (
+                  <div className="mt-20 text-center">
+                    <button
+                      onClick={() => void loadProducts(nextCursor)}
+                      className="inline-flex items-center gap-3 rounded-4xl bg-gray-900 px-12 py-5 font-black text-xs uppercase tracking-widest text-white shadow-2xl transition hover:bg-black hover:-translate-y-1 active:translate-y-0"
+                    >
+                      Load More Items <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
-              {products.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-
-            {nextCursor && !search && (
-              <div className="mt-16 text-center">
-                <button
-                  onClick={() => void loadProducts(nextCursor)}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-10 py-4 font-black text-white shadow-xl transition hover:bg-black hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
-                >
-                  Load More Items
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-          </>
-        )}
+        </div>
       </div>
     </div>
   );

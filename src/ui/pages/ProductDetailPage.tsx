@@ -20,6 +20,7 @@ import { useWishlist } from '../hooks/useWishlist';
 
 import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
+import { ProductReviews } from '../components/ProductReviews';
 
 function toFriendlyError(err: unknown): string {
   if (err instanceof Error && err.message) {
@@ -112,6 +113,21 @@ export function ProductDetailPage() {
       setLoading(false);
     }
   }, [id, services.productService]);
+
+  // Handle "Recently Viewed"
+  useEffect(() => {
+    if (!product) return;
+    const saved = localStorage.getItem('products:recently-viewed');
+    const recent = saved ? JSON.parse(saved) : [];
+    const updated = [product, ...recent.filter((p: Product) => p.id !== product.id)].slice(0, 10);
+    localStorage.setItem('products:recently-viewed', JSON.stringify(updated));
+  }, [product]);
+
+  const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
+  useEffect(() => {
+    const saved = localStorage.getItem('products:recently-viewed');
+    if (saved) setRecentlyViewed(JSON.parse(saved));
+  }, [product]);
 
   useEffect(() => {
     void loadProduct();
@@ -542,10 +558,41 @@ export function ProductDetailPage() {
           </div>
         </div>
 
+        {/* Reviews Section */}
+        <div id="reviews" className="mb-24 scroll-mt-24">
+          <ProductReviews productId={id!} />
+        </div>
+
+        {/* Recently Viewed */}
+        {recentlyViewed.length > 1 && (
+          <div className="mb-24">
+             <h2 className="text-3xl font-black text-gray-900 mb-8 tracking-tighter">Recently Viewed</h2>
+             <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+                {recentlyViewed.filter(p => p.id !== id).slice(0, 5).map(p => (
+                  <Link key={p.id} href={`/products/${p.id}`} className="group block">
+                    <div className="aspect-square rounded-2xl bg-gray-50 border overflow-hidden mb-3 transition-transform duration-500 group-hover:-translate-y-1">
+                       <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
+                    </div>
+                    <p className="text-xs font-black text-gray-900 line-clamp-1 group-hover:text-primary-600 transition-colors">{p.name}</p>
+                    <p className="text-xs font-bold text-gray-400 mt-1">${(p.price / 100).toFixed(2)}</p>
+                  </Link>
+                ))}
+             </div>
+          </div>
+        )}
+
         {/* Frequently Bought Together (Dynamic Bundle) */}
         {relatedProducts.length >= 2 && (
           <section className="mt-32 pt-20 border-t border-gray-100">
-            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-12">Frequently bought together</h2>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/20 border border-primary-500/30 text-primary-400 text-[10px] font-black uppercase tracking-widest mb-4">
+                  <Zap className="w-3 h-3 fill-current" /> Bundle & Save 5%
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black tracking-tighter leading-none">Frequently Bought <br /><span className="text-primary-400">Together</span></h2>
+              </div>
+              <p className="text-gray-400 font-medium max-w-sm">Complete your collection and save instantly when you bundle these essential items.</p>
+            </div>
             <div className="flex flex-col lg:flex-row items-center gap-12 bg-gray-50/50 rounded-[3rem] p-10 ring-1 ring-gray-100">
               <div className="flex flex-wrap items-center justify-center gap-6">
                 <div className="h-40 w-32 rounded-2xl bg-white shadow-xl overflow-hidden border border-gray-100 p-2">

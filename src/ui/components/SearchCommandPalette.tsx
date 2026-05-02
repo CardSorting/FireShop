@@ -10,7 +10,7 @@ import { useRouter } from 'next/navigation';
 import { 
   Search, Sparkles, Archive, Layers3, X, Command, 
   ShoppingCart, ArrowRight, Zap, Truck, ShieldCheck, 
-  Users, LockKeyhole, CreditCard 
+  Users, LockKeyhole, CreditCard, RefreshCcw 
 } from 'lucide-react';
 import { useServices } from '../hooks/useServices';
 import { useCart } from '../hooks/useCart';
@@ -84,10 +84,25 @@ export function SearchCommandPalette() {
     return () => clearTimeout(timer);
   }, [query, services.productService]);
 
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+  // Load recent searches
+  useEffect(() => {
+    const saved = localStorage.getItem('search:recent');
+    if (saved) setRecentSearches(JSON.parse(saved));
+  }, []);
+
+  const saveSearch = (term: string) => {
+    const updated = [term, ...recentSearches.filter(t => t !== term)].slice(0, 5);
+    setRecentSearches(updated);
+    localStorage.setItem('search:recent', JSON.stringify(updated));
+  };
+
   const handleSelect = useCallback((product: Product) => {
+    saveSearch(product.name);
     setIsOpen(false);
     router.push(`/products/${product.id}`);
-  }, [router]);
+  }, [router, recentSearches]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -100,6 +115,10 @@ export function SearchCommandPalette() {
       e.preventDefault();
       if (results[selectedIndex]) {
         handleSelect(results[selectedIndex]);
+      } else if (query.trim()) {
+        saveSearch(query.trim());
+        setIsOpen(false);
+        router.push(`/products?search=${encodeURIComponent(query.trim())}`);
       }
     }
   };
@@ -115,13 +134,13 @@ export function SearchCommandPalette() {
       />
       
       {/* Palette Container */}
-      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl shadow-black/20 border border-gray-100 overflow-hidden animate-in zoom-in-95 slide-in-from-top-4 duration-200">
+      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl shadow-black/20 border border-gray-100 overflow-hidden animate-in zoom-in-95 slide-in-from-top-4 duration-200 ring-1 ring-black/5">
         <header className="flex items-center px-6 border-b">
-          <Search className="h-5 w-5 text-gray-400" />
+          <Search className="h-5 w-5 text-primary-600" />
           <input
             ref={inputRef}
             type="text"
-            className="flex-1 h-16 border-none focus:ring-0 text-lg font-medium placeholder:text-gray-400 text-gray-900 px-4"
+            className="flex-1 h-20 border-none focus:ring-0 text-lg font-black placeholder:text-gray-400 text-gray-900 px-4"
             placeholder="Search for cards, sets, or categories..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -133,7 +152,7 @@ export function SearchCommandPalette() {
             </kbd>
             <button 
               onClick={() => setIsOpen(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
             >
               <X className="h-5 w-5 text-gray-400" />
             </button>
@@ -143,6 +162,49 @@ export function SearchCommandPalette() {
         <main className="max-h-[60vh] overflow-y-auto scrollbar-hide">
           {query.length === 0 ? (
             <div className="p-8 space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <section>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Trending Searches</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {['Charizard', 'Pikachu', 'Base Set', 'Sealed Box', 'PSA 10'].map((term) => (
+                      <button
+                        key={term}
+                        onClick={() => setQuery(term)}
+                        className="px-4 py-2 rounded-xl bg-gray-50 text-xs font-bold text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-all border border-transparent hover:border-primary-100"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                {recentSearches.length > 0 && (
+                  <section>
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 flex items-center justify-between">
+                      Recent Searches
+                      <button 
+                        onClick={() => { setRecentSearches([]); localStorage.removeItem('search:recent'); }}
+                        className="text-[9px] hover:text-red-500 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </h3>
+                    <div className="space-y-1">
+                      {recentSearches.map((term) => (
+                        <button
+                          key={term}
+                          onClick={() => setQuery(term)}
+                          className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center gap-3 group"
+                        >
+                          <RefreshCcw className="w-3.5 h-3.5 text-gray-300 group-hover:text-primary-500" />
+                          {term}
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+
               <section>
                 <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Discovery Shortcuts</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
