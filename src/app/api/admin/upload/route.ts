@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ImageService, ImageFolder } from '../../../../infrastructure/services/ImageService';
 import { StorageService, StorageFolder } from '../../../../infrastructure/services/StorageService';
+import { Readable } from 'node:stream';
 
 export const runtime = 'nodejs';
 
@@ -14,18 +15,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    // If it's a digital asset, use the StorageService for private storage
+    // If it's a digital asset, use the StorageService for private storage with STREAMING
     if (folder === 'digital-assets') {
-      const result = await StorageService.saveFile(
-        buffer,
+      const stream = Readable.fromWeb(file.stream() as any);
+      const result = await StorageService.saveStream(
+        stream,
         folder,
         file.name,
         file.type
       );
       return NextResponse.json(result);
     }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
 
     // Otherwise, if it's an image, use ImageService for optimization
     if (file.type.startsWith('image/')) {

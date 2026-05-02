@@ -390,13 +390,13 @@ function AssetDetailOverlay({ asset, product, userId, onClose }: { asset: any, p
                   <a 
                     href={`/api/downloads/${asset.id}?userId=${userId}`}
                     download
-                    className="flex-1 flex items-center justify-center gap-3 py-6 bg-gray-900 text-white rounded-[2rem] text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200"
+                    className="flex-1 flex items-center justify-center gap-3 py-6 bg-gray-900 text-white rounded-4xl text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200"
                   >
                      <Download className="w-5 h-5" /> Download Asset
                   </a>
                   <Link 
                     href={`/orders/${product.orderId}`}
-                    className="px-10 py-6 bg-white border-2 border-gray-100 rounded-[2rem] text-sm font-black uppercase tracking-widest hover:bg-gray-50 transition-all text-gray-900 text-center"
+                    className="px-10 py-6 bg-white border-2 border-gray-100 rounded-4xl text-sm font-black uppercase tracking-widest hover:bg-gray-50 transition-all text-gray-900 text-center"
                   >
                      Receipt
                   </Link>

@@ -1,4 +1,6 @@
 import { writeFile, mkdir, unlink, readFile, stat } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -41,6 +43,40 @@ export class StorageService {
 
     await mkdir(targetDir, { recursive: true });
     await writeFile(targetPath, buffer);
+
+    const fileStat = await stat(targetPath);
+
+    return {
+      id,
+      name: filename,
+      path: storedPath,
+      size: fileStat.size,
+      mimeType
+    };
+  }
+
+  /**
+   * Saves a stream to local storage for high-performance large file handling.
+   */
+  static async saveStream(
+    stream: ReadableStream | AsyncIterable<any>,
+    folder: StorageFolder,
+    filename: string,
+    mimeType: string
+  ): Promise<StoredFile> {
+    const id = randomUUID();
+    const name = `${id.slice(0, 8)}-${filename}`;
+    
+    const isPrivate = folder === 'digital-assets';
+    const baseDir = isPrivate ? this.PRIVATE_ROOT : this.PUBLIC_ROOT;
+    const targetDir = join(baseDir, folder);
+    const targetPath = join(targetDir, name);
+    
+    const storedPath = isPrivate ? `private://${folder}/${name}` : `/storage/${folder}/${name}`;
+
+    await mkdir(targetDir, { recursive: true });
+    
+    await pipeline(stream as any, createWriteStream(targetPath));
 
     const fileStat = await stat(targetPath);
 

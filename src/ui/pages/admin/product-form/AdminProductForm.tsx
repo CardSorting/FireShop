@@ -93,6 +93,7 @@ export function AdminProductForm() {
     { label: 'Has price', done: priceCents > 0 },
     { label: 'Has cost', done: costCents !== undefined },
     { label: 'Published to online store', done: form.status === 'active' && form.salesChannels.includes('online_store') },
+    { label: 'Digital assets configured', done: !form.isDigital || (form.isDigital && form.digitalAssets.length > 0) },
   ];
 
   if (loadingProduct) return <SkeletonPage />;
