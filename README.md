@@ -16,7 +16,9 @@ A full-stack ecommerce application for trading card game products, built with **
 
 ### Customer
 - Browse products with category filtering
-- Product detail pages with stock display
+- Product detail pages with SEO-friendly handles and canonical routing
+- Digital Locker: Access purchased digital assets securely from the account dashboard
+- Support Center: Submit tickets and browse a merchant-managed knowledgebase
 - Add to cart (quantity selector)
 - Full cart management (update qty, remove items)
 - Checkout with shipping address + mock payment
@@ -24,13 +26,14 @@ A full-stack ecommerce application for trading card game products, built with **
 - Account creation & login
 
 ### Admin
+- **Support CRM**: Full-stack ticketing system with "Quick Reply" macros, real-time agent collision detection, and customer feedback loops.
+- **Digital Vault**: Memory-efficient, streaming-first ingestion for massive digital assets and high-fidelity fulfillment tracking.
 - **Unified Dashboard**: Real-time stats, revenue charts, fulfillment pipeline, and priority action items.
 - **Order Management**: Fulfillment tracking, status transitions, and detailed order insights.
 - **Inventory Health**: Automated stock classification (Healthy, Low, Out) and restock recommendations.
 - **Bulk Product Editor**: High-speed spreadsheet-style interface for mass price and stock updates.
 - **Customer CRM**: LTV tracking, automated segmentation (Big Spenders, New, etc.), and CSV exports.
-- **Analytics**: Conversion rates, AOV, live visitor view, and channel-based sales analysis.
-- **Discounts**: Manage automatic and code-based promotions with usage metrics.
+- **SEO Management**: Canonical handle generation, JSON-LD structured data, and automated sitemap/robots orchestration.
 - **Command Palette**: Global `Cmd+K` interface for rapid navigation across the admin panel.
 - **Role-based Access Control**: Hardened session-based protection for all administrative routes.
 

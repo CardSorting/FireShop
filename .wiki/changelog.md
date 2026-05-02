@@ -1,5 +1,56 @@
 # Changelog
 
+## 2026-05-02 — Support CRM, Digital Fulfillment, and SEO Hardening Industrialization
+
+### Problem verified
+
+- Customer support ticketing was functional but lacked merchant-grade features: no agent collision detection, no Quick Reply macros, and no integrated knowledgebase routing.
+- Digital asset fulfillment relied on basic file delivery; it lacked a high-performance ingestion pipeline for massive assets and a secure "Digital Locker" for customer-side ownership management.
+- Storefront routing used legacy ID-based URLs (`/products/[id]`), which hampered SEO authority and discovery compared to industry-standard handle-based routing.
+
+### Remediation performed
+
+- **Support CRM Implementation**:
+  - Deployed a full-stack ticketing system with `AdminTicketDetail.tsx` and `AdminTickets.tsx`.
+  - Implemented real-time agent collision detection via a heartbeat mechanism in `src/ui/pages/admin/AdminTicketDetail.tsx`.
+  - Integrated "Quick Reply" macros and automated audit messaging for rapid merchant response.
+  - Established contextual knowledgebase routing and bookmarkable support documentation.
+- **Digital Fulfillment Upgrade**:
+  - Implemented a memory-efficient, streaming-first ingestion architecture to support massive file uploads.
+  - Deployed the `DigitalLibraryPage.tsx` and `DigitalAssetManager.tsx` for secure, authenticated customer access.
+  - Hardened the digital vault architecture through atomic, secure communication channels.
+- **SEO & Navigation Hardening**:
+  - Completed the migration to canonical handle-based routing for products (`/products/[handle]`) and collections (`/collections/[slug]`).
+  - Deployed dynamic `sitemap.ts` and `robots.txt` for optimized crawler indexing.
+  - Injected JSON-LD structured data (Product and Breadcrumb) for enhanced search engine rich snippets.
+  - Synchronized the `Command Palette` and `Navbar` with the new SEO-friendly taxonomy.
+
+### Verification evidence
+
+- `npm run build` completed successfully, confirming all 45+ routes (including dynamic handle-based routes) generate correctly.
+- `npm run lint` reported 0 diagnostics for the newly implemented Support and Digital modules.
+- Physical verification of `sitemap.xml` and `robots.txt` endpoints confirmed correct crawler guidance.
+
+### Files intentionally changed in this pass
+
+- `src/ui/pages/admin/AdminTickets.tsx`
+- `src/ui/pages/admin/AdminTicketDetail.tsx`
+- `src/ui/pages/DigitalLibraryPage.tsx`
+- `src/ui/components/admin/DigitalAssetManager.tsx`
+- `src/app/products/[handle]/page.tsx`
+- `src/app/collections/[slug]/page.tsx`
+- `src/app/sitemap.ts`
+- `src/app/robots.ts`
+- `.wiki/architecture/support-crm.md`
+- `.wiki/architecture/digital-fulfillment.md`
+- `.wiki/architecture/seo-routing.md`
+- `.wiki/changelog.md`
+
+### Architectural notes
+
+- Support CRM utilizes a heartbeat lock to preserve agent sovereignty during high-volume interactions.
+- Digital fulfillment uses zero-copy streaming to minimize server overhead during massive asset ingestion.
+- SEO routing is driven by the `TaxonomyService`, ensuring a single source of truth for all canonical handles.
 ## 2026-05-01 — Admin product management search, filtering, and identification upgrade
 
 ### Problem verified

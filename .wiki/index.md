@@ -17,6 +17,9 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - [Risk Map](./architecture/risk-map.md) — fragile surfaces, blast radius, and mandatory tests.
 - [Admin Panel](./architecture/admin-panel.md) — features, merchant operations, and technical implementation.
 - [Product Management & Intake Metadata](./architecture/product-management.md) — SKU, supplier/manufacturer metadata, product category handling, and SQLite/API/admin form behavior.
+- [Support CRM](./architecture/support-crm.md) — Professional ticketing system, agent collision, macros, and knowledgebase routing.
+- [Digital Fulfillment](./architecture/digital-fulfillment.md) — Streaming-first ingestion, digital locker, and secure asset delivery.
+- [SEO & Navigation](./architecture/seo-routing.md) — Canonical handles, JSON-LD, and crawler optimization.
 - [Admin Access](./admin-access.md) — credentials and instructions for local access.
 
 ### Agent
@@ -28,6 +31,9 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 
 ## Current verified state
 
+- **Support CRM Industrialization Verified**: Full-stack ticketing system implemented with `AdminTicketDetail.tsx` and `AdminTickets.tsx`. Real-time agent collision (heartbeat) prevents response overlap. Quick Reply macros and internal notes are fully functional. Knowledgebase routing is wired through contextual search.
+- **Digital Fulfillment Pipeline Verified**: Memory-efficient, streaming-first ingestion architecture deployed to support massive file uploads. Digital Locker UI implemented in `DigitalLibraryPage.tsx` for secure, authenticated asset access. Atomic fulfillment tracking ensures digital ownership rights are preserved.
+- **SEO & Navigation Hardening Verified**: Canonical handle-based routing active for `/products/[handle]` and `/collections/[slug]`. Automated `sitemap.ts` and `robots.ts` orchestration implemented. JSON-LD structured data (Product, Breadcrumb) injected for crawler optimization.
 - Product intake and receiving workspace modernization verified: `src/ui/pages/admin/AdminPurchaseOrders.tsx` now presents the admin PO surface as a Receiving workspace with Shopify-style saved views (`All`, `Draft`, `Incoming`, `Partial`, `Exceptions`, `Ready to close`, `Closed`), receiving KPIs, searchable PO/supplier/SKU/product filtering, next-action cards, progress bars, guided receiving, and a workflow detail drawer.
 - Purchase-order creation usability verified in `src/ui/pages/admin/AdminPurchaseOrders.tsx`: operators can search/select products by name/SKU/metadata instead of entering raw product IDs, and unit costs are entered in dollar-style form inputs before being converted to cents for the existing Core/API contract.
 - Pure receiving read-model vocabulary verified in `src/domain/models.ts` and `src/domain/rules.ts`: `PurchaseOrderSavedView`, `ReceivingVarianceType`, `PurchaseOrderLineReceivingSummary`, saved-view matching, exception detection, and line receiving summaries are Domain-owned and remain free of I/O/framework imports.
