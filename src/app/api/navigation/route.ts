@@ -20,17 +20,17 @@ export async function GET(request: Request) {
         shopCategories: {
           title: 'Categories',
           links: [
-            { label: 'Rare Singles', href: '/products?category=Singles' },
-            { label: 'Sealed Boxes', href: '/products?category=sealed' },
-            { label: 'Accessories', href: '/products?category=accessories' }
+            { label: 'Rare Singles', href: '/collections/singles' },
+            { label: 'Sealed Boxes', href: '/collections/sealed' },
+            { label: 'Accessories', href: '/collections/accessories' }
           ]
         },
         shopCollections: {
           title: 'Collections',
           links: [
-            { label: 'New Arrivals', href: '/products?category=new' },
-            { label: 'Bestsellers', href: '/products?category=bestsellers' },
-            { label: 'Clearance Event', href: '/products?category=sale' }
+            { label: 'New Arrivals', href: '/collections/new' },
+            { label: 'Bestsellers', href: '/collections/bestsellers' },
+            { label: 'Clearance Event', href: '/collections/sale' }
           ]
         },
         featuredPromotion: {
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
         },
         otherLinks: [
            { label: 'All Products', href: '/products' },
-           { label: 'Featured', href: '/products?category=featured' }
+           { label: 'Featured', href: '/collections/featured' }
         ]
       } as NavigationMenu);
     }

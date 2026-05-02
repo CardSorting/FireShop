@@ -121,13 +121,14 @@ export function CartPage() {
                 <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                   {featuredProducts.map((p) => (
                     <article key={p.id} className="group bg-white rounded-3xl border border-gray-100 p-4 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
-                      <Link href={`/products/${p.id}`} className="block aspect-square overflow-hidden rounded-2xl bg-gray-50 mb-6">
-                        <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                      <Link href={`/products/${p.handle || p.id}`} className="block aspect-square overflow-hidden rounded-2xl bg-gray-50 mb-6">
+                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                       </Link>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 mb-1">{p.category}</p>
-                      <h3 className="text-base font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-2">
-                        <Link href={`/products/${p.id}`}>{p.name}</Link>
-                      </h3>
+                      <div>
+                        <h4 className="text-xs font-black text-gray-900 group-hover:text-primary-600 transition-colors truncate">
+                          <Link href={`/products/${p.handle || p.id}`}>{p.name}</Link>
+                        </h4>
+                      </div>
                       <div className="flex items-center justify-between pt-2">
                         <p className="text-xl font-black text-gray-900">{formatMoney(p.price)}</p>
                         <button 
@@ -151,7 +152,7 @@ export function CartPage() {
                 <article key={item.productId} className="bg-white rounded-4xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300 group" data-testid="cart-item">
                   <div className="flex flex-col sm:flex-row gap-8">
                     <div className="relative w-full sm:w-40 aspect-square shrink-0">
-                      <Link href={`/products/${item.productId}`}>
+                      <Link href={`/products/${item.productHandle || item.productId}`}>
                         <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover rounded-2xl ring-1 ring-gray-100 group-hover:scale-[1.02] transition-transform duration-500" />
                       </Link>
                     </div>
@@ -160,7 +161,7 @@ export function CartPage() {
                       <div className="flex justify-between items-start gap-4">
                         <div>
                           <h3 className="text-xl font-black text-gray-900 group-hover:text-primary-600 transition-colors mb-2">
-                            <Link href={`/products/${item.productId}`}>{item.name}</Link>
+                            <Link href={`/products/${item.productHandle || item.productId}`}>{item.name}</Link>
                           </h3>
                           <div className="flex items-center gap-4">
                              <p className="text-sm font-bold text-gray-400">Unit Price: <span className="text-gray-900">{formatMoney(item.priceSnapshot)}</span></p>

@@ -8,15 +8,17 @@ import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import type { Product, ProductCategory } from '@domain/models';
-import { Search, Filter, ShoppingBag, ChevronRight, PackageSearch, RefreshCcw, Heart, Check } from 'lucide-react';
+import { Search, Filter, ShoppingBag, ChevronRight, PackageSearch, RefreshCcw, Heart, Check, X } from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 
 export function ProductsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const params = useParams();
+  const collectionSlug = params?.slug as string | undefined;
   const services = useServices();
   const [sortBy, setSortBy] = useState<string>('newest');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -31,6 +33,46 @@ export function ProductsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
 
   const conditions = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Damaged'];
+
+  // Initialize state from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const categoryParam = params.get('category');
+    const conditionParam = params.get('condition');
+    const minPrice = params.get('min_price');
+    const maxPrice = params.get('max_price');
+    const sort = params.get('sort_by');
+    const q = params.get('q') || params.get('search');
+
+    if (collectionSlug) {
+      setSelectedCategories([collectionSlug]);
+    } else if (categoryParam) {
+      setSelectedCategories(categoryParam.split(','));
+    }
+    
+    if (conditionParam) setSelectedConditions(conditionParam.split(','));
+    if (minPrice && maxPrice) setPriceRange([parseInt(minPrice), parseInt(maxPrice)]);
+    if (sort) setSortBy(sort);
+    if (q) setSearch(q);
+  }, []);
+
+  // Sync state to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCategories.length > 0) params.set('category', selectedCategories.join(','));
+    if (selectedConditions.length > 0) params.set('condition', selectedConditions.join(','));
+    if (priceRange[0] > 0) params.set('min_price', priceRange[0].toString());
+    if (priceRange[1] < 100000) params.set('max_price', priceRange[1].toString());
+    if (sortBy !== 'newest') params.set('sort_by', sortBy);
+    if (search.trim()) params.set('q', search.trim());
+
+    const queryString = params.toString();
+    const currentPath = window.location.pathname;
+    const newUrl = queryString ? `${currentPath}?${queryString}` : currentPath;
+    
+    // Use replaceState to avoid cluttering history while the user is actively filtering
+    window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, '', newUrl);
+  }, [selectedCategories, selectedConditions, priceRange, sortBy, search]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -79,40 +121,22 @@ export function ProductsPage() {
 
   const handleSearch = useCallback(async (value: string) => {
     setSearch(value);
-    if (value.trim()) {
-      setLoading(true);
-      try {
-        const result = await services.productService.getProducts({ limit: 50 });
-        const filtered = result.products.filter((p: Product) =>
-          p.name.toLowerCase().includes(value.toLowerCase()) ||
-          p.category.toLowerCase().includes(value.toLowerCase())
-        );
-        setProducts(filtered);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to search products');
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      void loadProducts();
-    }
-  }, [services.productService, loadProducts]);
+    // URL sync handles the state update
+  }, []);
+
+  const clearAllFilters = () => {
+    setSelectedCategories([]);
+    setSelectedConditions([]);
+    setPriceRange([0, 100000]);
+    setSearch('');
+    setSortBy('newest');
+    router.push('/products');
+  };
 
   useEffect(() => {
-    const query = searchParams.get('search');
-    const categoryParam = searchParams.get('category');
-    
-    if (categoryParam && !selectedCategories.includes(categoryParam)) {
-      setSelectedCategories([categoryParam]);
-    }
-
-    if (query) {
-      setSearch(query);
-      handleSearch(query);
-    } else {
-      void loadProducts();
-    }
-  }, [searchParams, loadProducts, handleSearch]);
+    // Initial load handled by URL state initialization
+    void loadProducts();
+  }, [loadProducts]);
 
 
   return (
@@ -161,6 +185,61 @@ export function ProductsPage() {
               </div>
            </div>
         </div>
+
+        {/* Active Filters (Pills) */}
+        {(selectedCategories.length > 0 || selectedConditions.length > 0 || search || priceRange[0] > 0 || priceRange[1] < 100000) && (
+          <div className="flex flex-wrap items-center gap-3 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
+             <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 mr-2 shrink-0">
+                <Filter className="w-3 h-3" />
+                Active Filters:
+             </div>
+             <div className="flex flex-wrap items-center gap-2">
+                {search && (
+                  <button 
+                    onClick={() => setSearch('')}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-primary-600 transition-all border border-transparent shadow-lg shadow-gray-200"
+                  >
+                    "{search}" <X className="w-3 h-3" />
+                  </button>
+                )}
+                {selectedCategories.map(slug => {
+                  const cat = categories.find(c => c.slug === slug);
+                  return (
+                    <button 
+                      key={slug}
+                      onClick={() => setSelectedCategories(selectedCategories.filter(s => s !== slug))}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-50 text-primary-700 text-[10px] font-black uppercase tracking-widest hover:bg-primary-100 transition-all border border-primary-100"
+                    >
+                      {cat?.name || slug} <X className="w-3 h-3" />
+                    </button>
+                  );
+                })}
+                {selectedConditions.map(cond => (
+                  <button 
+                    key={cond}
+                    onClick={() => setSelectedConditions(selectedConditions.filter(c => c !== cond))}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-all border border-amber-100"
+                  >
+                    {cond} <X className="w-3 h-3" />
+                  </button>
+                ))}
+                {(priceRange[0] > 0 || priceRange[1] < 100000) && (
+                  <button 
+                    onClick={() => setPriceRange([0, 100000])}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all border border-blue-100"
+                  >
+                    ${(priceRange[0] / 100).toFixed(0)} - ${(priceRange[1] / 100).toFixed(0)} <X className="w-3 h-3" />
+                  </button>
+                )}
+                <button 
+                  onClick={clearAllFilters}
+                  className="text-[10px] font-black text-gray-400 hover:text-red-500 uppercase tracking-widest ml-2 underline underline-offset-4 decoration-2"
+                >
+                  Clear All
+                </button>
+             </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Filter Sidebar */}
@@ -356,7 +435,7 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <article className="group relative" data-testid="product-card">
       <div className="aspect-square overflow-hidden rounded-3xl bg-gray-50 border shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
-        <Link href={`/products/${product.id}`} className="block h-full w-full">
+        <Link href={`/products/${product.handle || product.id}`} className="block h-full w-full">
           <img
             src={product.imageUrl}
             alt={product.name}
@@ -414,7 +493,7 @@ function ProductCard({ product }: { product: Product }) {
         </div>
         
         <h3 className="text-base font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-2">
-          <Link href={`/products/${product.id}`}>{product.name}</Link>
+          <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
         </h3>
         <p className="text-[10px] text-gray-400 font-bold mb-2">Ref: {product.id.slice(0, 8).toUpperCase()}</p>
         

@@ -232,6 +232,7 @@ export interface Cart {
 
 export interface CartItem {
   productId: string;
+  productHandle?: string;
   name: string;
   priceSnapshot: number; // cents at time of add
   quantity: number;

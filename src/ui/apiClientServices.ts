@@ -72,6 +72,7 @@ export function createApiClientServices() {
                 return request<{ products: Product[]; nextCursor?: string }>(`/api/products?${qs}`);
             },
             getProduct: (id: string) => request<Product>(`/api/products/${id}`),
+            getProductByHandle: (handle: string) => request<Product>(`/api/products/handle/${handle}`),
             getInventoryOverview: () => request<InventoryOverview>('/api/admin/inventory'),
             getProductManagementOverview: () => request<ProductManagementOverview>('/api/admin/products/overview'),
             getProductSavedView: (view: ProductSavedView, options?: ProductManagementFilters) => {

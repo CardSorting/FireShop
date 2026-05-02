@@ -112,7 +112,7 @@ export function SearchCommandPalette() {
   const handleSelect = useCallback((product: Product) => {
     saveSearch(product.name);
     setIsOpen(false);
-    router.push(`/products/${product.id}`);
+    router.push(`/products/${product.handle || product.id}`);
   }, [router, recentSearches]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -129,7 +129,7 @@ export function SearchCommandPalette() {
       } else if (query.trim()) {
         saveSearch(query.trim());
         setIsOpen(false);
-        router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+        router.push(`/search?q=${encodeURIComponent(query.trim())}`);
       }
     }
   };
@@ -233,7 +233,7 @@ export function SearchCommandPalette() {
                     return (
                       <button
                         key={cat.id}
-                        onClick={() => { setIsOpen(false); router.push(`/products?category=${cat.slug}`); }}
+                        onClick={() => { setIsOpen(false); router.push(`/collections/${cat.slug}`); }}
                         className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-gray-50/50 hover:bg-white transition-all border border-transparent hover:border-gray-100 hover:shadow-xl group"
                       >
                         <div className={`p-3 rounded-xl ${colorClass} transition-colors group-hover:scale-110 duration-300`}>

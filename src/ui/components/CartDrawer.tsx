@@ -143,7 +143,7 @@ export function CartDrawer() {
                     {recommendations.slice(0, 2).map((p) => (
                       <div key={p.id} className="group relative">
                         <Link 
-                          href={`/products/${p.id}`}
+                          href={`/products/${p.handle || p.id}`}
                           onClick={closeCart}
                           className="block aspect-square overflow-hidden rounded-2xl bg-gray-50 border group-hover:shadow-lg transition-all duration-300"
                         >

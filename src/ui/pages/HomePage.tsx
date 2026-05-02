@@ -65,7 +65,7 @@ export function HomePage() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/products?category=sealed"
+                href="/collections/sealed"
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-gray-800 text-white border border-gray-700 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-700 transition-all"
               >
                 Browse Sealed
@@ -141,7 +141,7 @@ export function HomePage() {
             <p className="text-gray-500 font-medium">Everything you need to build the ultimate deck.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Link href="/products?category=Singles" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
+            <Link href="/collections/singles" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
               <img src="https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Singles" />
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
@@ -154,7 +154,7 @@ export function HomePage() {
                 </div>
               </div>
             </Link>
-            <Link href="/products?category=sealed" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
+            <Link href="/collections/sealed" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
               <img src="https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Sealed" />
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
@@ -167,7 +167,7 @@ export function HomePage() {
                 </div>
               </div>
             </Link>
-            <Link href="/products?category=accessories" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
+            <Link href="/collections/accessories" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
               <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Accessories" />
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
@@ -199,7 +199,7 @@ export function HomePage() {
               <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter mb-4">Trending Now</h2>
               <p className="text-gray-500 font-medium">The most sought-after items this week.</p>
             </div>
-            <Link href="/products" className="group mt-4 sm:mt-0 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary-600 hover:text-primary-700">
+            <Link href="/collections/all" className="group mt-4 sm:mt-0 flex items-center gap-2 text-sm font-black uppercase tracking-widest text-primary-600 hover:text-primary-700">
               View All <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
@@ -224,7 +224,7 @@ export function HomePage() {
               {featured.map((p) => (
                 <Link
                   key={p.id}
-                  href={`/products/${p.id}`}
+                  href={`/products/${p.handle || p.id}`}
                   className="group relative block"
                 >
                   <div className="aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 mb-4 relative z-10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">

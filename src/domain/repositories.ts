@@ -18,6 +18,7 @@ export interface IProductRepository {
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }>;
   getById(id: string): Promise<Product | null>;
+  getByHandle(handle: string): Promise<Product | null>;
   create(product: ProductDraft): Promise<Product>;
   update(id: string, updates: ProductUpdate): Promise<Product>;
   delete(id: string): Promise<void>;

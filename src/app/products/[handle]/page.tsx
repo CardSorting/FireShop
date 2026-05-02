@@ -3,13 +3,19 @@ import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
 
 type Props = {
-    params: { id: string };
+    params: { handle: string };
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
     try {
         const services = await getServerServices();
-        const product = await services.productService.getProduct(params.id);
+        // Try handle first, then fallback to ID
+        let product;
+        try {
+            product = await services.productService.getProductByHandle(params.handle);
+        } catch {
+            product = await services.productService.getProduct(params.handle);
+        }
         
         return {
             title: `${product.name} | PlayMoreTCG`,

@@ -331,6 +331,12 @@ export class ProductService {
     return product;
   }
 
+  async getProductByHandle(handle: string): Promise<Product> {
+    const product = await this.repo.getByHandle(handle);
+    if (!product) throw new ProductNotFoundError(handle);
+    return product;
+  }
+
   async createProduct(data: ProductDraft, actor: { id: string, email: string }): Promise<Product> {
     assertValidProductDraft(data);
     const product = await this.repo.create(data);

@@ -351,8 +351,35 @@ export class SQLiteProductRepository implements IProductRepository {
 
       return this.mapTableToProduct(result, media);
     }
-    
+
     return this.authIndex.get(id) || null;
+  }
+
+  async getByHandle(handle: string): Promise<Product | null> {
+    await this.ensureIndexWarm();
+    
+    if (this.isCatalogTooLarge || !this.authIndex) {
+      const result = await this.db
+        .selectFrom('products')
+        .selectAll()
+        .where('handle', '=', handle)
+        .executeTakeFirst();
+      
+      if (!result) return null;
+
+      const media = await this.db
+        .selectFrom('product_media')
+        .selectAll()
+        .where('productId', '=', result.id)
+        .execute();
+
+      return this.mapTableToProduct(result, media);
+    }
+    
+    for (const product of this.authIndex.values()) {
+      if (product.handle === handle) return product;
+    }
+    return null;
   }
 
   async create(product: ProductDraft): Promise<Product> {

@@ -13,8 +13,10 @@ import { CartDrawer } from '../components/CartDrawer';
 
 const SHOP_LINKS = [
   { href: '/products', label: 'All Products', icon: Package },
-  { href: '/products?category=new', label: 'New Arrivals', icon: Sparkles },
-  { href: '/products?category=featured', label: 'Featured', icon: Layers3 },
+  { href: '/collections/singles', label: 'Rare Singles' },
+  { href: '/collections/sealed', label: 'Sealed Boxes' },
+  { href: '/collections/accessories', label: 'Accessories' },
+  { href: '/collections/featured', label: 'Featured', icon: Layers3 },
 ];
 
 import { SearchCommandPalette } from '../components/SearchCommandPalette';
@@ -98,7 +100,7 @@ export function Navbar() {
               <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Authentic TCG Guarantee</span>
            </div>
            <div className="flex items-center gap-6">
-              <Link href="/products?category=sale" className="group flex items-center gap-2 hover:text-white transition-colors">
+              <Link href="/collections/sale" className="group flex items-center gap-2 hover:text-white transition-colors">
                  <Zap className="w-3.5 h-3.5 text-amber-500 fill-current animate-pulse" />
                  Limited: Summer Drop is Live
                  <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
@@ -238,7 +240,7 @@ export function Navbar() {
                       <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-6">Recently Viewed</h4>
                       <div className="space-y-4">
                         {recentlyViewed.slice(0, 4).map(p => (
-                          <Link key={p.id} href={`/products/${p.id}`} className="flex items-center gap-4 group">
+                          <Link key={p.id} href={`/products/${p.handle || p.id}`} className="flex items-center gap-4 group">
                             <div className="h-14 w-14 rounded-xl bg-gray-50 border overflow-hidden shrink-0">
                               <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                             </div>

@@ -239,7 +239,7 @@ export function WishlistPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
               {recentlyViewed.slice(0, 5).map(p => (
-                <Link key={p.id} href={`/products/${p.id}`} className="group block space-y-4">
+                <Link key={p.id} href={`/products/${p.handle || p.id}`} className="group block space-y-4">
                   <div className="aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>
@@ -283,7 +283,7 @@ function WishlistItemCard({ product, onRemove }: { product: Product, onRemove: (
   return (
     <div className="group bg-white rounded-5xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
       <div className="relative aspect-4/5 overflow-hidden bg-gray-50">
-        <Link href={`/products/${product.id}`} className="block h-full w-full">
+        <Link href={`/products/${product.handle || product.id}`} className="block h-full w-full">
           <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
         </Link>
         
@@ -316,7 +316,7 @@ function WishlistItemCard({ product, onRemove }: { product: Product, onRemove: (
         </div>
         
         <h3 className="text-lg font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1 mb-3">
-          <Link href={`/products/${product.id}`}>{product.name}</Link>
+          <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
         </h3>
         
         <div className="flex items-center justify-between">

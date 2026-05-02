@@ -335,7 +335,7 @@ export function assertValidShippingAddress(address: Address): void {
 
 export function assertValidOrderItems(items: CartItem[]): void {
   if (items.length === 0) {
-    throw new InvalidOrderError('Order must contain at least one item');
+throw new InvalidOrderError('Order must contain at least one item');
   }
   if (items.length > MAX_ORDER_ITEMS) {
     throw new InvalidOrderError(`Order cannot contain more than ${MAX_ORDER_ITEMS} items`);
@@ -499,6 +499,7 @@ export function addCartItem(
 
   const newItem: CartItem = {
     productId: product.id,
+    productHandle: product.handle,
     name: product.name,
     priceSnapshot: product.price,
     quantity,

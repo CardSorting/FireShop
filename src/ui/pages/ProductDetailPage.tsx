@@ -37,7 +37,7 @@ function toFriendlyError(err: unknown): string {
 }
 
 export function ProductDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { handle } = useParams<{ handle: string }>();
   const { user } = useAuth();
   const { addItem } = useCart();
   const services = useServices();
@@ -54,7 +54,7 @@ export function ProductDetailPage() {
   const [creatingCollection, setCreatingCollection] = useState(false);
 
   const { wishlists, isInWishlist, addToWishlist, removeFromWishlist, createCollection, trackView } = useWishlist();
-  const isFavorite = id ? isInWishlist(id) : false;
+  const isFavorite = product?.id ? isInWishlist(product.id) : false;
 
   // Simulated ratings and delivery
   const rating = 4.8;
@@ -70,7 +70,8 @@ export function ProductDetailPage() {
 
 
   async function handleAddToCollection(wishlistId: string) {
-    await addToWishlist(id!, wishlistId);
+    if (!product?.id) return;
+    await addToWishlist(product.id, wishlistId);
     setShowWishlistDropdown(false);
   }
 
@@ -79,7 +80,7 @@ export function ProductDetailPage() {
     setCreatingCollection(true);
     try {
       const newList = await createCollection(newCollectionName.trim());
-      await addToWishlist(id!, newList.id);
+      if (product?.id) await addToWishlist(product.id, newList.id);
       setNewCollectionName('');
       setShowWishlistDropdown(false);
     } finally {
@@ -90,10 +91,15 @@ export function ProductDetailPage() {
   const [mainImage, setMainImage] = useState<string | null>(null);
 
   const loadProduct = useCallback(async () => {
-    if (!id) return;
+    if (!handle) return;
     setLoading(true);
     try {
-      const loaded = await services.productService.getProduct(id);
+      let loaded;
+      try {
+        loaded = await services.productService.getProductByHandle(handle);
+      } catch {
+        loaded = await services.productService.getProduct(handle);
+      }
       setProduct(loaded);
       setMainImage(loaded.imageUrl);
       trackView(loaded);
@@ -101,7 +107,7 @@ export function ProductDetailPage() {
       setLoadingRelated(true);
       try {
         const related = await services.productService.getProducts({ category: loaded.category, limit: 5 });
-        setRelatedProducts(related.products.filter(p => p.id !== id).slice(0, 4));
+        setRelatedProducts(related.products.filter(p => p.id !== loaded.id).slice(0, 4));
       } catch (err) {
         logger.error('Failed to load related products', err);
       } finally {
@@ -113,7 +119,7 @@ export function ProductDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, services.productService]);
+  }, [handle, services.productService, trackView]);
 
   // Handle "Recently Viewed"
   useEffect(() => {
@@ -176,7 +182,7 @@ export function ProductDetailPage() {
         <Breadcrumbs 
           items={[
             { label: 'Catalog', href: '/products' },
-            { label: product.category, href: `/products?category=${product.category}` },
+            { label: product.category, href: `/collections/${product.category.toLowerCase()}` },
             { label: product.name }
           ]} 
         />
@@ -560,7 +566,7 @@ export function ProductDetailPage() {
 
         {/* Reviews Section */}
         <div id="reviews" className="mb-24 scroll-mt-24">
-          <ProductReviews productId={id!} />
+          {product && <ProductReviews productId={product.id} />}
         </div>
 
         {/* Recently Viewed */}
@@ -568,8 +574,8 @@ export function ProductDetailPage() {
           <div className="mb-24">
              <h2 className="text-3xl font-black text-gray-900 mb-8 tracking-tighter">Recently Viewed</h2>
              <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-                {recentlyViewed.filter(p => p.id !== id).slice(0, 5).map(p => (
-                  <Link key={p.id} href={`/products/${p.id}`} className="group block">
+                {recentlyViewed.filter(p => p.id !== product?.id).slice(0, 5).map(p => (
+                  <Link key={p.id} href={`/products/${p.handle || p.id}`} className="group block">
                     <div className="aspect-square rounded-2xl bg-gray-50 border overflow-hidden mb-3 transition-transform duration-500 group-hover:-translate-y-1">
                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
                     </div>
@@ -726,7 +732,7 @@ export function ProductDetailPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
               {relatedProducts.map(p => (
-                <Link key={p.id} href={`/products/${p.id}`} className="group block space-y-6">
+                <Link key={p.id} href={`/products/${p.handle || p.id}`} className="group block space-y-6">
                   <div className="aspect-4/5 rounded-4xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
                     <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>

@@ -132,9 +132,9 @@ export function Footer() {
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Shop</h3>
               <ul className="space-y-4">
                 <li><Link href="/products" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">New Releases</Link></li>
-                <li><Link href="/products?category=rare" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Single Cards</Link></li>
-                <li><Link href="/products?category=sealed" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Sealed Boxes</Link></li>
-                <li><Link href="/products?category=sale" className="text-sm font-semibold text-primary-600 flex items-center">Clearance <Zap className="w-3 h-3 ml-1 fill-current" /></Link></li>
+                <li><Link href="/collections/singles" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Single Cards</Link></li>
+                <li><Link href="/collections/sealed" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Sealed Boxes</Link></li>
+                <li><Link href="/collections/sale" className="text-sm font-semibold text-primary-600 flex items-center">Clearance <Zap className="w-3 h-3 ml-1 fill-current" /></Link></li>
               </ul>
             </div>
 
