@@ -36,8 +36,7 @@ function getDefaultMenu(menuId: string): NavigationMenu {
       linkHref: '/products'
     },
     otherLinks: [
-       { label: 'All Products', href: '/products' },
-       { label: 'Featured', href: '/collections/featured' }
+       { label: 'All Products', href: '/products' }
     ]
   } as NavigationMenu;
 }

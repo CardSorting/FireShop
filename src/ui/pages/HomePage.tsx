@@ -7,34 +7,76 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
-import { ArrowRight, Sparkles, Shield, Truck, ShieldCheck, LifeBuoy, Star, Zap } from 'lucide-react';
+import { ArrowRight, Sparkles, Shield, Truck, ShieldCheck, LifeBuoy, Star, Zap, TrendingUp } from 'lucide-react';
 import { RewardsBanner } from '../components/RewardsBanner';
+import { ProductCard } from '../components/ProductCard';
+import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
+import { useCart } from '../hooks/useCart';
 
 export function HomePage() {
   const services = useServices();
+  const { addItem } = useCart();
   const [featured, setFeatured] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let mounted = true;
-    services.productService.getProducts({ limit: 4 })
-      .then((result) => {
-        if (!mounted) return;
+    const controller = new AbortController();
+    
+    const loadInitial = async () => {
+      try {
+        const result = await services.productService.getProducts({ limit: 8 });
         setFeatured(result.products);
+        setNextCursor(result.nextCursor);
+        setHasMore(!!result.nextCursor);
         setError(null);
-      })
-      .catch((err) => {
-        if (!mounted) return;
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         setError(err instanceof Error ? err.message : 'Failed to load featured products');
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
-    return () => {
-      mounted = false;
+      } finally {
+        setLoading(false);
+      }
     };
+
+    void loadInitial();
+    return () => controller.abort();
   }, [services]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore || !nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const result = await services.productService.getProducts({ 
+        limit: 8,
+        cursor: nextCursor
+      });
+      
+      setFeatured(prev => {
+        const existingIds = new Set(prev.map(p => p.id));
+        const newProducts = result.products.filter(p => !existingIds.has(p.id));
+        return [...prev, ...newProducts];
+      });
+      
+      setNextCursor(result.nextCursor);
+      setHasMore(!!result.nextCursor);
+    } catch (err) {
+      console.error('Load more failed', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleQuickAdd = async (productId: string) => {
+    try {
+      await addItem(productId, 1);
+      window.dispatchEvent(new CustomEvent('open-cart'));
+    } catch (err) {
+      console.error('Quick add failed', err);
+    }
+  };
 
   return (
     <div className="bg-white">
@@ -205,14 +247,9 @@ export function HomePage() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="animate-pulse space-y-4">
-                  <div className="aspect-4/5 bg-gray-100 rounded-3xl" />
-                  <div className="h-4 bg-gray-100 rounded w-1/3" />
-                  <div className="h-6 bg-gray-100 rounded w-3/4" />
-                  <div className="h-6 bg-gray-100 rounded w-1/4" />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+              {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+                <ProductCardSkeleton key={i} />
               ))}
             </div>
           ) : error ? (
@@ -220,44 +257,38 @@ export function HomePage() {
               <Shield className="w-5 h-5" /> {error}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {featured.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/products/${p.handle || p.id}`}
-                  className="group relative block"
-                >
-                  <div className="aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 mb-4 relative z-10 transition-transform duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
-                    <img
-                      src={p.imageUrl}
-                      alt={p.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-x-0 bottom-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                       <button className="w-full py-3 bg-white/90 backdrop-blur-md rounded-xl text-xs font-black uppercase tracking-widest text-gray-900 shadow-lg hover:bg-white transition-colors">
-                         Quick View
-                       </button>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-[10px] text-primary-600 font-black uppercase tracking-widest">
-                        {p.category}
-                      </p>
-                      <div className="flex items-center text-gray-400">
-                        <Star className="w-3 h-3 text-amber-400 fill-current" />
-                        <span className="text-[10px] font-bold ml-1">4.8</span>
-                      </div>
-                    </div>
-                    <h3 className="font-bold text-gray-900 text-base line-clamp-1 mb-1 group-hover:text-primary-600 transition-colors">
-                      {p.name}
-                    </h3>
-                    <p className="text-lg font-black text-gray-900">
-                      ${(p.price / 100).toFixed(2)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
+            <div className="space-y-20">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
+                {featured.map((p, i) => (
+                  <ProductCard 
+                    key={p.id} 
+                    product={p} 
+                    onAddToCart={handleQuickAdd}
+                    priority={i < 4}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="flex justify-center pt-8">
+                  <button
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="group relative inline-flex items-center gap-3 px-10 py-4 bg-white border-2 border-gray-900 rounded-2xl text-sm font-black uppercase tracking-widest text-gray-900 hover:bg-gray-900 hover:text-white transition-all shadow-xl shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Loading Items...
+                      </>
+                    ) : (
+                      <>
+                        Load More <Zap className="w-4 h-4 text-amber-500 group-hover:text-white transition-colors" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
