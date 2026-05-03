@@ -16,11 +16,13 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
 
 
-export function ProductsPage() {
+export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'category' | 'collection'; resolvedSlug?: string } = {}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const params = useParams();
-  const collectionSlug = (params?.slug as string | undefined) || (params?.handle as string | undefined); // handle can be slug in collection route
+  // Fallback to params if no resolved props provided (for compatibility)
+  const fallbackSlug = (params?.slug as string | undefined) || (params?.handle as string | undefined); 
+  const collectionSlug = resolvedSlug || fallbackSlug;
 
   const services = useServices();
   const [sortBy, setSortBy] = useState<string>('newest');
@@ -48,7 +50,16 @@ export function ProductsPage() {
     const q = params.get('q') || params.get('search');
 
     if (collectionSlug) {
-      setSelectedCategories([collectionSlug]);
+      if (collectionSlug === 'all') {
+        // Handle the 'all' special case by not filtering by category or collection
+      } else if (resolvedType === 'category') {
+        setSelectedCategories([collectionSlug]);
+      } else if (resolvedType === 'collection') {
+        // We'll handle this in the loadProducts call by passing the collectionSlug
+      } else {
+        // Legacy behavior if type is unknown
+        setSelectedCategories([collectionSlug]);
+      }
     } else if (categoryParam) {
       setSelectedCategories(categoryParam.split(','));
     }
@@ -103,8 +114,10 @@ export function ProductsPage() {
     setLoading(true);
     setError(null);
     try {
+      const isCollectionType = resolvedType === 'collection';
       const result = await services.productService.getProducts({
-        category: selectedCategories.length > 0 ? selectedCategories[0] : undefined,
+        category: !isCollectionType && selectedCategories.length > 0 ? selectedCategories[0] : undefined,
+        collection: isCollectionType && collectionSlug ? collectionSlug : undefined,
         limit: 20,
         cursor,
       });

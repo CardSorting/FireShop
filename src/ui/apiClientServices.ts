@@ -70,9 +70,10 @@ export function createApiClientServices() {
             updateUser: (id: string, updates: Partial<User>) => request<User>(`/api/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         productService: {
-            getProducts: (options?: { category?: string; limit?: number; cursor?: string; query?: string }) => {
+            getProducts: (options?: { category?: string; collection?: string; limit?: number; cursor?: string; query?: string }) => {
                 const qs = new URLSearchParams();
                 if (options?.category) qs.set('category', options.category);
+                if (options?.collection) qs.set('collection', options.collection);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);
                 if (options?.query) qs.set('query', options.query);

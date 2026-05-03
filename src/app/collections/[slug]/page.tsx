@@ -7,22 +7,28 @@ import type { ProductCategory } from '@domain/models';
 
 
 
-async function getCategory(slug: string) {
+async function getCategoryOrCollection(slug: string) {
   const services = await getServerServices();
   try {
     const categories = await services.taxonomyService.getAllCategories();
-    return categories.find((c: ProductCategory) => c.slug === slug) || null;
+    const category = categories.find((c: ProductCategory) => c.slug === slug);
+    if (category) return { type: 'category' as const, data: category };
+    
+    // Also check collections
+    const collection = await services.collectionService.getByHandle(slug);
+    if (collection) return { type: 'collection' as const, data: collection };
+    
+    return null;
   } catch {
-
     return null;
   }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const category = await getCategory(slug);
+  const resolved = await getCategoryOrCollection(slug);
   
-  if (!category) {
+  if (!resolved) {
     const fallbackTitle = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     return {
       title: `${fallbackTitle} | DreamBeesArt`,
@@ -30,14 +36,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 
   return {
-    title: `${category.name} | DreamBeesArt`,
-    description: category.description || `Shop our curated collection of ${category.name}. Fast shipping and guaranteed authenticity.`,
+    title: `${resolved.data.name} | DreamBeesArt`,
+    description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}. Fast shipping and guaranteed authenticity.`,
     alternates: {
-      canonical: `/collections/${category.slug}`,
+      canonical: `/collections/${slug}`,
     },
     openGraph: {
-      title: category.name,
-      description: category.description || '',
+      title: resolved.data.name,
+      description: resolved.data.description || '',
       type: 'website',
     },
   };
@@ -45,12 +51,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const category = await getCategory(slug);
+  const resolved = await getCategoryOrCollection(slug);
   
-  if (!category && slug !== 'all') {
-    // If it's not the special 'all' collection and not found, 404
-    // Wait, let's check if 'all' is handled. 
-    // Actually, if it's not found in taxonomy, it should probably 404 or show a generic page.
+  if (!resolved && slug !== 'all') {
+    // If it's not the special 'all' collection and not found, 404 could be triggered
+    // notFound();
   }
   
   // Industry Standard: Breadcrumb structured data for categories
@@ -67,7 +72,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
       {
         '@type': 'ListItem',
         position: 2,
-        name: category?.name || 'Catalog',
+        name: resolved?.data.name || 'Catalog',
         item: `https://dreambeesart.com/collections/${slug}`,
       },
     ],
@@ -80,7 +85,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-12 text-sm font-bold text-gray-500">Loading collection...</div>}>
-        <ProductsPage />
+        <ProductsPage resolvedType={resolved?.type} resolvedSlug={slug} />
       </Suspense>
     </>
   );

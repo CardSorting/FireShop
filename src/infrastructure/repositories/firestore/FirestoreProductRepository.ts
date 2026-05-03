@@ -56,6 +56,7 @@ export class FirestoreProductRepository implements IProductRepository {
 
   async getAll(options: {
     category?: string;
+    collection?: string;
     query?: string;
     limit?: number;
     cursor?: string;
@@ -64,6 +65,10 @@ export class FirestoreProductRepository implements IProductRepository {
 
     if (options.category) {
       q = query(q, where('category', '==', options.category));
+    }
+    
+    if (options.collection) {
+      q = query(q, where('collections', 'array-contains', options.collection));
     }
 
     // Firestore doesn't support full-text search directly without 3rd party or simple prefix match

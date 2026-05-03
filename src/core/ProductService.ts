@@ -75,6 +75,7 @@ export class ProductService {
 
   async getProducts(options?: {
     category?: string;
+    collection?: string;
     query?: string;
     limit?: number;
     cursor?: string;

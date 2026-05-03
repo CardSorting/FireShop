@@ -13,6 +13,7 @@ import type {
 export interface IProductRepository {
   getAll(options?: {
     category?: string;
+    collection?: string;
     query?: string;
     limit?: number;
     cursor?: string;
