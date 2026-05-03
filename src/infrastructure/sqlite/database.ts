@@ -319,11 +319,14 @@ export async function initDatabase() {
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('source', 'text', (col) => col.notNull())
     .addColumn('status', 'text', (col) => col.notNull())
+    .addColumn('items', 'text') // JSON string of items
     .addColumn('itemsCount', 'integer', (col) => col.notNull())
     .addColumn('receivedCount', 'integer', (col) => col.notNull())
     .addColumn('expectedAt', 'text', (col) => col.notNull())
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .execute();
+
+  try { await db.schema.alterTable('transfers').addColumn('items', 'text').execute(); } catch {}
 
   // ─────────────────────────────────────────────
   // Purchase Order & Receiving Tables

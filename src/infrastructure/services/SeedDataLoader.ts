@@ -1,7 +1,7 @@
 /**
  * [LAYER: INFRASTRUCTURE]
  * Industrialized Seeding Infrastructure for PlayMoreTCG.
- * Features: Atomic transactions, forensic logging, and idempotent relational population.
+ * Features: Domain Service Integration, Forensic Lifecycle Seeding, and Relational Sovereignty.
  */
 import type { 
   ProductDraft, 
@@ -29,6 +29,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     description: 'A sealed booster box containing 36 packs from the Scarlet & Violet expansion.',
     price: 14999,
     category: 'box',
+    productType: 'Trading Cards',
     stock: 25,
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=400',
@@ -38,13 +39,17 @@ const INITIAL_CATALOG: ProductDraft[] = [
     trackQuantity: true,
     physicalItem: true,
     weightGrams: 800,
-    media: [],
+    media: [
+      { id: 'med-1', url: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=800', altText: 'Front View', position: 1, createdAt: new Date() },
+      { id: 'med-2', url: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=600', altText: 'Side View', position: 2, createdAt: new Date() }
+    ],
   },
   {
     name: 'Charizard EX (Holo)',
     description: 'Ultra rare holographic Charizard EX card. Near mint condition.',
     price: 29999,
     category: 'single',
+    productType: 'Trading Cards',
     stock: 3,
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=400',
@@ -62,6 +67,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     description: 'High-quality neoprene playmat with custom printed designs.',
     price: 2499,
     category: 'accessory',
+    productType: 'Accessories',
     stock: 0,
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1611083360739-bdad6e0eb1fa?w=400',
@@ -86,6 +92,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     description: 'A comprehensive digital guide to mastering competitive TCG play. Instant download.',
     price: 1999,
     category: 'digital',
+    productType: 'Digital',
     stock: 1000,
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400',
@@ -133,8 +140,24 @@ const KB_DATA = {
 };
 
 const SUPPLIERS = [
-  { id: 'sup-1', name: 'Kanto Distribution', contactName: 'Officer Jenny', email: 'jenny@kanto.gov', phone: '555-0100', website: 'https://kanto.gov/distribution', address: '1 PokeWay, Viridian City' },
-  { id: 'sup-2', name: 'Silph Co.', contactName: 'The President', email: 'ceo@silph.co', phone: '555-0200', website: 'https://silph.co', address: 'Silph Office Building, Saffron City' },
+  { 
+    id: 'sup-1', 
+    name: 'Kanto Distribution', 
+    contactName: 'Officer Jenny', 
+    email: 'jenny@kanto.gov', 
+    phone: '555-0100', 
+    website: 'https://kanto.gov/distribution', 
+    address: { street: '1 PokeWay', city: 'Viridian City', state: 'Kanto', zip: '00102', country: 'US' } 
+  },
+  { 
+    id: 'sup-2', 
+    name: 'Silph Co.', 
+    contactName: 'The President', 
+    email: 'ceo@silph.co', 
+    phone: '555-0200', 
+    website: 'https://silph.co', 
+    address: { street: 'Silph Office Building', city: 'Saffron City', state: 'Kanto', zip: '00105', country: 'US' } 
+  },
 ];
 
 const LOCATIONS = [
@@ -196,30 +219,36 @@ export async function seedTaxonomy(): Promise<void> {
         .onConflict(oc => oc.column('id').doNothing())
         .execute();
     }
+
+    // Product Types
+    const types = ['Trading Cards', 'Accessories', 'Digital', 'Apparel', 'Collectibles'];
+    for (const t of types) {
+      await trx.insertInto('product_types')
+        .values({ id: crypto.randomUUID(), name: t, createdAt: now, updatedAt: now })
+        .onConflict(oc => oc.column('name').doNothing())
+        .execute();
+    }
   });
 }
 
 /**
- * Seeding Suppliers with Forensic Verification
+ * Seeding Suppliers with Service Layer
  */
 export async function seedSuppliers(): Promise<number> {
   assertSeedingAllowed();
-  const db = getSQLiteDB();
+  const services = getInitialServices();
   let created = 0;
   
   for (const sup of SUPPLIERS) {
-    const result = await db.insertInto('suppliers')
-      .values({ 
-        ...sup, 
-        address: typeof sup.address === 'string' ? sup.address : JSON.stringify(sup.address), 
-        createdAt: new Date().toISOString(), 
-        updatedAt: new Date().toISOString() 
-      })
-      .onConflict(oc => oc.column('id').doNothing())
-      .execute();
-    
-    const numRows = result[0]?.numInsertedOrUpdatedRows ?? 0n;
-    if (numRows > 0n) created++;
+    try {
+      const existing = await services.supplierService.list({ query: sup.name });
+      if (existing.length === 0) {
+        await services.supplierService.create(sup, { id: 'system', email: 'admin@playmore.tcg' });
+        created++;
+      }
+    } catch (err) {
+      logger.error(`Forensic Fault: Failed to seed supplier ${sup.name}.`, err);
+    }
   }
   return created;
 }
@@ -283,18 +312,35 @@ export async function seedInventory(): Promise<number> {
 }
 
 /**
- * Product Seeding via Domain Service Layer
+ * Product Seeding with Visual Media and Variants
  */
 export async function seedProducts(): Promise<number> {
   assertSeedingAllowed();
   const services = getInitialServices();
+  const db = getSQLiteDB();
   let created = 0;
 
   for (const product of INITIAL_CATALOG) {
     try {
       const existing = await services.productService.getProducts({ limit: 1, query: product.name });
       if (existing.products.length === 0) {
-        await services.productService.createProduct(product, { id: 'system', email: 'system@playmore.tcg' });
+        const saved = await services.productService.createProduct(product, { id: 'system', email: 'system@playmore.tcg' });
+        
+        // Seed Media specifically
+        if (product.media && product.media.length > 0) {
+          for (const m of product.media) {
+            await db.insertInto('product_media')
+              .values({
+                id: crypto.randomUUID(),
+                productId: saved.id,
+                url: m.url,
+                altText: m.altText || null,
+                position: m.position,
+                createdAt: new Date().toISOString()
+              })
+              .execute();
+          }
+        }
         created++;
       }
     } catch (err) {
@@ -305,7 +351,7 @@ export async function seedProducts(): Promise<number> {
 }
 
 /**
- * Customer Seeding via Identity Service Layer
+ * Customer Seeding with Identity Service Layer
  */
 export async function seedCustomers(): Promise<number> {
   assertSeedingAllowed();
@@ -524,53 +570,120 @@ export async function seedSettings(): Promise<number> {
 }
 
 /**
- * Complex Relational Seeding for Purchase Orders
+ * Industrial Procurement Seeding: POs + Receiving Lifecycle
  */
-export async function seedPurchaseOrders(): Promise<number> {
+export async function seedProcurement(): Promise<number> {
   assertSeedingAllowed();
-  const db = getSQLiteDB();
-  const products = await db.selectFrom('products').select(['id', 'sku', 'name', 'cost']).limit(5).execute();
-  const suppliers = await db.selectFrom('suppliers').select('id').execute();
+  const services = getInitialServices();
+  const productsResult = await services.productService.getProducts({ limit: 5 });
+  const products = productsResult.products;
+  const suppliers = await services.supplierService.list({ limit: 1 });
+  const locations = await services.inventoryLocationRepo.findAll();
   
-  if (products.length === 0 || suppliers.length === 0) {
-    logger.warn('SKIPPED: Purchase Order seeding skipped because products or suppliers are missing.');
+  if (products.length === 0 || suppliers.length === 0 || locations.length === 0) {
+    logger.warn('SKIPPED: Procurement seeding skipped because dependencies are missing.');
     return 0;
   }
 
-  const poId = 'po-12345';
-  const now = new Date().toISOString();
+  try {
+    // 1. Create a PO
+    const po = await services.purchaseOrderService.createPurchaseOrder({
+      supplier: suppliers[0].id,
+      referenceNumber: 'PO-INDUSTRIAL-001',
+      items: products.map(p => ({
+        productId: p.id,
+        orderedQty: 100,
+        unitCost: p.cost || 500,
+        notes: 'Initial Stock'
+      })),
+      notes: 'Industrial Audit PO'
+    });
 
-  await db.transaction().execute(async (trx) => {
-    await trx.insertInto('purchase_orders')
+    // 2. Submit it
+    await services.purchaseOrderService.submitOrder(po.id);
+
+    // 3. Partially Receive it (Sovereign Fulfillment Test)
+    await services.purchaseOrderService.receiveItems({
+      purchaseOrderId: po.id,
+      receivedBy: 'system',
+      locationId: locations[0].id,
+      items: po.items.slice(0, 2).map(item => ({
+        purchaseOrderItemId: item.id,
+        receivedQty: 50,
+        condition: 'new'
+      })),
+      notes: 'Partial industrial receiving session'
+    });
+
+    return 1;
+  } catch (err) {
+    logger.error('Forensic Fault: Failed to seed procurement lifecycle.', err);
+    return 0;
+  }
+}
+
+/**
+ * Stock Transfers between locations
+ */
+export async function seedTransfers(): Promise<number> {
+  assertSeedingAllowed();
+  const services = getInitialServices();
+  const productsResult = await services.productService.getProducts({ limit: 2 });
+  const products = productsResult.products;
+  
+  if (products.length < 2) return 0;
+
+  try {
+    const db = getSQLiteDB();
+    const id = 'TR-INDUSTRIAL-01';
+    await db.insertInto('transfers')
       .values({
-        id: poId,
-        supplier: suppliers[0].id,
-        referenceNumber: 'REF-KANTO-001',
-        status: 'ordered',
-        totalCost: products.reduce((sum, p) => sum + (p.cost || 500) * 10, 0),
-        createdAt: now,
-        updatedAt: now
+        id,
+        source: 'loc-warehouse',
+        status: 'in_transit',
+        items: JSON.stringify(products.map(p => ({ productId: p.id, name: p.name, quantity: 5 }))),
+        itemsCount: 10,
+        receivedCount: 0,
+        expectedAt: new Date(Date.now() + 86400000).toISOString(),
+        createdAt: new Date().toISOString()
       })
       .onConflict(oc => oc.column('id').doNothing())
       .execute();
+    return 1;
+  } catch (err) {
+    logger.error('Forensic Fault: Failed to seed transfers.', err);
+    return 0;
+  }
+}
 
-    for (const p of products) {
-      await trx.insertInto('purchase_order_items')
-        .values({
-          id: crypto.randomUUID(),
-          purchaseOrderId: poId,
-          productId: p.id,
-          sku: p.sku || 'UNKNOWN',
-          productName: p.name,
-          orderedQty: 10,
-          receivedQty: 0,
-          unitCost: p.cost || 500,
-          totalCost: (p.cost || 500) * 10
-        })
-        .execute();
+/**
+ * Customer Personalization: Wishlists
+ */
+export async function seedWishlists(): Promise<number> {
+  assertSeedingAllowed();
+  const services = getInitialServices();
+  const customers = await services.authService.getAllUsers();
+  const productsResult = await services.productService.getProducts({ limit: 5 });
+  const products = productsResult.products;
+
+  if (customers.length === 0 || products.length === 0) return 0;
+
+  let created = 0;
+  for (const customer of customers.slice(0, 3)) {
+    if (customer.role === 'admin') continue;
+    try {
+      const lists = await services.wishlistService.getWishlists(customer.id);
+      const listId = lists[0].id;
+      // Add items
+      for (const prod of products.slice(0, 2)) {
+        await services.wishlistService.addItem(customer.id, listId, prod.id);
+      }
+      created++;
+    } catch (err) {
+      logger.error(`Forensic Fault: Failed to seed wishlist for ${customer.email}.`, err);
     }
-  });
-  return 1;
+  }
+  return created;
 }
 
 /**
@@ -617,8 +730,11 @@ export async function seedAll(): Promise<void> {
     const inv = await seedInventory();
     logger.info(`Forensic: Seeded ${inv} inventory levels.`);
     
-    const po = await seedPurchaseOrders();
-    logger.info(`Forensic: Seeded ${po} purchase orders.`);
+    const proc = await seedProcurement();
+    logger.info(`Forensic: Seeded ${proc} procurement lifecycle events.`);
+
+    const trans = await seedTransfers();
+    logger.info(`Forensic: Seeded ${trans} stock transfers.`);
 
     const kb = await seedKnowledgebase();
     logger.info(`Forensic: Seeded ${kb} KB items.`);
@@ -628,6 +744,9 @@ export async function seedAll(): Promise<void> {
     
     const tickets = await seedTickets();
     logger.info(`Forensic: Seeded ${tickets} support tickets.`);
+
+    const wish = await seedWishlists();
+    logger.info(`Forensic: Seeded ${wish} customer wishlists.`);
 
     const audit = await seedAuditLogs();
     logger.info(`Forensic: Seeded ${audit} audit logs.`);
