@@ -14,6 +14,8 @@ import Link from 'next/link';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+import { ProductCard } from '../components/ProductCard';
+import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
 
 
 export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'category' | 'collection'; resolvedSlug?: string } = {}) {
@@ -23,6 +25,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   // Fallback to params if no resolved props provided (for compatibility)
   const fallbackSlug = (params?.slug as string | undefined) || (params?.handle as string | undefined); 
   const collectionSlug = resolvedSlug || fallbackSlug;
+  const { addItem } = useCart();
 
   const services = useServices();
   const [sortBy, setSortBy] = useState<string>('newest');
@@ -38,6 +41,11 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const [nextCursor, setNextCursor] = useState<string | null>(null);
 
   const conditions = ['New', 'Like New', 'Gently Used', 'Vintage'];
+  const availabilityOptions = [
+    { label: 'In Stock', value: 'in_stock' },
+    { label: 'Out of Stock', value: 'out_of_stock' }
+  ];
+  const [selectedAvailability, setSelectedAvailability] = useState<string[]>([]);
 
   // Initialize state from URL
   useEffect(() => {
@@ -49,6 +57,9 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
     const sort = params.get('sort_by');
     const q = params.get('q') || params.get('search');
 
+    const availParam = params.get('availability');
+
+    if (availParam) setSelectedAvailability(availParam.split(','));
     if (collectionSlug) {
       if (collectionSlug === 'all') {
         // Handle the 'all' special case by not filtering by category or collection
@@ -83,6 +94,10 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       params.set('condition', selectedConditions.join(','));
     }
     
+    if (selectedAvailability.length > 0) {
+      params.set('availability', selectedAvailability.join(','));
+    }
+    
     if (priceRange[0] > 0) params.set('min_price', priceRange[0].toString());
     if (priceRange[1] < 100000) params.set('max_price', priceRange[1].toString());
     if (sortBy !== 'newest') params.set('sort_by', sortBy);
@@ -111,6 +126,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   }, [services.taxonomyService]);
 
   const loadProducts = useCallback(async (cursor?: string) => {
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
     try {
@@ -124,9 +140,17 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       
       let filtered = result.products;
       
-      // Client-side filtering simulation
+      // Client-side filtering simulation (Industrial Robustness)
       if (selectedConditions.length > 0) {
-        filtered = filtered.filter(p => selectedConditions.includes(String(p.metafields?.condition || 'Near Mint')));
+        filtered = filtered.filter(p => selectedConditions.includes(String(p.metafields?.condition || 'New')));
+      }
+      
+      if (selectedAvailability.length > 0) {
+        filtered = filtered.filter(p => {
+          if (selectedAvailability.includes('in_stock') && p.stock > 0) return true;
+          if (selectedAvailability.includes('out_of_stock') && p.stock === 0) return true;
+          return false;
+        });
       }
       
       filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
@@ -136,14 +160,16 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       if (sortBy === 'price_desc') filtered.sort((a, b) => b.price - a.price);
       if (sortBy === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
 
-      setProducts(filtered);
+      setProducts(prev => cursor ? [...prev, ...filtered] : filtered);
       setNextCursor(result.nextCursor ?? null);
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load products');
     } finally {
       setLoading(false);
     }
-  }, [selectedCategories, selectedConditions, priceRange, sortBy, services.productService]);
+    return () => controller.abort();
+  }, [selectedCategories, selectedConditions, selectedAvailability, priceRange, sortBy, services.productService, resolvedType, collectionSlug]);
 
   const handleSearch = useCallback(async (value: string) => {
     setSearch(value);
@@ -153,11 +179,11 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const clearAllFilters = () => {
     setSelectedCategories([]);
     setSelectedConditions([]);
+    setSelectedAvailability([]);
     setPriceRange([0, 100000]);
     setSearch('');
     setSortBy('newest');
     router.push(STORE_PATHS.PRODUCTS);
-
   };
 
   useEffect(() => {
@@ -165,6 +191,14 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
     void loadProducts();
   }, [loadProducts]);
 
+  const handleQuickAdd = async (productId: string) => {
+    try {
+      await addItem(productId, 1);
+      window.dispatchEvent(new CustomEvent('open-cart'));
+    } catch (err) {
+      console.error('Quick add failed', err);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -173,48 +207,49 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         <Breadcrumbs items={[{ label: 'Catalog' }]} />
 
         {/* Header */}
-        <div className="mb-12">
-           <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-4">The Catalog</h1>
-           <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.</p>
+        <div className="mb-16">
+           <h1 className="text-6xl font-black text-gray-900 tracking-tighter mb-6">The Catalog</h1>
+           <div className="h-1.5 w-24 bg-primary-600 rounded-full mb-8" />
+           <p className="text-xl text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.</p>
         </div>
 
         {/* Search & Sort Bar */}
-        <div className="flex flex-col lg:flex-row items-center gap-4 mb-12">
+        <div className="flex flex-col lg:flex-row items-center gap-6 mb-16">
            <div className="relative flex-1 group w-full">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary-600 transition-colors" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search by name, artist, or style..."
-                className="w-full pl-14 pr-6 py-5 bg-gray-50 border-2 border-transparent rounded-4xl text-lg font-bold focus:bg-white focus:border-primary-500 transition-all outline-none"
+                placeholder="Search catalog..."
+                className="w-full pl-16 pr-8 py-6 bg-gray-50 border-none rounded-3xl text-xl font-bold focus:bg-white focus:ring-4 focus:ring-primary-500/5 transition-all outline-none"
               />
            </div>
-           <div className="flex items-center gap-3 w-full lg:w-auto">
+           <div className="flex items-center gap-4 w-full lg:w-auto">
               <button 
                 onClick={() => setIsFilterOpen(!isFilterOpen)}
-                className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-8 py-5 rounded-4xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:bg-black transition-all"
+                className="flex-1 lg:flex-none flex items-center justify-center gap-3 px-10 py-6 rounded-3xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200"
               >
                 <Filter className="w-4 h-4" /> Filters
               </button>
-              <div className="relative flex-1 lg:flex-none min-w-[200px]">
+              <div className="relative flex-1 lg:flex-none min-w-[240px]">
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent rounded-4xl font-black text-xs uppercase tracking-widest text-gray-900 appearance-none focus:bg-white focus:border-primary-500 outline-none cursor-pointer"
+                  className="w-full px-10 py-6 bg-gray-50 border-none rounded-3xl font-black text-xs uppercase tracking-widest text-gray-900 appearance-none focus:bg-white focus:ring-4 focus:ring-primary-500/5 outline-none cursor-pointer"
                 >
-                  <option value="newest">Newest First</option>
-                  <option value="price_asc">Price: Low to High</option>
-                  <option value="price_desc">Price: High to Low</option>
-                  <option value="name">Alphabetical</option>
+                  <option value="newest">Sort By: Newest</option>
+                  <option value="price_asc">Sort By: Price Low-High</option>
+                  <option value="price_desc">Sort By: Price High-Low</option>
+                  <option value="name">Sort By: Alphabetical</option>
                 </select>
-                <ChevronRight className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 text-gray-400 pointer-events-none" />
+                <ChevronRight className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 text-gray-400 pointer-events-none" />
               </div>
            </div>
         </div>
 
         {/* Active Filters (Pills) */}
-        {(selectedCategories.length > 0 || selectedConditions.length > 0 || search || priceRange[0] > 0 || priceRange[1] < 100000) && (
+        {(selectedCategories.length > 0 || selectedConditions.length > 0 || selectedAvailability.length > 0 || search || priceRange[0] > 0 || priceRange[1] < 100000) && (
           <div className="flex flex-wrap items-center gap-3 mb-12 animate-in fade-in slide-in-from-top-4 duration-500">
              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 mr-2 shrink-0">
                 <Filter className="w-3 h-3" />
@@ -250,6 +285,15 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                     {cond} <X className="w-3 h-3" />
                   </button>
                 ))}
+                {selectedAvailability.map(avail => (
+                  <button 
+                    key={avail}
+                    onClick={() => setSelectedAvailability(selectedAvailability.filter(a => a !== avail))}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 text-green-700 text-[10px] font-black uppercase tracking-widest hover:bg-green-100 transition-all border border-green-100"
+                  >
+                    {avail === 'in_stock' ? 'In Stock' : 'Out of Stock'} <X className="w-3 h-3" />
+                  </button>
+                ))}
                 {(priceRange[0] > 0 || priceRange[1] < 100000) && (
                   <button 
                     onClick={() => setPriceRange([0, 100000])}
@@ -268,9 +312,9 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
           {/* Filter Sidebar */}
-          <aside className={`lg:col-span-3 space-y-10 ${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
+          <aside className={`lg:col-span-3 space-y-12 sticky top-32 ${isFilterOpen ? 'block' : 'hidden lg:block'}`}>
             <section>
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Product Type</h3>
               <div className="space-y-3">
@@ -307,9 +351,31 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                           : selectedConditions.filter(c => c !== cond);
                         setSelectedConditions(next);
                       }}
-                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500"
+                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500 transition-all"
                     />
                     <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{cond}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-6">Availability</h3>
+              <div className="space-y-3">
+                {availabilityOptions.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-3 group cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedAvailability.includes(opt.value)}
+                      onChange={(e) => {
+                        const next = e.target.checked 
+                          ? [...selectedAvailability, opt.value]
+                          : selectedAvailability.filter(a => a !== opt.value);
+                        setSelectedAvailability(next);
+                      }}
+                      className="h-5 w-5 rounded-lg border-gray-200 text-primary-600 focus:ring-primary-500 transition-all"
+                    />
+                    <span className="text-sm font-bold text-gray-600 group-hover:text-gray-900 transition-colors">{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -356,17 +422,10 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
 
           {/* Results Grid */}
           <div className="lg:col-span-9">
-            {loading ? (
+            {loading && products.length === 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="animate-pulse space-y-4">
-                    <div className="aspect-square bg-gray-100 rounded-[2.5rem]" />
-                    <div className="space-y-2">
-                      <div className="h-3 w-1/4 bg-gray-100 rounded" />
-                      <div className="h-5 w-3/4 bg-gray-100 rounded" />
-                      <div className="h-4 w-1/2 bg-gray-50 rounded" />
-                    </div>
-                  </div>
+                  <ProductCardSkeleton key={i} />
                 ))}
               </div>
             ) : products.length === 0 ? (
@@ -388,11 +447,15 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                 <div className="flex items-center justify-between mb-8">
                    <p className="text-sm font-bold text-gray-400 tracking-tight">Showing <span className="text-gray-900">{products.length}</span> items</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-                  {products.map((p) => (
-                    <ProductCard key={p.id} product={p} collectionSlug={collectionSlug} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-16">
+                  {products.map((p, i) => (
+                    <ProductCard 
+                      key={p.id} 
+                      product={p} 
+                      onAddToCart={handleQuickAdd}
+                      priority={i < 6}
+                    />
                   ))}
-
                 </div>
 
                 {nextCursor && !search && (
@@ -414,129 +477,3 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   );
 }
 
-function ProductCard({ product, collectionSlug }: { product: Product, collectionSlug?: string }) {
-
-  const { user } = useAuth();
-  const router = useRouter();
-  const { addItem } = useCart();
-  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
-  const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState(false);
-  const [isFavoriting, setIsFavoriting] = useState(false);
-
-  const isFavorite = isInWishlist(product.id);
-
-  const handleQuickAdd = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setAdding(true);
-    try {
-      await addItem(product.id, 1);
-      setAdded(true);
-      setTimeout(() => setAdded(false), 2000);
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const toggleFavorite = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    setIsFavoriting(true);
-    try {
-      if (isFavorite) {
-        await removeFromWishlist(product.id);
-      } else {
-        await addToWishlist(product.id);
-      }
-    } finally {
-      setIsFavoriting(false);
-    }
-  };
-
-  return (
-    <article className="group relative" data-testid="product-card">
-      <div className="aspect-square overflow-hidden rounded-3xl bg-gray-50 border shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
-        <Link href={getProductUrl(product, collectionSlug)} className="block h-full w-full">
-
-
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            className="h-full w-full object-cover transition duration-500 group-hover:scale-110"
-          />
-        </Link>
-
-        {/* Favorite Button Overlay */}
-        <button
-          onClick={toggleFavorite}
-          disabled={isFavoriting}
-          className={`absolute top-4 right-4 z-10 p-3 rounded-2xl transition-all duration-500 transform ${
-            isFavorite 
-              ? 'bg-red-500 text-white shadow-xl shadow-red-200 scale-110' 
-              : 'bg-white/80 backdrop-blur-md text-gray-400 hover:text-red-500 hover:bg-white hover:scale-125'
-          } ${isFavoriting ? 'opacity-50' : 'opacity-100 hover:rotate-12 active:scale-90 active:-rotate-12'}`}
-        >
-          <Heart className={`w-5 h-5 transition-transform duration-300 ${isFavorite ? 'fill-current scale-110' : 'group-hover:scale-110'}`} />
-        </button>
-        
-        {/* Quick Add Overlay */}
-        <div className="absolute inset-x-4 bottom-4 translate-y-8 opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100">
-          <button
-            onClick={handleQuickAdd}
-            disabled={adding || product.stock === 0}
-            className="w-full rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-xl flex items-center justify-center gap-2 font-black text-xs text-gray-900 uppercase hover:bg-primary-600 hover:text-white transition-all disabled:opacity-50"
-          >
-            {adding ? (
-              <RefreshCcw className="h-4 w-4 animate-spin" />
-            ) : added ? (
-              <>
-                <Check className="h-4 w-4 text-green-600" /> Added
-              </>
-            ) : product.stock === 0 ? (
-              'Sold Out'
-            ) : (
-              <>
-                <ShoppingBag className="h-4 w-4" /> Quick Add
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-      
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary-600">
-            {product.category}
-          </p>
-          {product.stock < 5 && product.stock > 0 && (
-            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-              Low Stock
-            </span>
-          )}
-        </div>
-        
-          <Link href={getProductUrl(product, collectionSlug)}>{product.name}</Link>
-
-
-        <p className="text-[10px] text-gray-400 font-bold mb-2">Ref: {product.id.slice(0, 8).toUpperCase()}</p>
-        
-        <div className="flex items-baseline gap-2">
-          <p className="text-xl font-black text-gray-900">
-            ${(product.price / 100).toFixed(2)}
-          </p>
-          {product.stock === 0 && (
-            <span className="text-xs font-bold text-gray-400">Sold Out</span>
-          )}
-        </div>
-      </div>
-    </article>
-  );
-}
