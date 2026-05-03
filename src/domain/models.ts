@@ -796,3 +796,45 @@ export interface KnowledgebaseArticle {
   createdAt: Date;
   updatedAt: Date;
 }
+// ─────────────────────────────────────────────
+// Reviews & Ratings
+// ─────────────────────────────────────────────
+
+export interface ReviewReply {
+  id: string;
+  authorName: string;
+  authorRole: 'merchant' | 'artist';
+  content: string;
+  createdAt: Date;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number; // 1-5
+  title: string;
+  content: string;
+  images?: string[];
+  helpfulCount: number;
+  isVerified: boolean;
+  status: 'pending' | 'published' | 'hidden';
+  replies?: ReviewReply[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type ReviewDraft = Omit<Review, 'id' | 'helpfulCount' | 'status' | 'createdAt' | 'updatedAt'>;
+
+export interface IReviewRepository {
+  getByProductId(productId: string, options?: { limit?: number; offset?: number; sort?: string }): Promise<{ reviews: Review[]; total: number; averageRating: number }>;
+  create(review: ReviewDraft): Promise<Review>;
+  voteHelpful(reviewId: string): Promise<void>;
+  getStats(productId: string): Promise<{
+    averageRating: number;
+    totalReviews: number;
+    ratingCounts: Record<number, number>;
+  }>;
+}
