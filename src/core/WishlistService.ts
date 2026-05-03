@@ -22,6 +22,7 @@ export class WishlistService {
         userId,
         name: 'My Favorites',
         isDefault: true,
+        itemIds: [],
       });
       return [defaultWishlist];
     }
@@ -38,6 +39,7 @@ export class WishlistService {
       userId,
       name,
       isDefault: false,
+      itemIds: [],
     });
 
     await this.auditService.record({

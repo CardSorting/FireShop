@@ -18,11 +18,12 @@ async function getCategory(slug: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const category = await getCategory(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const category = await getCategory(slug);
   
   if (!category) {
-    const fallbackTitle = params.slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    const fallbackTitle = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     return {
       title: `${fallbackTitle} | DreamBeesArt`,
     };
@@ -42,10 +43,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function CollectionPage({ params }: { params: { slug: string } }) {
-  const category = await getCategory(params.slug);
+export default async function CollectionPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const category = await getCategory(slug);
   
-  if (!category && params.slug !== 'all') {
+  if (!category && slug !== 'all') {
     // If it's not the special 'all' collection and not found, 404
     // Wait, let's check if 'all' is handled. 
     // Actually, if it's not found in taxonomy, it should probably 404 or show a generic page.
@@ -66,7 +68,7 @@ export default async function CollectionPage({ params }: { params: { slug: strin
         '@type': 'ListItem',
         position: 2,
         name: category?.name || 'Catalog',
-        item: `https://dreambeesart.com/collections/${params.slug}`,
+        item: `https://dreambeesart.com/collections/${slug}`,
       },
     ],
   };

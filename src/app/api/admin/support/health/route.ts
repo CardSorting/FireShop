@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ticketRepository } from '@infrastructure/repositories/ticketRepository';
+import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 
 export async function GET() {
   try {

@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
 type Props = {
-    params: { slug: string; handle: string };
+    params: Promise<{ slug: string; handle: string }>;
 };
 
 async function getProduct(handle: string) {
@@ -26,13 +26,14 @@ async function getProduct(handle: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-    const product = await getProduct(params.handle);
+    const { slug, handle } = await params;
+    const product = await getProduct(handle);
     
     if (!product) {
         return { title: 'Product Not Found | DreamBeesArt' };
     }
     
-    const title = product.seoTitle || `${product.name} | ${params.slug} | DreamBeesArt`;
+    const title = product.seoTitle || `${product.name} | ${slug} | DreamBeesArt`;
     const description = product.seoDescription || product.description.slice(0, 160);
     
     return {
@@ -51,7 +52,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function Page({ params }: Props) {
-    const product = await getProduct(params.handle);
+    const { handle } = await params;
+    const product = await getProduct(handle);
     if (!product) notFound();
 
     // Industry Standard: Inject JSON-LD for rich snippets

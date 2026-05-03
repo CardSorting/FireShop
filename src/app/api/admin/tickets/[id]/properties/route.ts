@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { ticketRepository } from '@infrastructure/repositories/ticketRepository';
+import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const properties = await req.json();
-    const id = params.id;
+    const { id } = await params;
     
     await ticketRepository.updateTicketProperties(id, properties);
     const updatedTicket = await ticketRepository.getTicketById(id);

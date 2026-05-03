@@ -16,7 +16,7 @@
     "setup": "./scripts/setup.sh"
   },
   "engines": {
-    "node": ">=23.5.0"
+    "node": "22"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.2.0",
@@ -27,7 +27,7 @@
     "next": "^16.0.10",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "sharp": "^0.34.5",
+    "sharp": "^0.33.5",
     "stripe": "^22.1.0"
   },
   "devDependencies": {

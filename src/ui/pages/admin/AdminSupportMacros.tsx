@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Tag, Plus, Search, MoreVertical, Trash2, Edit2, ChevronRight,

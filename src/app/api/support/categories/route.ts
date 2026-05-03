@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { knowledgebaseRepository } from '@infrastructure/repositories/knowledgebaseRepository';
+import { knowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
 
 export async function GET() {
   try {

@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 import { 
   ArrowLeft, ChevronRight, FileText, ThumbsUp, ThumbsDown, 
@@ -308,14 +309,14 @@ export function TicketList({ tickets, onTicketClick }: {
               className="flex items-center justify-between p-6 rounded-3xl bg-white border border-gray-100 hover:border-primary-100 hover:shadow-lg transition-all group text-left"
             >
               <div className="flex items-center gap-5">
-                <div className={`p-3 rounded-2xl ${ticket.status === 'resolved' ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'} group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors`}>
+                <div className={`p-3 rounded-2xl ${ticket.status === 'solved' ? 'bg-green-50 text-green-500' : 'bg-blue-50 text-blue-500'} group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors`}>
                   <MessageSquare className="h-6 w-6" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-lg font-bold text-gray-900 group-hover:text-primary-600 transition-colors">{ticket.subject}</p>
                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
-                      ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      ticket.status === 'solved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                     }`}>
                       {ticket.status.replace('_', ' ')}
                     </span>
@@ -367,7 +368,7 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg ${
-                ticket.status === 'resolved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                ticket.status === 'solved' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
               }`}>
                 {ticket.status.replace('_', ' ')}
               </span>
@@ -403,7 +404,7 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
           })}
         </div>
 
-        {ticket.status !== 'resolved' && (
+        {ticket.status !== 'solved' && (
           <div className="p-4 bg-white border-t">
             <form onSubmit={handleSubmit} className="relative">
               <textarea
