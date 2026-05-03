@@ -224,6 +224,7 @@ export function createApiClientServices() {
                 return request<Collection[]>(`/api/admin/collections?${qs}`);
             },
             get: (id: string) => request<Collection>(`/api/admin/collections/${id}`),
+            getCollectionByHandle: (handle: string) => request<Collection>(`/api/collections/${handle}`),
             create: (data: Partial<Collection>) => request<Collection>('/api/admin/collections', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, updates: Partial<Collection>) => request<Collection>(`/api/admin/collections/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
             delete: (id: string) => request<void>(`/api/admin/collections/${id}`, { method: 'DELETE' }),

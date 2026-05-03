@@ -10,10 +10,11 @@ import type { Product } from '@domain/models';
 interface ProductCardProps {
   product: Product;
   onAddToCart?: (id: string) => void;
+  onQuickView?: (product: Product) => void;
   priority?: boolean;
 }
 
-export function ProductCard({ product, onAddToCart, priority = false }: ProductCardProps) {
+export function ProductCard({ product, onAddToCart, onQuickView, priority = false }: ProductCardProps) {
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -117,13 +118,16 @@ export function ProductCard({ product, onAddToCart, priority = false }: ProductC
               </>
             )}
           </button>
-          <Link 
-            href={`/products/${product.handle || product.id}`}
-            aria-label="View Details"
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              onQuickView?.(product);
+            }}
+            aria-label="Quick View"
             className="w-12 h-12 flex items-center justify-center bg-white/90 backdrop-blur-md rounded-2xl text-gray-900 hover:bg-white transition-colors shadow-xl"
           >
             <Eye className="w-4 h-4" />
-          </Link>
+          </button>
         </div>
       </div>
 

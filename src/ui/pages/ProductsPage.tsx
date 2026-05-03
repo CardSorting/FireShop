@@ -8,7 +8,7 @@ import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import type { Product, ProductCategory } from '@domain/models';
-import { Search, Filter, ShoppingBag, ChevronRight, PackageSearch, RefreshCcw, Heart, Check, X } from 'lucide-react';
+import { Search, Filter, ShoppingBag, ChevronRight, PackageSearch, RefreshCcw, Heart, Check, X, LayoutGrid, Grid3X3, Grid2X2 } from 'lucide-react';
 import { useWishlist } from '../hooks/useWishlist';
 import Link from 'next/link';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
@@ -16,6 +16,8 @@ import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
 import { ProductCard } from '../components/ProductCard';
 import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
+import { QuickViewModal } from '../components/QuickViewModal';
+import type { Collection } from '@domain/models';
 
 
 export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'category' | 'collection'; resolvedSlug?: string } = {}) {
@@ -39,6 +41,9 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [gridCols, setGridCols] = useState(3);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [collectionInfo, setCollectionInfo] = useState<{ name: string; description: string; imageUrl?: string } | null>(null);
 
   const conditions = ['New', 'Like New', 'Gently Used', 'Vintage'];
   const availabilityOptions = [
@@ -110,8 +115,30 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
     // Industry standard: Use router.replace for non-invasive URL updates during filtering
     // and keep state synchronized with the URL as the source of truth.
     router.replace(newUrl, { scroll: false });
-  }, [selectedCategories, selectedConditions, priceRange, sortBy, search, router]);
+  }, [selectedCategories, selectedConditions, selectedAvailability, priceRange, sortBy, search, router]);
 
+
+  useEffect(() => {
+    const loadMetadata = async () => {
+      if (!collectionSlug || collectionSlug === 'all') {
+        setCollectionInfo(null);
+        return;
+      }
+      try {
+        if (resolvedType === 'category') {
+          const cats = await services.taxonomyService.getCategories();
+          const cat = cats.find((c: any) => c.slug === collectionSlug);
+          if (cat) setCollectionInfo({ name: cat.name, description: cat.description || '' });
+        } else {
+          const col = await services.collectionService.getCollectionByHandle(collectionSlug);
+          if (col) setCollectionInfo({ name: col.name, description: col.description || '', imageUrl: col.imageUrl });
+        }
+      } catch (err) {
+        console.error('Failed to load collection metadata', err);
+      }
+    };
+    void loadMetadata();
+  }, [collectionSlug, resolvedType, services]);
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -202,15 +229,32 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
 
   return (
     <div className="min-h-screen bg-white">
+      {quickViewProduct && (
+        <QuickViewModal 
+          product={quickViewProduct}
+          onClose={() => setQuickViewProduct(null)}
+          onAddToCart={handleQuickAdd}
+          isFavorited={useWishlist().isInWishlist(quickViewProduct.id)}
+          onToggleFavorite={async (id) => {
+            const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+            if (isInWishlist(id)) await removeFromWishlist(id);
+            else await addToWishlist(id);
+          }}
+        />
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Breadcrumbs */}
         <Breadcrumbs items={[{ label: 'Catalog' }]} />
 
         {/* Header */}
         <div className="mb-16">
-           <h1 className="text-6xl font-black text-gray-900 tracking-tighter mb-6">The Catalog</h1>
+           <h1 className="text-6xl font-black text-gray-900 tracking-tighter mb-6">
+             {collectionInfo?.name || 'The Catalog'}
+           </h1>
            <div className="h-1.5 w-24 bg-primary-600 rounded-full mb-8" />
-           <p className="text-xl text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.</p>
+           <p className="text-xl text-gray-500 font-medium max-w-2xl leading-relaxed">
+             {collectionInfo?.description || 'Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.'}
+           </p>
         </div>
 
         {/* Search & Sort Bar */}
@@ -244,6 +288,28 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                   <option value="name">Sort By: Alphabetical</option>
                 </select>
                 <ChevronRight className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 text-gray-400 pointer-events-none" />
+              </div>
+
+              {/* Grid Density Controls */}
+              <div className="hidden lg:flex items-center gap-2 p-1 bg-gray-50 rounded-2xl ml-4">
+                <button 
+                  onClick={() => setGridCols(2)}
+                  className={`p-3 rounded-xl transition-all ${gridCols === 2 ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <Grid2X2 className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setGridCols(3)}
+                  className={`p-3 rounded-xl transition-all ${gridCols === 3 ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <Grid3X3 className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => setGridCols(4)}
+                  className={`p-3 rounded-xl transition-all ${gridCols === 4 ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <LayoutGrid className="w-5 h-5" />
+                </button>
               </div>
            </div>
         </div>
@@ -423,8 +489,8 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           {/* Results Grid */}
           <div className="lg:col-span-9">
             {loading && products.length === 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-                {[1, 2, 3, 4, 5, 6].map(i => (
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCols === 2 ? 'xl:grid-cols-2' : gridCols === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'} gap-8`}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
                   <ProductCardSkeleton key={i} />
                 ))}
               </div>
@@ -447,13 +513,14 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                 <div className="flex items-center justify-between mb-8">
                    <p className="text-sm font-bold text-gray-400 tracking-tight">Showing <span className="text-gray-900">{products.length}</span> items</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-8 gap-y-16">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCols === 2 ? 'xl:grid-cols-2' : gridCols === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'} gap-x-8 gap-y-16 animate-in fade-in duration-700`}>
                   {products.map((p, i) => (
                     <ProductCard 
                       key={p.id} 
                       product={p} 
                       onAddToCart={handleQuickAdd}
-                      priority={i < 6}
+                      onQuickView={setQuickViewProduct}
+                      priority={i < (gridCols * 2)}
                     />
                   ))}
                 </div>
