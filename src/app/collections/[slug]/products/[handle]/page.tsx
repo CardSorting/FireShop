@@ -79,7 +79,7 @@ export default async function Page({ params }: Props) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
-            <ProductDetailPage initialProduct={product} />
+            <ProductDetailPage initialProduct={JSON.parse(JSON.stringify(product))} />
         </>
     );
 }

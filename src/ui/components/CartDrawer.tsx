@@ -21,10 +21,8 @@ function formatMoney(cents: number): string {
 export function CartDrawer() {
   const { 
     cart, loading, isOpen, closeCart, 
-    updateQuantity, removeItem, subtotal, totalItems, addItem 
+    updateQuantity, removeItem, subtotal, totalItems 
   } = useCart();
-  const services = useServices();
-  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -34,24 +32,14 @@ export function CartDrawer() {
     }
   }, [isOpen]);
 
-  const loadRecommendations = useCallback(async () => {
-    try {
-      const result = await services.productService.getProducts({ limit: 4 });
-      setRecommendations(result.products);
-    } catch (err) {
-      logger.error('Failed to load recommendations', err);
-    }
-  }, [services.productService]);
-
   useEffect(() => {
     if (isOpen) {
-      void loadRecommendations();
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen, loadRecommendations]);
+  }, [isOpen]);
 
   const items = cart?.items ?? [];
   const FREE_SHIPPING_THRESHOLD = 10000; // $100.00
@@ -69,67 +57,48 @@ export function CartDrawer() {
       {/* Drawer Container: uses 100dvh for mobile viewport height compliance */}
       <div className="relative flex h-[100dvh] w-full max-w-lg flex-col bg-white shadow-[0_0_50px_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500 cubic-bezier(0.4, 0, 0.2, 1) border-l border-gray-100">
         
-        {/* Header: Elevated with better spacing */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6 bg-white/80 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-4">
-            <div className="relative p-2.5 bg-primary-50 rounded-2xl">
-              <ShoppingBag className="h-6 w-6 text-primary-600" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gray-900 text-[10px] font-black text-white ring-2 ring-white">
-                  {totalItems}
-                </span>
-              )}
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-gray-900 tracking-tight leading-none">Your Cart</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1.5">
-                {totalItems} {totalItems === 1 ? 'item' : 'items'} ready to ship
-              </p>
-            </div>
+        {/* Header: Ultra-Compressed for Maximum Item Visibility */}
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-white/80 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Cart</h2>
+            <div className="h-1 w-1 rounded-full bg-gray-200" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              {totalItems} {totalItems === 1 ? 'item' : 'items'}
+            </span>
           </div>
+          
           <button
             ref={closeButtonRef}
             onClick={closeCart}
-            className="group rounded-full p-2 text-gray-300 hover:bg-gray-50 hover:text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="group rounded-full p-1.5 text-gray-300 hover:bg-gray-50 hover:text-gray-900 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
             aria-label="Close cart"
           >
-            <X className="h-6 w-6 transition-transform group-hover:rotate-90 duration-300" />
+            <X className="h-4 w-4 transition-transform group-hover:rotate-90 duration-300" />
           </button>
         </div>
 
-        {/* Free Shipping Progress: More 'Premium' look */}
+        {/* Free Shipping Progress: Condensed */}
         {items.length > 0 && (
-          <div className="px-8 py-5 border-b border-gray-50 bg-gray-50/30">
-            <div className="flex items-center justify-between mb-3">
+          <div className="px-6 py-3 border-b border-gray-50 bg-gray-50/30">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${subtotal >= FREE_SHIPPING_THRESHOLD ? 'bg-green-100 text-green-600' : 'bg-primary-100 text-primary-600'}`}>
-                  <Truck className="h-3.5 w-3.5" />
-                </div>
-                <span className="text-xs font-black text-gray-700 uppercase tracking-wider">
-                  {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Shipping Unlocked' : 'Shipping Goal'}
+                <Truck className={`h-3 w-3 ${subtotal >= FREE_SHIPPING_THRESHOLD ? 'text-green-600' : 'text-primary-600'}`} />
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                  {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Free Shipping Unlocked' : 'Shipping Progress'}
                 </span>
               </div>
               {subtotal < FREE_SHIPPING_THRESHOLD && (
-                <span className="text-xs font-bold text-primary-600">
-                  {formatMoney(FREE_SHIPPING_THRESHOLD - subtotal)} away
+                <span className="text-[9px] font-bold text-primary-600">
+                  {formatMoney(FREE_SHIPPING_THRESHOLD - subtotal)} to go
                 </span>
               )}
             </div>
-            <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-1000 ease-out ${subtotal >= FREE_SHIPPING_THRESHOLD ? 'bg-green-500' : 'bg-primary-600'}`}
                 style={{ width: `${Math.min(100, (subtotal / FREE_SHIPPING_THRESHOLD) * 100)}%` }}
               />
             </div>
-            {subtotal >= FREE_SHIPPING_THRESHOLD ? (
-              <p className="mt-2.5 text-[10px] font-bold text-green-600 text-center uppercase tracking-widest">
-                🎉 Free express shipping applied to your order
-              </p>
-            ) : (
-              <p className="mt-2.5 text-[10px] font-bold text-gray-400 text-center uppercase tracking-widest">
-                Add more to unlock free shipping worldwide
-              </p>
-            )}
           </div>
         )}
 
@@ -169,31 +138,6 @@ export function CartDrawer() {
                   </Link>
                 ))}
               </div>
-
-              {recommendations.length > 0 && (
-                <div className="mt-24 w-full">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="h-px flex-1 bg-gray-100" />
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-300">Top Rated</h4>
-                    <div className="h-px flex-1 bg-gray-100" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    {recommendations.slice(0, 2).map((p) => (
-                      <div key={p.id} className="group text-left">
-                        <Link 
-                          href={`/products/${p.handle || p.id}`}
-                          onClick={closeCart}
-                          className="block aspect-[4/5] overflow-hidden rounded-2xl bg-gray-50 border border-gray-100 group-hover:shadow-xl transition-all duration-500"
-                        >
-                          <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover group-hover:scale-105 transition duration-700" />
-                        </Link>
-                        <p className="mt-3 text-[11px] font-black text-gray-900 truncate leading-tight">{p.name}</p>
-                        <p className="mt-1 text-[11px] text-primary-600 font-black tracking-tight">{formatMoney(p.price)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           ) : (
             <div className="space-y-10">
@@ -275,36 +219,6 @@ export function CartDrawer() {
                 );
               })}
 
-              {/* Related Products: Compact Add-ons */}
-              {recommendations.length > 0 && (
-                <div className="pt-10 border-t border-gray-50">
-                  <div className="flex items-center justify-between mb-8">
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-300">Complete the set</h4>
-                    <Link href="/products" onClick={closeCart} className="text-[10px] font-black uppercase text-primary-600 hover:underline tracking-widest">Browse All</Link>
-                  </div>
-                  <div className="space-y-4">
-                    {recommendations.slice(0, 3).map((p) => (
-                      <div key={p.id} className="flex items-center gap-5 p-3 rounded-3xl border border-transparent hover:border-gray-50 hover:bg-gray-50/50 transition-all group">
-                        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white border border-gray-100 shadow-sm">
-                          <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover group-hover:scale-110 transition duration-700" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-gray-900 truncate leading-tight">{p.name}</p>
-                          <p className="text-[10px] font-black text-primary-600 mt-1">{formatMoney(p.price)}</p>
-                        </div>
-                        <button 
-                          onClick={() => addItem(p.id, 1)}
-                          className="h-9 w-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-primary-600 hover:bg-primary-600 hover:text-white hover:border-primary-600 transition-all shadow-sm active:scale-95"
-                          aria-label={`Add ${p.name}`}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Order Note */}
               <div className="pt-8 border-t border-gray-50 pb-4">
                 <details className="group">
@@ -325,66 +239,30 @@ export function CartDrawer() {
           )}
         </div>
 
-        {/* Footer: Locked with better contrast */}
+        {/* Footer: Ultra-Compressed for Maximum Item Visibility */}
         {items.length > 0 && (
-          <div className="border-t border-gray-100 bg-white p-8 space-y-6 shadow-[0_-20px_60px_rgba(0,0,0,0.03)] z-30">
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-gray-400 uppercase tracking-widest">Subtotal</span>
-                <span className="text-gray-900">{formatMoney(subtotal)}</span>
+          <div className="border-t border-gray-100 bg-white p-4 z-30">
+            <div className="flex items-center justify-between gap-6">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1.5">Total</span>
+                <span className="text-xl font-black text-gray-900 tracking-tighter leading-none">{formatMoney(subtotal)}</span>
               </div>
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-gray-400 uppercase tracking-widest">Shipping</span>
-                <span className={subtotal >= FREE_SHIPPING_THRESHOLD ? "text-green-600 font-black" : "text-gray-900"}>
-                  {subtotal >= FREE_SHIPPING_THRESHOLD ? "Complimentary" : "Calculated at Next Step"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-gray-400 uppercase tracking-widest">Estimated Tax</span>
-                <span className="text-gray-900">TBD</span>
-              </div>
-              <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Total</span>
-                <span className="text-2xl font-black text-gray-900 tracking-tight leading-none">{formatMoney(subtotal)}</span>
-              </div>
-            </div>
-
-            <div className="grid gap-4">
+              
               <Link
                 href="/checkout"
                 onClick={closeCart}
-                className="group relative flex w-full items-center justify-center gap-3 rounded-2xl bg-gray-900 py-5 font-black text-white shadow-[0_15px_30px_rgba(0,0,0,0.15)] transition-all hover:bg-black hover:shadow-[0_20px_40px_rgba(0,0,0,0.2)] hover:-translate-y-1 active:translate-y-0"
+                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-gray-900 h-12 px-6 font-black text-white text-xs uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95"
               >
-                <span>Continue to Checkout</span>
-                <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                  <ArrowRight className="h-4 w-4" />
-                </div>
-              </Link>
-              <Link
-                href="/cart"
-                onClick={closeCart}
-                className="flex w-full items-center justify-center rounded-2xl py-4 text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100"
-              >
-                Review Items
+                Checkout <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
-
-            {/* Trust Markers: Subtle & Clean */}
-            <div className="pt-2 border-t border-gray-50">
-               <div className="flex items-center justify-center gap-8 opacity-20 grayscale transition-all duration-700 hover:opacity-60 hover:grayscale-0">
-                  <div className="flex flex-col items-center gap-1">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <LockKeyhole className="h-5 w-5" />
-                  </div>
-                  <div className="flex flex-col items-center gap-1">
-                    <CreditCard className="h-5 w-5" />
-                  </div>
+            
+            <div className="mt-3 flex items-center justify-between opacity-30">
+               <div className="flex gap-3">
+                  <ShieldCheck className="h-3 w-3" />
+                  <LockKeyhole className="h-3 w-3" />
                </div>
-               <p className="mt-5 text-center text-[9px] font-black uppercase tracking-[0.3em] text-gray-300">
-                 Secure 256-bit Encrypted Checkout
-               </p>
+               <p className="text-[7px] font-black uppercase tracking-[0.2em]">Secure SSL</p>
             </div>
           </div>
         )}
