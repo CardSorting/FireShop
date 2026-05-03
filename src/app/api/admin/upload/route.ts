@@ -4,7 +4,6 @@ import { StorageService, StorageFolder } from '../../../../infrastructure/servic
 import { Readable } from 'node:stream';
 
 export const runtime = 'nodejs';
-
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();

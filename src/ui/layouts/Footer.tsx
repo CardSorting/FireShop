@@ -28,10 +28,11 @@ import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation'
 
 
 export function Footer() {
-  const currentYear = new Date().getFullYear();
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
     };
@@ -158,7 +159,7 @@ export function Footer() {
 
           <div className="text-right">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              © {currentYear} DreamBeesArt. All Rights Reserved.
+              © {currentYear || 2026} DreamBeesArt. All Rights Reserved.
             </p>
             <p className="text-[10px] font-bold text-primary-500 mt-1 uppercase tracking-tighter">
               Fan Art & Artist-Inspired Merch

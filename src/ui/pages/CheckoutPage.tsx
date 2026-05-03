@@ -86,9 +86,12 @@ export function CheckoutPage() {
   const [isApplying, setIsApplying] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; amount: number } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const checkoutAttemptKey = useRef(`checkout-ui:${crypto.randomUUID()}`);
+  const checkoutAttemptKey = useRef("");
 
   useEffect(() => {
+    if (!checkoutAttemptKey.current) {
+        checkoutAttemptKey.current = `checkout-ui:${crypto.randomUUID()}`;
+    }
     if (user) setEmail(user.email);
     const savedAddress = localStorage.getItem('checkout:address');
     if (savedAddress) {
