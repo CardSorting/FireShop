@@ -92,7 +92,21 @@ export function assertTrustedMutationOrigin(request: Request): void {
     } catch {
         throw new UnauthorizedError('Request origin is invalid.');
     }
+
     if (originUrl.protocol !== requestUrl.protocol || originUrl.host !== requestUrl.host) {
+        logger.warn('Origin mismatch detected', {
+            origin: origin,
+            originHost: originUrl.host,
+            requestUrl: request.url,
+            requestHost: requestUrl.host,
+            method: request.method
+        });
+
+        // In development, we might have port mismatches or proxy issues
+        if (process.env.NODE_ENV === 'development') {
+            return;
+        }
+
         throw new UnauthorizedError('Cross-site request origin is not allowed.');
     }
 }

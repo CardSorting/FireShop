@@ -20,6 +20,10 @@ export class AuthService {
     return this.provider.signIn(email.trim().toLowerCase(), password);
   }
 
+  async signInWithGoogle(): Promise<User> {
+    return this.provider.signInWithGoogle();
+  }
+
   async signUp(
     email: string,
     password: string,

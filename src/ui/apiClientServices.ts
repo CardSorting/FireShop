@@ -11,6 +11,8 @@ import type {
     ProductSavedView, ProductSavedViewResult, ProductUpdate, Order, OrderNote, Supplier,
     InventoryOverview, ProductCategory, ProductType
 } from '@domain/models';
+import { auth } from '@infrastructure/firebase/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 const sessionScoped = (userId: string) => void userId;
 const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt', 'estimatedDeliveryDate', 'at']);
@@ -60,6 +62,15 @@ export function createApiClientServices() {
         authService: {
             getCurrentUser: () => request<User | null>('/api/auth/me'),
             signIn: (email: string, password: string) => request<User>('/api/auth/sign-in', { method: 'POST', body: JSON.stringify({ email, password }) }),
+            signInWithGoogle: async () => {
+                const provider = new GoogleAuthProvider();
+                const result = await signInWithPopup(auth, provider);
+                const idToken = await result.user.getIdToken();
+                return request<User>('/api/auth/google', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ idToken }) 
+                });
+            },
             signUp: (email: string, password: string, displayName: string) => request<User>('/api/auth/sign-up', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
             signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),
             onAuthStateChanged(callback: (user: User | null) => void) {

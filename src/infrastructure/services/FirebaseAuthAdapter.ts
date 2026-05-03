@@ -8,6 +8,8 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged as firebaseOnAuthStateChanged,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, getDocs, collection, updateDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase/firebase';
@@ -57,6 +59,45 @@ export class FirebaseAuthAdapter implements IAuthProvider {
       role: (userData?.role as UserRole) || 'customer',
       createdAt: userData?.createdAt ? (userData.createdAt instanceof Timestamp ? userData.createdAt.toDate() : new Date(userData.createdAt)) : new Date(),
     };
+    
+    this.setCurrentUser(user);
+    return user;
+  }
+
+  async signInWithGoogle(): Promise<User> {
+    const provider = new GoogleAuthProvider();
+    const userCredential = await signInWithPopup(auth, provider);
+    const firebaseUser = userCredential.user;
+    
+    // Check if user exists in Firestore
+    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    let user: User;
+    
+    if (!userDoc.exists()) {
+      user = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || 'User',
+        role: 'customer',
+        createdAt: new Date(),
+      };
+      
+      await setDoc(doc(db, 'users', firebaseUser.uid), {
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        createdAt: Timestamp.now(),
+      });
+    } else {
+      const userData = userDoc.data();
+      user = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || userData?.displayName || 'User',
+        role: (userData?.role as UserRole) || 'customer',
+        createdAt: userData?.createdAt ? (userData.createdAt instanceof Timestamp ? userData.createdAt.toDate() : new Date(userData.createdAt)) : new Date(),
+      };
+    }
     
     this.setCurrentUser(user);
     return user;

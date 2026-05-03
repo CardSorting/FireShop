@@ -81,6 +81,7 @@ export interface IOrderRepository {
 export interface IAuthProvider {
   getCurrentUser(): Promise<User | null>;
   signIn(email: string, password: string): Promise<User>;
+  signInWithGoogle(): Promise<User>;
   signUp(email: string, password: string, displayName: string): Promise<User>;
   signOut(): Promise<void>;
   onAuthStateChanged(callback: (user: User | null) => void): () => void;
