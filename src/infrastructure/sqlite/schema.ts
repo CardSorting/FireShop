@@ -38,7 +38,35 @@ export interface ProductTable {
   isDigital: number | null;
   digitalAssets: string | null; // JSON string
   status: string; // 'active' | 'draft' | 'archived'
+  hasVariants: number | null; // 0 | 1
   createdAt: string; // ISO string for SQLite
+  updatedAt: string;
+}
+
+export interface ProductOptionTable {
+  id: string;
+  productId: string;
+  name: string;
+  position: number;
+  values: string; // JSON string array
+}
+
+export interface ProductVariantTable {
+  id: string;
+  productId: string;
+  title: string;
+  sku: string | null;
+  barcode: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  cost: number | null;
+  stock: number;
+  option1: string | null;
+  option2: string | null;
+  option3: string | null;
+  imageUrl: string | null;
+  weightGrams: number | null;
+  createdAt: string;
   updatedAt: string;
 }
 
@@ -358,5 +386,7 @@ export interface Database {
   ticket_messages: TicketMessageTable;
   support_macros: SupportMacroTable;
   support_article_feedback: SupportArticleFeedbackTable;
+  product_options: ProductOptionTable;
+  product_variants: ProductVariantTable;
 }
 

@@ -24,6 +24,8 @@ import type {
   ReceivingDiscrepancyReason,
   ReceivingVarianceType,
   InventoryLevel,
+  ProductOption,
+  ProductVariant,
 } from './models';
 import { InsufficientStockError, InvalidAddressError, InvalidOrderError, InvalidProductError } from './errors';
 
@@ -202,6 +204,42 @@ function assertValidProductOperationsFields(product: ProductDraft | ProductUpdat
   assertOptionalNonNegativeInteger(product.weightGrams, 'Weight', MAX_WEIGHT_GRAMS);
 }
 
+function assertValidOptionsAndVariants(hasVariants: boolean | undefined, options: ProductOption[] | undefined, variants: ProductVariant[] | undefined): void {
+  if (!hasVariants) return;
+
+  if (!options || options.length === 0) {
+    throw new InvalidProductError('Product with variations must have at least one option');
+  }
+
+  if (!variants || variants.length === 0) {
+    throw new InvalidProductError('Product with variations must have at least one variant');
+  }
+
+  for (const option of options) {
+    if (!option.name || option.name.trim().length === 0) {
+      throw new InvalidProductError('Option name is required');
+    }
+    if (!option.values || option.values.length === 0) {
+      throw new InvalidProductError(`Option "${option.name}" must have at least one value`);
+    }
+  }
+
+  const skus = new Set<string>();
+  for (const variant of variants) {
+    if (!variant.title || variant.title.trim().length === 0) {
+      throw new InvalidProductError('Variant title is required');
+    }
+    assertValidPrice(variant.price);
+    assertValidStock(variant.stock);
+    if (variant.sku) {
+      if (skus.has(variant.sku)) {
+        throw new InvalidProductError(`Duplicate SKU detected: ${variant.sku}`);
+      }
+      skus.add(variant.sku);
+    }
+  }
+}
+
 export function assertValidProductDraft(product: ProductDraft): void {
   assertNonEmptyString(product.name, 'Name', MAX_PRODUCT_NAME_LENGTH);
   assertNonEmptyString(product.description, 'Description', MAX_PRODUCT_DESCRIPTION_LENGTH);
@@ -214,6 +252,7 @@ export function assertValidProductDraft(product: ProductDraft): void {
   assertValidClassification(product.rarity);
   assertValidProductIntakeFields(product);
   assertValidProductOperationsFields(product);
+  assertValidOptionsAndVariants(product.hasVariants, product.options, product.variants);
 
   if (product.set && product.set.trim().length > MAX_PRODUCT_SET_LENGTH) {
     throw new InvalidProductError(`Set must be ${MAX_PRODUCT_SET_LENGTH} characters or fewer`);
@@ -235,6 +274,9 @@ export function assertValidProductUpdate(updates: ProductUpdate): void {
   if ('rarity' in updates) assertValidClassification(updates.rarity);
   assertValidProductIntakeFields(updates);
   assertValidProductOperationsFields(updates);
+  if ('hasVariants' in updates || 'options' in updates || 'variants' in updates) {
+    assertValidOptionsAndVariants(updates.hasVariants, updates.options, updates.variants);
+  }
   if (updates.set && updates.set.trim().length > MAX_PRODUCT_SET_LENGTH) {
     throw new InvalidProductError(`Set must be ${MAX_PRODUCT_SET_LENGTH} characters or fewer`);
   }

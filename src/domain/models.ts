@@ -37,6 +37,39 @@ export interface Product {
   metafields?: Record<string, string | number | boolean | null>;
   isDigital?: boolean;
   digitalAssets?: DigitalAsset[];
+  
+  // Variations
+  hasVariants?: boolean;
+  options?: ProductOption[];
+  variants?: ProductVariant[];
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProductOption {
+  id: string;
+  productId: string;
+  name: string;
+  position: number;
+  values: string[];
+}
+
+export interface ProductVariant {
+  id: string;
+  productId: string;
+  title: string;
+  sku?: string;
+  barcode?: string;
+  price: number; // cents
+  compareAtPrice?: number; // cents
+  cost?: number; // cents
+  stock: number;
+  option1?: string;
+  option2?: string;
+  option3?: string;
+  imageUrl?: string;
+  weightGrams?: number;
   createdAt: Date;
   updatedAt: Date;
 }

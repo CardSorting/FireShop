@@ -102,6 +102,60 @@ export async function initDatabase() {
   try { await db.schema.alterTable('products').addColumn('supplier', 'text').execute(); } catch {}
   try { await db.schema.alterTable('products').addColumn('manufacturerSku', 'text').execute(); } catch {}
   try { await db.schema.alterTable('products').addColumn('barcode', 'text').execute(); } catch {}
+  try { await db.schema.alterTable('products').addColumn('hasVariants', 'integer').execute(); } catch {}
+
+  await db.schema
+    .createTable('product_options')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('productId', 'text', (col) => col.notNull())
+    .addColumn('name', 'text', (col) => col.notNull())
+    .addColumn('position', 'integer', (col) => col.notNull().defaultTo(0))
+    .addColumn('values', 'text', (col) => col.notNull())
+    .execute();
+
+  await db.schema
+    .createTable('product_variants')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('productId', 'text', (col) => col.notNull())
+    .addColumn('title', 'text', (col) => col.notNull())
+    .addColumn('sku', 'text')
+    .addColumn('barcode', 'text')
+    .addColumn('price', 'integer', (col) => col.notNull())
+    .addColumn('compareAtPrice', 'integer')
+    .addColumn('cost', 'integer')
+    .addColumn('stock', 'integer', (col) => col.notNull().defaultTo(0))
+    .addColumn('option1', 'text')
+    .addColumn('option2', 'text')
+    .addColumn('option3', 'text')
+    .addColumn('imageUrl', 'text')
+    .addColumn('weightGrams', 'integer')
+    .addColumn('createdAt', 'text', (col) => col.notNull())
+    .addColumn('updatedAt', 'text', (col) => col.notNull())
+    .execute();
+
+  await db.schema
+    .createIndex('idx_product_options_productId')
+    .on('product_options')
+    .column('productId')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_product_variants_productId')
+    .on('product_variants')
+    .column('productId')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_product_variants_sku')
+    .on('product_variants')
+    .column('sku')
+    .unique()
+    .ifNotExists()
+    .execute();
 
   await db.schema
     .createTable('users')

@@ -97,7 +97,7 @@ export class SQLiteProductRepository implements IProductRepository {
     this.db = getSQLiteDB();
   }
 
-  private mapTableToProduct(row: any, media: any[] = []): Product {
+  private mapTableToProduct(row: any, media: any[] = [], options: any[] = [], variants: any[] = []): Product {
     return {
       id: row.id,
       name: row.name,
@@ -142,6 +142,34 @@ export class SQLiteProductRepository implements IProductRepository {
       rarity: parseClassification(row.rarity),
       isDigital: parseNullableBoolean(row.isDigital),
       digitalAssets: row.digitalAssets ? JSON.parse(row.digitalAssets) : undefined,
+      
+      hasVariants: parseNullableBoolean(row.hasVariants),
+      options: options.map(o => ({
+        id: o.id,
+        productId: o.productId,
+        name: o.name,
+        position: o.position,
+        values: JSON.parse(o.values)
+      })).sort((a, b) => a.position - b.position),
+      variants: variants.map(v => ({
+        id: v.id,
+        productId: v.productId,
+        title: v.title,
+        sku: v.sku || undefined,
+        barcode: v.barcode || undefined,
+        price: v.price,
+        compareAtPrice: v.compareAtPrice ?? undefined,
+        cost: v.cost ?? undefined,
+        stock: v.stock,
+        option1: v.option1 || undefined,
+        option2: v.option2 || undefined,
+        option3: v.option3 || undefined,
+        imageUrl: v.imageUrl || undefined,
+        weightGrams: v.weightGrams ?? undefined,
+        createdAt: new Date(v.createdAt),
+        updatedAt: new Date(v.updatedAt)
+      })),
+
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
     };
@@ -173,17 +201,36 @@ export class SQLiteProductRepository implements IProductRepository {
 
     const results = await this.db.selectFrom('products').selectAll().execute();
     const mediaResults = await this.db.selectFrom('product_media').selectAll().execute();
+    const optionResults = await this.db.selectFrom('product_options').selectAll().execute();
+    const variantResults = await this.db.selectFrom('product_variants').selectAll().execute();
     
-    // Group media by productId
+    // Group related data by productId
     const mediaMap = new Map<string, any[]>();
     for (const m of mediaResults) {
       if (!mediaMap.has(m.productId)) mediaMap.set(m.productId, []);
       mediaMap.get(m.productId)!.push(m);
     }
 
+    const optionMap = new Map<string, any[]>();
+    for (const o of optionResults) {
+      if (!optionMap.has(o.productId)) optionMap.set(o.productId, []);
+      optionMap.get(o.productId)!.push(o);
+    }
+
+    const variantMap = new Map<string, any[]>();
+    for (const v of variantResults) {
+      if (!variantMap.has(v.productId)) variantMap.set(v.productId, []);
+      variantMap.get(v.productId)!.push(v);
+    }
+
     this.authIndex = new Map();
     for (const row of results) {
-      this.authIndex.set(row.id, this.mapTableToProduct(row, mediaMap.get(row.id) || []));
+      this.authIndex.set(row.id, this.mapTableToProduct(
+        row, 
+        mediaMap.get(row.id) || [],
+        optionMap.get(row.id) || [],
+        variantMap.get(row.id) || []
+      ));
     }
   }
 
@@ -345,13 +392,11 @@ export class SQLiteProductRepository implements IProductRepository {
       
       if (!result) return null;
 
-      const media = await this.db
-        .selectFrom('product_media')
-        .selectAll()
-        .where('productId', '=', id)
-        .execute();
+      const media = await this.db.selectFrom('product_media').selectAll().where('productId', '=', id).execute();
+      const options = await this.db.selectFrom('product_options').selectAll().where('productId', '=', id).execute();
+      const variants = await this.db.selectFrom('product_variants').selectAll().where('productId', '=', id).execute();
 
-      return this.mapTableToProduct(result, media);
+      return this.mapTableToProduct(result, media, options, variants);
     }
 
     return this.authIndex.get(id) || null;
@@ -369,13 +414,11 @@ export class SQLiteProductRepository implements IProductRepository {
       
       if (!result) return null;
 
-      const media = await this.db
-        .selectFrom('product_media')
-        .selectAll()
-        .where('productId', '=', result.id)
-        .execute();
+      const media = await this.db.selectFrom('product_media').selectAll().where('productId', '=', result.id).execute();
+      const options = await this.db.selectFrom('product_options').selectAll().where('productId', '=', result.id).execute();
+      const variants = await this.db.selectFrom('product_variants').selectAll().where('productId', '=', result.id).execute();
 
-      return this.mapTableToProduct(result, media);
+      return this.mapTableToProduct(result, media, options, variants);
     }
     
     for (const product of this.authIndex.values()) {
@@ -425,10 +468,46 @@ export class SQLiteProductRepository implements IProductRepository {
           rarity: product.rarity || null,
           isDigital: nullableBoolean(product.isDigital),
           digitalAssets: product.digitalAssets ? JSON.stringify(product.digitalAssets) : null,
+          hasVariants: nullableBoolean(product.hasVariants),
           createdAt: now,
           updatedAt: now,
         })
         .execute();
+
+      if (product.options && product.options.length > 0) {
+        for (const o of product.options) {
+          await this.db.insertInto('product_options').values({
+            id: o.id || crypto.randomUUID(),
+            productId: id,
+            name: o.name,
+            position: o.position,
+            values: JSON.stringify(o.values)
+          }).execute();
+        }
+      }
+
+      if (product.variants && product.variants.length > 0) {
+        for (const v of product.variants) {
+          await this.db.insertInto('product_variants').values({
+            id: v.id || crypto.randomUUID(),
+            productId: id,
+            title: v.title,
+            sku: nullableText(v.sku),
+            barcode: nullableText(v.barcode),
+            price: v.price,
+            compareAtPrice: v.compareAtPrice ?? null,
+            cost: v.cost ?? null,
+            stock: v.stock,
+            option1: nullableText(v.option1),
+            option2: nullableText(v.option2),
+            option3: nullableText(v.option3),
+            imageUrl: nullableText(v.imageUrl),
+            weightGrams: v.weightGrams ?? null,
+            createdAt: now,
+            updatedAt: now
+          }).execute();
+        }
+      }
 
       if (product.media && product.media.length > 0) {
         for (const m of product.media) {
@@ -463,7 +542,7 @@ export class SQLiteProductRepository implements IProductRepository {
     const now = new Date().toISOString();
     
     const validFields: (keyof ProductUpdate)[] = [
-      'name', 'description', 'price', 'compareAtPrice', 'cost', 'category', 'productType', 'vendor', 'tags', 'collections', 'handle', 'seoTitle', 'seoDescription', 'salesChannels', 'stock', 'trackQuantity', 'continueSellingWhenOutOfStock', 'reorderPoint', 'reorderQuantity', 'physicalItem', 'weightGrams', 'sku', 'manufacturer', 'supplier', 'manufacturerSku', 'barcode', 'imageUrl', 'set', 'rarity', 'status', 'isDigital', 'digitalAssets'
+      'name', 'description', 'price', 'compareAtPrice', 'cost', 'category', 'productType', 'vendor', 'tags', 'collections', 'handle', 'seoTitle', 'seoDescription', 'salesChannels', 'stock', 'trackQuantity', 'continueSellingWhenOutOfStock', 'reorderPoint', 'reorderQuantity', 'physicalItem', 'weightGrams', 'sku', 'manufacturer', 'supplier', 'manufacturerSku', 'barcode', 'imageUrl', 'set', 'rarity', 'status', 'isDigital', 'digitalAssets', 'hasVariants'
     ];
 
     const finalUpdates: Partial<ProductTable> = { updatedAt: now };
@@ -505,6 +584,49 @@ export class SQLiteProductRepository implements IProductRepository {
                 height: m.height || null,
                 size: m.size || null,
                 createdAt: m.createdAt ? m.createdAt.toISOString() : now
+              }).execute();
+            }
+          }
+        }
+
+        if (updates.options !== undefined) {
+          await trx.deleteFrom('product_options').where('productId', '=', id).execute();
+          if (updates.options && updates.options.length > 0) {
+            for (const o of updates.options) {
+              await trx.insertInto('product_options').values({
+                id: o.id || crypto.randomUUID(),
+                productId: id,
+                name: o.name,
+                position: o.position,
+                values: JSON.stringify(o.values)
+              }).execute();
+            }
+          }
+        }
+
+        if (updates.variants !== undefined) {
+          // Careful: deleting and re-inserting variants might break existing order relationships if they use variant IDs.
+          // However, given the current simple structure, we'll follow the pattern used for media.
+          await trx.deleteFrom('product_variants').where('productId', '=', id).execute();
+          if (updates.variants && updates.variants.length > 0) {
+            for (const v of updates.variants) {
+              await trx.insertInto('product_variants').values({
+                id: v.id || crypto.randomUUID(),
+                productId: id,
+                title: v.title,
+                sku: nullableText(v.sku),
+                barcode: nullableText(v.barcode),
+                price: v.price,
+                compareAtPrice: v.compareAtPrice ?? null,
+                cost: v.cost ?? null,
+                stock: v.stock,
+                option1: nullableText(v.option1),
+                option2: nullableText(v.option2),
+                option3: nullableText(v.option3),
+                imageUrl: nullableText(v.imageUrl),
+                weightGrams: v.weightGrams ?? null,
+                createdAt: v.createdAt ? v.createdAt.toISOString() : now,
+                updatedAt: now
               }).execute();
             }
           }

@@ -84,6 +84,9 @@ export function useProductForm(id?: string) {
         adminNotes: '',
         isDigital: product.isDigital ?? false,
         digitalAssets: product.digitalAssets ?? [],
+        hasVariants: product.hasVariants ?? false,
+        options: product.options ?? [],
+        variants: product.variants ?? [],
       });
       setUnsaved(false);
     } catch {
@@ -177,6 +180,9 @@ export function useProductForm(id?: string) {
       rarity: form.rarity || undefined,
       isDigital: form.isDigital,
       digitalAssets: form.digitalAssets,
+      hasVariants: form.hasVariants,
+      options: form.options,
+      variants: form.variants,
     };
 
     try {
@@ -281,6 +287,9 @@ export function useProductForm(id?: string) {
         rarity: copyData.rarity || undefined,
         isDigital: copyData.isDigital,
         digitalAssets: copyData.digitalAssets,
+        hasVariants: copyData.hasVariants,
+        options: copyData.options,
+        variants: copyData.variants,
       };
 
       const newProduct = await services.productService.createProduct(data, actor);

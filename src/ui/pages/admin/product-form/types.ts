@@ -1,4 +1,4 @@
-import type { ProductSalesChannel, ProductMedia, DigitalAsset } from '@domain/models';
+import type { ProductSalesChannel, ProductMedia, DigitalAsset, ProductOption, ProductVariant } from '@domain/models';
 
 export interface ProductFormState {
   name: string;
@@ -35,6 +35,11 @@ export interface ProductFormState {
   adminNotes: string;
   isDigital: boolean;
   digitalAssets: DigitalAsset[];
+  
+  // Variations
+  hasVariants: boolean;
+  options: ProductOption[];
+  variants: ProductVariant[];
 }
 
 export const INITIAL_FORM_STATE: ProductFormState = {
@@ -72,6 +77,9 @@ export const INITIAL_FORM_STATE: ProductFormState = {
   adminNotes: '',
   isDigital: false,
   digitalAssets: [],
+  hasVariants: false,
+  options: [],
+  variants: [],
 };
 
 export const CLASSIFICATIONS = ['New', 'Refurbished', 'Vintage', 'Limited Edition', 'Standard'];

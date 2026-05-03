@@ -30,6 +30,7 @@ import { DigitalAssetManager } from '@ui/components/admin/DigitalAssetManager';
 
 import { useProductForm } from './hooks/useProductForm';
 import { TextInput, MoneyInput, Checkbox } from './components/FormInputs';
+import { ProductVariations } from './components/ProductVariations';
 import { CLASSIFICATIONS, SALES_CHANNELS } from './types';
 import { centsFromInput, csvToList } from './utils';
 
@@ -189,9 +190,33 @@ export function AdminProductForm() {
           <section className="rounded-xl border bg-white p-5 shadow-sm">
             <h2 className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">Inventory</h2>
             <div className="grid gap-4 md:grid-cols-3">
-              <TextInput label="SKU" id="product-sku" name="sku" value={form.sku} onChange={handleChange} placeholder="SKU-12345" />
-              <TextInput label="Barcode / UPC" id="product-barcode" name="barcode" value={form.barcode} onChange={handleChange} />
-              <TextInput label="Quantity available" id="product-stock" name="stock" value={form.stock} onChange={handleChange} type="number" required />
+              <TextInput 
+                label="SKU" 
+                id="product-sku" 
+                name="sku" 
+                value={form.sku} 
+                onChange={handleChange} 
+                placeholder="SKU-12345" 
+                disabled={form.hasVariants}
+              />
+              <TextInput 
+                label="Barcode / UPC" 
+                id="product-barcode" 
+                name="barcode" 
+                value={form.barcode} 
+                onChange={handleChange} 
+                disabled={form.hasVariants}
+              />
+              <TextInput 
+                label="Quantity available" 
+                id="product-stock" 
+                name="stock" 
+                value={form.stock} 
+                onChange={handleChange} 
+                type="number" 
+                required 
+                disabled={form.hasVariants}
+              />
               <TextInput label="Reorder point" id="product-reorder-point" name="reorderPoint" value={form.reorderPoint} onChange={handleChange} type="number" />
               <TextInput label="Reorder quantity" id="product-reorder-qty" name="reorderQuantity" value={form.reorderQuantity} onChange={handleChange} type="number" />
             </div>
@@ -199,7 +224,27 @@ export function AdminProductForm() {
               <Checkbox label="Track quantity" checked={form.trackQuantity} onChange={(checked) => handleCheckbox('trackQuantity', checked)} />
               <Checkbox label="Continue selling when out of stock" checked={form.continueSellingWhenOutOfStock} onChange={(checked) => handleCheckbox('continueSellingWhenOutOfStock', checked)} />
             </div>
+            {form.hasVariants && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg bg-blue-50 p-3 text-[10px] font-bold text-blue-700 uppercase tracking-tight">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                <span>Inventory for this product is managed by individual variants below.</span>
+              </div>
+            )}
           </section>
+
+          <ProductVariations 
+            hasVariants={form.hasVariants}
+            options={form.options}
+            variants={form.variants}
+            basePrice={form.price}
+            baseSku={form.sku}
+            baseStock={form.stock}
+            onChange={(updates) => {
+              Object.entries(updates).forEach(([key, value]) => {
+                setFieldValue(key as any, value);
+              });
+            }}
+          />
 
           <section className="rounded-xl border bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
