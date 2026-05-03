@@ -47,7 +47,7 @@ export function CartDrawer() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex justify-end">
+    <div className="fixed inset-0 z-100 flex justify-end">
       {/* Backdrop: with smoother blur and opacity */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-500"
@@ -55,7 +55,7 @@ export function CartDrawer() {
       />
 
       {/* Drawer Container: uses 100dvh for mobile viewport height compliance */}
-      <div className="relative flex h-[100dvh] w-full max-w-lg flex-col bg-white shadow-[0_0_50px_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500 cubic-bezier(0.4, 0, 0.2, 1) border-l border-gray-100">
+      <div className="relative flex h-dvh w-full max-w-lg flex-col bg-white shadow-[0_0_50px_rgba(0,0,0,0.1)] animate-in slide-in-from-right duration-500 cubic-bezier(0.4, 0, 0.2, 1) border-l border-gray-100">
         
         {/* Header: Ultra-Compressed for Maximum Item Visibility */}
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-white/80 backdrop-blur-md sticky top-0 z-20">
