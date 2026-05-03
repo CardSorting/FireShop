@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { ArrowRight, Sparkles, Shield, Truck, ShieldCheck, LifeBuoy, Star, Zap, TrendingUp } from 'lucide-react';
-import { RewardsBanner } from '../components/RewardsBanner';
 import { ProductCard } from '../components/ProductCard';
 import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
 import { useCart } from '../hooks/useCart';
@@ -226,12 +225,6 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Rewards Banner */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-           <RewardsBanner />
-        </div>
-      </section>
 
       {/* Featured Products */}
       <section className="py-24 px-4 bg-white">
