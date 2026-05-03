@@ -250,7 +250,11 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               </div>
               <div className="divide-y divide-gray-100 px-8">
                 {order.items.map((item) => (
-                  <div key={item.productId} className="flex items-center gap-6 py-6 group">
+                  <Link 
+                    key={item.productId} 
+                    href={`/products/${item.productHandle || item.productId}`}
+                    className="flex items-center gap-6 py-6 group"
+                  >
                     <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
                       {item.imageUrl ? (
                         <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
@@ -259,7 +263,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-lg font-black text-gray-900">{item.name}</h3>
+                      <h3 className="truncate text-lg font-black text-gray-900 group-hover:text-primary-600 transition-colors">{item.name}</h3>
                       {item.variantTitle && (
                         <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 mt-0.5">
                           {item.variantTitle}
@@ -268,7 +272,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                       <p className="mt-1 text-sm font-bold text-gray-400">Qty: {item.quantity} • {formatMoney(item.unitPrice)} / unit</p>
                     </div>
                     <p className="text-lg font-black text-gray-900">{formatMoney(item.unitPrice * item.quantity)}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </section>

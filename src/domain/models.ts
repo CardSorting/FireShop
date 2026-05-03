@@ -354,6 +354,7 @@ export interface OrderItem {
   productId: string;
   variantId?: string;
   variantTitle?: string;
+  productHandle?: string;
   name: string;
   quantity: number;
   unitPrice: number; // cents

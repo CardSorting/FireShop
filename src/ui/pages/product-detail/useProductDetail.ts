@@ -6,7 +6,7 @@
  * for the Product Detail Page. Keeps the view layer clean.
  */
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
@@ -80,27 +80,47 @@ export function useProductDetail(initialProduct?: Product | null) {
     }
   }, [product, trackView]);
 
+  const router = useRouter();
+
   // --- Data Loading ---
   const loadProduct = useCallback(async () => {
     if (!handle || initialProduct) return;
     setLoading(true);
     setError(null);
     try {
-      let loaded;
+      let loaded: Product | null = null;
+      
+      // 1. Try to find by handle first (Canonical)
       try {
         loaded = await services.productService.getProductByHandle(handle);
-      } catch {
-        loaded = await services.productService.getProduct(handle);
+      } catch (err) {
+        // 2. If not found by handle, try finding by ID (Legacy fallback)
+        try {
+          loaded = await services.productService.getProduct(handle);
+        } catch (idErr) {
+          throw err; // Throw the original handle error if ID also fails
+        }
       }
-      setProduct(loaded);
-      setSelectedImageIndex(0);
+
+      if (loaded) {
+        // 3. CANONICAL REDIRECT: If the current URL handle is actually an ID, 
+        // or if it's an old handle, redirect to the official handle.
+        if (loaded.handle && handle !== loaded.handle) {
+          logger.info(`Redirecting from legacy/alternate handle "${handle}" to canonical "${loaded.handle}"`);
+          router.replace(`/products/${loaded.handle}`);
+          return; // The router will handle the navigation
+        }
+        
+        setProduct(loaded);
+        setSelectedImageIndex(0);
+      }
     } catch (err) {
       logger.error('Failed to load product', err);
       setError('Product not found.');
     } finally {
       setLoading(false);
     }
-  }, [handle, initialProduct, services.productService]);
+  }, [handle, initialProduct, services.productService, router]);
 
   const loadRelated = useCallback(async () => {
     if (!product) return;

@@ -117,6 +117,9 @@ export class FirestoreProductRepository implements IProductRepository {
     const id = crypto.randomUUID();
     const now = Timestamp.now();
 
+    const baseHandle = product.handle || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const handle = await this.ensureUniqueHandle(baseHandle);
+
     const productData = {
       ...product,
       createdAt: now,
@@ -124,7 +127,7 @@ export class FirestoreProductRepository implements IProductRepository {
       variants: product.variants?.map(v => ({ ...v, id: v.id || crypto.randomUUID(), createdAt: now, updatedAt: now })) || [],
       options: product.options?.map(o => ({ ...o, id: o.id || crypto.randomUUID() })) || [],
       media: product.media?.map(m => ({ ...m, id: m.id || crypto.randomUUID(), createdAt: now })) || [],
-      handle: product.handle || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      handle,
     };
 
     await setDoc(doc(db, this.collectionName, id), productData);
@@ -135,7 +138,12 @@ export class FirestoreProductRepository implements IProductRepository {
     const docRef = doc(db, this.collectionName, id);
     const now = Timestamp.now();
     
-    const firestoreUpdates: any = { ...updates, updatedAt: now };
+    let firestoreUpdates: any = { ...updates, updatedAt: now };
+
+    // If handle is being updated, ensure it's unique
+    if (updates.handle) {
+      firestoreUpdates.handle = await this.ensureUniqueHandle(updates.handle, id);
+    }
     
     // Handle specific fields if needed (e.g., date conversion)
     if (updates.media) {
@@ -293,5 +301,35 @@ export class FirestoreProductRepository implements IProductRepository {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => this.mapDocToProduct(d.id, d.data()));
+  }
+
+  /**
+   * Internal helper to ensure a handle is unique in the 'products' collection.
+   * If a collision is found, appends a numeric suffix (e.g., '-1', '-2').
+   */
+  private async ensureUniqueHandle(handle: string, excludeId?: string): Promise<string> {
+    let currentHandle = handle;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const q = query(
+        collection(db, this.collectionName), 
+        where('handle', '==', currentHandle), 
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return currentHandle;
+      
+      // If the only product with this handle is the one we are updating, it's fine
+      if (excludeId && snapshot.docs[0].id === excludeId) return currentHandle;
+
+      attempts++;
+      currentHandle = `${handle}-${attempts}`;
+    }
+
+    // If we still have a collision after 10 attempts, append a random string for ultimate safety
+    return `${handle}-${crypto.randomUUID().slice(0, 4)}`;
   }
 }

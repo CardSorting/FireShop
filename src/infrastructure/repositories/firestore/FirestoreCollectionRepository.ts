@@ -57,14 +57,42 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
   async save(col: Collection): Promise<Collection> {
     const id = col.id || crypto.randomUUID();
     const now = Timestamp.now();
+    
+    // Ensure handle is unique
+    const handle = await this.ensureUniqueHandle(col.handle, id);
+
     const data = {
       ...col,
       id,
+      handle,
       updatedAt: now,
       createdAt: col.createdAt ? Timestamp.fromDate(new Date(col.createdAt)) : now
     };
     await setDoc(doc(db, this.collectionName, id), data);
     return (await this.getById(id))!;
+  }
+
+  private async ensureUniqueHandle(handle: string, excludeId?: string): Promise<string> {
+    let currentHandle = handle;
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    while (attempts < maxAttempts) {
+      const q = query(
+        collection(db, this.collectionName), 
+        where('handle', '==', currentHandle), 
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return currentHandle;
+      if (excludeId && snapshot.docs[0].id === excludeId) return currentHandle;
+
+      attempts++;
+      currentHandle = `${handle}-${attempts}`;
+    }
+
+    return `${handle}-${crypto.randomUUID().slice(0, 4)}`;
   }
 
   async delete(id: string): Promise<void> {

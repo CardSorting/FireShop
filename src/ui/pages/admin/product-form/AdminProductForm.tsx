@@ -131,7 +131,7 @@ export function AdminProductForm() {
           </button>
           
           {isEdit && form.status === 'active' && (
-            <Link href={`/products/${id}`} target="_blank" className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
+            <Link href={`/products/${form.handle || id}`} target="_blank" className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
               <ExternalLink className="h-4 w-4 text-gray-400" /> View
             </Link>
           )}

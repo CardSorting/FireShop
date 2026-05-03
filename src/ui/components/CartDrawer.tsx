@@ -159,7 +159,7 @@ export function CartDrawer() {
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-start gap-4">
                           <h3 className="text-sm font-black text-gray-900 leading-snug hover:text-primary-600 transition-colors">
-                            <Link href={`/products/${item.productId}`} onClick={closeCart}>{item.name}</Link>
+                            <Link href={`/products/${item.productHandle || item.productId}`} onClick={closeCart}>{item.name}</Link>
                           </h3>
                           <div className="flex items-center gap-1">
                             <button
