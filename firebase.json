@@ -25,10 +25,33 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/DreamBees.db*",
+      "**/playwright-report/**",
+      "**/e2e/**",
+      "**/scripts/**",
+      "**/tests/**",
+      "**/*.md",
+      "LICENSE",
+      "README.md",
+      "vitest.config.ts",
+      "playwright.config.ts",
+      "eslint.config.js",
+      "**/*.map"
     ],
     "frameworksBackend": {
       "region": "us-central1"
-    }
+    },
+    "headers": [
+      {
+        "source": "**/*.@(js|css|jpg|jpeg|gif|png|svg|webp|woff|woff2)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -13,7 +13,8 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "seed": "tsx --env-file=.env --tsconfig tsconfig.json migrate-and-seed.ts",
-    "setup": "./scripts/setup.sh"
+    "setup": "./scripts/setup.sh",
+    "deploy": "./scripts/deploy-optimized.sh"
   },
   "engines": {
     "node": "22"
