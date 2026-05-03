@@ -37,7 +37,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const [search, setSearch] = useState('');
   const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  const conditions = ['Near Mint', 'Lightly Played', 'Moderately Played', 'Damaged'];
+  const conditions = ['New', 'Like New', 'Gently Used', 'Vintage'];
 
   // Initialize state from URL
   useEffect(() => {
@@ -175,7 +175,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         {/* Header */}
         <div className="mb-12">
            <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-4">The Catalog</h1>
-           <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated selection of verified artist cards, prints, and premium accessories. Every item is designed by our amazing creators.</p>
+           <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated collection of artist trading cards, prints, and TCG accessories. Every item is handcrafted by independent creators.</p>
         </div>
 
         {/* Search & Sort Bar */}
@@ -186,7 +186,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                 type="text"
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                placeholder="Search by card name, set, or rarity..."
+                placeholder="Search by name, artist, or style..."
                 className="w-full pl-14 pr-6 py-5 bg-gray-50 border-2 border-transparent rounded-4xl text-lg font-bold focus:bg-white focus:border-primary-500 transition-all outline-none"
               />
            </div>

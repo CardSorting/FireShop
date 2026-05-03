@@ -7,8 +7,8 @@ import { StorefrontShell } from '@ui/layouts/StorefrontShell';
 import '../index.css';
 
 export const metadata: Metadata = {
-    title: 'DreamBeesArt | Premium Art & Trading Cards',
-    description: 'A sovereign marketplace for art and rare collectibles.',
+    title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
+    description: 'Fan art and artist-inspired merch — handcrafted trading cards, art prints, and TCG accessories from independent creators.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -54,7 +54,7 @@ export function AccountPage() {
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-20">
           <div>
             <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-4">Account Dashboard</h1>
-            <p className="text-gray-500 font-medium">Manage your vault, track shipments, and view rewards.</p>
+            <p className="text-gray-500 font-medium">Manage your collection, track shipments, and view rewards.</p>
           </div>
           <div className="flex items-center gap-4">
              <div className="flex -space-x-3">
@@ -137,7 +137,7 @@ export function AccountPage() {
                   <div className="bg-gray-50 rounded-[3rem] p-8 border border-gray-100 space-y-6">
                      <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Full Name</p>
-                        <p className="text-lg font-black text-gray-900">{user.displayName || 'Collector Player'}</p>
+                        <p className="text-lg font-black text-gray-900">{user.displayName || 'Art Collector'}</p>
                      </div>
                      <div>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Email Address</p>

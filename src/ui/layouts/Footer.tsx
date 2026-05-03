@@ -67,7 +67,7 @@ export function Footer() {
               {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-current" />)}
             </div>
             <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">4.9/5 Rating</p>
-            <p className="text-xs text-gray-500 mt-1">From 10,000+ Players</p>
+            <p className="text-xs text-gray-500 mt-1">From 10,000+ Collectors</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
             <Zap className="w-6 h-6 text-primary-600 mb-2" />
@@ -76,8 +76,8 @@ export function Footer() {
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
             <ShieldCheck className="w-6 h-6 text-green-600 mb-2" />
-            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Artist Direct</p>
-            <p className="text-xs text-gray-500 mt-1">100% Support Creators</p>
+            <p className="text-sm font-bold text-gray-900 uppercase tracking-tight">Indie Artists</p>
+            <p className="text-xs text-gray-500 mt-1">100% Creator Supported</p>
           </div>
           <div className="flex flex-col items-center p-6 bg-gray-50/50 rounded-2xl border border-gray-100 hover:border-primary-100 transition-colors">
             <Lock className="w-6 h-6 text-gray-900 mb-2" />
@@ -96,7 +96,7 @@ export function Footer() {
                 DreamBeesArt
               </Link>
               <p className="text-gray-500 text-base leading-relaxed">
-                Founded by artists, for art lovers. We are building the world's most trusted platform for independent artists and fan merch, ensuring every creator can share their art.
+                Founded by artists, for art lovers. We're building the go-to marketplace for fan art and artist-inspired merch — trading cards, prints, and TCG accessories from independent creators.
               </p>
             </div>
             
@@ -118,8 +118,9 @@ export function Footer() {
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Shop</h3>
               <ul className="space-y-3">
                 <li><Link href={STORE_PATHS.PRODUCTS} className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">All Products</Link></li>
-                <li><Link href="/collections/artist-cards" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Artist Cards</Link></li>
+                <li><Link href="/collections/artist-cards" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Artist Trading Cards</Link></li>
                 <li><Link href="/collections/prints" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Art Prints</Link></li>
+                <li><Link href="/collections/accessories" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">TCG Accessories</Link></li>
               </ul>
             </div>
 
@@ -160,7 +161,7 @@ export function Footer() {
               © {currentYear} DreamBeesArt. All Rights Reserved.
             </p>
             <p className="text-[10px] font-bold text-primary-500 mt-1 uppercase tracking-tighter">
-              The World's Favorite Fan Art Marketplace
+              Fan Art & Artist-Inspired Merch
             </p>
           </div>
         </div>

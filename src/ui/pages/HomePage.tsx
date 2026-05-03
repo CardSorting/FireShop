@@ -47,14 +47,14 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 relative z-20 text-center lg:text-left flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 space-y-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-primary-200 text-xs font-black uppercase tracking-widest">
-              <Sparkles className="w-3 h-3" /> New Arrivals Season
+              <Sparkles className="w-3 h-3" /> New Artist Drops
             </div>
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[1.1]">
-              Elevate Your <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">Collection Today</span>
+              Art You Can <br />
+              <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">Collect & Hold</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-300 font-medium max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Shop unique Artist Trading Cards, beautiful prints, and custom accessories. Support independent artists and find your next favorite piece.
+              Handcrafted Artist Trading Cards, stunning prints, and premium TCG accessories — all made by independent artists and inspired by the fandoms you love.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               <Link
@@ -68,7 +68,7 @@ export function HomePage() {
                 href="/collections/artist-cards"
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-gray-800 text-white border border-gray-700 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-700 transition-all"
               >
-                Browse Cards
+                Artist Trading Cards
               </Link>
             </div>
           </div>
@@ -98,8 +98,8 @@ export function HomePage() {
                 <Star className="w-6 h-6 text-primary-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Artist Direct</h3>
-                <p className="text-xs text-gray-500 font-medium">Support creators</p>
+                <h3 className="font-bold text-gray-900 text-sm">Handcrafted</h3>
+                <p className="text-xs text-gray-500 font-medium">By indie artists</p>
               </div>
             </div>
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4">
@@ -107,7 +107,7 @@ export function HomePage() {
                 <Truck className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Express Shipping</h3>
+                <h3 className="font-bold text-gray-900 text-sm">Fast Shipping</h3>
                 <p className="text-xs text-gray-500 font-medium">Free on orders $50+</p>
               </div>
             </div>
@@ -138,7 +138,7 @@ export function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tighter mb-4">Shop by Category</h2>
-            <p className="text-gray-500 font-medium">Everything you need to build the ultimate deck.</p>
+            <p className="text-gray-500 font-medium">Handmade art, custom prints, and gear for every collector.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <Link href="/collections/artist-cards" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
@@ -146,8 +146,8 @@ export function HomePage() {
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
                 <div>
-                  <h3 className="text-2xl font-black text-white mb-2">Artist Cards</h3>
-                  <p className="text-gray-300 text-sm font-medium">Unique custom art cards</p>
+                  <h3 className="text-2xl font-black text-white mb-2">Artist Trading Cards</h3>
+                  <p className="text-gray-300 text-sm font-medium">Hand-drawn & fan art ATCs</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <ArrowRight className="w-5 h-5" />
@@ -172,8 +172,8 @@ export function HomePage() {
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
                 <div>
-                  <h3 className="text-2xl font-black text-white mb-2">Accessories</h3>
-                  <p className="text-gray-300 text-sm font-medium">Custom sleeves, boxes, mats</p>
+                  <h3 className="text-2xl font-black text-white mb-2">TCG Accessories</h3>
+                  <p className="text-gray-300 text-sm font-medium">Custom sleeves, playmats, deck boxes</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <ArrowRight className="w-5 h-5" />

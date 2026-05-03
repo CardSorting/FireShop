@@ -244,7 +244,7 @@ export function ProductDetailPage() {
               <div className="absolute top-6 left-6">
                 <span className="bg-white/90 backdrop-blur-md border border-gray-100 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
-                  Authenticated Product
+                  Artist Original
                 </span>
               </div>
             </div>
@@ -277,7 +277,7 @@ export function ProductDetailPage() {
               
               <div className="flex items-center gap-3">
                 <p className="text-sm font-bold text-gray-400 italic">
-                  Brand: <span className="text-primary-600 font-black">{product.vendor || 'DreamBees'}</span>
+                  Artist: <span className="text-primary-600 font-black">{product.vendor || 'DreamBees'}</span>
                 </p>
                 <div className="h-4 w-px bg-gray-200" />
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">SKU: {currentSku || 'N/A'}</p>

@@ -18,23 +18,23 @@ export function RewardsBanner() {
             <Star className="w-3.5 h-3.5 fill-current" /> Exclusive Rewards Program
           </div>
           <h2 className="text-4xl md:text-6xl font-black tracking-tighter leading-none mb-6">
-            Join the <br /><span className="text-primary-400">Vault Collective</span>
+            Join the <br /><span className="text-primary-400">Creator Collective</span>
           </h2>
           <p className="text-gray-400 text-lg font-medium leading-relaxed mb-10 max-w-md">
-            Earn points on every pull, get early access to limited drops, and unlock secret rarity discounts.
+            Earn points on every purchase, get early access to artist drops, and unlock exclusive collector discounts.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4">
              <Link 
                href="/register" 
                className="w-full sm:w-auto px-8 py-5 bg-white text-gray-900 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl shadow-white/5"
              >
-               Join the Vault
+               Join the Collective
              </Link>
              <Link 
                href="/rewards" 
                className="w-full sm:w-auto px-8 py-5 bg-gray-800 text-white border border-gray-700 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-700 transition-all"
              >
-               Learn More
+               How It Works
              </Link>
           </div>
         </div>
@@ -59,7 +59,7 @@ export function RewardsBanner() {
                  <Star className="w-6 h-6 fill-current" />
               </div>
               <p className="text-lg font-black tracking-tight mb-1">Early</p>
-              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Drop Access</p>
+              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Artist Drops</p>
            </div>
            <div className="p-8 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 flex flex-col items-center text-center group/card hover:bg-white/10 transition-colors">
               <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center text-green-500 mb-4 group-hover/card:scale-110 transition-transform">

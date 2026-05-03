@@ -156,7 +156,7 @@ export function SearchCommandPalette() {
             ref={inputRef}
             type="text"
             className="flex-1 h-20 border-none focus:ring-0 text-lg font-black placeholder:text-gray-400 text-gray-900 px-4"
-            placeholder="Search for cards, sets, or categories..."
+            placeholder="Search for art, prints, or accessories..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -181,7 +181,7 @@ export function SearchCommandPalette() {
                 <section>
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6">Trending Searches</h3>
                   <div className="flex flex-wrap gap-2">
-                    {['Charizard', 'Pikachu', 'Base Set', 'Sealed Box', 'PSA 10'].map((term) => (
+                    {['Stickers', 'Watercolor', 'Fan Art Print', 'Playmat', 'Custom Sleeves'].map((term) => (
                       <button
                         key={term}
                         onClick={() => setQuery(term)}
@@ -320,7 +320,7 @@ export function SearchCommandPalette() {
                 <Search className="h-8 w-8 text-gray-300" />
               </div>
               <p className="text-sm font-bold text-gray-900">No results found for "{query}"</p>
-              <p className="text-xs text-gray-500 mt-1">Try searching for card names, sets, or attributes.</p>
+              <p className="text-xs text-gray-500 mt-1">Try searching for art styles, artist names, or product types.</p>
             </div>
           ) : (
             <div className="p-12 text-center animate-pulse">

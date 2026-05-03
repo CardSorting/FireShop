@@ -90,9 +90,9 @@ export function Navbar() {
       <div className="bg-gray-900 py-2.5 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center sm:justify-between text-[10px] font-black uppercase tracking-[0.2em] text-white/90">
            <div className="hidden sm:flex items-center gap-4">
-              <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-primary-500" /> Free Global Shipping Over $100</span>
+              <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-primary-500" /> Free Shipping Over $50</span>
               <span className="w-1 h-1 rounded-full bg-white/20" />
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Support Independent Artists</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Handcrafted by Indie Artists</span>
            </div>
 
            <div className="hidden lg:flex items-center gap-4">
@@ -128,7 +128,7 @@ export function Navbar() {
                 <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-2.5 pl-12 pr-4 text-sm text-gray-500 font-bold group-hover:bg-white group-hover:border-primary-500 group-hover:shadow-xl group-hover:shadow-primary-500/5 transition-all flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Search</span>
-                    <span>Search cards, sets, and more...</span>
+                    <span>Search art, prints, accessories...</span>
                   </div>
                   <div className="flex items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
                     <kbd className="h-6 rounded-lg border bg-white px-2 font-mono text-[9px] font-black text-gray-400 shadow-sm">⌘K</kbd>

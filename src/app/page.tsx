@@ -2,11 +2,11 @@ import { HomePage } from '@ui/pages/HomePage';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'DreamBeesArt | The World\'s Favorite Fan Art Marketplace',
-    description: 'Shop and discover amazing Artist Trading Cards and Prints. Support independent artists and find your next favorite piece of fan merch.',
+    title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
+    description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories. Fan art and artist-inspired merch from independent creators you love.',
     openGraph: {
-        title: 'DreamBeesArt | The World\'s Favorite Fan Art Marketplace',
-        description: 'Shop and discover amazing Artist Trading Cards and Prints.',
+        title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
+        description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
         type: 'website',
         url: 'https://dreambeesart.com',
     },

@@ -97,7 +97,7 @@ export function WishlistPage() {
                 Your Collection
               </h1>
               <p className="text-gray-400 font-bold text-xl leading-relaxed max-w-2xl">
-                Curate your dream deck. track your most-wanted cards, and share your wishlist with the community.
+                Curate your favorite pieces, track your most-wanted art, and share your wishlist with the community.
               </p>
             </div>
 
@@ -207,7 +207,7 @@ export function WishlistPage() {
                   <PackageSearch className="h-10 w-10 text-gray-200" />
                 </div>
                 <h3 className="text-3xl font-black text-gray-900 mb-4">Nothing saved yet</h3>
-                <p className="text-gray-500 mb-10 max-w-xs mx-auto leading-relaxed">Browse our collection and hit the heart icon to save cards you love.</p>
+                <p className="text-gray-500 mb-10 max-w-xs mx-auto leading-relaxed">Browse our collection and hit the heart icon to save art you love.</p>
                 <Link 
                   href={STORE_PATHS.PRODUCTS}
                   className="inline-flex items-center gap-3 rounded-2xl bg-gray-900 px-10 py-4 font-black text-white shadow-2xl shadow-gray-200 transition hover:bg-black hover:-translate-y-1 active:translate-y-0"
@@ -237,7 +237,7 @@ export function WishlistPage() {
             <div className="flex items-end justify-between mb-12">
               <div>
                 <h2 className="text-4xl font-black text-gray-900 tracking-tighter mb-2">History</h2>
-                <p className="text-gray-400 font-bold italic">You recently explored these cards</p>
+                <p className="text-gray-400 font-bold italic">You recently explored these items</p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">

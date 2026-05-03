@@ -22,7 +22,7 @@ const MOCK_REVIEWS: Review[] = [
     rating: 5,
     date: '2024-03-15',
     title: 'Absolute Gem!',
-    content: 'The centering on this card is perfect. It arrived in a top-loader and was double-sleeved. Best experience buying singles online so far.',
+    content: 'The print quality on this piece is gorgeous. Colors are vibrant and the paper stock feels premium. Best art purchase I\'ve made online so far.',
     verified: true,
     helpful: 24,
     images: ['https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=200&h=200&fit=crop']
@@ -33,7 +33,7 @@ const MOCK_REVIEWS: Review[] = [
     rating: 4,
     date: '2024-03-10',
     title: 'Fast shipping, great condition',
-    content: 'Card is in great shape. Minimal whitening on the edges, definitely NM as advertised. Shipping was lightning fast.',
+    content: 'The art style is beautiful and the print arrived in perfect condition. Protective packaging was top-notch. Really fast shipping too.',
     verified: true,
     helpful: 12
   },
