@@ -60,7 +60,7 @@ export class AuditService {
     const lastEntry = await this.db
       .selectFrom('hive_audit')
       .select('hash')
-      .orderBy('createdAt', 'desc')
+      .orderBy(sql`rowid`, 'desc')
       .limit(1)
       .executeTakeFirst();
 
@@ -131,7 +131,7 @@ export class AuditService {
     const logs = await this.db
       .selectFrom('hive_audit')
       .selectAll()
-      .orderBy('createdAt', 'asc')
+      .orderBy(sql`rowid`, 'asc')
       .execute();
 
     let expectedPreviousHash = '0'.repeat(64);
@@ -142,6 +142,11 @@ export class AuditService {
 
       if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {
         logger.error(`[AuditService] Chain corruption detected at entry: ${log.id}`);
+        logger.error(`[AuditService] Expected Hash: ${log.hash}`);
+        logger.error(`[AuditService] Actual Hash:   ${actualHash}`);
+        logger.error(`[AuditService] Payload:       ${payload}`);
+        logger.error(`[AuditService] Prev Hash Exp: ${expectedPreviousHash}`);
+        logger.error(`[AuditService] Prev Hash Act: ${log.previousHash}`);
         return { valid: false, total: logs.length, corruptedId: log.id };
       }
 

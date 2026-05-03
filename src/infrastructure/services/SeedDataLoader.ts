@@ -105,6 +105,53 @@ const INITIAL_CATALOG: ProductDraft[] = [
     trackQuantity: false,
     physicalItem: false,
     media: [],
+  },
+  {
+    name: 'Rare Mint Charizard (Premium Margin)',
+    description: 'High-margin premium item for testing margin health analytics.',
+    price: 150000, // $1500
+    cost: 45000,   // $450 (70% margin)
+    category: 'single',
+    productType: 'Trading Cards',
+    stock: 1,
+    status: 'active',
+    imageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=800',
+    handle: 'rare-mint-charizard-premium',
+    sku: 'XY-CHZ-PREM',
+    trackQuantity: true,
+    physicalItem: true,
+    media: [],
+  },
+  {
+    name: 'Bulk Energy Cards (Low Margin)',
+    description: 'Low-margin bulk item for testing at-risk margin filters.',
+    price: 500,  // $5
+    cost: 450,   // $4.50 (10% margin)
+    category: 'bulk',
+    productType: 'Trading Cards',
+    stock: 500,
+    status: 'active',
+    imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=400',
+    handle: 'bulk-energy-low-margin',
+    sku: 'BLK-NRG-LOW',
+    trackQuantity: true,
+    physicalItem: true,
+    media: [],
+  },
+  {
+    name: 'Incomplete Draft Product',
+    description: 'A product with missing image and SKU to test the "Needs Attention" setup view.',
+    price: 999,
+    category: 'box',
+    productType: 'Trading Cards',
+    stock: 0,
+    status: 'draft',
+    imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=100', // Placeholder but present
+    handle: 'incomplete-draft-product',
+    // sku: undefined // Missing to trigger setup issue
+    trackQuantity: true,
+    physicalItem: true,
+    media: [],
   }
 ];
 
@@ -348,6 +395,13 @@ export async function seedProducts(): Promise<number> {
     }
   }
   return created;
+}
+
+export async function clearAuditLogs(): Promise<void> {
+  assertSeedingAllowed();
+  const db = getSQLiteDB();
+  await db.deleteFrom('hive_audit').execute();
+  logger.info('[Forensic] Audit logs cleared for clean chain initialization.');
 }
 
 /**
@@ -615,10 +669,87 @@ export async function seedProcurement(): Promise<number> {
       notes: 'Partial industrial receiving session'
     });
 
-    return 1;
+    // 4. Create an OVERDUE PO (Forensic Test)
+    const overdueDate = new Date();
+    overdueDate.setDate(overdueDate.getDate() - 10);
+    
+    await services.purchaseOrderService.createPurchaseOrder({
+      supplier: suppliers[0].id,
+      referenceNumber: 'PO-OVERDUE-001',
+      expectedAt: overdueDate,
+      items: [
+        { productId: products[0].id, orderedQty: 50, unitCost: 1000 }
+      ],
+      notes: 'This PO is intentionally overdue for testing alerts.'
+    });
+
+    // 5. Create a DAMAGED Receiving Session
+    const po2 = await services.purchaseOrderService.createPurchaseOrder({
+      supplier: suppliers[0].id,
+      referenceNumber: 'PO-DAMAGED-001',
+      items: [
+        { productId: products[1].id, orderedQty: 20, unitCost: 2000 }
+      ]
+    });
+    await services.purchaseOrderService.submitOrder(po2.id);
+    
+    const db = getSQLiteDB();
+    const po2_db = await services.purchaseOrderService.getPurchaseOrder(po2.id);
+    if (po2_db && po2_db.items[0]) {
+      await services.purchaseOrderService.receiveItems({
+        purchaseOrderId: po2.id,
+        receivedBy: 'system',
+        locationId: locations[0].id,
+        items: [{
+          purchaseOrderItemId: po2_db.items[0].id,
+          receivedQty: 15,
+          condition: 'damaged',
+          discrepancyReason: 'damaged_items'
+        }],
+        notes: 'Forensic Audit: 5 items arrived damaged.'
+      });
+    }
+
+    // 6. Seed Digital Access Logs
+    const digitalProduct = products.find(p => p.isDigital);
+    const users = await services.authService.getAllUsers();
+    const customer = users.find(u => u.role === 'customer');
+    
+    if (digitalProduct && digitalProduct.digitalAssets && customer) {
+      for (const asset of digitalProduct.digitalAssets) {
+        await db.insertInto('digital_access_logs' as any)
+          .values({
+            id: crypto.randomUUID(),
+            userId: customer.id,
+            assetId: asset.id,
+            ipAddress: '127.0.0.1',
+            userAgent: 'Mozilla/5.0 (Forensic Seeder)',
+            createdAt: new Date().toISOString()
+          })
+          .execute();
+      }
+    }
+
+    return 3; // Seeded 3 major procurement scenarios
   } catch (err) {
-    logger.error('Forensic Fault: Failed to seed procurement lifecycle.', err);
+    logger.error('Forensic Fault: Failed to seed complex procurement scenarios.', err);
     return 0;
+  }
+}
+
+/**
+ * Enhanced Order Interactions: Notes and Segments
+ */
+export async function enhanceOrders(): Promise<void> {
+  const services = getInitialServices();
+  const { orders } = await services.orderService.getAllOrders({ limit: 5 });
+  const admin = (await services.authService.getAllUsers()).find(u => u.role === 'admin');
+
+  if (admin) {
+    for (const order of orders) {
+      await services.orderService.addOrderNote(order.id, 'Industrial Audit: Verified payment and shipping address.', admin);
+      await services.orderService.addOrderNote(order.id, 'Staff Note: Package is ready for pickup.', admin);
+    }
   }
 }
 
@@ -691,25 +822,38 @@ export async function seedWishlists(): Promise<number> {
  */
 export async function seedAuditLogs(): Promise<number> {
   assertSeedingAllowed();
-  const db = getSQLiteDB();
-  const now = new Date().toISOString();
-  const logs = [
-    { id: crypto.randomUUID(), userId: 'system', userEmail: 'system@playmore.tcg', action: 'database_initialized', targetId: 'system', details: JSON.stringify({ version: '1.0.0' }), createdAt: now },
-    { id: crypto.randomUUID(), userId: 'system', userEmail: 'system@playmore.tcg', action: 'seed_started', targetId: 'system', details: JSON.stringify({ environment: process.env.NODE_ENV }), createdAt: now },
+  const services = getInitialServices();
+  const admin = (await services.authService.getAllUsers()).find(u => u.role === 'admin');
+  
+  if (!admin) return 0;
+
+  const events: Array<{ action: any, targetId: string, details: any }> = [
+    { action: 'product_created', targetId: 'seeded-prod-1', details: { name: 'Scarlet & Violet Booster Box' } },
+    { action: 'settings_updated', targetId: 'store_name', details: { old: 'My Store', new: 'PlayMore TCG' } },
   ];
-  for (const log of logs) {
-    await db.insertInto('hive_audit').values(log).execute();
+
+  for (const event of events) {
+    await services.auditService.record({
+      userId: admin.id,
+      userEmail: admin.email,
+      action: event.action,
+      targetId: event.targetId,
+      details: event.details
+    });
   }
-  return logs.length;
+
+  return events.length;
 }
 
 /**
  * Orchestration Engine for Comprehensive Seeding
  */
 export async function seedAll(): Promise<void> {
+  assertSeedingAllowed();
   logger.info('INBOUND: Starting industrial-grade comprehensive database seeding...');
   
   try {
+    await clearAuditLogs();
     await seedTaxonomy();
     await seedSettings();
     await seedMacros();
@@ -745,15 +889,28 @@ export async function seedAll(): Promise<void> {
     const tickets = await seedTickets();
     logger.info(`Forensic: Seeded ${tickets} support tickets.`);
 
-    const wish = await seedWishlists();
-    logger.info(`Forensic: Seeded ${wish} customer wishlists.`);
+    const wishlistCount = await seedWishlists();
+    logger.info(`Forensic: Seeded ${wishlistCount} customer wishlists.`);
 
-    const audit = await seedAuditLogs();
-    logger.info(`Forensic: Seeded ${audit} audit logs.`);
-    
+    await enhanceOrders();
+    logger.info('Forensic: Enhanced orders with communication notes.');
+
+    const auditCount = await seedAuditLogs();
+    logger.info(`Forensic: Seeded ${auditCount} audit logs.`);
+
+    // BroccoliQ Level 7: Final Forensic Chain Verification
+    logger.info('[Forensic] Performing final audit chain verification...');
+    const services = getInitialServices();
+    const verification = await services.auditService.verifyChain();
+    if (verification.valid) {
+      logger.info(`[Forensic] Chain VALID: Integrity confirmed across ${verification.total} events.`);
+    } else {
+      logger.error(`[Forensic] Chain CORRUPTED: Integrity breach detected at entry ${verification.corruptedId}.`);
+    }
+
     logger.info('OUTBOUND: Comprehensive industrial seeding complete!');
   } catch (err) {
-    logger.error('CRITICAL: Comprehensive seeding failed with fatal error.', err);
+    logger.error('CRITICAL SEED FAILURE: The industrial population pipeline has collapsed.', err);
     throw err;
   }
 }
