@@ -251,8 +251,12 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               <div className="divide-y divide-gray-100 px-8">
                 {order.items.map((item) => (
                   <div key={item.productId} className="flex items-center gap-6 py-6 group">
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
-                      <img src={item.imageUrl || 'https://via.placeholder.com/150'} alt={item.name} className="h-full w-full object-cover" />
+                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <Package className="h-8 w-8 text-gray-300" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-lg font-black text-gray-900">{item.name}</h3>

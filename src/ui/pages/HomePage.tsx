@@ -42,7 +42,7 @@ export function HomePage() {
       <section className="relative overflow-hidden bg-gray-900 text-white">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-linear-to-br from-gray-900 to-primary-900 opacity-90 z-10"></div>
-          <img src="https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=1600&h=800&fit=crop" alt="TCG Background" className="w-full h-full object-cover" />
+          <img src="https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=1600&h=800&fit=crop" alt="Art Background" className="w-full h-full object-cover" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 relative z-20 text-center lg:text-left flex flex-col lg:flex-row items-center gap-12">
           <div className="flex-1 space-y-8">
@@ -54,21 +54,21 @@ export function HomePage() {
               <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">Collection Today</span>
             </h1>
             <p className="text-lg md:text-xl text-gray-300 font-medium max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Shop authentic booster boxes, graded singles, and premium accessories. Rated 4.9/5 by over 10,000 competitive players and collectors.
+              Shop unique Artist Trading Cards, beautiful prints, and custom accessories. Support independent artists and find your next favorite piece.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               <Link
                 href="/products"
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-100 hover:scale-105 transition-all shadow-xl shadow-white/10"
               >
-                Shop All Cards
+                Shop All Art
                 <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/collections/sealed"
+                href="/collections/artist-cards"
                 className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-gray-800 text-white border border-gray-700 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-700 transition-all"
               >
-                Browse Sealed
+                Browse Cards
               </Link>
             </div>
           </div>
@@ -95,11 +95,11 @@ export function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4">
               <div className="w-12 h-12 rounded-full bg-primary-50 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6 text-primary-600" />
+                <Star className="w-6 h-6 text-primary-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 text-sm">Authentic Guarantee</h3>
-                <p className="text-xs text-gray-500 font-medium">100% verified products</p>
+                <h3 className="font-bold text-gray-900 text-sm">Artist Direct</h3>
+                <p className="text-xs text-gray-500 font-medium">Support creators</p>
               </div>
             </div>
             <div className="flex items-center justify-center sm:justify-start gap-4 p-4">
@@ -126,7 +126,7 @@ export function HomePage() {
               </div>
               <div>
                 <h3 className="font-bold text-gray-900 text-sm">24/7 Support</h3>
-                <p className="text-xs text-gray-500 font-medium">TCG experts ready</p>
+                <p className="text-xs text-gray-500 font-medium">Art experts ready</p>
               </div>
             </div>
           </div>
@@ -141,26 +141,26 @@ export function HomePage() {
             <p className="text-gray-500 font-medium">Everything you need to build the ultimate deck.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Link href="/collections/singles" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
-              <img src="https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Singles" />
+            <Link href="/collections/artist-cards" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
+              <img src="https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Artist Cards" />
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
                 <div>
-                  <h3 className="text-2xl font-black text-white mb-2">Rare Singles</h3>
-                  <p className="text-gray-300 text-sm font-medium">Complete your deck</p>
+                  <h3 className="text-2xl font-black text-white mb-2">Artist Cards</h3>
+                  <p className="text-gray-300 text-sm font-medium">Unique custom art cards</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <ArrowRight className="w-5 h-5" />
                 </div>
               </div>
             </Link>
-            <Link href="/collections/sealed" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
-              <img src="https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Sealed" />
+            <Link href="/collections/prints" className="group rounded-4xl overflow-hidden relative aspect-square shadow-md border border-gray-200">
+              <img src="https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Prints" />
               <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/40 to-transparent"></div>
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
                 <div>
-                  <h3 className="text-2xl font-black text-white mb-2">Sealed Product</h3>
-                  <p className="text-gray-300 text-sm font-medium">Boosters & Elite Boxes</p>
+                  <h3 className="text-2xl font-black text-white mb-2">Art Prints</h3>
+                  <p className="text-gray-300 text-sm font-medium">High quality art prints</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <ArrowRight className="w-5 h-5" />
@@ -173,7 +173,7 @@ export function HomePage() {
               <div className="absolute inset-x-0 bottom-0 p-8 flex items-end justify-between">
                 <div>
                   <h3 className="text-2xl font-black text-white mb-2">Accessories</h3>
-                  <p className="text-gray-300 text-sm font-medium">Sleeves, binders, mats</p>
+                  <p className="text-gray-300 text-sm font-medium">Custom sleeves, boxes, mats</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-white text-gray-900 flex items-center justify-center group-hover:scale-110 transition-transform">
                   <ArrowRight className="w-5 h-5" />

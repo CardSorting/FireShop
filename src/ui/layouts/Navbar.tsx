@@ -11,15 +11,6 @@ import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, Chevr
 import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
-const SHOP_LINKS = [
-  { href: STORE_PATHS.PRODUCTS, label: 'All Products', icon: Package },
-  { href: getCollectionUrl('singles'), label: 'Rare Singles' },
-  { href: getCollectionUrl('sealed'), label: 'Sealed Boxes' },
-  { href: getCollectionUrl('accessories'), label: 'Accessories' },
-  { href: getCollectionUrl('featured'), label: 'Featured', icon: Layers3 },
-];
-
-
 import { SearchCommandPalette } from '../components/SearchCommandPalette';
 
 import { useWishlist } from '../hooks/useWishlist';
@@ -101,15 +92,9 @@ export function Navbar() {
            <div className="hidden sm:flex items-center gap-4">
               <span className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-primary-500" /> Free Global Shipping Over $100</span>
               <span className="w-1 h-1 rounded-full bg-white/20" />
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Authentic TCG Guarantee</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-500" /> Support Independent Artists</span>
            </div>
-           <div className="flex items-center gap-6">
-              <Link href={getCollectionUrl('sale')} className="group flex items-center gap-2 hover:text-white transition-colors">
-                 <Zap className="w-3.5 h-3.5 text-amber-500 fill-current animate-pulse" />
-                 Limited: Summer Drop is Live
-                 <ArrowRight className="w-3 h-3 transition-transform group-hover:translate-x-1" />
-              </Link>
-           </div>
+
            <div className="hidden lg:flex items-center gap-4">
               <Link href="/support" className="text-white/40 hover:text-white transition-colors">Support: 24/7 Experts</Link>
               <span className="w-1 h-1 rounded-full bg-white/20" />
@@ -373,8 +358,8 @@ export function Navbar() {
                     <Heart className="w-5 h-5 text-gray-400" /> Favorites
                   </Link>
 
-                  <Link href="/track-order" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-blue-50 text-gray-900 font-black text-sm transition-colors">
-                    <Truck className="w-5 h-5 text-gray-400" /> Track Order
+                  <Link href="/orders" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 hover:bg-blue-50 text-gray-900 font-black text-sm transition-colors">
+                    <Truck className="w-5 h-5 text-gray-400" /> Order History
                   </Link>
                 </div>
 

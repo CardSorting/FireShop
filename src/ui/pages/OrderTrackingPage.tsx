@@ -134,8 +134,8 @@ export function OrderTrackingPage() {
                    <div className="bg-primary-50 rounded-[2.5rem] p-8 border border-primary-100">
                       <LifeBuoy className="w-6 h-6 text-primary-600 mb-4" />
                       <h4 className="text-lg font-black text-gray-900 mb-2 tracking-tight">Need Assistance?</h4>
-                      <p className="text-xs font-medium text-gray-600 leading-relaxed mb-6">Our TCG logistics experts are available 24/7 to help with any delivery questions.</p>
-                      <Link href="/contact" className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline">Contact Support</Link>
+                      <p className="text-xs font-medium text-gray-600 leading-relaxed mb-6">Our support experts are available 24/7 to help with any delivery questions.</p>
+                      <Link href="/support?contact=true" className="text-xs font-black text-primary-600 uppercase tracking-widest hover:underline">Contact Support</Link>
                    </div>
                 </div>
              </div>

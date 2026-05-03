@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   return {
     title: `${resolved.data.name} | DreamBeesArt`,
-    description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}. Fast shipping and guaranteed authenticity.`,
+    description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}. Discover amazing art and support independent creators.`,
     alternates: {
       canonical: `/collections/${slug}`,
     },

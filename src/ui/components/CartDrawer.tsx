@@ -128,7 +128,7 @@ export function CartDrawer() {
                 </div>
               </div>
               <p className="text-2xl font-black text-gray-900">Your cart is feeling lonely</p>
-              <p className="mt-3 text-sm text-gray-500 max-w-[250px]">Fill it up with the latest TCG releases and start your next collection.</p>
+              <p className="mt-3 text-sm text-gray-500 max-w-[250px]">Fill it up with the latest art releases and start your next collection.</p>
               <button 
                 onClick={closeCart}
                 className="mt-10 group flex items-center gap-2 rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white hover:bg-black transition-all shadow-xl hover:shadow-2xl hover:-translate-y-1 active:translate-y-0"

@@ -175,7 +175,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         {/* Header */}
         <div className="mb-12">
            <h1 className="text-5xl font-black text-gray-900 tracking-tighter mb-4">The Catalog</h1>
-           <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated selection of verified TCG singles, sealed products, and premium accessories. Every item is inspected by our experts.</p>
+           <p className="text-gray-500 font-medium max-w-2xl leading-relaxed">Browse our curated selection of verified artist cards, prints, and premium accessories. Every item is designed by our amazing creators.</p>
         </div>
 
         {/* Search & Sort Bar */}

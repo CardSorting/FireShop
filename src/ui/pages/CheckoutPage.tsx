@@ -211,7 +211,7 @@ export function CheckoutPage() {
             <ShoppingBag className="h-12 w-12" />
           </div>
           <h1 className="text-3xl font-black text-gray-900 mb-3">Your cart is empty</h1>
-          <p className="text-gray-500 mb-10 font-medium leading-relaxed">It looks like you haven't added any trading cards to your cart yet. Let's find something special.</p>
+          <p className="text-gray-500 mb-10 font-medium leading-relaxed">It looks like you haven't added any art to your cart yet. Let's find something special.</p>
           <Link href="/products" className="inline-flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:-translate-y-1">
             Browse Collections
           </Link>
@@ -605,7 +605,7 @@ export function CheckoutPage() {
             </div>
 
             <div className="mt-12 grid gap-8 border-t border-gray-200/50 pt-12">
-              <TrustItem icon={<ShieldCheck className="h-5 w-5" />} title="Authenticity Guaranteed" text="All TCG products are inspected by experts before shipping." />
+              <TrustItem icon={<ShieldCheck className="h-5 w-5" />} title="Artist Quality" text="All products directly support independent artists." />
               <TrustItem icon={<PackageCheck className="h-5 w-5" />} title="Collector-First Packing" text="Sleeved and bubble-wrapped for maximum protection." />
               <TrustItem icon={<HelpCircle className="h-5 w-5" />} title="Premium Support" text="Priority assistance for all orders over $50." />
             </div>

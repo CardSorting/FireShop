@@ -350,7 +350,7 @@ export function OrdersPage() {
       <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <SupportCard icon={<CircleHelp className="h-6 w-6" />} title="Order Support" text="Need help with a delivery, return, or missing item?" href="/support" action="Talk to us" />
         <FilterSelect value={sortBy} onChange={(v) => setSortBy(v as SortOption)} options={[{ value: 'newest', label: 'Newest' }, { value: 'total_desc', label: 'Price: High' }, { value: 'total_asc', label: 'Price: Low' }]} />
-        <SupportCard icon={<ShieldCheck className="h-6 w-6" />} title="Buyer Guarantee" text="All purchases are protected by our authenticity guarantee." href="/shipping-policy" action="Learn more" />
+        <SupportCard icon={<ShieldCheck className="h-6 w-6" />} title="Artist Quality" text="All purchases directly support our artists and creators." href="/shipping-policy" action="Learn more" />
       </section>
 
     </div>

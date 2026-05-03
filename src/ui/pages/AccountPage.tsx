@@ -75,8 +75,7 @@ export function AccountPage() {
             <AccountNavLink href="/orders" icon={Package} label="Order History" />
             <AccountNavLink href="/account/vault" icon={HardDrive} label="Digital Vault" />
             <AccountNavLink href="/wishlist" icon={Heart} label="My Wishlist" />
-            <AccountNavLink href="/account/addresses" icon={MapPin} label="Saved Addresses" />
-            <AccountNavLink href="/rewards" icon={Star} label="Vault Rewards" />
+
             <button 
               onClick={() => signOut()}
               className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-500 hover:bg-red-50 transition-all font-black text-[10px] uppercase tracking-widest"
@@ -87,32 +86,7 @@ export function AccountPage() {
 
           {/* Main Content */}
           <main className="lg:col-span-9 space-y-12">
-            {/* Rewards Overview */}
-            <div className="bg-gray-900 rounded-5xl p-10 text-white relative overflow-hidden group shadow-2xl shadow-gray-200/50">
-               <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-primary-400 text-[10px] font-black uppercase tracking-widest mb-6 shadow-sm">
-                       <Tag className="w-3.5 h-3.5 fill-current" /> Vault Rewards
-                    </div>
-                    <h2 className="text-4xl font-black tracking-tighter mb-4">You have <span className="text-primary-400">1,250</span> points</h2>
-                    <p className="text-gray-400 font-medium mb-10 leading-relaxed">You're just 250 points away from a $15 credit towards your next legendary pull.</p>
-                    <Link href="/rewards" className="px-8 py-4 bg-white text-gray-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-500 hover:text-white transition-all shadow-xl shadow-white/5">
-                       Redeem Points
-                    </Link>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Next Tier</p>
-                        <p className="text-xl font-black">Elite Member</p>
-                     </div>
-                     <div className="p-6 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-sm">
-                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Lifetime Saved</p>
-                        <p className="text-xl font-black text-primary-400">$45.00</p>
-                     </div>
-                  </div>
-               </div>
-               <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/20 rounded-full blur-[100px] -mr-32 -mt-32" />
-            </div>
+
 
             {/* Digital Library Widget */}
             {digitalAssetsCount > 0 && (
@@ -158,7 +132,7 @@ export function AccountPage() {
                <section>
                   <div className="flex items-center justify-between mb-8">
                      <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Personal Details</h3>
-                     <button className="text-xs font-black text-primary-600 hover:underline">Edit</button>
+
                   </div>
                   <div className="bg-gray-50 rounded-[3rem] p-8 border border-gray-100 space-y-6">
                      <div>
@@ -245,10 +219,7 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3 mt-2 pt-6 border-t border-gray-50">
-           <button onClick={(e) => e.preventDefault()} className="text-[10px] font-black uppercase tracking-widest py-3 rounded-xl bg-gray-900 text-white hover:bg-black transition-colors shadow-md text-center">Track Package</button>
-           <button onClick={(e) => e.preventDefault()} className="text-[10px] font-black uppercase tracking-widest py-3 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm text-center">Buy Again</button>
-        </div>
+
       </div>
     </Link>
   );

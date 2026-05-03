@@ -68,7 +68,7 @@ export function OrderDetailPage({ params }: OrderDetailPageProps) {
             <Link href="/login" className="flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white shadow-xl transition hover:bg-black">
               Sign in
             </Link>
-            <Link href="/contact" className="block text-xs font-black text-primary-600 hover:underline uppercase tracking-widest">
+            <Link href="/support?contact=true" className="block text-xs font-black text-primary-600 hover:underline uppercase tracking-widest">
               Contact support if you need help
             </Link>
           </div>
@@ -88,7 +88,7 @@ export function OrderDetailPage({ params }: OrderDetailPageProps) {
             <Link href="/orders" className="flex items-center justify-center w-full rounded-2xl bg-gray-900 px-8 py-4 text-sm font-black text-white shadow-xl transition hover:bg-black">
               Back to my orders
             </Link>
-            <Link href="/contact" className="text-xs font-black text-primary-600 hover:underline uppercase tracking-widest">
+            <Link href="/support?contact=true" className="text-xs font-black text-primary-600 hover:underline uppercase tracking-widest">
               Need help? Contact support
             </Link>
           </div>

@@ -361,7 +361,7 @@ export function SupportPage() {
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Most Used</p>
                       <h4 className="text-lg font-bold text-gray-900">Our Return Policy</h4>
-                      <p className="text-sm font-medium text-gray-500 mt-2">Learn about our 30-day window for cards and sealed product.</p>
+                      <p className="text-sm font-medium text-gray-500 mt-2">Learn about our 30-day window for prints and accessories.</p>
                     </div>
                     <button 
                       onClick={() => handleArticleClick({ slug: 'return-policy' } as any)}
