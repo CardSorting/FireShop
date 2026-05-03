@@ -44,7 +44,7 @@ export function ProductReviews({ productId }: { productId: string }) {
         <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
            <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
         </div>
-        <p className="text-sm font-black text-gray-400 uppercase tracking-[0.3em]">Calibrating Feedback...</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Loading Perspectives...</p>
       </div>
     );
   }
@@ -53,94 +53,125 @@ export function ProductReviews({ productId }: { productId: string }) {
   const spotlightReview = reviews.find(r => r.rating === 5 && r.helpfulCount > 20) || reviews[0];
 
   return (
-    <div className="space-y-24 max-w-7xl mx-auto">
-      {/* 01. Overview & Media */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-        <div className="lg:col-span-4 space-y-10">
-          <header className="space-y-4">
-             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-50 border border-primary-100">
-                <Sparkles className="w-3 h-3 text-primary-600" />
-                <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">Community Verified</span>
-             </div>
-             <h2 className="text-5xl font-black text-gray-900 tracking-tight leading-[0.9]">Collector<br/>Perspectives</h2>
-             <p className="text-gray-500 font-medium text-lg leading-relaxed">
-               Honest feedback from the DreamBees community.
-             </p>
-          </header>
+    <div className="space-y-16 max-w-7xl mx-auto px-4">
+      {/* 01. Overview Section - Flattened & Centered */}
+      <section className="space-y-12 pb-12 border-b border-gray-100">
+        <header className="text-center space-y-4 max-w-2xl mx-auto">
+           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-gray-50 border border-gray-200">
+              <Sparkles className="w-3 h-3 text-gray-400" />
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Community Reviews</span>
+           </div>
+           <h2 className="text-4xl font-bold text-gray-900 tracking-tight">Customer Reviews</h2>
+           <p className="text-gray-600 font-medium">Genuine feedback from our global community of collectors.</p>
+        </header>
 
-          <ReviewSummary stats={stats} onRatingClick={setFilter} />
-          
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-20 py-10 bg-gray-50/50 rounded-3xl px-10">
+          <div className="flex items-center gap-6 shrink-0">
+            <div className="text-7xl font-bold text-gray-900 leading-none">{stats.averageRating}</div>
+            <div className="space-y-1.5">
+              <div className="flex text-amber-400">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star key={i} className={`w-4 h-4 ${i <= Math.floor(stats.averageRating) ? 'fill-current' : ''}`} />
+                ))}
+              </div>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stats.totalReviews} Reviews</p>
+            </div>
+          </div>
+
+          <div className="flex-1 max-w-md w-full space-y-2.5">
+            {[5, 4, 3, 2, 1].map((rating) => {
+              const count = stats.ratingCounts[rating as keyof typeof stats.ratingCounts] || 0;
+              const percentage = Math.round((count / stats.totalReviews) * 100);
+              return (
+                <div key={rating} className="flex items-center gap-4 group cursor-pointer" onClick={() => setFilter(rating.toString())}>
+                  <span className="w-3 text-[10px] font-bold text-gray-400 group-hover:text-gray-900 transition-colors">{rating}</span>
+                  <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-gray-900 transition-all duration-700" style={{ width: `${percentage}%` }} />
+                  </div>
+                  <span className="w-8 text-[9px] font-bold text-gray-400 text-right">{percentage}%</span>
+                </div>
+              );
+            })}
+          </div>
+
           <button 
             onClick={() => setIsFormOpen(true)}
-            className="group w-full py-6 bg-gray-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all shadow-2xl shadow-gray-200 flex items-center justify-center gap-3 overflow-hidden relative"
+            className="px-10 py-4 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all shrink-0 shadow-lg shadow-gray-200"
           >
-            <div className="absolute inset-0 bg-linear-to-r from-primary-600/0 via-white/10 to-primary-600/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-            <MessageSquare className="w-4 h-4" /> 
-            <span>Share Your Story</span>
-            <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+            Write a Review
           </button>
         </div>
 
-        <div className="lg:col-span-8 space-y-12">
-          <ReviewGallery images={allMedia} onImageClick={setSelectedImage} />
-          
-          {/* Trust Indicators */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-             {[
-               { icon: ShieldCheck, label: 'Verified Integrity', sub: 'Authentication at every step', color: 'green' },
-               { icon: Sparkles, label: 'High Fidelity', sub: 'Archival quality standard', color: 'primary' },
-               { icon: Heart, label: 'Direct Impact', sub: 'Supporting independent art', color: 'amber' }
-             ].map((item, i) => (
-               <div key={i} className={`flex flex-col gap-4 p-6 rounded-[2.5rem] bg-${item.color}-50/50 border border-${item.color}-100/50 hover:border-${item.color}-200 transition-colors`}>
-                  <item.icon className={`w-6 h-6 text-${item.color}-600`} />
-                  <div>
-                    <p className="text-xs font-black text-gray-900 uppercase tracking-widest mb-1">{item.label}</p>
-                    <p className="text-[10px] font-bold text-gray-500/80 leading-snug">{item.sub}</p>
+        <div className="space-y-6">
+           <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Collector Photos</h3>
+           <div className="flex flex-wrap justify-center gap-4">
+              {allMedia.length > 0 ? (
+                allMedia.slice(0, 8).map((img, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => setSelectedImage(img)}
+                    className="w-20 h-20 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 group cursor-zoom-in relative"
+                  >
+                     <img src={img} alt="User photo" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                   </div>
-               </div>
-             ))}
-          </div>
+                ))
+              ) : (
+                <div className="py-8 text-center opacity-40">
+                   <p className="text-[10px] font-bold uppercase tracking-widest">No photos shared yet</p>
+                </div>
+              )}
+           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-x-16 gap-y-8 pt-4">
+           {[
+             { icon: ShieldCheck, label: 'Verified Integrity', sub: 'Confirmed purchases' },
+             { icon: Sparkles, label: 'Quality Standards', sub: 'Vetted by community' },
+             { icon: Heart, label: 'Direct Impact', sub: 'Supporting art' }
+           ].map((item, i) => (
+             <div key={i} className="flex items-center gap-4">
+                <item.icon className="w-5 h-5 text-gray-400" />
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest leading-none mb-1">{item.label}</p>
+                  <p className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">{item.sub}</p>
+                </div>
+             </div>
+           ))}
         </div>
       </section>
 
       {/* 02. Spotlight Review */}
       {spotlightReview && (
-        <section className="relative overflow-hidden rounded-[3rem] bg-gray-900 text-white p-12 lg:p-20 group">
-          <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
-             <Sparkles className="w-full h-full scale-150 rotate-12" />
-          </div>
-          
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-             <div className="space-y-8">
-                <div className="flex items-center gap-3">
-                   <div className="h-px w-8 bg-primary-500" />
-                   <span className="text-xs font-black uppercase tracking-[0.3em] text-primary-400">Review Spotlight</span>
+        <section className="relative overflow-hidden rounded-2xl border border-gray-100 p-8 lg:p-12 group">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+             <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-primary-600 bg-primary-50 px-2 py-0.5 rounded-full">Featured Review</span>
                 </div>
-                <h3 className="text-3xl lg:text-5xl font-black tracking-tight leading-tight italic">
+                <h3 className="text-2xl lg:text-3xl font-bold tracking-tight leading-tight text-gray-900">
                   "{spotlightReview.title}"
                 </h3>
-                <p className="text-xl text-gray-400 font-medium leading-relaxed italic">
+                <p className="text-lg text-gray-600 font-medium leading-relaxed italic">
                   {spotlightReview.content.length > 200 ? `${spotlightReview.content.substring(0, 200)}...` : spotlightReview.content}
                 </p>
                 <div className="flex items-center gap-4">
-                   <div className="w-14 h-14 rounded-full bg-primary-500 flex items-center justify-center text-xl font-black">
+                   <div className="w-10 h-10 rounded-full bg-gray-900 text-white flex items-center justify-center text-sm font-bold">
                       {spotlightReview.userName.charAt(0)}
                    </div>
                    <div>
-                      <p className="font-black uppercase tracking-widest">{spotlightReview.userName}</p>
-                      <p className="text-xs text-primary-400 font-bold">Verified Collector</p>
+                      <p className="text-sm font-bold text-gray-900 uppercase tracking-widest">{spotlightReview.userName}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Verified Buyer</p>
                    </div>
                 </div>
              </div>
              {spotlightReview.images?.[0] && (
-               <div className="relative aspect-4/3 rounded-3xl overflow-hidden shadow-2xl group-hover:scale-[1.02] transition-transform duration-700">
+               <div className="relative aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-500">
                   <img src={spotlightReview.images[0]} alt="Featured review photo" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-linear-to-t from-black/60 to-transparent" />
                   <button 
                     onClick={() => setSelectedImage(spotlightReview.images?.[0] || null)}
-                    className="absolute bottom-6 right-6 p-4 bg-white/10 backdrop-blur-md rounded-2xl hover:bg-white/20 transition-all"
+                    className="absolute bottom-4 right-4 p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/40 transition-all text-white"
                   >
-                    <Maximize2 className="w-5 h-5" />
+                    <Maximize2 className="w-4 h-4" />
                   </button>
                </div>
              )}
@@ -148,49 +179,41 @@ export function ProductReviews({ productId }: { productId: string }) {
         </section>
       )}
 
-      {/* 03. Advanced Filters & Search */}
-      <section className="space-y-10">
-        <div className="flex flex-col xl:flex-row items-end justify-between gap-8 border-b border-gray-100 pb-12">
-          <div className="w-full xl:w-auto space-y-6 flex-1 max-w-3xl">
+      {/* 03. Filters & Search */}
+      <section className="space-y-8">
+        <div className="flex flex-col xl:flex-row items-center justify-between gap-6 border-b border-gray-100 pb-8">
+          <div className="w-full xl:w-auto space-y-4 flex-1 max-w-2xl">
              <div className="relative group">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-300 group-focus-within:text-primary-500 transition-colors" />
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input 
                   type="text"
-                  placeholder="Search keywords like 'quality', 'shipping', 'packaging'..."
+                  placeholder="Search reviews..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-16 pr-8 py-6 bg-gray-50 border-none rounded-4xl text-sm font-bold text-gray-900 focus:ring-4 focus:ring-primary-500/10 placeholder:text-gray-300 transition-all"
+                  className="w-full pl-12 pr-6 py-3.5 bg-gray-50 border border-transparent rounded-xl text-sm font-medium text-gray-900 focus:bg-white focus:border-gray-200 focus:ring-0 transition-all placeholder:text-gray-400"
                 />
              </div>
              
              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-2">Popular:</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Topics:</span>
                 {popularTags.map(tag => (
                   <button
                     key={tag}
                     onClick={() => toggleTag(tag)}
-                    className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                       selectedTags.includes(tag) 
-                      ? 'bg-primary-600 text-white shadow-lg shadow-primary-200' 
+                      ? 'bg-gray-900 text-white' 
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                     }`}
                   >
                     {tag}
                   </button>
                 ))}
-                {selectedTags.length > 0 && (
-                  <button 
-                    onClick={() => setSearchQuery('')} 
-                    className="ml-2 text-[10px] font-black text-primary-600 hover:underline"
-                  >
-                    Clear Filters
-                  </button>
-                )}
              </div>
           </div>
 
-          <div className="flex items-center gap-4 w-full xl:w-auto justify-end">
-             <div className="flex bg-gray-50 p-1.5 rounded-2xl">
+          <div className="flex items-center gap-4 w-full xl:w-auto">
+             <div className="flex bg-gray-100 p-1 rounded-xl">
                 {[
                   { value: 'all', label: 'All' },
                   { value: '5', label: '5★' },
@@ -199,8 +222,8 @@ export function ProductReviews({ productId }: { productId: string }) {
                   <button
                     key={opt.value}
                     onClick={() => setFilter(opt.value)}
-                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                      filter === opt.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'
+                    className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
+                      filter === opt.value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     {opt.label}
@@ -208,17 +231,17 @@ export function ProductReviews({ productId }: { productId: string }) {
                 ))}
              </div>
 
-             <div className="relative group">
+             <div className="relative">
                 <select 
                   value={sort}
                   onChange={(e) => setSort(e.target.value)}
-                  className="pl-4 pr-10 py-4 bg-transparent border-none text-[10px] font-black text-gray-900 uppercase tracking-widest focus:ring-0 appearance-none cursor-pointer"
+                  className="pl-3 pr-8 py-3 bg-transparent border border-gray-100 rounded-xl text-[10px] font-bold text-gray-900 uppercase tracking-widest focus:ring-0 appearance-none cursor-pointer"
                 >
-                  <option value="newest">Sort: Newest</option>
-                  <option value="helpful">Sort: Helpful</option>
-                  <option value="highest">Sort: Top Rated</option>
+                  <option value="newest">Newest</option>
+                  <option value="helpful">Helpful</option>
+                  <option value="highest">Top Rated</option>
                 </select>
-                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
              </div>
           </div>
         </div>
@@ -230,28 +253,28 @@ export function ProductReviews({ productId }: { productId: string }) {
             ))
           ) : (
             <div className="py-32 text-center space-y-6">
-              <div className="w-20 h-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto">
+              <div className="w-20 h-20 bg-gray-50 rounded-xl flex items-center justify-center mx-auto">
                 <AlertCircle className="w-8 h-8 text-gray-200" />
               </div>
               <div>
-                <p className="text-xl font-black text-gray-900 mb-2">No matching perspectives found</p>
-                <p className="text-gray-400 font-medium">Try broadening your search or clearing filters.</p>
+                <p className="text-xl font-bold text-gray-900 mb-2">No reviews found</p>
+                <p className="text-gray-400 font-medium text-sm">Try broadening your search or clearing filters.</p>
               </div>
               <button 
                 onClick={() => { setFilter('all'); setSearchQuery(''); setSelectedTags([]); }} 
-                className="px-8 py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                className="px-8 py-4 bg-gray-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-all"
               >
-                Reset Exploration
+                Reset Filters
               </button>
             </div>
           )}
         </div>
 
         {reviews.length > 0 && (
-          <div className="pt-12 text-center">
-            <button className="inline-flex items-center gap-3 px-12 py-6 border-2 border-gray-100 rounded-4xl font-black text-[10px] uppercase tracking-[0.3em] text-gray-400 hover:text-gray-900 hover:border-gray-200 hover:bg-gray-50 transition-all group">
-              <span>View More Reviews</span>
-              <ChevronDown className="w-4 h-4 transition-transform group-hover:translate-y-1" />
+          <div className="pt-10 text-center">
+            <button className="inline-flex items-center gap-2 px-8 py-4 border border-gray-200 rounded-xl font-bold text-[10px] uppercase tracking-widest text-gray-500 hover:text-gray-900 hover:border-gray-900 transition-all">
+              <span>Show More</span>
+              <ChevronDown className="w-3 h-3" />
             </button>
           </div>
         )}
@@ -284,94 +307,10 @@ export function ProductReviews({ productId }: { productId: string }) {
   );
 }
 
-function ReviewSummary({ stats, onRatingClick }: { stats: any, onRatingClick: (r: string) => void }) {
-  return (
-    <div className="bg-gray-50 rounded-[3rem] p-10 border border-gray-100 relative overflow-hidden">
-      <div className="absolute -top-12 -right-12 p-4 opacity-[0.03]">
-        <Star className="w-64 h-64 fill-current" />
-      </div>
-      
-      <div className="flex items-center gap-8 mb-10">
-        <div className="text-7xl font-black text-gray-900 tracking-tighter leading-none">{stats.averageRating}</div>
-        <div>
-          <div className="flex text-amber-400 mb-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Star key={i} className={`w-5 h-5 ${i <= Math.floor(stats.averageRating) ? 'fill-current' : ''}`} />
-            ))}
-          </div>
-          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Global Collector Score</p>
-        </div>
-      </div>
+// Helper components removed as they are now integrated into the main stack for better alignment
 
-      <div className="space-y-4">
-        {[5, 4, 3, 2, 1].map((rating) => {
-          const count = stats.ratingCounts[rating as keyof typeof stats.ratingCounts] || 0;
-          const percentage = Math.round((count / stats.totalReviews) * 100);
-          return (
-            <div 
-              key={rating} 
-              className="flex items-center gap-5 group cursor-pointer" 
-              onClick={() => onRatingClick(rating.toString())}
-            >
-              <span className="w-4 text-[10px] font-black text-gray-400 group-hover:text-gray-900 transition-colors">{rating}</span>
-              <div className="flex-1 h-2 bg-white rounded-full overflow-hidden shadow-inner relative">
-                <div 
-                  className="h-full bg-gray-900 rounded-full transition-all duration-1000 ease-out group-hover:bg-primary-500"
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-              <span className="w-10 text-[9px] font-black text-gray-400 text-right group-hover:text-gray-900 transition-colors">{percentage}%</span>
-            </div>
-          );
-        })}
-      </div>
 
-      <div className="mt-10 pt-10 border-t border-gray-200/50 flex items-center justify-between">
-         <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{stats.totalReviews} Total Reviews</p>
-         <HelpCircle className="w-4 h-4 text-gray-300 hover:text-gray-400 cursor-help" />
-      </div>
-    </div>
-  );
-}
 
-function ReviewGallery({ images, onImageClick }: { images: string[], onImageClick: (url: string) => void }) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Collector Artifacts</h3>
-        {images.length > 5 && (
-          <button className="text-[10px] font-black text-primary-600 uppercase tracking-widest hover:underline flex items-center gap-1">
-            Browse All <ChevronRight className="w-3 h-3" />
-          </button>
-        )}
-      </div>
-      
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-5">
-        {images.length > 0 ? (
-          images.slice(0, 5).map((img, i) => (
-            <div 
-              key={i} 
-              onClick={() => onImageClick(img)}
-              className="aspect-square rounded-4xl overflow-hidden border border-gray-100 bg-gray-50 group cursor-zoom-in relative"
-            >
-               <img src={img} alt="Collector photo" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <Maximize2 className="w-6 h-6 text-white" />
-               </div>
-            </div>
-          ))
-        ) : (
-          <div className="col-span-full py-16 flex flex-col items-center justify-center border-2 border-dashed border-gray-100 rounded-4xl bg-gray-50/50 group hover:bg-gray-50 transition-colors">
-             <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center mb-4 shadow-sm group-hover:scale-110 transition-transform">
-               <Camera className="w-6 h-6 text-gray-300" />
-             </div>
-             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Awaiting First Artifact</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id: string) => void, onImageClick: (url: string) => void }) {
   const [voted, setVoted] = useState(false);
@@ -383,74 +322,68 @@ function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id
   };
 
   return (
-    <article className="py-16 group animate-in fade-in slide-in-from-bottom-8 duration-700">
-      <div className="flex flex-col lg:flex-row gap-12">
-        <div className="lg:w-1/4 space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-[1.25rem] bg-gray-900 text-white flex items-center justify-center text-lg font-black shadow-2xl shadow-gray-200">
+    <article className="py-10 group animate-in fade-in duration-500">
+      <div className="flex flex-col lg:flex-row gap-8">
+        <div className="lg:w-1/4 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gray-100 text-gray-900 flex items-center justify-center text-sm font-bold">
               {review.userName.charAt(0)}
             </div>
             <div>
-              <p className="font-black text-gray-900 tracking-tight">{review.userName}</p>
+              <p className="text-sm font-bold text-gray-900 tracking-tight">{review.userName}</p>
               {review.isVerified && (
-                <div className="flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full bg-green-50 w-fit">
+                <div className="flex items-center gap-1 mt-0.5">
                   <ShieldCheck className="w-3 h-3 text-green-600" />
-                  <span className="text-[9px] font-black text-green-600 uppercase tracking-widest">Verified</span>
+                  <span className="text-[9px] font-bold text-green-600 uppercase tracking-widest">Verified Buyer</span>
                 </div>
               )}
             </div>
           </div>
-          <div className="space-y-1">
-             <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Acquired</p>
-             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-               {formatDistanceToNow(review.createdAt, { addSuffix: true })}
-             </p>
-          </div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            {formatDistanceToNow(review.createdAt, { addSuffix: true })}
+          </p>
         </div>
 
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex gap-1 text-amber-400">
+            <div className="flex gap-0.5 text-amber-400">
               {[1, 2, 3, 4, 5].map((i) => (
-                <Star key={i} className={`w-4 h-4 ${i <= review.rating ? 'fill-current' : 'text-gray-100'}`} />
+                <Star key={i} className={`w-3.5 h-3.5 ${i <= review.rating ? 'fill-current' : 'text-gray-100'}`} />
               ))}
             </div>
-            <button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-300 hover:text-gray-900">
-               <AlertCircle className="w-4 h-4" />
-            </button>
           </div>
           
-          <div className="space-y-4">
-            <h4 className="text-2xl font-black text-gray-900 tracking-tight leading-tight">{review.title}</h4>
-            <p className="text-gray-600 font-medium text-lg leading-relaxed max-w-3xl">{review.content}</p>
+          <div className="space-y-2">
+            <h4 className="text-lg font-bold text-gray-900 tracking-tight">{review.title}</h4>
+            <p className="text-gray-600 font-medium text-base leading-relaxed max-w-2xl">{review.content}</p>
           </div>
 
           {review.images && review.images.length > 0 && (
-            <div className="flex gap-4 pt-4">
+            <div className="flex gap-3 pt-2">
               {review.images.map((img: string, i: number) => (
                 <div 
                   key={i} 
                   onClick={() => onImageClick(img)}
-                  className="w-32 h-32 rounded-3xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl transition-all cursor-zoom-in group/img"
+                  className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:border-gray-300 transition-all cursor-zoom-in"
                 >
-                  <img src={img} alt="User photo" className="w-full h-full object-cover transition-transform duration-700 group-hover/img:scale-110" />
+                  <img src={img} alt="User photo" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex items-center gap-10 pt-8 border-t border-gray-50">
+          <div className="flex items-center gap-8 pt-6 border-t border-gray-50">
             <button 
               onClick={handleVote}
               disabled={voted}
-              className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all ${voted ? 'text-primary-600' : 'text-gray-400 hover:text-gray-900'}`}
+              className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all ${voted ? 'text-primary-600' : 'text-gray-400 hover:text-gray-900'}`}
             >
-              <ThumbsUp className={`w-4 h-4 transition-transform ${voted ? 'fill-current scale-110' : 'group-hover:scale-110'}`} /> 
+              <ThumbsUp className={`w-3.5 h-3.5 ${voted ? 'fill-current' : ''}`} /> 
               Helpful {review.helpfulCount > 0 && <span className="ml-1 opacity-60">({review.helpfulCount + (voted ? 1 : 0)})</span>}
             </button>
             
-            <button className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-gray-900 transition-colors">
-               <MessageSquare className="w-4 h-4" />
+            <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-300 hover:text-gray-900 transition-colors">
+               <MessageSquare className="w-3.5 h-3.5" />
                Reply
             </button>
           </div>
@@ -464,8 +397,8 @@ function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id
                          <ShieldCheck className="w-4 h-4 text-primary-600" />
                       </div>
                       <div className="flex items-center gap-2">
-                         <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{reply.authorName}</span>
-                         <span className="px-1.5 py-0.5 rounded-md bg-primary-900 text-[8px] font-black text-white uppercase tracking-widest">Official</span>
+                         <span className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">{reply.authorName}</span>
+                         <span className="px-1.5 py-0.5 rounded-md bg-gray-900 text-[8px] font-bold text-white uppercase tracking-widest">Official</span>
                       </div>
                       <span className="text-[9px] font-bold text-gray-300 uppercase ml-auto">
                         {formatDistanceToNow(reply.createdAt, { addSuffix: true })}
@@ -518,22 +451,22 @@ function ReviewForm({ onClose, onSubmit, submitting }: {
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-8">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-2xl animate-in fade-in duration-500" onClick={onClose} />
       
-      <div className="relative w-full max-w-3xl bg-white rounded-4xl shadow-2xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500">
-        <div className="flex items-center justify-between px-10 py-8 border-b border-gray-100">
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100">
            <div>
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Post-Purchase Reflection</h2>
-              <p className="text-xs font-bold text-gray-400 mt-1">Your voice shapes the DreamBees community.</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">Write a Review</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Share your experience</p>
            </div>
-           <button onClick={onClose} className="p-3 rounded-2xl bg-gray-50 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all">
-              <X className="w-5 h-5" />
+           <button onClick={onClose} className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-all">
+              <X className="w-4 h-4" />
            </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-10 space-y-10 max-h-[75vh] overflow-y-auto custom-scrollbar">
+        <form onSubmit={handleSubmit} className="p-8 space-y-8 max-h-[75vh] overflow-y-auto styled-scrollbar">
            {/* Star Selector */}
-           <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-4xl space-y-4">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Quality Rating</label>
-              <div className="flex gap-3">
+           <div className="flex flex-col items-center justify-center py-6 bg-gray-50 rounded-xl space-y-4">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Your Rating</label>
+              <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <button
                     key={i}
@@ -541,12 +474,12 @@ function ReviewForm({ onClose, onSubmit, submitting }: {
                     onMouseEnter={() => setHoveredRating(i)}
                     onMouseLeave={() => setHoveredRating(0)}
                     onClick={() => handleRatingClick(i)}
-                    className="p-1 transition-all hover:scale-125 active:scale-95"
+                    className="p-1 transition-all hover:scale-110 active:scale-95"
                   >
                     <Star 
-                      className={`w-12 h-12 transition-all ${
+                      className={`w-10 h-10 transition-all ${
                         i <= (hoveredRating || rating) 
-                        ? 'text-amber-400 fill-current drop-shadow-[0_0_8px_rgba(251,191,36,0.3)]' 
+                        ? 'text-amber-400 fill-current' 
                         : 'text-gray-200'
                       }`} 
                     />
@@ -555,90 +488,82 @@ function ReviewForm({ onClose, onSubmit, submitting }: {
               </div>
            </div>
 
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-3">
-                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Alias</label>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Name</label>
                  <input 
                    required
                    value={formData.userName}
                    onChange={e => setFormData({...formData, userName: e.target.value})}
-                   placeholder="How should we address you?"
-                   className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-none font-bold text-sm focus:ring-4 focus:ring-primary-500/10 transition-all"
+                   placeholder="Your name"
+                   className="w-full px-5 py-3.5 bg-gray-50 rounded-xl border-transparent border focus:bg-white focus:border-gray-200 focus:ring-0 font-medium text-sm transition-all"
                  />
               </div>
-              <div className="space-y-3">
-                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact Email</label>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Email</label>
                  <input 
                    required
                    type="email"
                    value={formData.email}
                    onChange={e => setFormData({...formData, email: e.target.value})}
-                   placeholder="For verification only"
-                   className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-none font-bold text-sm focus:ring-4 focus:ring-primary-500/10 transition-all"
+                   placeholder="For verification"
+                   className="w-full px-5 py-3.5 bg-gray-50 rounded-xl border-transparent border focus:bg-white focus:border-gray-200 focus:ring-0 font-medium text-sm transition-all"
                  />
               </div>
            </div>
 
-           <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Summary Title</label>
+           <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Title</label>
               <input 
                 required
                 value={formData.title}
                 onChange={e => setFormData({...formData, title: e.target.value})}
-                placeholder="The essence of your experience..."
-                className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-none font-bold text-sm focus:ring-4 focus:ring-primary-500/10 transition-all"
+                placeholder="Review title"
+                className="w-full px-5 py-3.5 bg-gray-50 rounded-xl border-transparent border focus:bg-white focus:border-gray-200 focus:ring-0 font-medium text-sm transition-all"
               />
            </div>
 
-           <div className="space-y-3">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">The Narrative</label>
+           <div className="space-y-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1">Review</label>
               <textarea 
                 required
-                rows={5}
+                rows={4}
                 value={formData.content}
                 onChange={e => setFormData({...formData, content: e.target.value})}
-                placeholder="Tell us about the details—texture, color accuracy, and overall vibe."
-                className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-none font-bold text-sm focus:ring-4 focus:ring-primary-500/10 resize-none transition-all"
+                placeholder="Write your thoughts..."
+                className="w-full px-5 py-3.5 bg-gray-50 rounded-xl border-transparent border focus:bg-white focus:border-gray-200 focus:ring-0 font-medium text-sm resize-none transition-all"
               />
            </div>
 
-           <div className="p-10 border-4 border-dashed border-gray-50 rounded-[2.5rem] flex flex-col items-center justify-center gap-4 bg-gray-50/20 group hover:bg-gray-50/50 transition-colors cursor-pointer">
-              <div className="w-16 h-16 bg-white rounded-3xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <ImageIcon className="w-8 h-8 text-gray-300" />
-              </div>
+           <div className="p-8 border-2 border-dashed border-gray-100 rounded-xl flex flex-col items-center justify-center gap-3 bg-gray-50/20 group hover:bg-gray-50 transition-colors cursor-pointer">
+              <ImageIcon className="w-6 h-6 text-gray-300 group-hover:text-gray-400 transition-colors" />
               <div className="text-center">
-                <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1">Upload Visual Proof</p>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Supports JPG, PNG up to 10MB</p>
+                <p className="text-[10px] font-bold text-gray-900 uppercase tracking-widest">Add Photos</p>
+                <p className="text-[9px] font-medium text-gray-400 uppercase tracking-widest mt-0.5">JPG, PNG up to 10MB</p>
               </div>
-              <button type="button" className="px-6 py-2 bg-gray-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all">
-                Select Media
-              </button>
            </div>
         </form>
 
-        <div className="px-10 py-8 border-t border-gray-100 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="px-8 py-6 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-6">
            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary-100">
-                <ShieldCheck className="w-4 h-4 text-primary-600" />
-              </div>
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest max-w-[240px] leading-relaxed">
-                Submissions are audited for authenticity. By posting, you adhere to our <span className="text-gray-900 underline cursor-pointer">Community Standards</span>.
+              <ShieldCheck className="w-4 h-4 text-gray-400" />
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest max-w-[200px] leading-relaxed">
+                By posting, you agree to our <span className="text-gray-900 underline cursor-pointer">Community Standards</span>.
               </p>
            </div>
            <button 
              onClick={handleSubmit}
              disabled={submitting}
-             className="w-full sm:w-auto px-12 py-5 bg-gray-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-black transition-all flex items-center justify-center gap-3 shadow-2xl shadow-gray-200"
+             className="w-full sm:w-auto px-10 py-4 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2"
            >
              {submitting ? (
                <>
                  <Loader2 className="w-4 h-4 animate-spin" />
-                 <span>Transmitting...</span>
+                 <span>Posting...</span>
                </>
              ) : (
                <>
-                 <Sparkles className="w-4 h-4" />
-                 <span>Post Reflection</span>
+                 <span>Post Review</span>
                </>
              )}
            </button>
