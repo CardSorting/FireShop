@@ -201,6 +201,7 @@ const INITIAL_CUSTOMERS = [
   { email: 'misty.williams@cerulean.city', password: 'Starmie-password123', displayName: 'Misty Williams' },
   { email: 'brock.harrison@pewter.city', password: 'Onix-password123', displayName: 'Brock Harrison' },
   { email: 'admin@dreambees.art', password: 'Admin-Secure-Password123', displayName: 'System Admin', role: 'admin' as const },
+  { email: 'alchemist@dreambeesai.com', password: 'Admin-Secure-Password123', displayName: 'Alchemist Admin', role: 'admin' as const },
   { email: 'giovanni@rocket.corp', password: 'Mewtwo-is-mine-123', displayName: 'Giovanni Whale' },
   { email: 'red@pallet.town', password: 'Champion-password-123', displayName: 'Red Inactive' },
 ];
@@ -459,7 +460,10 @@ export async function seedCustomers(): Promise<number> {
     try {
       const users = await services.authService.getAllUsers();
       if (!users.some(u => u.email === customer.email)) {
-        await services.authService.signUp(customer.email, customer.password, customer.displayName);
+        const saved = await services.authService.signUp(customer.email, customer.password, customer.displayName);
+        if (customer.role === 'admin') {
+          await services.authService.updateUser(saved.id, { role: 'admin' });
+        }
         created++;
       }
     } catch (err) {
