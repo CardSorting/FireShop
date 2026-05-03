@@ -102,14 +102,14 @@ export function Footer() {
             
 
 
-            <div className="flex items-center gap-3 p-4 bg-primary-600 rounded-2xl text-white shadow-xl shadow-primary-600/20 group cursor-pointer hover:bg-primary-700 transition-colors">
+            <Link href="/support" className="flex items-center gap-3 p-4 bg-primary-600 rounded-2xl text-white shadow-xl shadow-primary-600/20 group hover:bg-primary-700 transition-colors">
               <Headset className="w-6 h-6" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider opacity-80">Need help?</p>
                 <p className="text-sm font-black">24/7 Expert Support</p>
               </div>
               <ArrowRight className="w-4 h-4 ml-auto group-hover:translate-x-1 transition-transform" />
-            </div>
+            </Link>
           </div>
 
           {/* Navigation Groups - Minimalist */}

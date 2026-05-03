@@ -8,7 +8,13 @@ const scriptSrc = [
 ];
 
 const nextConfig: NextConfig = {
-    serverExternalPackages: ['better-sqlite3', 'sharp'],
+    serverExternalPackages: [
+        'better-sqlite3',
+        'sharp',
+        '@grpc/grpc-js',
+        '@grpc/proto-loader',
+        'undici',
+    ],
     async headers() {
         const securityHeaders = [
             { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -29,7 +35,7 @@ const nextConfig: NextConfig = {
                     "img-src 'self' data: https:",
                     `script-src ${scriptSrc.join(' ')}`,
                     "style-src 'self' 'unsafe-inline'",
-                    "connect-src 'self' https://api.stripe.com",
+                    "connect-src 'self' https://api.stripe.com https://firestore.googleapis.com https://*.firebaseio.com https://*.googleapis.com",
                     "frame-src https://js.stripe.com https://hooks.stripe.com",
                     "form-action 'self'",
                     "upgrade-insecure-requests",
@@ -47,3 +53,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

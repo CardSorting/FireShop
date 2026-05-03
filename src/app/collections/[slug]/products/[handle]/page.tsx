@@ -1,4 +1,4 @@
-import { ProductDetailPage } from '@ui/pages/ProductDetailPage';
+import { ProductDetailPage } from '@ui/pages/product-detail';
 import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
@@ -79,7 +79,7 @@ export default async function Page({ params }: Props) {
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
             />
-            <ProductDetailPage />
+            <ProductDetailPage initialProduct={product} />
         </>
     );
 }
