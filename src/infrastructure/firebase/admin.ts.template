@@ -1,17 +1,16 @@
 /**
  * [LAYER: INFRASTRUCTURE]
- * Firebase Admin SDK Initialization
+ * Firebase Admin SDK Initialization Template
+ * 
+ * Copy this to admin.ts and fill in your credentials.
  */
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
-const PROD_PROJECT_ID = "shopmore-1e34b";
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || PROD_PROJECT_ID;
+const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
-// If we have a service account in environment variables, use it.
-// Otherwise, try to use default application credentials.
 let app;
 if (getApps().length === 0) {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
@@ -22,7 +21,6 @@ if (getApps().length === 0) {
       storageBucket: `${projectId}.firebasestorage.app`
     });
   } else {
-    // In Firebase Functions environment, this will use the default service account
     app = initializeApp({
       projectId,
       storageBucket: `${projectId}.firebasestorage.app`

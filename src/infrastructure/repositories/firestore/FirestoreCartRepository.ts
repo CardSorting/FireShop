@@ -20,15 +20,13 @@ import { db } from '../../firebase/firebase';
 import type { ICartRepository } from '@domain/repositories';
 import type { Cart } from '@domain/models';
 
+import { mapDoc } from './utils';
+
 export class FirestoreCartRepository implements ICartRepository {
   private readonly collectionName = 'carts';
 
   private mapDocToCart(id: string, data: DocumentData): Cart {
-    return {
-      ...data,
-      id,
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-    } as Cart;
+    return mapDoc<Cart>(id, data);
   }
 
   async getByUserId(userId: string): Promise<Cart | null> {

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-# Ultra-Optimized Firebase Deployment Script (V5.1 - Stabilized)
-# Features: Forensic pruning, Brotli-11, Critical CSS, and stable build paths.
+# Ultra-Optimized Firebase Deployment Script (V5.2 - Safe Stability)
+# Features: Forensic pruning, Critical CSS, and safe build paths.
+# Removed: Pre-compression (Brotli) to prevent "Content-Encoding" mismatch corruption.
 
 set -e
 
@@ -15,7 +16,7 @@ RED="\033[31m"
 CYAN="\033[36m"
 RESET="\033[0m"
 
-echo -e "${BLUE}${BOLD}Starting Optimized Deployment (V5.1)...${RESET}\n"
+echo -e "${BLUE}${BOLD}Starting Optimized Deployment (V5.2)...${RESET}\n"
 
 # 1. Forensic Workspace Sanitization
 echo -e "${PURPLE}Purging workspace clutter...${RESET}"
@@ -44,17 +45,7 @@ echo -e "${BLUE}Building application (NODE_ENV=production)...${RESET}"
 NODE_ENV=production npm run build
 echo -e "${GREEN}✓ Production build complete.${RESET}"
 
-# 5. Physical Compression (Brotli-11)
-if command -v brotli >/dev/null 2>&1; then
-    echo -e "${BLUE}Executing physical Brotli-11 compression...${RESET}"
-    FILES=$(find .next/static public -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" -o -name "*.json" \) ! -name "*.br")
-    for f in $FILES; do
-        brotli -q 11 -f "$f" -o "$f.br"
-    done
-    echo -e "${GREEN}✓ Brotli compression complete.${RESET}"
-fi
-
-# 6. Atomic Deploy
+# 5. Atomic Deploy
 echo -e "${BLUE}Deploying ultra-clean atomic payload...${RESET}"
 firebase deploy --only hosting,functions
 

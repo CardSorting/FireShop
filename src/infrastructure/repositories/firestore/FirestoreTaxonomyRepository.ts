@@ -18,6 +18,8 @@ import { db } from '../../firebase/firebase';
 import type { ITaxonomyRepository } from '@domain/repositories';
 import type { ProductCategory, ProductType } from '@domain/models';
 
+import { mapDoc } from './utils';
+
 export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
   private readonly categoriesCollection = 'product_categories';
   private readonly typesCollection = 'product_types';
@@ -25,20 +27,20 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
   // Categories
   async getAllCategories(): Promise<ProductCategory[]> {
     const snapshot = await getDocs(collection(db, this.categoriesCollection));
-    return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as ProductCategory));
+    return snapshot.docs.map(d => mapDoc<ProductCategory>(d.id, d.data()));
   }
 
   async getCategoryById(id: string): Promise<ProductCategory | null> {
     const docSnap = await getDoc(doc(db, this.categoriesCollection, id));
     if (!docSnap.exists()) return null;
-    return { ...docSnap.data(), id: docSnap.id } as ProductCategory;
+    return mapDoc<ProductCategory>(docSnap.id, docSnap.data());
   }
 
   async getCategoryBySlug(slug: string): Promise<ProductCategory | null> {
     const q = query(collection(db, this.categoriesCollection), where('slug', '==', slug), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
-    return { ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as ProductCategory;
+    return mapDoc<ProductCategory>(snapshot.docs[0].id, snapshot.docs[0].data());
   }
 
   async saveCategory(category: ProductCategory): Promise<ProductCategory> {
@@ -60,13 +62,13 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
   // Types
   async getAllTypes(): Promise<ProductType[]> {
     const snapshot = await getDocs(collection(db, this.typesCollection));
-    return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as ProductType));
+    return snapshot.docs.map(d => mapDoc<ProductType>(d.id, d.data()));
   }
 
   async getTypeById(id: string): Promise<ProductType | null> {
     const docSnap = await getDoc(doc(db, this.typesCollection, id));
     if (!docSnap.exists()) return null;
-    return { ...docSnap.data(), id: docSnap.id } as ProductType;
+    return mapDoc<ProductType>(docSnap.id, docSnap.data());
   }
 
   async saveType(type: ProductType): Promise<ProductType> {

@@ -33,25 +33,13 @@ import type {
 } from '@domain/models';
 import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
 
+import { mapDoc } from './utils';
+
 export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
 
   private mapDocToProduct(id: string, data: DocumentData): Product {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-      variants: data.variants?.map((v: any) => ({
-        ...v,
-        createdAt: v.createdAt instanceof Timestamp ? v.createdAt.toDate() : new Date(v.createdAt),
-        updatedAt: v.updatedAt instanceof Timestamp ? v.updatedAt.toDate() : new Date(v.updatedAt),
-      })),
-      media: data.media?.map((m: any) => ({
-        ...m,
-        createdAt: m.createdAt instanceof Timestamp ? m.createdAt.toDate() : new Date(m.createdAt),
-      }))
-    } as Product;
+    return mapDoc<Product>(id, data);
   }
 
   async getAll(options: {

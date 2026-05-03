@@ -21,16 +21,13 @@ import { db } from '../../firebase/firebase';
 import type { ICollectionRepository } from '@domain/repositories';
 import type { Collection } from '@domain/models';
 
+import { mapDoc } from './utils';
+
 export class FirestoreCollectionRepository implements ICollectionRepository {
   private readonly collectionName = 'collections';
 
   private mapDocToCollection(id: string, data: DocumentData): Collection {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-    } as Collection;
+    return mapDoc<Collection>(id, data);
   }
 
   async getAll(options?: { status?: 'active' | 'archived'; limit?: number }): Promise<Collection[]> {

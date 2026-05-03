@@ -48,6 +48,8 @@ firebase-debug.log*
 .runtimeconfig.json
 firestore-debug.log*
 ui-debug.log*
+src/infrastructure/firebase/firebase.ts
+src/infrastructure/firebase/admin.ts
 
 # Storage
 public/storage/**/*

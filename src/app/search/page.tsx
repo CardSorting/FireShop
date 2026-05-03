@@ -2,8 +2,12 @@ import { Suspense } from 'react';
 import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
 
-export async function generateMetadata({ searchParams }: { searchParams: { q?: string } }): Promise<Metadata> {
-  const query = searchParams.q || '';
+type SearchProps = {
+  searchParams: Promise<{ q?: string }>;
+};
+
+export async function generateMetadata({ searchParams }: SearchProps): Promise<Metadata> {
+  const { q: query = '' } = await searchParams;
   return {
     title: query ? `Search: ${query} | DreamBeesArt` : 'Search Catalog | DreamBeesArt',
     description: `Search our extensive catalog of trading cards, sets, and supplies. Results for ${query || 'all products'}.`,
@@ -14,8 +18,8 @@ export async function generateMetadata({ searchParams }: { searchParams: { q?: s
 }
 
 
-export default function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
-  const query = searchParams.q || '';
+export default async function SearchPage({ searchParams }: SearchProps) {
+  const { q: query = '' } = await searchParams;
   
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -48,4 +52,3 @@ export default function SearchPage({ searchParams }: { searchParams: { q?: strin
     </>
   );
 }
-

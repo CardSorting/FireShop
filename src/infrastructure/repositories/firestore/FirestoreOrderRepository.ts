@@ -22,20 +22,13 @@ import { db } from '../../firebase/firebase';
 import type { IOrderRepository } from '@domain/repositories';
 import type { Address, Order, OrderItem, OrderStatus } from '@domain/models';
 
+import { mapDoc, mapTimestamp } from './utils';
+
 export class FirestoreOrderRepository implements IOrderRepository {
   private readonly collectionName = 'orders';
 
   private mapDocToOrder(id: string, data: DocumentData): Order {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-      notes: data.notes?.map((n: any) => ({
-        ...n,
-        createdAt: n.createdAt instanceof Timestamp ? n.createdAt.toDate() : new Date(n.createdAt),
-      })) || [],
-    } as Order;
+    return mapDoc<Order>(id, data);
   }
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
@@ -171,7 +164,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
       if (status !== 'cancelled') {
         totalRevenue += data.total || 0;
         
-        const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt);
+        const createdAt = mapTimestamp(data.createdAt);
         const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays >= 0 && diffDays < 7) {
           dailyRevenue[6 - diffDays] += data.total || 0;

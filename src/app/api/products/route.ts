@@ -15,6 +15,7 @@ export async function GET(request: Request) {
         });
         return NextResponse.json(result);
     } catch (error) {
+        console.error('[API Products] 500 Error:', error);
         return jsonError(error, 'Failed to load products');
     }
 }
