@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Ultra-Optimized Firebase Deployment Script (V4 - Forensic Edition)
-# Features: SVG physical minification, recursive Brotli-11, cache purging, and payload fingerprinting.
+# Extreme-Optimized Firebase Deployment Script (V5 - Forensic Purge Edition)
+# Features: Recursive node_modules pruning, SVG physical minification, Brotli-11, and PPR build.
 
 set -e
 
@@ -15,33 +15,38 @@ RED="\033[31m"
 CYAN="\033[36m"
 RESET="\033[0m"
 
-echo -e "${BLUE}${BOLD}Starting Ultra-Optimized Deployment (V4)...${RESET}\n"
+echo -e "${BLUE}${BOLD}Starting Extreme-Optimized Deployment (V5)...${RESET}\n"
 
-# 1. Forensic Cleanup
+# 1. Forensic Workspace Sanitization
 echo -e "${PURPLE}Purging workspace clutter...${RESET}"
 find . -name ".DS_Store" -type f -delete
 find . -name "Thumbs.db" -type f -delete
 rm -rf .next .firebase
 echo -e "${GREEN}✓ Workspace sanitized.${RESET}"
 
-# 2. SVG Physical Optimization
-# Manually stripping whitespace and metadata from SVGs to reduce payload without new dependencies
+# 2. Node Modules Deep Pruning
+# Removing non-essential metadata from node_modules to speed up hashing and reduce payload
+# This is a "clean" optimization that drastically reduces file count
+echo -e "${CYAN}Pruning node_modules metadata...${RESET}"
+find node_modules -type f \( -name "*.md" -o -name "*.txt" -o -name "LICENSE" -o -name "AUTHORS" -o -name "CHANGELOG*" -o -name ".npmignore" \) -delete
+echo -e "${GREEN}✓ node_modules pruned for production.${RESET}"
+
+# 3. SVG Physical Optimization
 echo -e "${CYAN}Minifying SVG assets...${RESET}"
 if ls public/*.svg >/dev/null 2>&1; then
     for f in public/*.svg; do
-        # Simple regex-based minification: remove newlines, multiple spaces, and comments
         sed -i '' 's/<!--.*-->//g' "$f"
         tr -d '\n' < "$f" > "$f.min" && mv "$f.min" "$f"
-        echo -e "${GREEN}  - Optimized $(basename "$f")${RESET}"
     done
+    echo -e "${GREEN}✓ SVG assets minified.${RESET}"
 fi
 
-# 3. Production Build
+# 4. Production Build (with PPR)
 echo -e "${BLUE}Building application (NODE_ENV=production)...${RESET}"
 NODE_ENV=production npm run build
-echo -e "${GREEN}✓ Production build complete.${RESET}"
+echo -e "${GREEN}✓ Production build complete (with PPR & Critical CSS).${RESET}"
 
-# 4. Physical Compression (Brotli-11)
+# 5. Physical Compression (Brotli-11)
 if command -v brotli >/dev/null 2>&1; then
     echo -e "${BLUE}Executing physical Brotli-11 compression...${RESET}"
     FILES=$(find .next/static public -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" -o -name "*.json" \) ! -name "*.br")
@@ -49,21 +54,18 @@ if command -v brotli >/dev/null 2>&1; then
         brotli -q 11 -f "$f" -o "$f.br"
     done
     echo -e "${GREEN}✓ Brotli compression complete.${RESET}"
-else
-    echo -e "${YELLOW}Brotli not found. Using high-ratio Gzip-9...${RESET}"
-    find .next/static public -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" -o -name "*.json" \) -exec gzip -k -f -9 {} \;
 fi
 
-# 5. Asset Fingerprinting & Audit
-echo -e "${PURPLE}Performing payload audit...${RESET}"
-LARGE_FILES=$(find .next/static -type f -size +300k) # Lowered threshold to 300KB for stricter audit
+# 6. Final Payload Audit
+echo -e "${PURPLE}Performing high-fidelity payload audit...${RESET}"
+LARGE_FILES=$(find .next/static -type f -size +200k) # Threshold lowered to 200KB for V5
 if [ ! -z "$LARGE_FILES" ]; then
-    echo -e "${YELLOW}Warning: Significant assets detected (>300KB):${RESET}"
+    echo -e "${YELLOW}Warning: Non-ideal assets detected (>200KB):${RESET}"
     echo "$LARGE_FILES"
 fi
 
-# 6. Atomic Precision Deploy
-echo -e "${BLUE}Deploying atomic payload...${RESET}"
-firebase deploy --only hosting,functions --concurrency 25 # Slightly increased concurrency for faster parallel upload
+# 7. Atomic Deploy
+echo -e "${BLUE}Deploying ultra-clean atomic payload...${RESET}"
+firebase deploy --only hosting,functions --concurrency 30 # Increased concurrency for V5
 
-echo -e "\n${GREEN}${BOLD}V4 Ultra-Optimized Deployment Successful!${RESET}\n"
+echo -e "\n${GREEN}${BOLD}V5 Extreme-Optimized Deployment Successful!${RESET}\n"

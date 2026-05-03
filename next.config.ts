@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
     ],
     experimental: {
         optimizePackageImports: ['lucide-react', 'date-fns'],
+        ppr: 'incremental',
+        optimizeCss: true,
     },
     compiler: {
         removeConsole: !isDevelopment,
