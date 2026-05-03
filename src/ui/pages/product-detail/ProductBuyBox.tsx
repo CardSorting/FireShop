@@ -94,12 +94,24 @@ export function ProductBuyBox({
         </p>
       </div>
 
-      {/* Availability */}
-      <div className="flex items-center gap-2">
-        <div className={`h-2 w-2 rounded-full ${currentStock === 0 ? 'bg-red-500' : currentStock <= 5 ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
-        <span className={`text-xs font-bold ${currentStock === 0 ? 'text-red-600' : currentStock <= 5 ? 'text-amber-600' : 'text-green-600'}`}>
-          {currentStock === 0 ? 'Sold Out' : currentStock <= 5 ? `Only ${currentStock} left` : 'In Stock'}
-        </span>
+      {/* Availability & Urgency */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className={`h-2.5 w-2.5 rounded-full ${currentStock === 0 ? 'bg-red-500' : currentStock <= 5 ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
+          <span className={`text-sm font-black ${currentStock === 0 ? 'text-red-600' : currentStock <= 5 ? 'text-amber-600' : 'text-green-600'}`}>
+            {currentStock === 0 ? 'Sold Out' : currentStock <= 5 ? `Hurry! Only ${currentStock} left in stock` : 'Ready to Ship'}
+          </span>
+        </div>
+
+        {/* Social Proof Metric */}
+        <div className="flex items-center gap-3 p-3.5 bg-primary-50/50 rounded-2xl border border-primary-100/50">
+          <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center shadow-sm">
+            <ShoppingCart className="w-4 h-4 text-primary-600" />
+          </div>
+          <p className="text-[11px] font-bold text-gray-700 leading-tight">
+            <span className="text-primary-700">12 people</span> have this in their cart right now.
+          </p>
+        </div>
       </div>
 
       {/* Quantity */}
@@ -109,7 +121,7 @@ export function ProductBuyBox({
           <button
             onClick={onDecrement}
             disabled={quantity <= 1}
-            className="h-10 w-10 flex items-center justify-center rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-900 transition-all disabled:opacity-30"
+            className="h-10 w-10 flex items-center justify-center rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-900 transition-all disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-primary-500 outline-none"
             aria-label="Decrease quantity"
           >
             −
@@ -118,7 +130,7 @@ export function ProductBuyBox({
           <button
             onClick={onIncrement}
             disabled={quantity >= maxSelectableQuantity}
-            className="h-10 w-10 flex items-center justify-center rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-900 transition-all disabled:opacity-30"
+            className="h-10 w-10 flex items-center justify-center rounded-lg bg-white shadow-sm text-gray-500 hover:text-gray-900 transition-all disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-primary-500 outline-none"
             aria-label="Increase quantity"
           >
             +
@@ -131,7 +143,7 @@ export function ProductBuyBox({
         <button
           onClick={added ? onOpenCart : onAddToCart}
           disabled={adding || currentStock === 0}
-          className={`w-full h-14 flex items-center justify-center gap-3 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all disabled:opacity-50 ${
+          className={`w-full h-14 flex items-center justify-center gap-3 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 outline-none ${
             added
               ? 'bg-green-600 text-white'
               : 'bg-gray-900 text-white hover:bg-black shadow-xl shadow-gray-200 hover:-translate-y-0.5 active:translate-y-0'
@@ -145,7 +157,7 @@ export function ProductBuyBox({
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowWishlistDropdown(!showWishlistDropdown)}
-            className={`w-full h-12 flex items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-all ${
+            className={`w-full h-12 flex items-center justify-center gap-2 rounded-2xl border text-sm font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 outline-none ${
               isFavorite
                 ? 'bg-red-50 border-red-100 text-red-500'
                 : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'

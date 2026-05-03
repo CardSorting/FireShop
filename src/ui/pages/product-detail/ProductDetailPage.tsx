@@ -13,11 +13,13 @@ import { ProductInfo } from './ProductInfo';
 import { ProductVariantSelector } from './ProductVariantSelector';
 import { ProductDetails } from './ProductDetails';
 import { ProductBuyBox } from './ProductBuyBox';
+import { MobileStickyBuyBar } from './MobileStickyBuyBar';
 import { RelatedProducts, RecentlyViewed } from './RelatedProducts';
 import { ProductReviews } from '../../components/ProductReviews';
 import { Breadcrumbs } from '../../components/Breadcrumbs';
 import { getCollectionUrl, STORE_PATHS } from '@utils/navigation';
 import type { Product } from '@domain/models';
+import { useEffect, useRef, useState } from 'react';
 
 interface ProductDetailPageProps {
   initialProduct?: Product | null;
@@ -25,6 +27,25 @@ interface ProductDetailPageProps {
 
 export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
   const pdp = useProductDetail(initialProduct);
+  const buyBoxRef = useRef<HTMLDivElement>(null);
+  const [showMobileStickyBar, setShowMobileStickyBar] = useState(false);
+
+  // --- Mobile Sticky Bar Logic ---
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Only show sticky bar on mobile when main buy box is out of view
+        setShowMobileStickyBar(!entry.isIntersecting);
+      },
+      { threshold: 0 }
+    );
+
+    if (buyBoxRef.current) {
+      observer.observe(buyBoxRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
 
   // --- Loading Skeleton ---
   if (pdp.loading || !pdp.product) {
@@ -75,10 +96,31 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
           ]}
         />
 
+        {/* Sticky Sub-Navigation */}
+        <nav className="sticky top-0 lg:top-[64px] z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex gap-8 py-4 overflow-x-auto no-scrollbar">
+              {[
+                { label: 'Overview', href: '#overview' },
+                { label: 'Details', href: '#details' },
+                { label: 'Reviews', href: '#reviews' }
+              ].map((link) => (
+                <a
+                  key={link.label}
+                  href={link.href}
+                  className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 whitespace-nowrap transition-colors"
+                >
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        </nav>
+
         {/* Main 3-Column Layout: Gallery | Info | Buy Box */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 mt-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
           {/* Left: Image Gallery (sticky) */}
-          <div className="lg:col-span-6 lg:sticky lg:top-28">
+          <div className="lg:col-span-6 lg:sticky lg:top-32">
             <ProductImageGallery
               images={pdp.allImages}
               selectedIndex={pdp.selectedImageIndex}
@@ -88,14 +130,16 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
           </div>
 
           {/* Middle: Product Info + Details */}
-          <div className="lg:col-span-3 space-y-8">
-            <ProductInfo
-              name={product.name}
-              vendor={product.vendor}
-              category={product.category}
-              currentPrice={pdp.currentPrice}
-              compareAtPrice={pdp.currentCompareAtPrice}
-            />
+          <div className="lg:col-span-3 space-y-12">
+            <div id="overview" className="scroll-mt-32">
+              <ProductInfo
+                name={product.name}
+                vendor={product.vendor}
+                category={product.category}
+                currentPrice={pdp.currentPrice}
+                compareAtPrice={pdp.currentCompareAtPrice}
+              />
+            </div>
 
             {/* Variant Selector */}
             {product.hasVariants && product.options && (
@@ -107,11 +151,13 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
             )}
 
             {/* Accordion: Description, Specs, Shipping */}
-            <ProductDetails product={product} />
+            <div id="details" className="scroll-mt-32">
+              <ProductDetails product={product} />
+            </div>
           </div>
 
           {/* Right: Buy Box (sticky) */}
-          <div className="lg:col-span-3 lg:sticky lg:top-28">
+          <div ref={buyBoxRef} className="lg:col-span-3 lg:sticky lg:top-32">
             <ProductBuyBox
               currentPrice={pdp.currentPrice}
               compareAtPrice={pdp.currentCompareAtPrice}
@@ -139,7 +185,7 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
         </div>
 
         {/* Reviews Section */}
-        <div id="reviews" className="mt-24 pt-16 border-t border-gray-100">
+        <div id="reviews" className="mt-24 pt-16 border-t border-gray-100 scroll-mt-32">
           <ProductReviews productId={product.id} />
         </div>
 
@@ -155,6 +201,17 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
           currentProductId={product.id}
         />
       </div>
+
+      {/* Mobile Sticky CTA */}
+      <MobileStickyBuyBar
+        name={product.name}
+        price={pdp.currentPrice}
+        adding={pdp.adding}
+        added={pdp.added}
+        onAddToCart={pdp.handleAddToCart}
+        onOpenCart={pdp.openCart}
+        visible={showMobileStickyBar}
+      />
     </div>
   );
 }
