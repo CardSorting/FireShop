@@ -1,8 +1,8 @@
 /**
  * [LAYER: INFRASTRUCTURE]
  * Industrialized Seeding Infrastructure for DreamBeesArt.
- * Features: Domain Service Integration, Forensic Lifecycle Seeding, and Relational Sovereignty.
- * Firestore Version.
+ * Features: Admin SDK Integration, Forensic Lifecycle Seeding, and Relational Sovereignty.
+ * Firestore Admin Version.
  */
 import type { 
   ProductDraft, 
@@ -13,9 +13,12 @@ import type {
   Supplier,
   InventoryLocation,
   Discount,
+  OrderItem
 } from '@domain/models';
-import { getInitialServices } from '../../core/container';
 import { logger } from '@utils/logger';
+import { adminAuth, adminDb } from '../firebase/admin';
+import { Timestamp } from 'firebase-admin/firestore';
+import crypto from 'crypto';
 
 // ─────────────────────────────────────────────
 // COMPREHENSIVE MOCK DATA
@@ -109,8 +112,8 @@ const INITIAL_CATALOG: ProductDraft[] = [
 const INITIAL_CUSTOMERS = [
   { email: 'admin@dreambees.art', password: 'Admin-Secure-Password123', displayName: 'System Admin', role: 'admin' as const },
   { email: 'alchemist@dreambeesai.com', password: 'Admin-Secure-Password123', displayName: 'Alchemist Admin', role: 'admin' as const },
-  { email: 'ash.ketchum@palette.town', password: 'Pikapika-password123', displayName: 'Ash Ketchum' },
-  { email: 'misty.williams@cerulean.city', password: 'Starmie-password123', displayName: 'Misty Williams' },
+  { email: 'ash.ketchum@palette.town', password: 'Pikapika-password123', displayName: 'Ash Ketchum', role: 'customer' as const },
+  { email: 'misty.williams@cerulean.city', password: 'Starmie-password123', displayName: 'Misty Williams', role: 'customer' as const },
 ];
 
 const KB_DATA = {
@@ -174,97 +177,89 @@ function assertSeedingAllowed(): void {
 }
 
 export async function seedTaxonomy(): Promise<void> {
-  const services = getInitialServices();
-  
   // Collections
   const collections = [
-    { id: 'coll-new', name: 'New Arrivals', handle: 'new-arrivals', status: 'active' as const, productCount: 10, createdAt: new Date(), updatedAt: new Date() },
-    { id: 'coll-best', name: 'Best Sellers', handle: 'best-sellers', status: 'active' as const, productCount: 25, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'coll-new', name: 'New Arrivals', handle: 'new-arrivals', status: 'active' as const, productCount: 10, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-best', name: 'Best Sellers', handle: 'best-sellers', status: 'active' as const, productCount: 25, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
   ];
 
   for (const coll of collections) {
-    await services.collectionService.create(coll, MOCK_ACTOR);
+    await adminDb.collection('collections').doc(coll.id).set(coll);
   }
 
   // Product Categories
   const cats = [
-    { id: 'cat-cards', name: 'Trading Cards', slug: 'cards', description: 'Individual singles and sets', createdAt: new Date(), updatedAt: new Date() },
-    { id: 'cat-acc', name: 'Accessories', slug: 'accessories', description: 'Mats, sleeves, and more', createdAt: new Date(), updatedAt: new Date() },
+    { id: 'cat-cards', name: 'Trading Cards', slug: 'cards', description: 'Individual singles and sets', createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'cat-acc', name: 'Accessories', slug: 'accessories', description: 'Mats, sleeves, and more', createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
   ];
 
   for (const cat of cats) {
-    await services.taxonomyService.saveCategory(cat, MOCK_ACTOR);
+    await adminDb.collection('product_categories').doc(cat.id).set(cat);
   }
 
   // Product Types
   const types = ['Trading Cards', 'Accessories', 'Digital', 'Apparel', 'Collectibles'];
   for (const t of types) {
-    await services.taxonomyService.saveType({ id: crypto.randomUUID(), name: t, createdAt: new Date(), updatedAt: new Date() }, MOCK_ACTOR);
+    const id = crypto.randomUUID();
+    await adminDb.collection('product_types').doc(id).set({ id, name: t, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
   }
 }
 
 export async function seedSuppliers(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   let created = 0;
   
   for (const sup of SUPPLIERS) {
-    try {
-      const existing = await services.supplierService.list({ query: sup.name });
-      if (existing.length === 0) {
-        await services.supplierService.create(sup as Supplier, MOCK_ACTOR);
-        created++;
-      }
-    } catch (err) {
-      logger.error(`Forensic Fault: Failed to seed supplier ${sup.name}.`, err);
-    }
+    await adminDb.collection('suppliers').doc(sup.id!).set({
+      ...sup,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+    created++;
   }
   return created;
 }
 
 export async function seedLocations(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   let created = 0;
   
   for (const loc of LOCATIONS) {
-    try {
-      const existing = await services.inventoryLocationRepo.findById(loc.id!);
-      if (!existing) {
-        await services.inventoryLocationRepo.save({ ...loc, createdAt: new Date() } as InventoryLocation);
-        created++;
-      }
-    } catch (err) {
-      logger.error(`Forensic Fault: Failed to seed location ${loc.name}.`, err);
-    }
+    await adminDb.collection('inventory_locations').doc(loc.id!).set({
+      ...loc,
+      createdAt: Timestamp.now()
+    });
+    created++;
   }
   return created;
 }
 
 export async function seedInventory(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
-  const productsResult = await services.productService.getProducts({ limit: 100 });
-  const products = productsResult.products;
-  const locations = await services.inventoryLocationRepo.findAll();
+  const productsSnap = await adminDb.collection('products').get();
+  const locationsSnap = await adminDb.collection('inventory_locations').get();
   let created = 0;
 
-  if (locations.length === 0) {
+  if (locationsSnap.empty) {
     logger.warn('SKIPPED: Inventory seeding skipped because no locations found.');
     return 0;
   }
 
-  for (const prod of products) {
-    for (const loc of locations) {
-      await services.inventoryLevelRepo.save({
-        productId: prod.id,
-        locationId: loc.id,
+  const locations = locationsSnap.docs.map(d => d.id);
+
+  for (const prodDoc of productsSnap.docs) {
+    const prod = prodDoc.data();
+    for (const locId of locations) {
+      const id = `${prodDoc.id}_${locId}`;
+      await adminDb.collection('inventory_levels').doc(id).set({
+        productId: prodDoc.id,
+        locationId: locId,
         availableQty: Math.floor((prod.stock || 0) / locations.length),
         reservedQty: 0,
         incomingQty: 0,
         reorderPoint: 5,
         reorderQty: 20,
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
       created++;
     }
@@ -274,43 +269,62 @@ export async function seedInventory(): Promise<number> {
 
 export async function seedProducts(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   let created = 0;
 
   for (const product of INITIAL_CATALOG) {
-    try {
-      const existing = await services.productService.getProducts({ limit: 1, query: product.name });
-      if (existing.products.length === 0) {
-        await services.productService.createProduct(product, { id: 'system', email: 'system@dreambees.art' });
-        created++;
-      }
-    } catch (err) {
-      logger.error(`Forensic Fault: Failed to seed product ${product.name}.`, err);
-    }
+    const id = crypto.randomUUID();
+    const now = Timestamp.now();
+    await adminDb.collection('products').doc(id).set({
+      ...product,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      media: product.media?.map(m => ({ ...m, createdAt: now })) || []
+    });
+    created++;
   }
   return created;
 }
 
 export async function clearAuditLogs(): Promise<void> {
   assertSeedingAllowed();
-  const services = getInitialServices();
-  await services.auditService.clearAll();
+  const snapshot = await adminDb.collection('hive_audit').get();
+  const batch = adminDb.batch();
+  snapshot.docs.forEach(doc => batch.delete(doc.ref));
+  await batch.commit();
   logger.info('[Forensic] Audit logs cleared for clean chain initialization.');
 }
 
 export async function seedCustomers(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   let created = 0;
 
   for (const customer of INITIAL_CUSTOMERS) {
     try {
-      const users = await services.authService.getAllUsers();
-      if (!users.some(u => u.email === customer.email)) {
-        const saved = await services.authService.signUp(customer.email, customer.password, customer.displayName);
-        if (customer.role === 'admin') {
-          await services.authService.updateUser(saved.id, { role: 'admin' });
+      let uid;
+      try {
+        const userRecord = await adminAuth.getUserByEmail(customer.email);
+        uid = userRecord.uid;
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/user-not-found') {
+          const userRecord = await adminAuth.createUser({
+            email: customer.email,
+            password: customer.password,
+            displayName: customer.displayName,
+          });
+          uid = userRecord.uid;
+        } else {
+          throw authErr;
         }
+      }
+      
+      if (uid) {
+        await adminDb.collection('users').doc(uid).set({
+          email: customer.email,
+          displayName: customer.displayName,
+          role: customer.role || 'customer',
+          createdAt: Timestamp.now(),
+        });
         created++;
       }
     } catch (err) {
@@ -322,23 +336,25 @@ export async function seedCustomers(): Promise<number> {
 
 export async function seedOrders(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
-  const productsResult = await services.productService.getProducts({ limit: 100 });
-  const products = productsResult.products;
-  const customers = await services.authService.getAllUsers();
+  const productsSnap = await adminDb.collection('products').get();
+  const customersSnap = await adminDb.collection('users').where('role', '==', 'customer').get();
   
-  if (products.length === 0 || customers.length === 0) return 0;
+  if (productsSnap.empty || customersSnap.empty) return 0;
 
   const statuses: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered'];
   let created = 0;
   for (let i = 0; i < 5; i++) {
     try {
-      const customer = customers.find(c => c.role === 'customer') || customers[0];
-      const prod = products[Math.floor(Math.random() * products.length)];
+      const customerDoc = customersSnap.docs[Math.floor(Math.random() * customersSnap.size)];
+      const prodDoc = productsSnap.docs[Math.floor(Math.random() * productsSnap.size)];
+      const prod = prodDoc.data();
       
-      await services.orderRepo.create({
-        userId: customer.id,
-        items: [{ productId: prod.id, name: prod.name, quantity: 1, unitPrice: prod.price }],
+      const id = crypto.randomUUID();
+      const now = Timestamp.now();
+      await adminDb.collection('orders').doc(id).set({
+        id,
+        userId: customerDoc.id,
+        items: [{ productId: prodDoc.id, name: prod.name, quantity: 1, unitPrice: prod.price }],
         total: prod.price,
         status: statuses[Math.floor(Math.random() * statuses.length)],
         shippingAddress: { street: '123 Fake St', city: 'Springfield', state: 'IL', zip: '62704', country: 'US' },
@@ -346,6 +362,8 @@ export async function seedOrders(): Promise<number> {
         idempotencyKey: crypto.randomUUID(),
         notes: [],
         riskScore: 0,
+        createdAt: now,
+        updatedAt: now,
       });
       created++;
     } catch (err) {
@@ -357,14 +375,17 @@ export async function seedOrders(): Promise<number> {
 
 export async function seedKnowledgebase(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   let created = 0;
   for (const cat of KB_DATA.categories) {
-    await services.knowledgebaseRepository.saveCategory(cat as KnowledgebaseCategory);
+    await adminDb.collection('knowledgebase_categories').doc(cat.id).set(cat);
     created++;
   }
   for (const art of KB_DATA.articles) {
-    await services.knowledgebaseRepository.saveArticle(art as KnowledgebaseArticle);
+    await adminDb.collection('knowledgebase_articles').doc(art.id).set({
+      ...art,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
     created++;
   }
   return created;
@@ -372,89 +393,100 @@ export async function seedKnowledgebase(): Promise<number> {
 
 export async function seedTickets(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
-  const customers = await services.authService.getAllUsers();
-  if (customers.length === 0) return 0;
+  const customersSnap = await adminDb.collection('users').limit(1).get();
+  if (customersSnap.empty) return 0;
   
   let created = 0;
-  const customer = customers[0];
+  const customer = customersSnap.docs[0].data();
+  const userId = customersSnap.docs[0].id;
   const id = crypto.randomUUID();
-  await services.ticketRepository.createTicket({
+  const now = Timestamp.now();
+  
+  await adminDb.collection('support_tickets').doc(id).set({
     id,
-    userId: customer.id,
+    userId: userId,
     customerEmail: customer.email,
     customerName: customer.displayName,
     subject: 'Initial Support Request',
     priority: 'medium',
     status: 'open',
-    messages: [{
-      id: crypto.randomUUID(),
-      ticketId: id,
-      senderId: customer.id,
-      senderType: 'customer',
-      content: 'Hello, I need help with my order.',
-      createdAt: new Date(),
-      visibility: 'public'
-    }],
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    createdAt: now,
+    updatedAt: now,
   });
+
+  const messageId = crypto.randomUUID();
+  await adminDb.collection('ticket_messages').doc(messageId).set({
+    id: messageId,
+    ticketId: id,
+    senderId: userId,
+    senderType: 'customer',
+    content: 'Hello, I need help with my order.',
+    createdAt: now,
+    visibility: 'public'
+  });
+
   created++;
   return created;
 }
 
 export async function seedMacros(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   for (const mac of MACROS) {
-    await services.ticketRepository.addMacro(mac);
+    await adminDb.collection('support_macros').doc(mac.id).set(mac);
   }
   return MACROS.length;
 }
 
 export async function seedDiscounts(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   for (const disc of DISCOUNTS) {
-    await services.discountService.createDiscount(disc as any, MOCK_ACTOR);
+    await adminDb.collection('discounts').doc(disc.id!).set({
+      ...disc,
+      createdAt: Timestamp.now()
+    });
   }
   return DISCOUNTS.length;
 }
 
 export async function seedSettings(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
   const settings = [
-    { key: 'store_name', value: 'DreamBees Art' },
-    { key: 'currency', value: 'USD' },
+    { id: 'store_name', value: 'DreamBees Art' },
+    { id: 'currency', value: 'USD' },
   ];
   for (const s of settings) {
-    await services.settingsService.updateSetting(s.key, s.value, MOCK_ACTOR);
+    await adminDb.collection('settings').doc(s.id).set({ value: s.value });
   }
   return settings.length;
 }
 
 export async function seedProcurement(): Promise<number> {
   assertSeedingAllowed();
-  const services = getInitialServices();
-  const productsResult = await services.productService.getProducts({ limit: 1 });
-  const suppliers = await services.supplierService.list({ limit: 1 });
-  if (productsResult.products.length === 0 || suppliers.length === 0) return 0;
+  const productsSnap = await adminDb.collection('products').limit(1).get();
+  const suppliersSnap = await adminDb.collection('suppliers').limit(1).get();
+  if (productsSnap.empty || suppliersSnap.empty) return 0;
 
-  const prod = productsResult.products[0];
-  const sup = suppliers[0];
+  const prodId = productsSnap.docs[0].id;
+  const supId = suppliersSnap.docs[0].id;
+  const id = crypto.randomUUID();
+  const now = Timestamp.now();
 
-  await services.purchaseOrderService.createPurchaseOrder({
-    supplier: sup.id,
+  await adminDb.collection('purchase_orders').doc(id).set({
+    id,
+    supplier: supId,
     referenceNumber: 'PO-SEED-001',
-    items: [{ productId: prod.id, orderedQty: 10, unitCost: 500 }],
+    status: 'ordered',
+    items: [{ id: crypto.randomUUID(), productId: prodId, orderedQty: 10, unitCost: 500, receivedQty: 0, totalCost: 5000 }],
+    totalCost: 5000,
+    createdAt: now,
+    updatedAt: now
   });
   return 1;
 }
 
 export async function seedAll(): Promise<void> {
   assertSeedingAllowed();
-  logger.info('Starting Firestore database seeding...');
+  logger.info('Starting Firestore database seeding via Admin SDK...');
   
   await clearAuditLogs();
   await seedTaxonomy();
@@ -463,7 +495,6 @@ export async function seedAll(): Promise<void> {
   await seedDiscounts();
   await seedProducts();
   await seedCustomers();
-  await seedSuppliers();
   await seedLocations();
   await seedInventory();
   await seedKnowledgebase();
