@@ -1,11 +1,9 @@
 "use client";
 
-'use client';
-
 /**
  * [LAYER: UI]
  * Admin inventory — Stock management with health indicators, visual distribution
- * bar, and high-velocity bulk stock editing.
+ * bar, and high-velocity bulk stock editing with Variant support.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { 
@@ -18,7 +16,10 @@ import {
   RotateCcw,
   Search,
   Plus,
-  Truck
+  Truck,
+  ChevronDown,
+  ChevronRight,
+  Layers
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
 import { formatCurrency, normalizeSearch } from '@utils/formatters';
@@ -32,7 +33,7 @@ import {
   useAdminPageTitle, 
   AdminTab 
 } from '../../components/admin/AdminComponents';
-import type { InventoryOverview, InventoryHealth, Transfer } from '@domain/models';
+import type { InventoryOverview, InventoryHealth, Transfer, Product } from '@domain/models';
 
 type HealthFilter = InventoryHealth | 'all';
 
@@ -50,6 +51,7 @@ export function AdminInventory() {
   const [isBulkEditing, setIsBulkEditing] = useState(false);
   const [bulkChanges, setBulkChanges] = useState<Record<string, number>>({});
   const [savingBulk, setSavingBulk] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
 
   const [transfers, setTransfers] = useState<Transfer[]>([]);
 
@@ -74,6 +76,15 @@ export function AdminInventory() {
     void loadInventory();
   }, [loadInventory]);
 
+  const toggleExpand = (productId: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  };
+
   async function handleBulkSave() {
     const entries = Object.entries(bulkChanges);
     if (entries.length === 0) {
@@ -89,12 +100,15 @@ export function AdminInventory() {
         email: user?.email || 'system' 
       };
 
-      const batchUpdates = entries.map(([id, stock]) => ({
-        id,
-        updates: { stock }
-      }));
+      const inventoryUpdates = entries.map(([key, stock]) => {
+        if (key.includes(':')) {
+          const [id, variantId] = key.split(':');
+          return { id, variantId, stock };
+        }
+        return { id: key, stock };
+      });
 
-      await services.productService.batchUpdateProducts(batchUpdates, actor);
+      await services.productService.batchUpdateInventory(inventoryUpdates, actor);
       toast('success', `Updated stock for ${entries.length} items`);
       setIsBulkEditing(false);
       setBulkChanges({});
@@ -175,7 +189,6 @@ export function AdminInventory() {
         }
       />
 
-      {/* ── Sub Navigation ── */}
       <div className="flex items-center gap-4 border-b">
          <button 
            onClick={() => setActiveSubTab('inventory')}
@@ -200,7 +213,6 @@ export function AdminInventory() {
 
       {activeSubTab === 'inventory' ? (
         <>
-          {/* ── KPI Grid ── */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <AdminMetricCard label="Units on Hand" value={overview?.totalUnits ?? 0} icon={Activity} color="primary" />
             <AdminMetricCard label="Inventory Value" value={formatCurrency(overview?.inventoryValue ?? 0)} icon={DollarSign} color="success" />
@@ -209,7 +221,6 @@ export function AdminInventory() {
           </div>
 
           <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
-            {/* ── Tabs ── */}
             <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
               {HEALTH_TABS.map((tab) => (
                 <AdminTab
@@ -223,7 +234,6 @@ export function AdminInventory() {
               ))}
             </div>
 
-            {/* ── Distribution Bar ── */}
             <div className="p-4 bg-gray-50/50 border-b">
               <div className="flex h-1.5 overflow-hidden rounded-full bg-gray-200">
                 <div className="bg-green-500 transition-all" style={{ width: `${healthyPct}%` }} />
@@ -240,7 +250,6 @@ export function AdminInventory() {
               </div>
             </div>
 
-            {/* ── Search & Bulk Context Bar ── */}
             <div className="p-4 flex items-center justify-between gap-4">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -264,11 +273,11 @@ export function AdminInventory() {
               )}
             </div>
 
-            {/* ── Table ── */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b">
                   <tr>
+                    <th className="w-10 px-4 py-3"></th>
                     <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Product</th>
                     <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Health</th>
                     <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Quantity</th>
@@ -277,49 +286,111 @@ export function AdminInventory() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {products.map((p) => {
+                    const isExpanded = expandedProducts.has(p.id);
                     const currentStock = bulkChanges[p.id] !== undefined ? bulkChanges[p.id] : p.stock;
                     const isChanged = bulkChanges[p.id] !== undefined && bulkChanges[p.id] !== p.stock;
 
                     return (
-                      <tr key={p.id} className="group transition hover:bg-gray-50">
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <img src={p.imageUrl} alt="" className="h-10 w-10 rounded border object-cover bg-gray-50" />
-                            <div className="min-w-0">
-                              <p className="font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
-                              <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{p.category}</p>
+                      <React.Fragment key={p.id}>
+                        <tr className="group transition hover:bg-gray-50">
+                          <td className="px-4 py-3.5">
+                            {p.hasVariants && (
+                              <button 
+                                onClick={() => toggleExpand(p.id)}
+                                className="flex h-6 w-6 items-center justify-center rounded-md border bg-white text-gray-400 hover:text-gray-900 transition-colors shadow-xs"
+                              >
+                                {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-3">
+                              <img src={p.imageUrl} alt="" className="h-10 w-10 rounded border object-cover bg-gray-50" />
+                              <div className="min-w-0">
+                                <p className="font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{p.category}</p>
+                                  {p.hasVariants && (
+                                    <span className="flex items-center gap-1 rounded-md bg-blue-50 px-1 py-0.5 text-[8px] font-black uppercase text-blue-600 border border-blue-100">
+                                      <Layers className="h-2 w-2" />
+                                      {p.variants?.length} Variations
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <AdminStatusBadge status={p.inventoryHealth} type="inventory" />
-                        </td>
-                        <td className="px-4 py-3.5">
-                          {isBulkEditing ? (
-                            <div className="flex items-center gap-2">
-                              <input 
-                                type="number"
-                                value={currentStock}
-                                onChange={(e) => setBulkChanges({ ...bulkChanges, [p.id]: parseInt(e.target.value) || 0 })}
-                                className={`w-20 rounded border bg-white px-2 py-1 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${isChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
-                              />
-                              {isChanged && <button onClick={() => {
-                                const next = { ...bulkChanges };
-                                delete next[p.id];
-                                setBulkChanges(next);
-                              }} className="text-primary-600 hover:text-primary-700"><RotateCcw className="h-3.5 w-3.5" /></button>}
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <span className={`font-bold ${p.stock < 5 ? 'text-amber-600' : 'text-gray-900'}`}>{p.stock}</span>
-                              <span className="text-[10px] text-gray-400 font-bold uppercase">Units</span>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
-                          {formatCurrency(currentStock * p.price)}
-                        </td>
-                      </tr>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <AdminStatusBadge status={p.inventoryHealth} type="inventory" />
+                          </td>
+                          <td className="px-4 py-3.5">
+                            {isBulkEditing && !p.hasVariants ? (
+                              <div className="flex items-center gap-2">
+                                <input 
+                                  type="number"
+                                  value={currentStock}
+                                  onChange={(e) => setBulkChanges({ ...bulkChanges, [p.id]: parseInt(e.target.value) || 0 })}
+                                  className={`w-20 rounded border bg-white px-2 py-1 text-sm font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${isChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
+                                />
+                                {isChanged && <button onClick={() => {
+                                  const next = { ...bulkChanges };
+                                  delete next[p.id];
+                                  setBulkChanges(next);
+                                }} className="text-primary-600 hover:text-primary-700"><RotateCcw className="h-3.5 w-3.5" /></button>}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold ${p.stock < 5 ? 'text-amber-600' : 'text-gray-900'}`}>{p.stock}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase">Total Units</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
+                            {formatCurrency(currentStock * p.price)}
+                          </td>
+                        </tr>
+                        {isExpanded && p.variants?.map((v) => {
+                          const vKey = `${p.id}:${v.id}`;
+                          const vStock = bulkChanges[vKey] !== undefined ? bulkChanges[vKey] : v.stock;
+                          const vChanged = bulkChanges[vKey] !== undefined && bulkChanges[vKey] !== v.stock;
+                          
+                          return (
+                            <tr key={v.id} className="bg-gray-50/30 border-l-4 border-primary-500/20">
+                              <td></td>
+                              <td className="px-4 py-2 pl-8">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-primary-400" />
+                                  <p className="text-xs font-bold text-gray-600">{v.title}</p>
+                                  {v.sku && <p className="text-[10px] font-medium text-gray-400 uppercase ml-2">SKU: {v.sku}</p>}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2"></td>
+                              <td className="px-4 py-2">
+                                {isBulkEditing ? (
+                                  <div className="flex items-center gap-2">
+                                    <input 
+                                      type="number"
+                                      value={vStock}
+                                      onChange={(e) => setBulkChanges({ ...bulkChanges, [vKey]: parseInt(e.target.value) || 0 })}
+                                      className={`w-16 rounded border bg-white px-2 py-0.5 text-xs font-bold focus:ring-2 focus:ring-primary-500 outline-none transition ${vChanged ? 'border-primary-500 ring-1 ring-primary-500' : ''}`}
+                                    />
+                                    {vChanged && <button onClick={() => {
+                                      const next = { ...bulkChanges };
+                                      delete next[vKey];
+                                      setBulkChanges(next);
+                                    }} className="text-primary-600 hover:text-primary-700"><RotateCcw className="h-3 w-3" /></button>}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs font-bold text-gray-600">{v.stock} <span className="text-[10px] text-gray-400 uppercase ml-1">Units</span></p>
+                                )}
+                              </td>
+                              <td className="px-4 py-2 text-right">
+                                <p className="text-xs font-bold text-gray-400">{formatCurrency(vStock * v.price)}</p>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -335,7 +406,6 @@ export function AdminInventory() {
           </div>
         </>
       ) : (
-        /* ── Transfers View ── */
         <div className="space-y-6">
           {transfers.length === 0 ? (
              <div className="rounded-xl border bg-white p-12 text-center shadow-sm">
@@ -403,3 +473,5 @@ export function AdminInventory() {
     </div>
   );
 }
+
+import React from 'react';

@@ -19,6 +19,8 @@ import type {
   Address,
   User,
   Discount,
+  CartItem,
+  OrderItem
 } from '@domain/models';
 import { AuditService } from './AuditService';
 import {
@@ -117,11 +119,10 @@ export class OrderService {
     const checkoutAttemptId = crypto.randomUUID();
     const checkoutIdempotencyKey = idempotencyKey?.trim() || `checkout:${userId}:${checkoutAttemptId}`;
 
-    // IDEMPOTENCY CHECK: Check if order already exists
     const existingOrder = await this.orderRepo.getByIdempotencyKey(checkoutIdempotencyKey);
     if (existingOrder) return existingOrder;
 
-    const acquired = await this.locker.acquireLock(lockId, userId, 30000); // 30 second lock
+    const acquired = await this.locker.acquireLock(lockId, userId, 30000); 
     if (!acquired) {
       throw new CheckoutInProgressError();
     }
@@ -151,49 +152,72 @@ export class OrderService {
         }
       }
 
-      // Build stock and price map (Real-time Source of Truth)
+      // Build source of truth map (Variant Aware)
+      const verifiedItems: OrderItem[] = [];
       const stockMap = new Map<string, number>();
-      const priceMap = new Map<string, number>();
-      const nameMap = new Map<string, string>();
-      const imageMap = new Map<string, string>();
-      const digitalAssetsMap = new Map<string, any[]>();
 
       for (const item of cart.items) {
         const product = await this.productRepo.getById(item.productId);
         if (!product) throw new ProductNotFoundError(item.productId);
-        stockMap.set(item.productId, product.stock);
-        priceMap.set(item.productId, product.price);
-        nameMap.set(item.productId, product.name);
-        imageMap.set(item.productId, product.imageUrl);
-        if (product.digitalAssets) {
-          digitalAssetsMap.set(item.productId, product.digitalAssets);
+
+        let price = product.price;
+        let stock = product.stock;
+        let name = product.name;
+        let imageUrl = product.imageUrl;
+        let variantTitle = undefined;
+
+        if (item.variantId) {
+          const variant = product.variants?.find(v => v.id === item.variantId);
+          if (!variant) throw new Error(`Variant ${item.variantId} not found for product ${item.productId}`);
+          price = variant.price;
+          stock = variant.stock;
+          variantTitle = variant.title;
+          if (variant.imageUrl) imageUrl = variant.imageUrl;
+        }
+
+        const itemKey = item.variantId || item.productId;
+        stockMap.set(itemKey, stock);
+
+        verifiedItems.push({
+          productId: item.productId,
+          variantId: item.variantId,
+          variantTitle: variantTitle,
+          name: name,
+          quantity: item.quantity,
+          unitPrice: price,
+          imageUrl: imageUrl,
+          digitalAssets: product.digitalAssets,
+        });
+      }
+
+      // Final stock check
+      for (const item of cart.items) {
+        const itemKey = item.variantId || item.productId;
+        const currentStock = stockMap.get(itemKey) ?? 0;
+        if (currentStock < item.quantity) {
+          throw new InsufficientStockError(itemKey, item.quantity, currentStock);
         }
       }
 
-      if (!canPlaceOrder(cart.items, stockMap)) {
-        throw new InsufficientStockError('multiple', 0, 0);
-      }
-
-      // Deduct stock (Compensating transaction pattern)
+      // Deduct stock (Atomic Batch)
       const stockDeductions = coalesceCartStockDeductions(cart.items);
       if (this.productRepo.batchUpdateStock) {
         await this.productRepo.batchUpdateStock(stockDeductions);
       } else {
         for (const update of stockDeductions) {
-          await this.productRepo.updateStock(update.id, update.delta);
+          if (update.variantId) {
+            await this.productRepo.updateVariantStock(update.variantId, update.delta);
+          } else {
+            await this.productRepo.updateStock(update.id, update.delta);
+          }
         }
       }
 
-      // Recalculate Subtotal using verified prices
-      let subtotal = 0;
-      for (const item of cart.items) {
-        const price = priceMap.get(item.productId) || 0;
-        subtotal += price * item.quantity;
-      }
+      const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       const shipping = subtotal >= 10000 ? 0 : 599;
       const total = Math.max(0, subtotal + shipping - discountAmount);
 
-      // Process payment (External boundary)
+      // Process payment
       const paymentResult = await this.payment.processPayment({
         amount: total,
         orderId: checkoutAttemptId,
@@ -203,30 +227,26 @@ export class OrderService {
 
       if (!paymentResult.success || !paymentResult.transactionId) {
         // Rollback stock
+        const rollbackUpdates = stockDeductions.map(u => ({ ...u, delta: -u.delta }));
         if (this.productRepo.batchUpdateStock) {
-          await this.productRepo.batchUpdateStock(
-            stockDeductions.map((update) => ({ id: update.id, delta: -update.delta }))
-          );
+          await this.productRepo.batchUpdateStock(rollbackUpdates);
         } else {
-          for (const update of stockDeductions) {
-            await this.productRepo.updateStock(update.id, -update.delta);
+          for (const update of rollbackUpdates) {
+            if (update.variantId) {
+              await this.productRepo.updateVariantStock(update.variantId, update.delta);
+            } else {
+              await this.productRepo.updateStock(update.id, update.delta);
+            }
           }
         }
         throw new PaymentFailedError();
       }
 
-      // Commit phase
+      // Commit Order
       try {
         const order = await this.orderRepo.create({
           userId,
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            name: nameMap.get(item.productId) || item.name,
-            quantity: item.quantity,
-            unitPrice: priceMap.get(item.productId) || 0,
-            imageUrl: imageMap.get(item.productId) || item.imageUrl,
-            digitalAssets: digitalAssetsMap.get(item.productId),
-          })),
+          items: verifiedItems,
           total,
           status: 'confirmed',
           shippingAddress,
@@ -238,7 +258,6 @@ export class OrderService {
           riskScore: 0,
         });
 
-        // Clear cart and increment discount usage
         await Promise.all([
           this.cartRepo.clear(userId),
           validDiscountCode ? this.discountRepo.getByCode(validDiscountCode).then((d: Discount | null) => d && this.discountRepo.incrementUsage(d.id)) : Promise.resolve(),
@@ -247,7 +266,7 @@ export class OrderService {
             userEmail: 'system-checkout@playmore.tcg',
             action: 'order_placed',
             targetId: order.id,
-            details: { total, items: cart.items.length, discount: validDiscountCode }
+            details: { total, items: verifiedItems.length, discount: validDiscountCode }
           })
         ]);
 
@@ -259,7 +278,7 @@ export class OrderService {
           userEmail: 'system-reconciliation@playmore.tcg',
           action: 'checkout_reconciliation_required',
           targetId: paymentResult.transactionId || 'unknown',
-          details: { error: errorMessage, userId, total, items: cart.items.length, idempotencyKey: checkoutIdempotencyKey }
+          details: { error: errorMessage, userId, total, items: verifiedItems.length, idempotencyKey: checkoutIdempotencyKey }
         }).catch(auditErr => logger.error('CRITICAL: Reconciliation audit failed', auditErr));
 
         throw new CheckoutReconciliationError(
@@ -298,7 +317,7 @@ export class OrderService {
       const matchesStatus = !options?.status || options.status === 'all' || order.status === options.status;
       const matchesQuery = !q
         || order.id.toLowerCase().includes(q)
-        || order.items.some((item) => item.name.toLowerCase().includes(q));
+        || order.items.some((item) => item.name.toLowerCase().includes(q) || item.variantTitle?.toLowerCase().includes(q));
       const createdAt = order.createdAt.getTime();
       const matchesFrom = !options?.from || createdAt >= options.from.getTime();
       const matchesTo = !options?.to || createdAt <= options.to.getTime();
@@ -332,7 +351,6 @@ export class OrderService {
   }): Promise<{ orders: Order[]; nextCursor?: string }> {
     return this.orderRepo.getAll(options);
   }
-
 
   async getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
     const [orderStats, productStats, { orders: latestOrders }, lowStockProducts] = await Promise.all([
@@ -386,7 +404,7 @@ export class OrderService {
         : []),
     ];
 
-    const totalOrders = Object.values(orderStats.orderCountsByStatus).reduce((a, b) => a + b, 0);
+    const totalOrders = Object.values(orderStats.orderCountsByStatus).reduce((a: number, b: number) => a + b, 0);
 
     return {
       productCount: productStats.totalProducts,
@@ -408,8 +426,6 @@ export class OrderService {
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
 
-    // BroccoliQ Level 7: Inventory Restocking Logic
-    // Status update happens first — if it fails, no stock has changed yet (H-3 fix)
     await this.orderRepo.updateStatus(id, status);
     await this.audit.record({
       userId: actor.id,
@@ -422,13 +438,17 @@ export class OrderService {
     if (status === 'cancelled' && order.status !== 'cancelled') {
       const restockingUpdates = order.items.map(item => ({
         id: item.productId,
+        variantId: item.variantId,
         delta: item.quantity
       }));
       try {
         if (this.productRepo.batchUpdateStock) {
           await this.productRepo.batchUpdateStock(restockingUpdates);
         } else {
-          await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
+          for (const u of restockingUpdates) {
+            if (u.variantId) await this.productRepo.updateVariantStock(u.variantId, u.delta);
+            else await this.productRepo.updateStock(u.id, u.delta);
+          }
         }
         await this.audit.record({
           userId: actor.id,
@@ -450,11 +470,11 @@ export class OrderService {
     }
 
     if (status === 'cancelled') {
-      const restockingUpdates: { id: string, delta: number }[] = [];
+      const restockingUpdates: { id: string, variantId?: string, delta: number }[] = [];
       for (const order of orders) {
         if (order && order.status !== 'cancelled') {
           order.items.forEach(item => {
-            restockingUpdates.push({ id: item.productId, delta: item.quantity });
+            restockingUpdates.push({ id: item.productId, variantId: item.variantId, delta: item.quantity });
           });
         }
       }
@@ -464,7 +484,10 @@ export class OrderService {
           if (this.productRepo.batchUpdateStock) {
             await this.productRepo.batchUpdateStock(restockingUpdates);
           } else {
-            await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
+            for (const u of restockingUpdates) {
+              if (u.variantId) await this.productRepo.updateVariantStock(u.variantId, u.delta);
+              else await this.productRepo.updateStock(u.id, u.delta);
+            }
           }
         } catch (err) {
           logger.error('Failed to restock inventory in batch cancellation', err);
@@ -528,7 +551,7 @@ export class OrderService {
       })
     );
 
-    return summaries.sort((a, b) => b.spent - a.spent);
+    return summaries.sort((a: any, b: any) => b.spent - a.spent);
   }
   async getAnalyticsData(): Promise<AnalyticsData> {
     const [orderStats, topProducts] = await Promise.all([
@@ -543,7 +566,7 @@ export class OrderService {
       : 0;
 
     const cancelledCount = orderStats.orderCountsByStatus['cancelled'] || 0;
-    const completedOrders = Object.values(orderStats.orderCountsByStatus).reduce((a, b) => a + b, 0) - cancelledCount;
+    const completedOrders = Object.values(orderStats.orderCountsByStatus).reduce((a: number, b: number) => a + b, 0) - cancelledCount;
     const averageOrderValue = completedOrders > 0 ? Math.round(orderStats.totalRevenue / completedOrders) : 0;
 
     return {
@@ -555,7 +578,6 @@ export class OrderService {
         name: p.name,
         revenue: p.revenue,
         sales: p.sales,
-        // Hardened Analysis: Growth calculated via relative sales velocity vs global average
         growth: Math.round((p.sales / (orderStats.totalRevenue / 100)) * 100)
       }))
     };
@@ -629,7 +651,6 @@ export class OrderService {
       
       for (const item of order.items) {
         if (item.digitalAssets && item.digitalAssets.length > 0) {
-          // Find latest download log for these assets
           const db = getSQLiteDB();
           const logs = await db
             .selectFrom('digital_access_logs' as any)
@@ -656,10 +677,6 @@ export class OrderService {
       }
     }
 
-    // Sort by most recent purchase
     return digitalAssets.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
   }
 }
-
-
-

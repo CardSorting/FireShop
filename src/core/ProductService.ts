@@ -399,6 +399,42 @@ export class ProductService {
     return products;
   }
 
+  async batchUpdateInventory(updates: { id: string; variantId?: string; stock: number }[], actor: { id: string, email: string }): Promise<void> {
+    const deltaUpdates = await Promise.all(updates.map(async (u) => {
+      const product = await this.repo.getById(u.id);
+      if (!product) throw new ProductNotFoundError(u.id);
+      
+      let currentStock = product.stock;
+      if (u.variantId) {
+        const variant = product.variants?.find(v => v.id === u.variantId);
+        if (!variant) throw new Error(`Variant ${u.variantId} not found`);
+        currentStock = variant.stock;
+      }
+      
+      return { id: u.id, variantId: u.variantId, delta: u.stock - currentStock };
+    }));
+
+    if (this.repo.batchUpdateStock) {
+      await this.repo.batchUpdateStock(deltaUpdates);
+    } else {
+      for (const update of deltaUpdates) {
+        if (update.variantId) {
+          await this.repo.updateVariantStock(update.variantId, update.delta);
+        } else {
+          await this.repo.updateStock(update.id, update.delta);
+        }
+      }
+    }
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'inventory_batch_updated',
+      targetId: 'multiple',
+      details: { count: updates.length }
+    });
+  }
+
   async batchDeleteProducts(ids: string[], actor: { id: string, email: string }): Promise<void> {
     if (this.repo.batchDelete) {
       await this.repo.batchDelete(ids);

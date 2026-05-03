@@ -106,6 +106,7 @@ export function createApiClientServices() {
             updateProduct: (id: string, data: ProductUpdate, _actor: { id: string; email: string }) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
             deleteProduct: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
             batchUpdateProducts: (updates: { id: string; updates: ProductUpdate }[], _actor: { id: string; email: string }) => request<Product[]>('/api/admin/products/batch', { method: 'POST', body: JSON.stringify({ updates }) }),
+            batchUpdateInventory: (updates: { id: string; variantId?: string; stock: number }[], _actor: { id: string; email: string }) => request<void>('/api/admin/inventory/batch', { method: 'POST', body: JSON.stringify({ updates }) }),
             batchDeleteProducts: (ids: string[], _actor: { id: string; email: string }) => request<void>('/api/admin/products/batch', { method: 'DELETE', body: JSON.stringify({ ids }) }),
         },
         cartService: {

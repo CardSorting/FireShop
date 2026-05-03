@@ -24,7 +24,7 @@ export interface IProductRepository {
   delete(id: string): Promise<void>;
   updateStock(id: string, delta: number): Promise<void>;
   updateVariantStock(variantId: string, delta: number): Promise<void>;
-  batchUpdateStock?(updates: { id: string; delta: number }[]): Promise<void>;
+  batchUpdateStock?(updates: { id: string; variantId?: string; delta: number }[]): Promise<void>;
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
   getStats(): Promise<{

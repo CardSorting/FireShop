@@ -347,22 +347,36 @@ export function canPlaceOrder(
   return true;
 }
 
-export function coalesceCartStockDeductions(items: CartItem[]): { id: string; delta: number }[] {
+export function coalesceCartStockDeductions(items: CartItem[]): { id: string; variantId?: string; delta: number }[] {
   const deltas = new Map<string, number>();
   for (const item of items) {
-    deltas.set(item.productId, (deltas.get(item.productId) ?? 0) - item.quantity);
+    const key = item.variantId ? `${item.productId}:${item.variantId}` : item.productId;
+    deltas.set(key, (deltas.get(key) ?? 0) - item.quantity);
   }
-  return Array.from(deltas.entries()).map(([id, delta]) => ({ id, delta }));
+  return Array.from(deltas.entries()).map(([key, delta]) => {
+    if (key.includes(':')) {
+      const [id, variantId] = key.split(':');
+      return { id, variantId, delta };
+    }
+    return { id: key, delta };
+  });
 }
 
-export function coalesceStockUpdates(updates: { id: string; delta: number }[]): { id: string; delta: number }[] {
+export function coalesceStockUpdates(updates: { id: string; variantId?: string; delta: number }[]): { id: string; variantId?: string; delta: number }[] {
   const deltas = new Map<string, number>();
   for (const update of updates) {
-    deltas.set(update.id, (deltas.get(update.id) ?? 0) + update.delta);
+    const key = update.variantId ? `${update.id}:${update.variantId}` : update.id;
+    deltas.set(key, (deltas.get(key) ?? 0) + update.delta);
   }
   return Array.from(deltas.entries())
     .filter(([, delta]) => delta !== 0)
-    .map(([id, delta]) => ({ id, delta }));
+    .map(([key, delta]) => {
+      if (key.includes(':')) {
+        const [id, variantId] = key.split(':');
+        return { id, variantId, delta };
+      }
+      return { id: key, delta };
+    });
 }
 
 export function assertValidShippingAddress(address: Address): void {

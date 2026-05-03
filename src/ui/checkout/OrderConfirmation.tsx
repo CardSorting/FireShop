@@ -77,7 +77,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
     setReordering(true);
     try {
       for (const item of order.items) {
-        await addItem(item.productId, item.quantity);
+        await addItem(item.productId, item.quantity, item.variantId);
       }
       openCart();
     } catch (err) {
@@ -256,6 +256,11 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-lg font-black text-gray-900">{item.name}</h3>
+                      {item.variantTitle && (
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary-600 mt-0.5">
+                          {item.variantTitle}
+                        </p>
+                      )}
                       <p className="mt-1 text-sm font-bold text-gray-400">Qty: {item.quantity} • {formatMoney(item.unitPrice)} / unit</p>
                     </div>
                     <p className="text-lg font-black text-gray-900">{formatMoney(item.unitPrice * item.quantity)}</p>

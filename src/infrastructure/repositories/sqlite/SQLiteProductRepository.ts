@@ -2,102 +2,23 @@
  * [LAYER: INFRASTRUCTURE]
  * SQLite Implementation of Product Repository using Kysely
  */
-import { Kysely } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { getSQLiteDB } from '../../sqlite/database';
-import type { Database, ProductTable } from '../../sqlite/schema';
+import type { Database, ProductTable, ProductVariantTable, ProductOptionTable, ProductMediaTable } from '../../sqlite/schema';
 import type { IProductRepository } from '@domain/repositories';
-import type { Product, ProductStatus, ProductDraft, ProductUpdate, ProductSalesChannel } from '@domain/models';
-import { DomainError, InsufficientStockError, InvalidProductError, ProductNotFoundError } from '@domain/errors';
+import type { Product, ProductDraft, ProductUpdate, ProductVariant, ProductOption, ProductMedia, ProductStatus } from '@domain/models';
+import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
 import { coalesceStockUpdates } from '@domain/rules';
-import { logger } from '@utils/logger';
-import { sql } from 'kysely';
-
-function parseProductCategory(value: string): string {
-  return value || 'other';
-}
-
-function nullableText(value: string | undefined): string | null {
-  return value?.trim() || null;
-}
-
-function stringifyStringList(value: string[] | undefined): string | null {
-  if (!value || value.length === 0) return null;
-  return JSON.stringify(value.map((item) => item.trim()).filter(Boolean));
-}
-
-function parseStringList(value: string | null): string[] | undefined {
-  if (!value) return undefined;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed) && parsed.every((item) => typeof item === 'string')) {
-      return parsed;
-    }
-  } catch {
-    throw new DomainError('Stored product list metadata is invalid JSON.');
-  }
-  throw new DomainError('Stored product list metadata is invalid.');
-}
-
-function stringifySalesChannels(value: ProductSalesChannel[] | undefined): string | null {
-  if (!value || value.length === 0) return null;
-  return JSON.stringify(value);
-}
-
-function parseSalesChannels(value: string | null): ProductSalesChannel[] | undefined {
-  if (!value) return undefined;
-  const allowed: ProductSalesChannel[] = ['online_store', 'pos', 'draft_order'];
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    if (Array.isArray(parsed) && parsed.every((item): item is ProductSalesChannel => allowed.includes(item as ProductSalesChannel))) {
-      return parsed;
-    }
-  } catch {
-    throw new DomainError('Stored product sales channels are invalid JSON.');
-  }
-  throw new DomainError('Stored product sales channels are invalid.');
-}
-
-function nullableBoolean(value: boolean | undefined): number | null {
-  if (value === undefined) return null;
-  return value ? 1 : 0;
-}
-
-function parseNullableBoolean(value: number | null | undefined): boolean | undefined {
-  if (value === null || value === undefined) return undefined;
-  return value === 1;
-}
-
-function isUniqueSkuConstraintError(error: unknown): boolean {
-  return error instanceof Error
-    && (error.message.includes('idx_products_sku_unique') || error.message.includes('products.sku'));
-}
-
-function parseClassification(value: string | null): string | undefined {
-  return value || undefined;
-}
-
-function parseProductStatus(value: string | null): ProductStatus {
-  if (value === 'active' || value === 'draft' || value === 'archived') {
-    return value;
-  }
-  return 'active'; // Default for safety
-}
 
 export class SQLiteProductRepository implements IProductRepository {
   private db: Kysely<Database>;
-  
-  // BroccoliQ Level 7: Memory-First Auth-Index
-  private authIndex: Map<string, Product> | null = null;
-  
-  // BroccoliQ Level 11: Hardened Memory Limit
-  private readonly MAX_INDEX_SIZE = 10000;
-  private isCatalogTooLarge = false;
+  private indexInvalidated = false;
 
   constructor() {
     this.db = getSQLiteDB();
   }
 
-  private mapTableToProduct(row: any, media: any[] = [], options: any[] = [], variants: any[] = []): Product {
+  private mapTableToProduct(row: ProductTable, variants: ProductVariant[] = [], options: ProductOption[] = [], media: ProductMedia[] = []): Product {
     return {
       id: row.id,
       name: row.name,
@@ -105,403 +26,245 @@ export class SQLiteProductRepository implements IProductRepository {
       price: row.price,
       compareAtPrice: row.compareAtPrice ?? undefined,
       cost: row.cost ?? undefined,
-      category: parseProductCategory(row.category),
-      productType: row.productType || undefined,
-      vendor: row.vendor || undefined,
-      tags: parseStringList(row.tags),
-      collections: parseStringList(row.collections),
-      handle: row.handle || undefined,
-      seoTitle: row.seoTitle || undefined,
-      seoDescription: row.seoDescription || undefined,
-      salesChannels: parseSalesChannels(row.salesChannels),
+      category: row.category,
+      productType: row.productType ?? undefined,
+      vendor: row.vendor ?? undefined,
+      tags: row.tags ? JSON.parse(row.tags) : [],
+      collections: row.collections ? JSON.parse(row.collections) : [],
+      handle: row.handle ?? undefined,
+      seoTitle: row.seoTitle ?? undefined,
+      seoDescription: row.seoDescription ?? undefined,
+      salesChannels: row.salesChannels ? JSON.parse(row.salesChannels) : [],
       stock: row.stock,
-      trackQuantity: parseNullableBoolean(row.trackQuantity),
-      continueSellingWhenOutOfStock: parseNullableBoolean(row.continueSellingWhenOutOfStock),
+      trackQuantity: !!row.trackQuantity,
+      continueSellingWhenOutOfStock: !!row.continueSellingWhenOutOfStock,
       reorderPoint: row.reorderPoint ?? undefined,
       reorderQuantity: row.reorderQuantity ?? undefined,
-      physicalItem: parseNullableBoolean(row.physicalItem),
+      physicalItem: !!row.physicalItem,
       weightGrams: row.weightGrams ?? undefined,
-      sku: row.sku || undefined,
-      manufacturer: row.manufacturer || undefined,
-      supplier: row.supplier || undefined,
-      manufacturerSku: row.manufacturerSku || undefined,
-      barcode: row.barcode || undefined,
+      sku: row.sku ?? undefined,
+      manufacturer: row.manufacturer ?? undefined,
+      supplier: row.supplier ?? undefined,
+      manufacturerSku: row.manufacturerSku ?? undefined,
+      barcode: row.barcode ?? undefined,
       imageUrl: row.imageUrl,
-      media: media.map(m => ({
-        id: m.id,
-        url: m.url,
-        altText: m.altText || undefined,
-        position: m.position,
-        width: m.width || undefined,
-        height: m.height || undefined,
-        size: m.size || undefined,
-        createdAt: new Date(m.createdAt)
-      })).sort((a, b) => a.position - b.position),
-      status: parseProductStatus(row.status),
-      set: row.set || undefined,
-      rarity: parseClassification(row.rarity),
-      isDigital: parseNullableBoolean(row.isDigital),
+      status: row.status as ProductStatus,
+      set: row.set ?? undefined,
+      rarity: row.rarity ?? undefined,
+      isDigital: !!row.isDigital,
       digitalAssets: row.digitalAssets ? JSON.parse(row.digitalAssets) : undefined,
-      
-      hasVariants: parseNullableBoolean(row.hasVariants),
-      options: options.map(o => ({
-        id: o.id,
-        productId: o.productId,
-        name: o.name,
-        position: o.position,
-        values: JSON.parse(o.values)
-      })).sort((a, b) => a.position - b.position),
-      variants: variants.map(v => ({
-        id: v.id,
-        productId: v.productId,
-        title: v.title,
-        sku: v.sku || undefined,
-        barcode: v.barcode || undefined,
-        price: v.price,
-        compareAtPrice: v.compareAtPrice ?? undefined,
-        cost: v.cost ?? undefined,
-        stock: v.stock,
-        option1: v.option1 || undefined,
-        option2: v.option2 || undefined,
-        option3: v.option3 || undefined,
-        imageUrl: v.imageUrl || undefined,
-        weightGrams: v.weightGrams ?? undefined,
-        createdAt: new Date(v.createdAt),
-        updatedAt: new Date(v.updatedAt)
-      })),
-
       createdAt: new Date(row.createdAt),
       updatedAt: new Date(row.updatedAt),
+      hasVariants: !!row.hasVariants,
+      variants: variants.length > 0 ? variants : undefined,
+      options: options.length > 0 ? options : undefined,
+      media: media
     };
   }
 
-  // BroccoliQ Level 7 & 11: Ensure the index is warmed into RAM, but safely.
-  // Exposed publicly as Level 9 Sovereign Warmup
-  public async warmup(): Promise<void> {
-    return this.ensureIndexWarm();
+  private mapTableToVariant(row: ProductVariantTable): ProductVariant {
+    return {
+      id: row.id,
+      productId: row.productId,
+      title: row.title,
+      price: row.price,
+      compareAtPrice: row.compareAtPrice ?? undefined,
+      cost: row.cost ?? undefined,
+      sku: row.sku ?? undefined,
+      barcode: row.barcode ?? undefined,
+      stock: row.stock,
+      option1: row.option1 ?? undefined,
+      option2: row.option2 ?? undefined,
+      option3: row.option3 ?? undefined,
+      imageUrl: row.imageUrl ?? undefined,
+      weightGrams: row.weightGrams ?? undefined,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt)
+    };
   }
 
-  private async ensureIndexWarm(): Promise<void> {
-    if (this.authIndex !== null || this.isCatalogTooLarge) return;
-    
-    // Check catalog size first to prevent OOM
-    const countResult = await this.db
-      .selectFrom('products')
-      .select(({ fn }) => fn.count<number>('id').as('total_count'))
-      .executeTakeFirst();
-      
-    if (countResult && countResult.total_count > this.MAX_INDEX_SIZE) {
-      logger.warn('[Hive] Level 11 Alert: Product catalog exceeds safe memory limit. Falling back to physical disk reads.', {
-        count: countResult.total_count,
-        max: this.MAX_INDEX_SIZE,
-      });
-      this.isCatalogTooLarge = true;
-      return;
-    }
-
-    const results = await this.db.selectFrom('products').selectAll().execute();
-    const mediaResults = await this.db.selectFrom('product_media').selectAll().execute();
-    const optionResults = await this.db.selectFrom('product_options').selectAll().execute();
-    const variantResults = await this.db.selectFrom('product_variants').selectAll().execute();
-    
-    // Group related data by productId
-    const mediaMap = new Map<string, any[]>();
-    for (const m of mediaResults) {
-      if (!mediaMap.has(m.productId)) mediaMap.set(m.productId, []);
-      mediaMap.get(m.productId)!.push(m);
-    }
-
-    const optionMap = new Map<string, any[]>();
-    for (const o of optionResults) {
-      if (!optionMap.has(o.productId)) optionMap.set(o.productId, []);
-      optionMap.get(o.productId)!.push(o);
-    }
-
-    const variantMap = new Map<string, any[]>();
-    for (const v of variantResults) {
-      if (!variantMap.has(v.productId)) variantMap.set(v.productId, []);
-      variantMap.get(v.productId)!.push(v);
-    }
-
-    this.authIndex = new Map();
-    for (const row of results) {
-      this.authIndex.set(row.id, this.mapTableToProduct(
-        row, 
-        mediaMap.get(row.id) || [],
-        optionMap.get(row.id) || [],
-        variantMap.get(row.id) || []
-      ));
-    }
+  private mapTableToOption(row: ProductOptionTable): ProductOption {
+    return {
+      id: row.id,
+      productId: row.productId,
+      name: row.name,
+      values: JSON.parse(row.values),
+      position: row.position
+    };
   }
 
-  private invalidateIndex() {
-    this.authIndex = null;
-    this.isCatalogTooLarge = false; // Level 11 Fix: Re-evaluate safe limits after mutations
+  private mapTableToMedia(row: ProductMediaTable): ProductMedia {
+    return {
+      id: row.id,
+      url: row.url,
+      altText: row.altText ?? undefined,
+      position: row.position,
+      width: row.width ?? undefined,
+      height: row.height ?? undefined,
+      size: row.size ?? undefined,
+      createdAt: new Date(row.createdAt)
+    };
   }
 
-  async getAll(options?: {
+  async getAll(options: {
     category?: string;
     query?: string;
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
-    // BroccoliQ Level 7: O(1) Reactive Lookups from RAM
-    await this.ensureIndexWarm();
-    
-    // Level 11 Fallback: If catalog is too large, use standard SQL
-    if (this.isCatalogTooLarge || !this.authIndex) {
-      let query = this.db.selectFrom('products').selectAll();
+    let query = this.db.selectFrom('products').selectAll();
 
-      if (options?.category) {
-        query = query.where('category', '=', options.category);
-      }
-
-      if (options?.query) {
-        const q = `%${options.query}%`;
-        query = query.where((eb) => eb.or([
-          eb('name', 'like', q),
-          eb('description', 'like', q),
-          eb('productType', 'like', q),
-          eb('vendor', 'like', q),
-          eb('tags', 'like', q),
-          eb('collections', 'like', q),
-          eb('handle', 'like', q),
-          eb('sku', 'like', q),
-          eb('manufacturer', 'like', q),
-          eb('supplier', 'like', q),
-          eb('manufacturerSku', 'like', q),
-          eb('barcode', 'like', q),
-        ]));
-      }
-
-      if (options?.cursor) {
-        const cursorProduct = await this.db
-          .selectFrom('products')
-          .select(['id', 'createdAt'])
-          .where('id', '=', options.cursor)
-          .executeTakeFirst();
-
-        if (cursorProduct) {
-          query = query.where((eb) => eb.or([
-            eb('createdAt', '<', cursorProduct.createdAt),
-            eb.and([
-              eb('createdAt', '=', cursorProduct.createdAt),
-              eb('id', '>', cursorProduct.id),
-            ]),
-          ]));
-        }
-      }
-
-      const limitCount = options?.limit ?? 20;
-      const results = await query
-        .orderBy('createdAt', 'desc')
-        .orderBy('id', 'asc')
-        .limit(limitCount)
-        .execute();
-
-      const products = results.map((row) => this.mapTableToProduct(row));
-      
-      // Level 11: Hydrate media for the visible page
-      if (products.length > 0) {
-        const productIds = products.map(p => p.id);
-        const media = await this.db.selectFrom('product_media')
-          .selectAll()
-          .where('productId', 'in', productIds)
-          .execute();
-        
-        const mediaMap = new Map<string, any[]>();
-        for (const m of media) {
-          if (!mediaMap.has(m.productId)) mediaMap.set(m.productId, []);
-          mediaMap.get(m.productId)!.push(m);
-        }
-
-        for (const p of products) {
-          p.media = (mediaMap.get(p.id) || []).map(m => ({
-            id: m.id,
-            url: m.url,
-            altText: m.altText || undefined,
-            position: m.position,
-            width: m.width || undefined,
-            height: m.height || undefined,
-            size: m.size || undefined,
-            createdAt: new Date(m.createdAt)
-          })).sort((a, b) => a.position - b.position);
-        }
-      }
-
-      const nextCursor = products.length === limitCount ? products[products.length - 1].id : undefined;
-      return { products, nextCursor };
-    }
-    
-    let allProducts = Array.from(this.authIndex.values());
-    
-    // Sort deterministically like the DB would
-    allProducts.sort((a, b) => {
-      const timeDiff = b.createdAt.getTime() - a.createdAt.getTime();
-      if (timeDiff !== 0) return timeDiff;
-      return a.id.localeCompare(b.id);
-    });
-
-    if (options?.category) {
-      allProducts = allProducts.filter(p => p.category === options.category);
+    if (options.category) {
+      query = query.where('category', '=', options.category);
     }
 
-    if (options?.query) {
-      const q = options.query.toLowerCase();
-      allProducts = allProducts.filter(p => 
-        p.name.toLowerCase().includes(q) || 
-        p.description.toLowerCase().includes(q) ||
-        (p.productType?.toLowerCase().includes(q) ?? false) ||
-        (p.vendor?.toLowerCase().includes(q) ?? false) ||
-        (p.tags?.some((tag) => tag.toLowerCase().includes(q)) ?? false) ||
-        (p.collections?.some((collection) => collection.toLowerCase().includes(q)) ?? false) ||
-        (p.handle?.toLowerCase().includes(q) ?? false) ||
-        (p.sku?.toLowerCase().includes(q) ?? false) ||
-        (p.manufacturer?.toLowerCase().includes(q) ?? false) ||
-        (p.supplier?.toLowerCase().includes(q) ?? false) ||
-        (p.manufacturerSku?.toLowerCase().includes(q) ?? false) ||
-        (p.barcode?.toLowerCase().includes(q) ?? false)
+    if (options.query) {
+      const searchTerm = `%${options.query}%`;
+      query = query.where((eb) =>
+        eb.or([
+          eb('name', 'like', searchTerm),
+          eb('description', 'like', searchTerm),
+          eb('sku', 'like', searchTerm)
+        ])
       );
     }
 
-    if (options?.cursor) {
-      const cursorIndex = allProducts.findIndex(p => p.id === options.cursor);
-      if (cursorIndex !== -1) {
-        allProducts = allProducts.slice(cursorIndex + 1);
+    const limit = options.limit ?? 20;
+    const results = await query
+      .orderBy('createdAt', 'desc')
+      .limit(limit + 1)
+      .execute();
+
+    const hasNextPage = results.length > limit;
+    const products = results.slice(0, limit);
+    const nextCursor = hasNextPage ? products[products.length - 1].id : undefined;
+
+    const enrichedProducts = await Promise.all(products.map(async (p) => {
+      // For list view, we usually don't need full variant/option data unless specifically asked,
+      // but to stay consistent with the interface, let's load minimal data if hasVariants is true.
+      if (p.hasVariants) {
+        const variants = await this.db.selectFrom('product_variants').selectAll().where('productId', '=', p.id).execute();
+        const opts = await this.db.selectFrom('product_options').selectAll().where('productId', '=', p.id).execute();
+        const media = await this.db.selectFrom('product_media').selectAll().where('productId', '=', p.id).execute();
+        return this.mapTableToProduct(p, variants.map(v => this.mapTableToVariant(v)), opts.map(o => this.mapTableToOption(o)), media.map(m => this.mapTableToMedia(m)));
       }
-    }
+      const media = await this.db.selectFrom('product_media').selectAll().where('productId', '=', p.id).execute();
+      return this.mapTableToProduct(p, [], [], media.map(m => this.mapTableToMedia(m)));
+    }));
 
-    const limitCount = options?.limit ?? 20;
-    const products = allProducts.slice(0, limitCount);
-    const nextCursor = products.length === limitCount ? products[products.length - 1].id : undefined;
-
-    return { products, nextCursor };
+    return { products: enrichedProducts, nextCursor };
   }
 
   async getById(id: string): Promise<Product | null> {
-    // BroccoliQ Level 7: Instant Memory-First Lookup
-    await this.ensureIndexWarm();
-    
-    // Level 11 Fallback
-    if (this.isCatalogTooLarge || !this.authIndex) {
-      const result = await this.db
-        .selectFrom('products')
-        .selectAll()
-        .where('id', '=', id)
-        .executeTakeFirst();
-      
-      if (!result) return null;
+    const row = await this.db.selectFrom('products').selectAll().where('id', '=', id).executeTakeFirst();
+    if (!row) return null;
 
-      const media = await this.db.selectFrom('product_media').selectAll().where('productId', '=', id).execute();
-      const options = await this.db.selectFrom('product_options').selectAll().where('productId', '=', id).execute();
-      const variants = await this.db.selectFrom('product_variants').selectAll().where('productId', '=', id).execute();
+    const [variants, options, media] = await Promise.all([
+      this.db.selectFrom('product_variants').selectAll().where('productId', '=', id).execute(),
+      this.db.selectFrom('product_options').selectAll().where('productId', '=', id).execute(),
+      this.db.selectFrom('product_media').selectAll().where('productId', '=', id).execute()
+    ]);
 
-      return this.mapTableToProduct(result, media, options, variants);
-    }
-
-    return this.authIndex.get(id) || null;
+    return this.mapTableToProduct(
+      row,
+      variants.map(v => this.mapTableToVariant(v)),
+      options.map(o => this.mapTableToOption(o)),
+      media.map(m => this.mapTableToMedia(m))
+    );
   }
 
   async getByHandle(handle: string): Promise<Product | null> {
-    await this.ensureIndexWarm();
-    
-    if (this.isCatalogTooLarge || !this.authIndex) {
-      const result = await this.db
-        .selectFrom('products')
-        .selectAll()
-        .where('handle', '=', handle)
-        .executeTakeFirst();
-      
-      if (!result) return null;
+    const row = await this.db.selectFrom('products').selectAll().where('handle', '=', handle).executeTakeFirst();
+    if (!row) return null;
 
-      const media = await this.db.selectFrom('product_media').selectAll().where('productId', '=', result.id).execute();
-      const options = await this.db.selectFrom('product_options').selectAll().where('productId', '=', result.id).execute();
-      const variants = await this.db.selectFrom('product_variants').selectAll().where('productId', '=', result.id).execute();
+    const [variants, options, media] = await Promise.all([
+      this.db.selectFrom('product_variants').selectAll().where('productId', '=', row.id).execute(),
+      this.db.selectFrom('product_options').selectAll().where('productId', '=', row.id).execute(),
+      this.db.selectFrom('product_media').selectAll().where('productId', '=', row.id).execute()
+    ]);
 
-      return this.mapTableToProduct(result, media, options, variants);
-    }
-    
-    for (const product of this.authIndex.values()) {
-      if (product.handle === handle) return product;
-    }
-    return null;
+    return this.mapTableToProduct(
+      row,
+      variants.map(v => this.mapTableToVariant(v)),
+      options.map(o => this.mapTableToOption(o)),
+      media.map(m => this.mapTableToMedia(m))
+    );
   }
 
   async create(product: ProductDraft): Promise<Product> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    try {
-      await this.db
-        .insertInto('products')
-        .values({
-          id,
-          name: product.name,
-          description: product.description,
-          price: product.price,
-          compareAtPrice: product.compareAtPrice ?? null,
-          cost: product.cost ?? null,
-          category: product.category,
-          productType: nullableText(product.productType),
-          vendor: nullableText(product.vendor),
-          tags: stringifyStringList(product.tags),
-          collections: stringifyStringList(product.collections),
-          handle: nullableText(product.handle),
-          seoTitle: nullableText(product.seoTitle),
-          seoDescription: nullableText(product.seoDescription),
-          salesChannels: stringifySalesChannels(product.salesChannels),
-          stock: product.stock,
-          trackQuantity: nullableBoolean(product.trackQuantity),
-          continueSellingWhenOutOfStock: nullableBoolean(product.continueSellingWhenOutOfStock),
-          reorderPoint: product.reorderPoint ?? null,
-          reorderQuantity: product.reorderQuantity ?? null,
-          physicalItem: nullableBoolean(product.physicalItem),
-          weightGrams: product.weightGrams ?? null,
-          sku: nullableText(product.sku),
-          manufacturer: nullableText(product.manufacturer),
-          supplier: nullableText(product.supplier),
-          manufacturerSku: nullableText(product.manufacturerSku),
-          barcode: nullableText(product.barcode),
-          imageUrl: product.imageUrl,
-          status: product.status || 'active',
-          set: product.set || null,
-          rarity: product.rarity || null,
-          isDigital: nullableBoolean(product.isDigital),
-          digitalAssets: product.digitalAssets ? JSON.stringify(product.digitalAssets) : null,
-          hasVariants: nullableBoolean(product.hasVariants),
-          createdAt: now,
-          updatedAt: now,
-        })
-        .execute();
+    await this.db.transaction().execute(async (trx) => {
+      await trx.insertInto('products').values({
+        id,
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        compareAtPrice: product.compareAtPrice ?? null,
+        cost: product.cost ?? null,
+        category: product.category,
+        productType: product.productType ?? null,
+        vendor: product.vendor ?? null,
+        tags: product.tags ? JSON.stringify(product.tags) : null,
+        collections: product.collections ? JSON.stringify(product.collections) : null,
+        handle: product.handle || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        seoTitle: product.seoTitle ?? null,
+        seoDescription: product.seoDescription ?? null,
+        salesChannels: product.salesChannels ? JSON.stringify(product.salesChannels) : null,
+        stock: product.stock,
+        trackQuantity: product.trackQuantity ? 1 : 0,
+        continueSellingWhenOutOfStock: product.continueSellingWhenOutOfStock ? 1 : 0,
+        reorderPoint: product.reorderPoint ?? null,
+        reorderQuantity: product.reorderQuantity ?? null,
+        physicalItem: product.physicalItem ? 1 : 0,
+        weightGrams: product.weightGrams ?? null,
+        sku: product.sku ?? null,
+        manufacturer: product.manufacturer ?? null,
+        supplier: product.supplier ?? null,
+        manufacturerSku: product.manufacturerSku ?? null,
+        barcode: product.barcode ?? null,
+        imageUrl: product.imageUrl,
+        status: product.status,
+        set: product.set ?? null,
+        rarity: product.rarity ?? null,
+        isDigital: product.isDigital ? 1 : 0,
+        digitalAssets: product.digitalAssets ? JSON.stringify(product.digitalAssets) : null,
+        createdAt: now,
+        updatedAt: now,
+        hasVariants: product.hasVariants ? 1 : 0
+      }).execute();
 
+      // Options
       if (product.options && product.options.length > 0) {
         for (const o of product.options) {
-          await this.db.insertInto('product_options').values({
+          await trx.insertInto('product_options').values({
             id: o.id || crypto.randomUUID(),
             productId: id,
             name: o.name,
-            position: o.position,
-            values: JSON.stringify(o.values)
+            values: JSON.stringify(o.values),
+            position: o.position
           }).execute();
         }
       }
 
+      // Variants
       if (product.variants && product.variants.length > 0) {
         for (const v of product.variants) {
-          await this.db.insertInto('product_variants').values({
+          await trx.insertInto('product_variants').values({
             id: v.id || crypto.randomUUID(),
             productId: id,
             title: v.title,
-            sku: nullableText(v.sku),
-            barcode: nullableText(v.barcode),
             price: v.price,
             compareAtPrice: v.compareAtPrice ?? null,
             cost: v.cost ?? null,
+            sku: v.sku ?? null,
+            barcode: v.barcode ?? null,
             stock: v.stock,
-            option1: nullableText(v.option1),
-            option2: nullableText(v.option2),
-            option3: nullableText(v.option3),
-            imageUrl: nullableText(v.imageUrl),
+            option1: v.option1 ?? null,
+            option2: v.option2 ?? null,
+            option3: v.option3 ?? null,
+            imageUrl: v.imageUrl ?? null,
             weightGrams: v.weightGrams ?? null,
             createdAt: now,
             updatedAt: now
@@ -509,9 +272,10 @@ export class SQLiteProductRepository implements IProductRepository {
         }
       }
 
+      // Media
       if (product.media && product.media.length > 0) {
         for (const m of product.media) {
-          await this.db.insertInto('product_media').values({
+          await trx.insertInto('product_media').values({
             id: m.id || crypto.randomUUID(),
             productId: id,
             url: m.url,
@@ -524,31 +288,32 @@ export class SQLiteProductRepository implements IProductRepository {
           }).execute();
         }
       }
-    } catch (error) {
-      if (isUniqueSkuConstraintError(error)) {
-        throw new InvalidProductError('SKU must be unique');
-      }
-      throw error;
-    }
+    });
 
-    this.invalidateIndex(); 
-
-    const created = await this.getById(id);
-    if (!created) throw new Error('Failed to create product');
-    return created;
+    this.invalidateIndex();
+    return (await this.getById(id))!;
   }
 
   async update(id: string, updates: ProductUpdate): Promise<Product> {
     const now = new Date().toISOString();
-    
-    const validFields: (keyof ProductUpdate)[] = [
-      'name', 'description', 'price', 'compareAtPrice', 'cost', 'category', 'productType', 'vendor', 'tags', 'collections', 'handle', 'seoTitle', 'seoDescription', 'salesChannels', 'stock', 'trackQuantity', 'continueSellingWhenOutOfStock', 'reorderPoint', 'reorderQuantity', 'physicalItem', 'weightGrams', 'sku', 'manufacturer', 'supplier', 'manufacturerSku', 'barcode', 'imageUrl', 'set', 'rarity', 'status', 'isDigital', 'digitalAssets', 'hasVariants'
+    const finalUpdates: any = { updatedAt: now };
+
+    const nullableText = (v?: string) => v === undefined ? undefined : (v || null);
+    const nullableBoolean = (v?: boolean) => v === undefined ? undefined : (v ? 1 : 0);
+
+    const fields = [
+      'name', 'description', 'price', 'compareAtPrice', 'cost', 'category',
+      'productType', 'vendor', 'tags', 'collections', 'handle', 'seoTitle',
+      'seoDescription', 'salesChannels', 'stock', 'trackQuantity',
+      'continueSellingWhenOutOfStock', 'reorderPoint', 'reorderQuantity',
+      'physicalItem', 'weightGrams', 'sku', 'manufacturer', 'supplier',
+      'manufacturerSku', 'barcode', 'imageUrl', 'status', 'set', 'rarity',
+      'isDigital', 'digitalAssets', 'hasVariants'
     ];
 
-    const finalUpdates: Partial<ProductTable> = { updatedAt: now };
-    for (const field of validFields) {
-      if (updates[field] !== undefined) {
-        const value = updates[field];
+    for (const field of fields) {
+      if ((updates as any)[field] !== undefined) {
+        const value = (updates as any)[field];
         const finalValue = Array.isArray(value)
           ? JSON.stringify(value)
           : typeof value === 'boolean'
@@ -597,16 +362,14 @@ export class SQLiteProductRepository implements IProductRepository {
                 id: o.id || crypto.randomUUID(),
                 productId: id,
                 name: o.name,
-                position: o.position,
-                values: JSON.stringify(o.values)
+                values: JSON.stringify(o.values),
+                position: o.position
               }).execute();
             }
           }
         }
 
         if (updates.variants !== undefined) {
-          // Careful: deleting and re-inserting variants might break existing order relationships if they use variant IDs.
-          // However, given the current simple structure, we'll follow the pattern used for media.
           await trx.deleteFrom('product_variants').where('productId', '=', id).execute();
           if (updates.variants && updates.variants.length > 0) {
             for (const v of updates.variants) {
@@ -614,16 +377,16 @@ export class SQLiteProductRepository implements IProductRepository {
                 id: v.id || crypto.randomUUID(),
                 productId: id,
                 title: v.title,
-                sku: nullableText(v.sku),
-                barcode: nullableText(v.barcode),
                 price: v.price,
                 compareAtPrice: v.compareAtPrice ?? null,
                 cost: v.cost ?? null,
+                sku: v.sku ?? null,
+                barcode: v.barcode ?? null,
                 stock: v.stock,
-                option1: nullableText(v.option1),
-                option2: nullableText(v.option2),
-                option3: nullableText(v.option3),
-                imageUrl: nullableText(v.imageUrl),
+                option1: v.option1 ?? null,
+                option2: v.option2 ?? null,
+                option3: v.option3 ?? null,
+                imageUrl: v.imageUrl ?? null,
                 weightGrams: v.weightGrams ?? null,
                 createdAt: v.createdAt ? v.createdAt.toISOString() : now,
                 updatedAt: now
@@ -632,27 +395,29 @@ export class SQLiteProductRepository implements IProductRepository {
           }
         }
       });
-    } catch (error) {
-      if (isUniqueSkuConstraintError(error)) {
-        throw new InvalidProductError('SKU must be unique');
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('UNIQUE constraint failed: products.handle')) {
+        throw new Error(`A product with the handle "${updates.handle}" already exists.`);
       }
-      throw error;
+      throw err;
     }
 
-    this.invalidateIndex(); 
-
-    const updated = await this.getById(id);
-    if (!updated) throw new ProductNotFoundError(id);
-    return updated;
+    this.invalidateIndex();
+    return (await this.getById(id))!;
   }
-
 
   async delete(id: string): Promise<void> {
     await this.db.transaction().execute(async (trx) => {
-      await trx.deleteFrom('product_options').where('productId', '=', id).execute();
+      // Delete child records first
       await trx.deleteFrom('product_variants').where('productId', '=', id).execute();
+      await trx.deleteFrom('product_options').where('productId', '=', id).execute();
       await trx.deleteFrom('product_media').where('productId', '=', id).execute();
-      await trx.deleteFrom('products').where('id', '=', id).execute();
+      
+      // Delete parent
+      const result = await trx.deleteFrom('products').where('id', '=', id).execute();
+      if (Number(result[0].numDeletedRows) === 0) {
+        throw new ProductNotFoundError(id);
+      }
     });
     this.invalidateIndex();
   }
@@ -670,95 +435,90 @@ export class SQLiteProductRepository implements IProductRepository {
       const nextStock = product.stock + delta;
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), product.stock);
 
-      const result = await trx
+      await trx
         .updateTable('products')
         .set({ stock: nextStock, updatedAt: new Date().toISOString() })
         .where('id', '=', id)
-        .where('stock', '=', product.stock)
         .execute();
+    });
+    this.invalidateIndex();
+  }
 
-      if (Number(result[0]?.numUpdatedRows ?? 0) !== 1) {
-        throw new InsufficientStockError(id, Math.abs(delta), product.stock);
+  async batchUpdateStock(updates: { id: string, variantId?: string, delta: number }[]): Promise<void> {
+    const coalescedUpdates = coalesceStockUpdates(updates);
+    if (coalescedUpdates.length === 0) return;
+
+    await this.db.transaction().execute(async (trx) => {
+      for (const update of coalescedUpdates) {
+        if (update.variantId) {
+          await this.updateVariantStockInTransaction(trx, update.variantId, update.delta);
+        } else {
+          const product = await trx
+            .selectFrom('products')
+            .select('stock')
+            .where('id', '=', update.id)
+            .executeTakeFirst();
+
+          if (!product) throw new ProductNotFoundError(update.id);
+
+          const nextStock = product.stock + update.delta;
+          if (nextStock < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
+
+          const result = await trx
+            .updateTable('products')
+            .set({ stock: nextStock, updatedAt: new Date().toISOString() })
+            .where('id', '=', update.id)
+            .where('stock', '=', product.stock)
+            .execute();
+
+          if (Number(result[0]?.numUpdatedRows ?? 0) !== 1) {
+            throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
+          }
+        }
       }
     });
     this.invalidateIndex();
   }
 
-  /**
-   * BroccoliQ Level 6: Builder's Punch
-   * Merges multiple consecutive stock updates into a single atomic transaction 
-   * to bypass sequential IO latency.
-   */
-  async batchUpdateStock(updates: { id: string, delta: number }[]): Promise<void> {
-    const coalescedUpdates = coalesceStockUpdates(updates);
-    if (coalescedUpdates.length === 0) return;
+  private async updateVariantStockInTransaction(trx: any, variantId: string, delta: number): Promise<void> {
+    const variant = await trx
+      .selectFrom('product_variants')
+      .select(['productId', 'stock'])
+      .where('id', '=', variantId)
+      .executeTakeFirst();
 
-    await this.db.transaction().execute(async (trx) => {
-      // We lock rows or simply read current state and write
-      for (const update of coalescedUpdates) {
-        const product = await trx
-          .selectFrom('products')
-          .select('stock')
-          .where('id', '=', update.id)
-          .executeTakeFirst();
+    if (!variant) throw new Error(`Variant not found: ${variantId}`);
 
-        if (!product) throw new ProductNotFoundError(update.id);
+    const nextVariantStock = variant.stock + delta;
+    if (nextVariantStock < 0) throw new Error(`Insufficient stock for variant: ${variantId}`);
 
-        const nextStock = product.stock + update.delta;
-        if (nextStock < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
+    // Update variant stock
+    await trx
+      .updateTable('product_variants')
+      .set({ stock: nextVariantStock, updatedAt: new Date().toISOString() })
+      .where('id', '=', variantId)
+      .execute();
 
-        const result = await trx
-          .updateTable('products')
-          .set({ stock: nextStock, updatedAt: new Date().toISOString() })
-          .where('id', '=', update.id)
-          .where('stock', '=', product.stock)
-          .execute();
+    // Sync parent product stock (sum of all variants)
+    const allVariants = await trx
+      .selectFrom('product_variants')
+      .select('stock')
+      .where('productId', '=', variant.productId)
+      .execute();
+    
+    const totalStock = allVariants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
 
-        if (Number(result[0]?.numUpdatedRows ?? 0) !== 1) {
-          throw new InsufficientStockError(update.id, Math.abs(update.delta), product.stock);
-        }
-      }
-    });
-
-    this.invalidateIndex(); // Ensure RAM stays synchronous with physical state
+    await trx
+      .updateTable('products')
+      .set({ stock: totalStock, updatedAt: new Date().toISOString() })
+      .where('id', '=', variant.productId)
+      .execute();
   }
 
   async updateVariantStock(variantId: string, delta: number): Promise<void> {
     await this.db.transaction().execute(async (trx) => {
-      const variant = await trx
-        .selectFrom('product_variants')
-        .select(['productId', 'stock'])
-        .where('id', '=', variantId)
-        .executeTakeFirst();
-
-      if (!variant) throw new Error(`Variant not found: ${variantId}`);
-
-      const nextVariantStock = variant.stock + delta;
-      if (nextVariantStock < 0) throw new Error(`Insufficient stock for variant: ${variantId}`);
-
-      // Update variant stock
-      await trx
-        .updateTable('product_variants')
-        .set({ stock: nextVariantStock, updatedAt: new Date().toISOString() })
-        .where('id', '=', variantId)
-        .execute();
-
-      // Sync parent product stock (sum of all variants)
-      const allVariants = await trx
-        .selectFrom('product_variants')
-        .select('stock')
-        .where('productId', '=', variant.productId)
-        .execute();
-      
-      const totalStock = allVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
-
-      await trx
-        .updateTable('products')
-        .set({ stock: totalStock, updatedAt: new Date().toISOString() })
-        .where('id', '=', variant.productId)
-        .execute();
+      await this.updateVariantStockInTransaction(trx, variantId, delta);
     });
-
     this.invalidateIndex();
   }
 
@@ -812,7 +572,6 @@ export class SQLiteProductRepository implements IProductRepository {
   }
 
   async getLowStockProducts(limit: number): Promise<Product[]> {
-    // We consider low stock as anything less than 10
     const results = await this.db
       .selectFrom('products')
       .selectAll()
@@ -823,5 +582,9 @@ export class SQLiteProductRepository implements IProductRepository {
       .execute();
 
     return results.map(row => this.mapTableToProduct(row));
+  }
+
+  private invalidateIndex() {
+    this.indexInvalidated = true;
   }
 }

@@ -179,6 +179,11 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
+                      {item.variantTitle && (
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary-500 mt-0.5">
+                          {item.variantTitle}
+                        </p>
+                      )}
                       {item.digitalAssets && item.digitalAssets.length > 0 && (
                         <span className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-1.5 py-0.5 text-[10px] font-black uppercase text-primary-600 border border-primary-100">
                           Digital
