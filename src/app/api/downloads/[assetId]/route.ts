@@ -1,26 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StorageService } from '../../../../infrastructure/services/StorageService';
-import { getSQLiteDB } from '../../../../infrastructure/sqlite/database';
-import { sql } from 'kysely';
+import { getServerServices } from '../../../../infrastructure/server/services';
+import { FirestoreDigitalAccessRepository } from '../../../../infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
 
 // Helper to verify if a user has purchased a specific asset
 async function verifyAssetOwnership(userId: string, assetId: string): Promise<string | null> {
-  const db = getSQLiteDB();
+  const services = await getServerServices();
+  const digitalAssets = await services.orderService.getDigitalAssets(userId);
   
-  // We scan orders for the user and look into the JSON items for the matching assetId
-  // Using native SQLite JSON functions for high performance
-  const result = await sql<any>`
-    SELECT json_extract(asset.value, '$.path') as path
-    FROM orders, 
-         json_each(orders.items) as item, 
-         json_each(json_extract(item.value, '$.digitalAssets')) as asset
-    WHERE orders.userId = ${userId} 
-      AND json_extract(asset.value, '$.id') = ${assetId}
-      AND orders.status != 'cancelled'
-    LIMIT 1
-  `.execute(db);
+  for (const group of digitalAssets) {
+    const asset = group.assets.find(a => a.id === assetId);
+    if (asset) return asset.path;
+  }
 
-  return result.rows.length > 0 ? String(result.rows[0].path) : null;
+  return null;
 }
 
 export async function GET(
@@ -29,10 +22,6 @@ export async function GET(
 ) {
   try {
     const { assetId } = await params;
-    
-    // In a real app, we'd get the userId from a secure session/cookie
-    // For this simulation, we'll try to find a userId from headers or query (not secure for production!)
-    // But since we want to demonstrate the "deep" logic:
     const userId = req.nextUrl.searchParams.get('userId');
     
     if (!userId) {
@@ -45,20 +34,18 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied or asset not found' }, { status: 403 });
     }
 
-    // Log the access for customer oversight and security auditing
-    const db = getSQLiteDB();
+    // Log the access
+    const accessRepo = new FirestoreDigitalAccessRepository();
     try {
-      await db.insertInto('digital_access_logs' as any).values({
+      await accessRepo.record({
         id: crypto.randomUUID(),
         userId,
         assetId,
         ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
         userAgent: req.headers.get('user-agent') || 'unknown',
-        createdAt: new Date().toISOString()
-      }).execute();
+      });
     } catch (logErr) {
       console.error('Failed to log digital access:', logErr);
-      // We still serve the file even if logging fails (fail-open for UX, but log error)
     }
 
     const { buffer, mimeType, name } = await StorageService.readFile(assetPath);

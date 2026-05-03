@@ -212,3 +212,34 @@ export interface IWishlistRepository {
   getItems(wishlistId: string): Promise<import('./models').Product[]>;
   isProductInWishlist(userId: string, productId: string): Promise<boolean>;
 }
+
+export interface ITicketRepository {
+  getTickets(options?: { status?: string; userId?: string; assigneeId?: string; limit?: number }): Promise<import('./models').SupportTicket[]>;
+  getTicketById(id: string): Promise<import('./models').SupportTicket | null>;
+  getTicketForCustomer(id: string, userId: string): Promise<import('./models').SupportTicket | null>;
+  createTicket(ticket: import('./models').SupportTicket): Promise<void>;
+  updateTicketProperties(id: string, updates: Partial<import('./models').SupportTicket>): Promise<void>;
+  updateTicketStatus(id: string, status: string): Promise<void>;
+  updateTicketPriority(id: string, priority: string): Promise<void>;
+  addMessage(message: import('./models').TicketMessage): Promise<void>;
+  batchUpdateTickets(ids: string[], updates: Partial<import('./models').SupportTicket>): Promise<void>;
+  getTicketHealthMetrics(): Promise<{ slaCompliance: number; unassignedRate: number; totalActive: number }>;
+  getCustomerSupportSummary(userId: string): Promise<{ totalTickets: number; resolvedCount: number; totalSpend: number; recentOrders: any[] }>;
+  getMacros(): Promise<any[]>;
+  addMacro(macro: { name: string; content: string; category: string; slug?: string }): Promise<void>;
+  updateMacro(id: string, updates: Partial<{ name: string; content: string; category: string; slug: string }>): Promise<void>;
+  deleteMacro(id: string): Promise<void>;
+  markHeartbeat(ticketId: string, userId: string, userName: string): Promise<void>;
+  getActiveViewers(ticketId: string, currentUserId: string): Promise<any[]>;
+}
+
+export interface IKnowledgebaseRepository {
+  getCategories(): Promise<import('./models').KnowledgebaseCategory[]>;
+  getArticles(categoryId?: string): Promise<import('./models').KnowledgebaseArticle[]>;
+  getArticleBySlug(slug: string): Promise<import('./models').KnowledgebaseArticle | null>;
+  searchArticles(queryString: string): Promise<import('./models').KnowledgebaseArticle[]>;
+  getPopularArticles(limitVal?: number): Promise<import('./models').KnowledgebaseArticle[]>;
+  addFeedback(articleId: string, isHelpful: boolean, userId?: string): Promise<void>;
+  saveCategory(category: import('./models').KnowledgebaseCategory): Promise<void>;
+  saveArticle(article: import('./models').KnowledgebaseArticle): Promise<void>;
+}

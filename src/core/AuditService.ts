@@ -1,12 +1,22 @@
 /**
  * [LAYER: CORE]
  * System-wide audit logging for administrative forensics.
- * Compliant with BroccoliQ Level 7 integrity standards.
+ * Firestore Implementation.
  */
-import { Kysely, sql } from 'kysely';
-import { getSQLiteDB } from '@infrastructure/sqlite/database';
+import { 
+  collection, 
+  doc, 
+  getDocs, 
+  setDoc, 
+  query, 
+  orderBy, 
+  limit, 
+  Timestamp,
+  type DocumentData,
+  deleteDoc
+} from 'firebase/firestore';
+import { db } from '@infrastructure/firebase/firebase';
 import { logger } from '@utils/logger';
-import type { Database } from '@infrastructure/sqlite/schema';
 import crypto from 'crypto';
 
 export type AuditAction = 
@@ -35,13 +45,8 @@ export interface AuditEntry {
   createdAt: Date;
 }
 
-
 export class AuditService {
-  private db: Kysely<Database>;
-
-  constructor() {
-    this.db = getSQLiteDB();
-  }
+  private readonly collectionName = 'hive_audit';
 
   async record(params: {
     userId: string;
@@ -53,43 +58,36 @@ export class AuditService {
     userAgent?: string;
   }): Promise<void> {
     const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const now = Timestamp.now();
     const detailsStr = JSON.stringify(params.details || {});
 
-    // Forensic Integrity: Get the hash of the latest log to link the chain
-    const lastEntry = await this.db
-      .selectFrom('hive_audit')
-      .select('hash')
-      .orderBy(sql`rowid`, 'desc')
-      .limit(1)
-      .executeTakeFirst();
+    // Get the latest log to link the chain
+    const q = query(collection(db, this.collectionName), orderBy('createdAt', 'desc'), limit(1));
+    const snapshot = await getDocs(q);
+    const lastEntry = snapshot.empty ? null : snapshot.docs[0].data();
 
     const previousHash = lastEntry?.hash || '0'.repeat(64);
     
-    // Calculate current hash (id + action + targetId + details + previousHash + now)
-    const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${now}`;
+    // Calculate current hash
+    const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${now.toDate().toISOString()}`;
     const hash = crypto.createHash('sha256').update(payload).digest('hex');
 
-    await this.db
-      .insertInto('hive_audit')
-      .values({
-        id,
-        userId: params.userId,
-        userEmail: params.userEmail,
-        action: params.action,
-        targetId: params.targetId,
-        details: detailsStr,
-        hash,
-        previousHash,
-        createdAt: now,
-      })
-      .execute();
+    await setDoc(doc(db, this.collectionName, id), {
+      id,
+      userId: params.userId,
+      userEmail: params.userEmail,
+      action: params.action,
+      targetId: params.targetId,
+      details: detailsStr,
+      hash,
+      previousHash,
+      createdAt: now,
+    });
 
     if (params.ip || params.userAgent) {
       logger.info(`[Forensic] Audit Event: ${params.action} by ${params.userEmail} (${params.ip || 'no-ip'})`);
     }
   }
-
 
   async getRecentLogs(options?: {
     limit?: number;
@@ -98,63 +96,54 @@ export class AuditService {
     targetId?: string;
     query?: string;
   }): Promise<AuditEntry[]> {
-    let query = this.db
-      .selectFrom('hive_audit')
-      .selectAll()
-      .orderBy('createdAt', 'desc')
-      .limit(options?.limit || 50);
-
-    if (options?.userId) query = query.where('userId', '=', options.userId);
-    if (options?.action) query = query.where('action', '=', options.action);
-    if (options?.targetId) query = query.where('targetId', '=', options.targetId);
+    let q = query(collection(db, this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
     
-    if (options?.query) {
-      const needle = `%${options.query}%`;
-      query = query.where((eb) => eb.or([
-        eb('userEmail', 'like', needle),
-        eb('action', 'like', needle),
-        eb('details', 'like', needle),
-        eb('targetId', 'like', needle)
-      ]));
-    }
+    // Firestore limited filtering: multiple where + orderBy requires composite index
+    // For now, we'll fetch and filter in memory if multiple options are present
+    const snapshot = await getDocs(q);
+    let logs = snapshot.docs.map(d => {
+      const data = d.data();
+      return {
+        ...data,
+        createdAt: data.createdAt.toDate(),
+      } as AuditEntry;
+    });
 
-    const rows = await query.execute();
+    if (options?.userId) logs = logs.filter(l => l.userId === options.userId);
+    if (options?.action) logs = logs.filter(l => l.action === options.action);
+    if (options?.targetId) logs = logs.filter(l => l.targetId === options.targetId);
 
-    return rows.map(row => ({
-      ...row,
-      action: row.action as AuditAction,
-      createdAt: new Date(row.createdAt),
-    }));
+    return logs;
   }
 
   async verifyChain(): Promise<{ valid: boolean; total: number; corruptedId?: string }> {
-    const logs = await this.db
-      .selectFrom('hive_audit')
-      .selectAll()
-      .orderBy(sql`rowid`, 'asc')
-      .execute();
+    const q = query(collection(db, this.collectionName), orderBy('createdAt', 'asc'));
+    const snapshot = await getDocs(q);
+    const logs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
 
     let expectedPreviousHash = '0'.repeat(64);
 
-    for (const log of logs) {
-      const payload = `${log.id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${log.createdAt}`;
+    for (const log of logs as any) {
+      const createdAtStr = log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString();
+      const payload = `${log.id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${createdAtStr}`;
       const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
 
       if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {
-        logger.error(`[AuditService] Chain corruption detected at entry: ${log.id}`);
-        logger.error(`[AuditService] Expected Hash: ${log.hash}`);
-        logger.error(`[AuditService] Actual Hash:   ${actualHash}`);
-        logger.error(`[AuditService] Payload:       ${payload}`);
-        logger.error(`[AuditService] Prev Hash Exp: ${expectedPreviousHash}`);
-        logger.error(`[AuditService] Prev Hash Act: ${log.previousHash}`);
         return { valid: false, total: logs.length, corruptedId: log.id };
       }
 
       expectedPreviousHash = log.hash!;
     }
 
-    logger.info(`[AuditService] Chain verified clean across ${logs.length} entries.`);
     return { valid: true, total: logs.length };
   }
-}
 
+  async clearAll(): Promise<void> {
+    const snapshot = await getDocs(collection(db, this.collectionName));
+    const batchSize = 100;
+    // Simple deletion for small numbers, but for safety:
+    for (const d of snapshot.docs) {
+      await deleteDoc(d.ref);
+    }
+  }
+}

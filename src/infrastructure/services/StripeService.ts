@@ -1,13 +1,17 @@
 /**
  * [LAYER: INFRASTRUCTURE]
- * Industrialized Stripe Service for End-to-End Payment Flows
+ * Industrialized Stripe Service for End-to-End Payment Flows.
+ * Firestore Implementation for event tracking.
  */
 import Stripe from 'stripe';
 import { PaymentFailedError } from '@domain/errors';
 import { logger } from '@utils/logger';
+import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../firebase/firebase';
 
 export class StripeService {
   private stripe: Stripe;
+  private readonly collectionName = 'stripe_webhook_events';
 
   constructor() {
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim();
@@ -15,7 +19,7 @@ export class StripeService {
       logger.warn('STRIPE_SECRET_KEY is missing. Stripe integration will be disabled.');
     }
     this.stripe = new Stripe(secretKey || '', {
-      apiVersion: '2025-02-11-preview' as any, // Using a stable version or latest
+      apiVersion: '2025-02-11-preview' as any,
       typescript: true,
     });
   }
@@ -82,30 +86,19 @@ export class StripeService {
    * Checks if a webhook event has already been processed.
    */
   async isEventProcessed(eventId: string): Promise<boolean> {
-    const { getSQLiteDB } = await import('../sqlite/database');
-    const db = getSQLiteDB();
-    const result = await db
-      .selectFrom('stripe_webhook_events')
-      .select('id')
-      .where('id', '=', eventId)
-      .executeTakeFirst();
-    return !!result;
+    const docSnap = await getDoc(doc(db, this.collectionName, eventId));
+    return docSnap.exists();
   }
 
   /**
    * Marks a webhook event as processed.
    */
   async markEventProcessed(eventId: string, type: string): Promise<void> {
-    const { getSQLiteDB } = await import('../sqlite/database');
-    const db = getSQLiteDB();
-    await db
-      .insertInto('stripe_webhook_events')
-      .values({
-        id: eventId,
-        type,
-        processedAt: new Date().toISOString(),
-      })
-      .execute();
+    await setDoc(doc(db, this.collectionName, eventId), {
+      id: eventId,
+      type,
+      processedAt: Timestamp.now(),
+    });
   }
 
   /**

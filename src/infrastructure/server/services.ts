@@ -1,16 +1,10 @@
-import { initDatabase } from '@infrastructure/sqlite/database';
+/**
+ * [LAYER: INFRASTRUCTURE]
+ * Server-side service initialization.
+ */
 import { getInitialServices } from '@core/container';
-import { seedTaxonomy } from '@infrastructure/services/SeedDataLoader';
-
-let initPromise: Promise<void> | null = null;
 
 export async function getServerServices() {
-    if (!initPromise) {
-        initPromise = (async () => {
-            await initDatabase();
-            await seedTaxonomy().catch(() => {}); // Seed if empty
-        })();
-    }
-    await initPromise;
+    // Firestore doesn't require a manual local database initialization like SQLite
     return getInitialServices();
 }

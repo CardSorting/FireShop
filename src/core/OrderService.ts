@@ -10,7 +10,9 @@ import type {
   IPaymentProcessor,
   ILockProvider,
   ICheckoutGateway,
+  ITaxonomyRepository,
 } from '@domain/repositories';
+import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
 import type {
   AdminDashboardSummary,
   AnalyticsData,
@@ -45,7 +47,6 @@ import {
   ProductNotFoundError,
 } from '@domain/errors';
 import { logger } from '@utils/logger';
-import { getSQLiteDB } from '../infrastructure/sqlite/database';
 
 class InMemoryLockProvider implements ILockProvider {
   private locks = new Set<string>();
@@ -73,7 +74,8 @@ export class OrderService {
     private payment: IPaymentProcessor,
     private audit: AuditService,
     private locker: ILockProvider = new InMemoryLockProvider(),
-    private checkoutGateway?: ICheckoutGateway
+    private checkoutGateway?: ICheckoutGateway,
+    private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository()
   ) { }
 
   async finalizeTrustedCheckout(
@@ -124,16 +126,8 @@ export class OrderService {
       throw new CheckoutInProgressError();
     }
 
-    const db = getSQLiteDB();
-
     try {
-      return await db.transaction().execute(async (trx) => {
-        // Double check idempotency inside transaction
-        // Note: Repository needs to support transaction or we use raw SQL/Kysely with trx
-        // For industrial safety, we'll use the repositories but we'd ideally pass 'trx' down.
-        // Since repo interfaces don't support trx yet, we'll use them but recognize the limitation,
-        // or we use the trx directly for critical parts.
-        
+      {
         const cart = await this.cartRepo.getByUserId(userId);
         if (!cart || cart.items.length === 0) {
           throw new CartEmptyError();
@@ -242,7 +236,7 @@ export class OrderService {
         });
 
         return order;
-      });
+      }
     } catch (error) {
       logger.error('Order initiation failed', { userId, error });
       throw error;
@@ -275,10 +269,7 @@ export class OrderService {
     const riskLevel = stripePi?.charges?.data?.[0]?.outcome?.risk_level || 'unknown';
     const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
 
-    const db = getSQLiteDB();
-
-    return await db.transaction().execute(async (trx) => {
-        // Double check status inside transaction
+    try {
         await this.orderRepo.updateStatus(order.id, 'confirmed');
         await this.cartRepo.clear(order.userId);
         
@@ -319,7 +310,10 @@ export class OrderService {
         }
 
         return { ...order, status: 'confirmed' };
-    });
+    } catch (error) {
+        logger.error('Finalize order payment failed', { paymentIntentId, error });
+        throw error;
+    }
   }
 
   async placeOrder(
@@ -912,26 +906,17 @@ export class OrderService {
       
       for (const item of order.items) {
         if (item.digitalAssets && item.digitalAssets.length > 0) {
-          const db = getSQLiteDB();
-          const logs = await db
-            .selectFrom('digital_access_logs' as any)
-            .select(['createdAt', 'assetId'])
-            .where('userId', '=', userId)
-            .where('assetId', 'in', item.digitalAssets.map((a: any) => a.id))
-            .orderBy('createdAt', 'desc')
-            .execute();
-
-          const logMap = new Map(logs.map((l: any) => [l.assetId, l.createdAt]));
-
+          const logs = await this.accessRepo.getLogsByUserAndAssets(userId, item.digitalAssets.map((a: any) => a.id));
+          
           digitalAssets.push({
             orderId: order.id,
             orderDate: order.createdAt,
             productName: item.name,
             productId: item.productId,
-            productImageUrl: item.imageUrl,
+            productImageUrl: item.imageUrl || '',
             assets: item.digitalAssets.map((a: any) => ({
               ...a,
-              lastDownloadedAt: logMap.get(a.id)
+              lastDownloadedAt: logs.find(l => l.assetId === a.id)?.createdAt || null
             }))
           });
         }

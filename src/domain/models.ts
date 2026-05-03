@@ -708,6 +708,7 @@ export interface Wishlist {
   userId: string;
   name: string;
   isDefault: boolean;
+  itemIds: string[];
   createdAt: Date;
   updatedAt: Date;
 }

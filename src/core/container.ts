@@ -4,23 +4,25 @@
  * Service Container with STRICT Lazy Initialization
  */
 
-import { SQLiteProductRepository } from '@infrastructure/repositories/sqlite/SQLiteProductRepository';
-import { SQLiteCartRepository } from '@infrastructure/repositories/sqlite/SQLiteCartRepository';
-import { SQLiteOrderRepository } from '@infrastructure/repositories/sqlite/SQLiteOrderRepository';
-import { SQLiteDiscountRepository } from '@infrastructure/repositories/sqlite/SQLiteDiscountRepository';
-import { SQLiteAuthAdapter } from '@infrastructure/services/SQLiteAuthAdapter';
+import { FirestoreProductRepository } from '@infrastructure/repositories/firestore/FirestoreProductRepository';
+import { FirestoreCartRepository } from '@infrastructure/repositories/firestore/FirestoreCartRepository';
+import { FirestoreOrderRepository } from '@infrastructure/repositories/firestore/FirestoreOrderRepository';
+import { FirestoreDiscountRepository } from '@infrastructure/repositories/firestore/FirestoreDiscountRepository';
+import { FirebaseAuthAdapter } from '@infrastructure/services/FirebaseAuthAdapter';
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
-import { SovereignLocker } from '@infrastructure/sqlite/SovereignLocker';
-import { SQLiteSettingsRepository } from '@infrastructure/repositories/sqlite/SQLiteSettingsRepository';
-import { SQLiteTransferRepository } from '@infrastructure/repositories/sqlite/SQLiteTransferRepository';
-import { SQLitePurchaseOrderRepository } from '@infrastructure/repositories/sqlite/SQLitePurchaseOrderRepository';
-import { SQLiteInventoryLocationRepository } from '@infrastructure/repositories/sqlite/SQLiteInventoryLocationRepository';
-import { SQLiteInventoryLevelRepository } from '@infrastructure/repositories/sqlite/SQLiteInventoryLevelRepository';
-import { SQLiteSupplierRepository } from '@infrastructure/repositories/sqlite/SQLiteSupplierRepository';
-import { SQLiteCollectionRepository } from '@infrastructure/repositories/sqlite/SQLiteCollectionRepository';
-import { SQLiteTaxonomyRepository } from '@infrastructure/repositories/sqlite/SQLiteTaxonomyRepository';
+import { FirestoreSettingsRepository } from '@infrastructure/repositories/firestore/FirestoreSettingsRepository';
+import { FirestoreTransferRepository } from '@infrastructure/repositories/firestore/FirestoreTransferRepository';
+import { FirestorePurchaseOrderRepository } from '@infrastructure/repositories/firestore/FirestorePurchaseOrderRepository';
+import { FirestoreInventoryLocationRepository } from '@infrastructure/repositories/firestore/FirestoreInventoryLocationRepository';
+import { FirestoreInventoryLevelRepository } from '@infrastructure/repositories/firestore/FirestoreInventoryLevelRepository';
+import { FirestoreSupplierRepository } from '@infrastructure/repositories/firestore/FirestoreSupplierRepository';
+import { FirestoreCollectionRepository } from '@infrastructure/repositories/firestore/FirestoreCollectionRepository';
+import { FirestoreTaxonomyRepository } from '@infrastructure/repositories/firestore/FirestoreTaxonomyRepository';
+import { FirestoreWishlistRepository } from '@infrastructure/repositories/firestore/FirestoreWishlistRepository';
+import { FirestoreTicketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { FirestoreKnowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
@@ -34,7 +36,6 @@ import { CollectionService } from './CollectionService';
 import { TaxonomyService } from './TaxonomyService';
 import { WishlistService } from './WishlistService';
 import { AuditService } from './AuditService';
-import { SQLiteWishlistRepository } from '@infrastructure/repositories/sqlite/SQLiteWishlistRepository';
 import type {
   IProductRepository,
   ICartRepository,
@@ -49,6 +50,8 @@ import type {
   IInventoryLevelRepository,
   ITaxonomyRepository,
   IWishlistRepository,
+  ITicketRepository,
+  IKnowledgebaseRepository,
   IAuthProvider,
   IPaymentProcessor,
   ILockProvider,
@@ -82,6 +85,8 @@ let taxonomyServiceInstance: TaxonomyService | null = null;
 let stripeServiceInstance: StripeService | null = null;
 let wishlistRepoInstance: IWishlistRepository | null = null;
 let wishlistServiceInstance: WishlistService | null = null;
+let ticketRepoInstance: ITicketRepository | null = null;
+let kbRepoInstance: IKnowledgebaseRepository | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -89,19 +94,21 @@ function createCheckoutGateway(): ICheckoutGateway | undefined {
 
 function createRepositories() {
   return {
-    productRepo: new SQLiteProductRepository(),
-    cartRepo: new SQLiteCartRepository(),
-    orderRepo: new SQLiteOrderRepository(),
-    discountRepo: new SQLiteDiscountRepository(),
-    settingsRepo: new SQLiteSettingsRepository(),
-    transferRepo: new SQLiteTransferRepository(),
-    purchaseOrderRepo: new SQLitePurchaseOrderRepository(),
-    inventoryLocationRepo: new SQLiteInventoryLocationRepository(),
-    inventoryLevelRepo: new SQLiteInventoryLevelRepository(),
-    supplierRepo: new SQLiteSupplierRepository(),
-    collectionRepo: new SQLiteCollectionRepository(),
-    taxonomyRepo: new SQLiteTaxonomyRepository(),
-    wishlistRepo: new SQLiteWishlistRepository(),
+    productRepo: new FirestoreProductRepository(),
+    cartRepo: new FirestoreCartRepository(),
+    orderRepo: new FirestoreOrderRepository(),
+    discountRepo: new FirestoreDiscountRepository(),
+    settingsRepo: new FirestoreSettingsRepository(),
+    transferRepo: new FirestoreTransferRepository(),
+    purchaseOrderRepo: new FirestorePurchaseOrderRepository(),
+    inventoryLocationRepo: new FirestoreInventoryLocationRepository(),
+    inventoryLevelRepo: new FirestoreInventoryLevelRepository(),
+    supplierRepo: new FirestoreSupplierRepository(),
+    collectionRepo: new FirestoreCollectionRepository(),
+    taxonomyRepo: new FirestoreTaxonomyRepository(),
+    wishlistRepo: new FirestoreWishlistRepository(),
+    ticketRepo: new FirestoreTicketRepository(),
+    kbRepo: new FirestoreKnowledgebaseRepository(),
   };
 }
 
@@ -110,47 +117,40 @@ function createRepositories() {
  * FACTORY PATTERN: Creates fresh service instances
  */
 export function getServiceContainer() {
-  const {
-    productRepo,
-    cartRepo,
-    orderRepo,
-    discountRepo,
-    settingsRepo,
-    transferRepo,
-    purchaseOrderRepo,
-    inventoryLocationRepo,
-    inventoryLevelRepo,
-    wishlistRepo,
-  } = createRepositories();
-  const authProvider = new SQLiteAuthAdapter();
+  const repos = createRepositories();
+  const authProvider = new FirebaseAuthAdapter();
   const authService = new AuthService(authProvider);
 
   return {
     authProvider,
     authService,
-    productService: new ProductService(productRepo, new AuditService()),
-    cartService: new CartService(cartRepo, productRepo),
+    productService: new ProductService(repos.productRepo, new AuditService()),
+    cartService: new CartService(repos.cartRepo, repos.productRepo),
     orderService: new OrderService(
-      orderRepo,
-      productRepo,
-      cartRepo,
-      discountRepo,
+      repos.orderRepo,
+      repos.productRepo,
+      repos.cartRepo,
+      repos.discountRepo,
       new StripePaymentProcessor(),
       new AuditService(),
-      new SovereignLocker(),
+      { acquireLock: async () => true, releaseLock: async () => {} }, // Mock locker for Firestore for now
       createCheckoutGateway()
     ),
-    discountService: new DiscountService(discountRepo, new AuditService()),
-    settingsService: new SettingsService(settingsRepo, productRepo, discountRepo, new AuditService()),
-    transferService: new TransferService(transferRepo, productRepo),
-    purchaseOrderService: new PurchaseOrderService(purchaseOrderRepo, productRepo, inventoryLevelRepo, new AuditService()),
-    supplierService: new SupplierService(new SQLiteSupplierRepository(), new AuditService()),
-    collectionService: new CollectionService(new SQLiteCollectionRepository(), new AuditService()),
-    taxonomyService: new TaxonomyService(new SQLiteTaxonomyRepository(), new AuditService()),
-    wishlistService: new WishlistService(wishlistRepo, productRepo, new AuditService()),
+    discountService: new DiscountService(repos.discountRepo, new AuditService()),
+    settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
+    transferService: new TransferService(repos.transferRepo, repos.productRepo),
+    purchaseOrderService: new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
+    supplierService: new SupplierService(repos.supplierRepo, new AuditService()),
+    collectionService: new CollectionService(repos.collectionRepo, new AuditService()),
+    taxonomyService: new TaxonomyService(repos.taxonomyRepo, new AuditService()),
+    wishlistService: new WishlistService(repos.wishlistRepo, repos.productRepo, new AuditService()),
     stripeService: new StripeService(),
     auditService: new AuditService(),
-    orderRepo,
+    orderRepo: repos.orderRepo,
+    inventoryLocationRepo: repos.inventoryLocationRepo,
+    inventoryLevelRepo: repos.inventoryLevelRepo,
+    ticketRepository: repos.ticketRepo,
+    knowledgebaseRepository: repos.kbRepo,
   };
 }
 
@@ -171,10 +171,12 @@ export function getInitialServices() {
     inventoryLocationRepoInstance = repos.inventoryLocationRepo;
     inventoryLevelRepoInstance = repos.inventoryLevelRepo;
     wishlistRepoInstance = repos.wishlistRepo;
+    ticketRepoInstance = repos.ticketRepo;
+    kbRepoInstance = repos.kbRepo;
   }
 
   if (!authProviderInstance) {
-    authProviderInstance = new SQLiteAuthAdapter();
+    authProviderInstance = new FirebaseAuthAdapter();
   }
 
   if (!authServiceInstance) {
@@ -186,7 +188,7 @@ export function getInitialServices() {
   }
 
   if (!lockProviderInstance) {
-    lockProviderInstance = new SovereignLocker();
+    lockProviderInstance = { acquireLock: async () => true, releaseLock: async () => {} };
   }
 
   if (!checkoutGatewayInstance && process.env.CHECKOUT_ENDPOINT) {
@@ -231,15 +233,17 @@ export function getInitialServices() {
       return purchaseOrderServiceInstance;
     })(),
     supplierService: (() => {
-      if (!supplierServiceInstance) supplierServiceInstance = new SupplierService(new SQLiteSupplierRepository(), getAuditService());
+      if (!supplierServiceInstance) supplierServiceInstance = new SupplierService(productRepoInstance as any === null ? null as any : new FirestoreSupplierRepository(), getAuditService());
+      // Re-instantiating with the correct repo to match the singleton pattern if needed
+      if (!supplierServiceInstance) supplierServiceInstance = new SupplierService(new FirestoreSupplierRepository(), getAuditService());
       return supplierServiceInstance;
     })(),
     collectionService: (() => {
-      if (!collectionServiceInstance) collectionServiceInstance = new CollectionService(new SQLiteCollectionRepository(), getAuditService());
+      if (!collectionServiceInstance) collectionServiceInstance = new CollectionService(new FirestoreCollectionRepository(), getAuditService());
       return collectionServiceInstance;
     })(),
     taxonomyService: (() => {
-      if (!taxonomyServiceInstance) taxonomyServiceInstance = new TaxonomyService(new SQLiteTaxonomyRepository(), getAuditService());
+      if (!taxonomyServiceInstance) taxonomyServiceInstance = new TaxonomyService(new FirestoreTaxonomyRepository(), getAuditService());
       return taxonomyServiceInstance;
     })(),
     wishlistService: (() => {
@@ -249,6 +253,8 @@ export function getInitialServices() {
     orderRepo: orderRepoInstance!,
     inventoryLocationRepo: inventoryLocationRepoInstance!,
     inventoryLevelRepo: inventoryLevelRepoInstance!,
+    ticketRepository: ticketRepoInstance!,
+    knowledgebaseRepository: kbRepoInstance!,
     auditService: getAuditService(),
     stripeService: (() => {
       if (!stripeServiceInstance) stripeServiceInstance = new StripeService();
