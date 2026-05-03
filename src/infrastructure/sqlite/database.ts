@@ -209,6 +209,8 @@ export async function initDatabase() {
     .addColumn('shippingCarrier', 'text')
     .addColumn('notes', 'text', (col) => col.notNull().defaultTo('[]'))
     .addColumn('riskScore', 'integer', (col) => col.notNull().defaultTo(0))
+    .addColumn('customerName', 'text')
+    .addColumn('customerEmail', 'text')
     .addColumn('createdAt', 'text', (col) => col.notNull())
     .addColumn('updatedAt', 'text', (col) => col.notNull())
     .execute();
@@ -224,9 +226,14 @@ export async function initDatabase() {
     await db.schema.alterTable('orders').addColumn('notes', 'text', (col) => col.notNull().defaultTo('[]')).execute();
   } catch {}
 
-  // Migration for riskScore if it doesn't exist
   try {
     await db.schema.alterTable('orders').addColumn('riskScore', 'integer', (col) => col.notNull().defaultTo(0)).execute();
+  } catch (err) {}
+  try {
+    await db.schema.alterTable('orders').addColumn('customerName', 'text').execute();
+  } catch (err) {}
+  try {
+    await db.schema.alterTable('orders').addColumn('customerEmail', 'text').execute();
   } catch (err) {}
 
   try { await db.schema.alterTable('orders').addColumn('idempotencyKey', 'text').execute(); } catch {}
@@ -267,6 +274,20 @@ export async function initDatabase() {
     .addColumn('hash', 'text')
     .addColumn('previousHash', 'text')
     .addColumn('createdAt', 'text', (col) => col.notNull())
+    .execute();
+
+  await db.schema
+    .createIndex('idx_hive_audit_action')
+    .on('hive_audit')
+    .column('action')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_hive_audit_targetId')
+    .on('hive_audit')
+    .column('targetId')
+    .ifNotExists()
     .execute();
 
   // Migration for hive_audit: add hash and previousHash
@@ -603,6 +624,13 @@ export async function initDatabase() {
     .column('createdAt')
     .ifNotExists()
     .execute();
+ 
+   await db.schema
+     .createIndex('idx_orders_customerEmail')
+     .on('orders')
+     .column('customerEmail')
+     .ifNotExists()
+     .execute();
 
   // ─────────────────────────────────────────────
   // Indexes for new tables
@@ -737,6 +765,20 @@ export async function initDatabase() {
   try { await db.schema.alterTable('support_tickets').addColumn('type', 'text').execute(); } catch {}
   try { await db.schema.alterTable('support_tickets').addColumn('tags', 'text').execute(); } catch {}
   try { await db.schema.alterTable('support_tickets').addColumn('slaDeadline', 'text').execute(); } catch {}
+
+  await db.schema
+    .createIndex('idx_support_tickets_status')
+    .on('support_tickets')
+    .column('status')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_support_tickets_userId')
+    .on('support_tickets')
+    .column('userId')
+    .ifNotExists()
+    .execute();
 
   await db.schema
     .createTable('ticket_messages')

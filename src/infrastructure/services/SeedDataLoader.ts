@@ -152,6 +152,47 @@ const INITIAL_CATALOG: ProductDraft[] = [
     trackQuantity: true,
     physicalItem: true,
     media: [],
+  },
+  {
+    name: 'Champion Apparel - Pro Hoodie',
+    description: 'Multi-variant apparel for testing complex product options.',
+    price: 5999,
+    category: 'apparel',
+    productType: 'Apparel',
+    stock: 200,
+    status: 'active',
+    imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=800',
+    handle: 'pro-hoodie-multi',
+    hasVariants: true,
+    options: [
+      { id: 'opt-hoodie-color', productId: '', name: 'Color', position: 1, values: ['Red', 'Blue', 'Black'] },
+      { id: 'opt-hoodie-size', productId: '', name: 'Size', position: 2, values: ['S', 'M', 'L', 'XL'] },
+      { id: 'opt-hoodie-fit', productId: '', name: 'Fit', position: 3, values: ['Regular', 'Slim'] }
+    ],
+    variants: Array.from({ length: 24 }).map((_, i) => {
+      const colors = ['Red', 'Blue', 'Black'];
+      const sizes = ['S', 'M', 'L', 'XL'];
+      const fits = ['Regular', 'Slim'];
+      const cIdx = Math.floor(i / 8);
+      const sIdx = Math.floor((i % 8) / 2);
+      const fIdx = i % 2;
+      return {
+        id: `var-hoodie-${i}`,
+        productId: '',
+        title: `${colors[cIdx]} / ${sizes[sIdx]} / ${fits[fIdx]}`,
+        price: 5999,
+        stock: 10 + i,
+        option1: colors[cIdx],
+        option2: sizes[sIdx],
+        option3: fits[fIdx],
+        sku: `HOOD-PR-${colors[cIdx][0]}${sizes[sIdx]}${fits[fIdx][0]}-${i}`,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    }),
+    trackQuantity: true,
+    physicalItem: true,
+    media: [],
   }
 ];
 
@@ -160,6 +201,8 @@ const INITIAL_CUSTOMERS = [
   { email: 'misty.williams@cerulean.city', password: 'Starmie-password123', displayName: 'Misty Williams' },
   { email: 'brock.harrison@pewter.city', password: 'Onix-password123', displayName: 'Brock Harrison' },
   { email: 'admin@playmore.tcg', password: 'Admin-Secure-Password123', displayName: 'System Admin', role: 'admin' as const },
+  { email: 'giovanni@rocket.corp', password: 'Mewtwo-is-mine-123', displayName: 'Giovanni Whale' },
+  { email: 'red@pallet.town', password: 'Champion-password-123', displayName: 'Red Inactive' },
 ];
 
 const KB_DATA = {
@@ -488,6 +531,40 @@ export async function seedOrders(): Promise<number> {
       logger.error(`Forensic Fault: Failed to seed order iteration ${i}.`, err);
     }
   }
+
+  // 1. Seed a HIGH RISK Whale Order
+  try {
+    const whale = customers.find(c => c.email === 'giovanni@rocket.corp');
+    if (whale) {
+      const largeItems = products.slice(0, 5).map(p => ({
+        productId: p.id,
+        name: p.name,
+        quantity: 5,
+        unitPrice: p.price
+      }));
+      const total = largeItems.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+      
+      await orderRepo.seed({
+        id: crypto.randomUUID(),
+        userId: whale.id,
+        customerName: whale.displayName,
+        customerEmail: whale.email,
+        items: largeItems,
+        total,
+        status: 'pending',
+        shippingAddress: { street: 'Rocket Secret Base', city: 'Viridian City', state: 'Kanto', zip: '99999', country: 'JP' }, // Non-US triggers risk
+        paymentTransactionId: `whale_${crypto.randomUUID()}`,
+        riskScore: 85,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        notes: [{ id: 'n-1', authorId: 'system', authorEmail: 'system@playmore.tcg', text: 'High value international order flagged for manual review.', createdAt: new Date() }],
+      });
+      created++;
+    }
+  } catch (err) {
+    logger.error('Forensic Fault: Failed to seed high risk order.', err);
+  }
+
   return created;
 }
 
