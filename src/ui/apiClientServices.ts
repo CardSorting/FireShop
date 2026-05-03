@@ -233,10 +233,10 @@ export function createApiClientServices() {
             updateLocation: (id: string, updates: any) => request<InventoryLocation>(`/api/admin/locations/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         taxonomyService: {
-            getCategories: () => request<ProductCategory[]>('/api/admin/taxonomy/categories'),
+            getCategories: () => request<ProductCategory[]>('/api/taxonomy/categories'),
             saveCategory: (category: Partial<ProductCategory>, _actor: { id: string; email: string }) => request<ProductCategory>('/api/admin/taxonomy/categories', { method: 'POST', body: JSON.stringify(category) }),
             deleteCategory: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/taxonomy/categories/${id}`, { method: 'DELETE' }),
-            getTypes: () => request<ProductType[]>('/api/admin/taxonomy/types'),
+            getTypes: () => request<ProductType[]>('/api/taxonomy/types'),
             saveType: (type: Partial<ProductType>, _actor: { id: string; email: string }) => request<ProductType>('/api/admin/taxonomy/types', { method: 'POST', body: JSON.stringify(type) }),
             deleteType: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/taxonomy/types/${id}`, { method: 'DELETE' }),
         },
