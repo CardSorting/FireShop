@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ─────────────────────────────────────────────
+    // HELPER FUNCTIONS
+    // ─────────────────────────────────────────────
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ─────────────────────────────────────────────
+    // FOLDER RULES
+    // ─────────────────────────────────────────────
+
+    // Products & Collections: Publicly readable, Admin writeable
+    match /products/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /collections/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /general/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Digital Assets: Restricted to authenticated users who have purchased the item
+    // In a real app, we'd check a purchase record in Firestore.
+    // For now, we'll allow authenticated users to read if they are the owner of the asset
+    // (assuming we store the owner ID in the metadata during upload)
+    match /digital-assets/{assetId} {
+      allow read: if isAdmin() || (
+        isAuthenticated() && 
+        resource.metadata.ownerId == request.auth.uid
+      );
+      allow write: if isAdmin();
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
