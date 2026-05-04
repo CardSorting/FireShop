@@ -20,67 +20,50 @@ export function CategoryNavigator({
 }: CategoryNavigatorProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const { scrollLeft, clientWidth } = scrollRef.current;
-      const scrollTo = direction === 'left' ? scrollLeft - clientWidth / 2 : scrollLeft + clientWidth / 2;
-      scrollRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
-    }
-  };
-
   return (
-    <div className="group/nav border-b border-gray-100 bg-white/80 backdrop-blur-xl sticky top-0 z-40 -mx-4 px-4 overflow-hidden">
-      <div className="max-w-[1600px] mx-auto flex items-center gap-8 py-4">
-        <div className="shrink-0 items-center gap-3 pr-8 border-r border-gray-100 hidden md:flex">
-          <Hash className="h-4 w-4 text-primary-600" />
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 whitespace-nowrap">
-            Topics
-          </span>
-        </div>
-
-        <div className="relative flex-1 min-w-0">
-          <div 
-            ref={scrollRef}
-            className="flex items-center gap-3 overflow-x-auto scrollbar-hide no-scrollbar py-2 px-2"
+    <div className="bg-white/80 backdrop-blur-xl border-b border-gray-100">
+      <div className="max-w-[1600px] mx-auto px-4 flex items-center justify-between gap-8 h-16">
+        <div 
+          ref={scrollRef}
+          className="flex items-center gap-6 overflow-x-auto no-scrollbar py-2"
+        >
+          <button
+            onClick={() => onSelect('all')}
+            className={`shrink-0 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative py-2 ${
+              selectedCategory === 'all' 
+              ? 'text-gray-900 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-gray-900' 
+              : 'text-gray-400 hover:text-gray-600'
+            }`}
           >
+            All Stories
+          </button>
+          {categories.map(category => (
             <button
-              onClick={() => onSelect('all')}
-              className={`shrink-0 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                selectedCategory === 'all' 
-                ? 'bg-gray-900 text-white shadow-xl shadow-gray-900/20' 
-                : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-900'
+              key={category.id}
+              onClick={() => onSelect(category.id)}
+              className={`shrink-0 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative py-2 ${
+                selectedCategory === category.id 
+                ? 'text-primary-600 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary-600' 
+                : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              All Articles
+              {category.name}
             </button>
-            {categories.map(category => (
-              <button
-                key={category.id}
-                onClick={() => onSelect(category.id)}
-                className={`shrink-0 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                  selectedCategory === category.id 
-                  ? 'bg-primary-600 text-white shadow-xl shadow-primary-600/20' 
-                  : 'bg-gray-50 text-gray-400 hover:bg-gray-100 hover:text-gray-900'
-                }`}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
 
-        <div className="shrink-0 pl-8 border-l border-gray-100 hidden sm:flex items-center gap-2">
+        <div className="shrink-0 flex items-center bg-gray-100/50 p-1 rounded-xl">
            <button 
             onClick={() => onSortChange('new')}
-            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${sortBy === 'new' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-900'}`}
+            className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${sortBy === 'new' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
            >
-             New
+             Latest
            </button>
            <button 
             onClick={() => onSortChange('popular')}
-            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${sortBy === 'popular' ? 'bg-gray-900 text-white' : 'text-gray-400 hover:text-gray-900'}`}
+            className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${sortBy === 'popular' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
            >
-             Top
+             Trending
            </button>
         </div>
       </div>

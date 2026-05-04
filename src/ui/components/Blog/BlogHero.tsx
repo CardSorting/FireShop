@@ -8,66 +8,70 @@ export function BlogHero({ post }: { post: KnowledgebaseArticle }) {
   const readingTime = Math.ceil((post.content?.split(' ').length || 0) / 200);
 
   return (
-    <div className="relative w-full rounded-[3.5rem] overflow-hidden group mb-20 shadow-2xl shadow-gray-200/50">
-      <div className="absolute inset-0 bg-linear-to-t from-gray-900/95 via-gray-900/40 to-transparent z-10" />
-      
-      {post.featuredImageUrl ? (
-        <img 
-          src={post.featuredImageUrl} 
-          alt={post.title} 
-          className="w-full h-[650px] object-cover transition-transform duration-1000 group-hover:scale-105"
-        />
-      ) : (
-        <div className="w-full h-[650px] bg-gray-900 flex items-center justify-center">
-          <Sparkles className="h-20 w-20 text-gray-800" />
-        </div>
-      )}
-
-      <div className="absolute top-12 left-12 z-20 flex flex-col gap-4">
-         <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
-            <div className="h-2 w-2 rounded-full bg-primary-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-            Live Spotlight
-         </div>
-      </div>
-
-      <div className="absolute inset-0 z-20 flex flex-col justify-end p-12 md:p-20 space-y-8">
+    <div className="relative w-full h-[700px] rounded-[4rem] overflow-hidden group shadow-3xl shadow-gray-200/50 flex flex-col lg:flex-row bg-gray-900">
+      {/* Content Side */}
+      <div className="relative z-20 flex-1 flex flex-col justify-center p-12 lg:p-24 space-y-10 lg:w-1/2">
         <div className="flex flex-wrap items-center gap-4">
-           <span className="px-6 py-2.5 rounded-2xl bg-primary-600 text-white text-[10px] font-black uppercase tracking-widest shadow-2xl shadow-primary-600/40">
+           <span className="px-5 py-2 rounded-xl bg-primary-600 text-white text-[9px] font-black uppercase tracking-[0.2em] shadow-xl shadow-primary-600/30">
              Featured Story
            </span>
-           <span className="px-6 py-2.5 rounded-2xl bg-white/10 backdrop-blur-md text-white border border-white/10 text-[10px] font-black uppercase tracking-widest">
-             {post.categoryName || 'General'}
+           <span className="px-5 py-2 rounded-xl bg-white/5 backdrop-blur-md text-white/60 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em]">
+             {post.categoryName || 'Strategy'}
            </span>
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-black text-white max-w-5xl tracking-tighter leading-[0.9] group-hover:text-primary-400 transition-colors duration-500">
-          {post.title}
-        </h1>
-        
-        <p className="text-white/60 text-xl md:text-2xl font-medium max-w-3xl line-clamp-2 leading-relaxed">
-          {post.excerpt}
-        </p>
+        <div className="space-y-6">
+          <h1 className="text-5xl lg:text-8xl font-black text-white tracking-tighter leading-[0.85] group-hover:text-primary-400 transition-colors duration-700">
+            {post.title}
+          </h1>
+          <p className="text-white/50 text-xl lg:text-2xl font-medium max-w-2xl line-clamp-2 leading-relaxed">
+            {post.excerpt}
+          </p>
+        </div>
 
-        <div className="flex flex-col md:flex-row md:items-center gap-10 pt-6">
-           <div className="flex items-center gap-8 text-[11px] font-black uppercase tracking-widest text-white/40">
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-primary-500" />
-                <span>{new Date(post.createdAt).toLocaleDateString()}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Clock className="h-4 w-4 text-primary-500" />
-                <span>{readingTime} Min Read</span>
-              </div>
-           </div>
-
+        <div className="flex flex-col sm:flex-row items-center gap-8 pt-8">
            <Link 
             href={`/blog/${post.slug}`}
-            className="inline-flex items-center gap-6 px-12 py-6 rounded-3xl bg-white text-gray-900 font-black text-sm uppercase tracking-[0.2em] hover:bg-primary-600 hover:text-white transition-all shadow-2xl active:scale-95 group/btn"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-6 px-12 py-6 rounded-3xl bg-white text-gray-900 font-black text-xs uppercase tracking-[0.2em] hover:bg-primary-600 hover:text-white transition-all shadow-2xl active:scale-95 group/btn"
            >
-             Continue Reading
-             <ArrowRight className="h-5 w-5 group-hover/btn:translate-x-3 transition-transform" />
+             Read Deep Dive
+             <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-3 transition-transform" />
            </Link>
+
+           <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-white/30">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary-500" />
+                <span>{readingTime}m Read</span>
+              </div>
+              <span className="h-1 w-1 rounded-full bg-white/10" />
+              <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+           </div>
         </div>
+      </div>
+
+      {/* Image Side */}
+      <div className="relative lg:w-1/2 h-full overflow-hidden">
+        <div className="absolute inset-0 bg-linear-to-r from-gray-900 via-transparent to-transparent z-10 hidden lg:block" />
+        <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-transparent to-transparent z-10 lg:hidden" />
+        
+        {post.featuredImageUrl ? (
+          <img 
+            src={post.featuredImageUrl} 
+            alt={post.title} 
+            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+            <Sparkles className="h-20 w-20 text-gray-700" />
+          </div>
+        )}
+      </div>
+
+      {/* Aesthetic Accents */}
+      <div className="absolute top-12 right-12 z-30 hidden lg:block">
+         <div className="h-24 w-24 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-sm group-hover:rotate-12 transition-transform duration-1000">
+            <span className="text-white/20 text-[8px] font-black uppercase tracking-widest text-center">DreamBees<br/>Editorial</span>
+         </div>
       </div>
     </div>
   );

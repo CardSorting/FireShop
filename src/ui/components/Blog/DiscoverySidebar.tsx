@@ -90,7 +90,7 @@ export function DiscoverySidebar({
           Trending Now
         </h3>
         <div className="space-y-6">
-          {trendingPosts.slice(0, 3).map((post, i) => (
+          {trendingPosts.slice(0, 4).map((post, i) => (
             <Link key={post.id} href={`/blog/${post.slug}`} className="group flex items-start gap-4">
                <span className="text-2xl font-black text-gray-100 group-hover:text-primary-100 transition-colors tabular-nums">0{i+1}</span>
                <div className="space-y-1">
@@ -103,6 +103,30 @@ export function DiscoverySidebar({
                </div>
             </Link>
           ))}
+        </div>
+      </div>
+
+      {/* Contributor Spotlight */}
+      <div className="space-y-6 pt-6 border-t border-gray-100">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Featured Contributors</h3>
+        <div className="space-y-5">
+           {[
+             { name: 'Sarah Strategist', role: 'Editorial Director', posts: 12 },
+             { name: 'Leonardo DaBee', role: 'Master Artist', posts: 8 }
+           ].map((contributor, i) => (
+             <div key={i} className="flex items-center justify-between group cursor-pointer">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden group-hover:border-primary-200 transition-all">
+                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${contributor.name}`} alt={contributor.name} />
+                  </div>
+                  <div>
+                    <h5 className="text-[11px] font-black text-gray-900 group-hover:text-primary-600 transition-colors">{contributor.name}</h5>
+                    <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{contributor.role}</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-3 w-3 text-gray-200 group-hover:text-primary-300 transition-colors" />
+             </div>
+           ))}
         </div>
       </div>
       
