@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { X, ShoppingBag, Heart, Star, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import type { Product } from '@domain/models';
@@ -76,9 +77,11 @@ export function QuickViewModal({
             <span className="px-3 py-1 bg-primary-50 text-primary-600 rounded-lg text-[10px] font-black uppercase tracking-widest">
               {product.category}
             </span>
-            <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-lg text-[10px] font-black text-amber-700">
-              <Star className="w-3 h-3 fill-current" /> 4.9 Reviews
-            </div>
+            {(product as any).averageRating && (
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 rounded-lg text-[10px] font-black text-amber-700">
+                <Star className="w-3 h-3 fill-current" /> {((product as any).averageRating as number).toFixed(1)} Rating
+              </div>
+            )}
           </div>
 
           <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-4">{product.name}</h2>
@@ -150,5 +153,3 @@ export function QuickViewModal({
     </div>
   );
 }
-
-import Link from 'next/link';

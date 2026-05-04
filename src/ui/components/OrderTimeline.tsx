@@ -30,14 +30,30 @@ export function OrderTimeline({ order, variant = 'full' }: OrderTimelineProps) {
     );
   }
 
-  // Generate mock timeline dates based on createdAt for realism
-  const getStepDate = (index: number) => {
-    const baseDate = new Date(order.createdAt);
-    baseDate.setDate(baseDate.getDate() + (index * 1)); // Add 1 day per step roughly
-    return baseDate;
+  // Use real fulfillment event dates from the order data
+  const getStepDate = (index: number): Date | null => {
+    const stepStatus = STEPS[index]?.status;
+    if (!stepStatus) return null;
+
+    // Map step status to fulfillment event type
+    const statusToEventType: Record<string, string[]> = {
+      'pending': ['order_placed'],
+      'confirmed': ['payment_confirmed', 'processing'],
+      'shipped': ['in_transit', 'label_created'],
+      'delivered': ['delivered'],
+    };
+
+    const eventTypes = statusToEventType[stepStatus] || [];
+    const matchingEvent = order.fulfillmentEvents?.find(e => eventTypes.includes(e.type));
+    
+    if (matchingEvent) return new Date(matchingEvent.at);
+    
+    // For completed steps without events, use order.createdAt as base
+    if (index <= currentStepIndex) return new Date(order.createdAt);
+    return null;
   };
 
-  const estimatedDelivery = order.estimatedDeliveryDate || getStepDate(3);
+  const estimatedDelivery = order.estimatedDeliveryDate ? new Date(order.estimatedDeliveryDate) : getStepDate(3);
 
   if (variant === 'compact') {
     const activeStep = STEPS[currentStepIndex] || STEPS[0];
@@ -53,7 +69,7 @@ export function OrderTimeline({ order, variant = 'full' }: OrderTimelineProps) {
           <div className="text-left sm:text-right">
              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Est. Delivery</p>
              <p className="text-sm font-bold text-primary-600 flex items-center gap-1 sm:justify-end">
-                <CalendarDays className="w-3.5 h-3.5" /> {formatShortDate(estimatedDelivery.toISOString())}
+                <CalendarDays className="w-3.5 h-3.5" /> {estimatedDelivery ? formatShortDate(estimatedDelivery.toISOString()) : 'TBD'}
              </p>
           </div>
         </div>
@@ -72,7 +88,7 @@ export function OrderTimeline({ order, variant = 'full' }: OrderTimelineProps) {
       <div className="mb-12 flex items-center justify-between bg-gray-50 rounded-2xl p-6 border border-gray-100">
          <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Estimated Delivery</p>
-            <p className="text-2xl font-black text-gray-900">{formatDate(estimatedDelivery.toISOString())}</p>
+            <p className="text-2xl font-black text-gray-900">{estimatedDelivery ? formatDate(estimatedDelivery.toISOString()) : 'To be determined'}</p>
          </div>
          <div className="hidden sm:block text-right">
             <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Order Date</p>
@@ -117,7 +133,7 @@ export function OrderTimeline({ order, variant = 'full' }: OrderTimelineProps) {
                     {step.label}
                   </p>
                   <p className={`text-[10px] font-bold mt-0.5 ${isCompleted ? 'text-gray-500' : 'text-gray-300'}`}>
-                    {isCompleted ? formatShortDate(stepDate.toISOString()) : 'Pending'}
+                    {isCompleted && stepDate ? formatShortDate(stepDate.toISOString()) : 'Pending'}
                   </p>
                   {isActive && (
                     <p className="mt-2 text-xs font-medium text-primary-600 bg-primary-50 px-3 py-1 rounded-full inline-block">

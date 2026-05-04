@@ -34,7 +34,7 @@ export class WishlistService {
     return this.wishlistRepo.getById(id);
   }
 
-  async createWishlist(userId: string, name: string): Promise<Wishlist> {
+  async createWishlist(userId: string, userEmail: string, name: string): Promise<Wishlist> {
     const wishlist = await this.wishlistRepo.create({
       userId,
       name,
@@ -44,7 +44,7 @@ export class WishlistService {
 
     await this.auditService.record({
       userId,
-      userEmail: 'system', // Should be passed in
+      userEmail,
       action: 'wishlist_created',
       targetId: wishlist.id,
       details: { name },
@@ -53,12 +53,12 @@ export class WishlistService {
     return wishlist;
   }
 
-  async updateWishlist(userId: string, id: string, name: string): Promise<Wishlist> {
+  async updateWishlist(userId: string, userEmail: string, id: string, name: string): Promise<Wishlist> {
     const wishlist = await this.wishlistRepo.update(id, name);
     
     await this.auditService.record({
       userId,
-      userEmail: 'system',
+      userEmail,
       action: 'wishlist_updated',
       targetId: id,
       details: { name },
@@ -67,7 +67,7 @@ export class WishlistService {
     return wishlist;
   }
 
-  async deleteWishlist(userId: string, id: string): Promise<void> {
+  async deleteWishlist(userId: string, userEmail: string, id: string): Promise<void> {
     const wishlist = await this.wishlistRepo.getById(id);
     if (!wishlist || wishlist.isDefault) {
       throw new Error('Cannot delete default wishlist or non-existent wishlist');
@@ -77,7 +77,7 @@ export class WishlistService {
 
     await this.auditService.record({
       userId,
-      userEmail: 'system',
+      userEmail,
       action: 'wishlist_deleted',
       targetId: id,
       details: { name: wishlist.name },

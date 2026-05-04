@@ -9,27 +9,32 @@ export function OrderTrackingPage() {
   const [tracking, setTracking] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleTrack = () => {
+  const handleTrack = async () => {
     if (!orderId.trim()) return;
     setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await fetch(`/api/tracking/${orderId.toUpperCase()}`);
+      if (!response.ok) {
+        throw new Error('Order not found');
+      }
+      const data = await response.json();
+      
+      // Map API fields if necessary to match the UI component's expectations
       setTracking({
-        id: orderId.toUpperCase(),
-        status: 'In Transit',
-        carrier: 'FedEx',
-        trackingNumber: '774920193847',
-        estimatedDelivery: 'Thursday, May 23',
-        events: [
-          { status: 'Out for Delivery', location: 'San Francisco, CA', time: 'May 22, 8:45 AM', current: true },
-          { status: 'Arrived at Facility', location: 'Oakland, CA', time: 'May 21, 11:20 PM' },
-          { status: 'In Transit', location: 'Memphis, TN', time: 'May 20, 4:30 AM' },
-          { status: 'Order Picked Up', location: 'New York, NY', time: 'May 19, 2:15 PM' },
-          { status: 'Label Created', location: 'DreamBees Art Warehouse', time: 'May 18, 10:00 AM' }
-        ]
+        ...data,
+        estimatedDelivery: data.estimatedDelivery ? new Date(data.estimatedDelivery).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Pending',
+        events: data.events.map((e: any) => ({
+            ...e,
+            time: new Date(e.time).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+        })).reverse() // Assuming API returns chronologically, UI might want reverse chronological
       });
+    } catch (error) {
+      console.error(error);
+      setTracking(null);
+      alert('Order tracking information could not be found.');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (

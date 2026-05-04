@@ -45,6 +45,8 @@ export interface CreatePurchaseOrderInput {
     notes?: string;
   }>;
   notes?: string;
+  adminUserId: string;
+  adminUserEmail: string;
 }
 
 export interface ReceiveItemsInput {
@@ -163,8 +165,8 @@ export class PurchaseOrderService {
     const saved = await this.purchaseOrderRepo.save(order);
 
     await this.auditService.record({
-      userId: 'system', // Should be passed in real app
-      userEmail: 'admin@dreambees.art',
+      userId: input.adminUserId,
+      userEmail: input.adminUserEmail,
       action: 'purchase_order.created',
       targetId: saved.id,
       details: { supplier: saved.supplier, itemCount: saved.items.length }
@@ -286,7 +288,7 @@ export class PurchaseOrderService {
   // Workflow Actions
   // ─────────────────────────────────────────────
 
-  async submitOrder(id: string): Promise<PurchaseOrder> {
+  async submitOrder(id: string, adminUserId: string, adminUserEmail: string): Promise<PurchaseOrder> {
     const order = await this.getPurchaseOrder(id);
     if (!purchaseOrderRules.canSubmit(order)) {
       throw new InvalidPurchaseOrderError('Cannot submit order in current status or with no items');
@@ -294,8 +296,8 @@ export class PurchaseOrderService {
     const updated = await this.purchaseOrderRepo.updateStatus(id, 'ordered');
 
     await this.auditService.record({
-      userId: 'system',
-      userEmail: 'admin@dreambees.art',
+      userId: adminUserId,
+      userEmail: adminUserEmail,
       action: 'purchase_order.submitted',
       targetId: id,
       details: { status: 'ordered' }
@@ -305,7 +307,7 @@ export class PurchaseOrderService {
   }
 
 
-  async cancelOrder(id: string): Promise<PurchaseOrder> {
+  async cancelOrder(id: string, adminUserId: string, adminUserEmail: string): Promise<PurchaseOrder> {
     const order = await this.getPurchaseOrder(id);
     if (!purchaseOrderRules.canCancel(order)) {
       throw new CannotCancelPurchaseOrderError(order.status);
@@ -313,8 +315,8 @@ export class PurchaseOrderService {
     const updated = await this.purchaseOrderRepo.updateStatus(id, 'cancelled');
 
     await this.auditService.record({
-      userId: 'system',
-      userEmail: 'admin@dreambees.art',
+      userId: adminUserId,
+      userEmail: adminUserEmail,
       action: 'purchase_order.cancelled',
       targetId: id,
       details: { status: 'cancelled' }
@@ -324,7 +326,7 @@ export class PurchaseOrderService {
   }
 
 
-  async closeOrder(input: ClosePurchaseOrderInput): Promise<PurchaseOrder> {
+  async closeOrder(input: ClosePurchaseOrderInput, adminUserId: string, adminUserEmail: string): Promise<PurchaseOrder> {
     const order = await this.getPurchaseOrder(input.id);
     if (!purchaseOrderRules.canClose(order)) {
       throw new InvalidPurchaseOrderError('Only received or partially received purchase orders can be closed');
@@ -346,8 +348,8 @@ export class PurchaseOrderService {
     });
 
     await this.auditService.record({
-      userId: 'system',
-      userEmail: 'admin@dreambees.art',
+      userId: adminUserId,
+      userEmail: adminUserEmail,
       action: 'purchase_order.closed',
       targetId: input.id,
       details: { discrepancyReason: input.discrepancyReason, notes: input.notes }

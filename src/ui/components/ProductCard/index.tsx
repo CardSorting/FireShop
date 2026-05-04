@@ -22,8 +22,8 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   
   const favorited = isInWishlist(product.id);
   const isNew = product.tags?.includes('new') || (product.createdAt instanceof Date && product.createdAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-  const isTrending = Math.random() > 0.7; // Simulated for visual effect
-  const scarcity = Math.floor(Math.random() * 10) + 1;
+  const isTrending = product.tags?.includes('trending') || product.tags?.includes('popular') || product.tags?.includes('bestseller');
+  const displayRating = (product as any).averageRating ?? (product.tags?.includes('featured') ? 5.0 : null);
 
   const handleWishlist = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -144,10 +144,12 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
                Handcrafted
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50">
-            <HiveCell className="w-3 h-3 text-primary-600" />
-            <span className="text-[10px] font-black text-primary-700">4.9</span>
-          </div>
+          {displayRating && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50">
+              <HiveCell className="w-3 h-3 text-primary-600" />
+              <span className="text-[10px] font-black text-primary-700">{displayRating.toFixed(1)}</span>
+            </div>
+          )}
         </div>
 
         <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 group-hover:text-primary-600 transition-colors">
@@ -162,12 +164,14 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
             <HiveCell className="w-3 h-3 text-primary-200" />
           </div>
           <div className="flex flex-col items-end">
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1">
-              {isTrending ? 'High Demand' : 'Limited Supply'}
-            </p>
-            {scarcity < 5 && (
+            {product.stock <= 5 && product.stock > 0 && (
               <p className="text-[9px] font-bold text-red-500 uppercase tracking-tight animate-pulse">
-                Only {scarcity} left in stock
+                Only {product.stock} left in stock
+              </p>
+            )}
+            {product.stock === 0 && (
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">
+                Sold Out
               </p>
             )}
           </div>

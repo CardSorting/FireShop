@@ -23,6 +23,7 @@ import { FirestoreTaxonomyRepository } from '@infrastructure/repositories/firest
 import { FirestoreWishlistRepository } from '@infrastructure/repositories/firestore/FirestoreWishlistRepository';
 import { FirestoreTicketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { FirestoreKnowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
+import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
@@ -133,7 +134,7 @@ export function getServiceContainer() {
       repos.discountRepo,
       new StripePaymentProcessor(),
       new AuditService(),
-      { acquireLock: async () => true, releaseLock: async () => {} }, // Mock locker for Firestore for now
+      new FirestoreLocker(), // Replaced Mock locker for Firestore
       createCheckoutGateway()
     ),
     discountService: new DiscountService(repos.discountRepo, new AuditService()),
@@ -188,7 +189,7 @@ export function getInitialServices() {
   }
 
   if (!lockProviderInstance) {
-    lockProviderInstance = { acquireLock: async () => true, releaseLock: async () => {} };
+    lockProviderInstance = new FirestoreLocker();
   }
 
   if (!checkoutGatewayInstance && process.env.CHECKOUT_ENDPOINT) {
@@ -233,8 +234,6 @@ export function getInitialServices() {
       return purchaseOrderServiceInstance;
     })(),
     supplierService: (() => {
-      if (!supplierServiceInstance) supplierServiceInstance = new SupplierService(productRepoInstance as any === null ? null as any : new FirestoreSupplierRepository(), getAuditService());
-      // Re-instantiating with the correct repo to match the singleton pattern if needed
       if (!supplierServiceInstance) supplierServiceInstance = new SupplierService(new FirestoreSupplierRepository(), getAuditService());
       return supplierServiceInstance;
     })(),

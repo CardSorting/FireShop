@@ -37,8 +37,7 @@ export async function POST(request: Request) {
             user.id,
             shippingAddress,
             discountCode,
-            idempotencyKey,
-            'TBD' // Placeholder
+            idempotencyKey
         );
     } catch (err) {
         return jsonError(err, 'Failed to reserve inventory for checkout');

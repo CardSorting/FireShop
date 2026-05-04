@@ -33,7 +33,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
         
-        const updated = await services.wishlistService.updateWishlist(user.id, id, name);
+        const updated = await services.wishlistService.updateWishlist(user.id, user.email, id, name);
         return NextResponse.json(updated);
     } catch (error) {
         return jsonError(error, 'Failed to update wishlist');
@@ -45,7 +45,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
         const { id } = await params;
         const user = await requireSessionUser();
         const services = await getServerServices();
-        await services.wishlistService.deleteWishlist(user.id, id);
+        await services.wishlistService.deleteWishlist(user.id, user.email, id);
         return new Response(null, { status: 204 });
     } catch (error) {
         return jsonError(error, 'Failed to delete wishlist');
