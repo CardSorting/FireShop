@@ -5,7 +5,7 @@ import { assertRateLimit, jsonError, readJsonObject, requireString } from '@infr
 
 export async function POST(request: Request) {
     try {
-        assertRateLimit(request, 'auth:sign-in', 10, 60_000);
+        await assertRateLimit(request, 'auth:sign-in', 10, 60_000);
         const body = await readJsonObject(request);
         const email = requireString(body.email, 'email');
         const password = requireString(body.password, 'password');

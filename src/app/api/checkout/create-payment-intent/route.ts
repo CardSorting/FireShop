@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   try {
     // 1. Production Gates
     const user = await requireSessionUser();
-    assertRateLimit(request, 'checkout_init', 5, 60000); // 5 attempts per minute
+    await assertRateLimit(request, 'checkout_init', 5, 60000); // 5 attempts per minute
 
     const services = await getServerServices();
     const body = await readJsonObject(request);

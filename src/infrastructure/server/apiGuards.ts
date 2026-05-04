@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 import type { Address, JsonValue, OrderStatus, ProductStatus, ProductDraft, ProductUpdate, User, ProductSalesChannel, ProductMedia } from '@domain/models';
 import { AuthError, DomainError, OrderNotFoundError, ProductNotFoundError, UnauthorizedError } from '@domain/errors';
 import { getSessionUser } from './session';
 import { logger } from '@utils/logger';
+import { adminDb } from '@infrastructure/firebase/admin';
 
 const ORDER_STATUSES = new Set<OrderStatus>(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']);
 
@@ -19,14 +21,81 @@ type RateLimitBucket = {
     resetAt: number;
 };
 
+export interface RateLimitStore {
+    increment(key: string, windowMs: number): Promise<RateLimitBucket>;
+}
+
+class MemoryRateLimitStore implements RateLimitStore {
+    private buckets = new Map<string, RateLimitBucket>();
+    private lastPrune = Date.now();
+
+    async increment(key: string, windowMs: number): Promise<RateLimitBucket> {
+        const now = Date.now();
+        this.prune(now);
+
+        const existing = this.buckets.get(key);
+        if (!existing || existing.resetAt <= now) {
+            const bucket = { count: 1, resetAt: now + windowMs };
+            this.buckets.set(key, bucket);
+            return bucket;
+        }
+
+        existing.count += 1;
+        return existing;
+    }
+
+    private prune(now: number): void {
+        if (now - this.lastPrune < 60_000 && this.buckets.size < RATE_LIMIT_MAX_BUCKETS) return;
+        this.lastPrune = now;
+        for (const [key, bucket] of this.buckets) {
+            if (bucket.resetAt <= now) this.buckets.delete(key);
+            if (this.buckets.size < RATE_LIMIT_MAX_BUCKETS) break;
+        }
+    }
+}
+
+class FirestoreRateLimitStore implements RateLimitStore {
+    async increment(key: string, windowMs: number): Promise<RateLimitBucket> {
+        const docRef = adminDb.collection('rate_limits').doc(key.replace(/\//g, '_'));
+        try {
+            return await adminDb.runTransaction(async (transaction) => {
+                const doc = await transaction.get(docRef);
+                const now = Date.now();
+                
+                if (!doc.exists) {
+                    const bucket = { count: 1, resetAt: now + windowMs };
+                    transaction.set(docRef, bucket);
+                    return bucket;
+                }
+                
+                const data = doc.data() as RateLimitBucket;
+                if (data.resetAt <= now) {
+                    const bucket = { count: 1, resetAt: now + windowMs };
+                    transaction.set(docRef, bucket);
+                    return bucket;
+                }
+                
+                const bucket = { count: data.count + 1, resetAt: data.resetAt };
+                transaction.update(docRef, { count: bucket.count });
+                return bucket;
+            });
+        } catch (e) {
+            logger.error('Rate limit transaction failed, falling back to permissive mode', e);
+            return { count: 1, resetAt: Date.now() + windowMs };
+        }
+    }
+}
+
+const rateLimitStore: RateLimitStore = process.env.NODE_ENV === 'production' 
+    ? new FirestoreRateLimitStore() 
+    : new MemoryRateLimitStore();
+
 class RateLimitError extends Error {
     constructor(public readonly retryAfterSeconds: number) {
         super('Too many requests. Please wait and try again.');
         this.name = 'RateLimitError';
     }
 }
-
-const rateLimitBuckets = new Map<string, RateLimitBucket>();
 
 export async function requireSessionUser(): Promise<User> {
     const user = await getSessionUser();
@@ -67,14 +136,35 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
         throw new DomainError('Request body must be a JSON object.');
     }
+    
+    assertJsonObjectDepth(body, 5);
     return body as Record<string, unknown>;
+}
+
+function assertJsonObjectDepth(value: unknown, maxDepth: number, currentDepth = 0): void {
+    if (currentDepth > maxDepth) throw new DomainError('Request body depth limit exceeded.');
+    if (value && typeof value === 'object') {
+        const values = Array.isArray(value) ? value : Object.values(value);
+        for (const val of values) {
+            assertJsonObjectDepth(val, maxDepth, currentDepth + 1);
+        }
+    }
 }
 
 export function assertTrustedMutationOrigin(request: Request): void {
     if (!MUTATION_METHODS.has(request.method)) return;
+    
     const secFetchSite = request.headers.get('sec-fetch-site');
+    const secFetchMode = request.headers.get('sec-fetch-mode');
+    
+    // Strict site isolation for mutations
     if (secFetchSite && !['same-origin', 'same-site', 'none'].includes(secFetchSite)) {
         throw new UnauthorizedError('Cross-site request source is not allowed.');
+    }
+    
+    // Ensure mutations are coming from expected fetch modes
+    if (secFetchMode && !['cors', 'same-origin'].includes(secFetchMode)) {
+        throw new UnauthorizedError('Invalid request mode for mutation.');
     }
 
     const origin = request.headers.get('origin');
@@ -95,12 +185,17 @@ export function assertTrustedMutationOrigin(request: Request): void {
         throw new UnauthorizedError('Request origin is invalid.');
     }
 
+    const cleanHost = host ? host.split(':')[0] : null;
+    const cleanOriginHost = originUrl.host.split(':')[0];
+
     // Compare origin against the host header (which should be the external domain)
-    if (host && (originUrl.host !== host)) {
+    if (cleanHost && (cleanOriginHost !== cleanHost)) {
         logger.warn('Origin mismatch detected', {
             origin: origin,
             originHost: originUrl.host,
+            cleanOriginHost,
             hostHeader: host,
+            cleanHost,
             forwardedHost: request.headers.get('x-forwarded-host'),
             requestUrl: request.url,
             method: request.method
@@ -115,14 +210,8 @@ export function assertTrustedMutationOrigin(request: Request): void {
         const isFirebaseDomain = (h: string) => h.includes('firebaseapp.com') || h.includes('web.app') || h.includes('a.run.app');
         const projectMatch = (h: string) => h.includes('shopmore-1e34b');
 
-        if (isFirebaseDomain(originUrl.host) && (isFirebaseDomain(host) || projectMatch(host))) {
+        if (isFirebaseDomain(cleanOriginHost) && cleanHost && (isFirebaseDomain(cleanHost) || projectMatch(cleanHost))) {
              return;
-        }
-
-        // Final fallback: if we are in production on Firebase, trust the x-forwarded-host
-        const forwardedHost = request.headers.get('x-forwarded-host');
-        if (forwardedHost && originUrl.host === forwardedHost) {
-            return;
         }
 
         throw new UnauthorizedError('Cross-site request origin is not allowed.');
@@ -137,28 +226,12 @@ function clientFingerprint(request: Request): string {
     return `${ip}:${userAgent}`;
 }
 
-function pruneRateLimitBuckets(now: number): void {
-    if (rateLimitBuckets.size < RATE_LIMIT_MAX_BUCKETS) return;
-    for (const [key, bucket] of rateLimitBuckets) {
-        if (bucket.resetAt <= now) rateLimitBuckets.delete(key);
-        if (rateLimitBuckets.size < RATE_LIMIT_MAX_BUCKETS) return;
-    }
-}
-
-export function assertRateLimit(request: Request, scope: string, maxAttempts: number, windowMs: number): void {
-    const now = Date.now();
-    pruneRateLimitBuckets(now);
-
+export async function assertRateLimit(request: Request, scope: string, maxAttempts: number, windowMs: number): Promise<void> {
     const key = `${scope}:${clientFingerprint(request)}`;
-    const existing = rateLimitBuckets.get(key);
-    if (!existing || existing.resetAt <= now) {
-        rateLimitBuckets.set(key, { count: 1, resetAt: now + windowMs });
-        return;
-    }
+    const bucket = await rateLimitStore.increment(key, windowMs);
 
-    existing.count += 1;
-    if (existing.count > maxAttempts) {
-        throw new RateLimitError(Math.max(1, Math.ceil((existing.resetAt - now) / 1000)));
+    if (bucket.count > maxAttempts) {
+        throw new RateLimitError(Math.max(1, Math.ceil((bucket.resetAt - Date.now()) / 1000)));
     }
 }
 
@@ -410,6 +483,7 @@ export function parseCheckoutRequest(body: Record<string, unknown>): {
 }
 
 export function jsonError(error: unknown, fallback = 'Request failed'): NextResponse {
+    const traceId = randomUUID();
     const isExpected = error instanceof AuthError
         || error instanceof UnauthorizedError
         || error instanceof OrderNotFoundError
@@ -417,12 +491,17 @@ export function jsonError(error: unknown, fallback = 'Request failed'): NextResp
         || error instanceof RateLimitError
         || error instanceof DomainError
         || (error instanceof Error && (error.name === 'FirebaseError' || error.message.includes('auth/')));
+    
     if (!isExpected) {
-        logger.error(fallback, error);
+        logger.error(`Unexpected Error [${traceId}]: ${fallback}`, error);
+    } else {
+        logger.debug(`Expected Error [${traceId}]: ${error instanceof Error ? error.message : fallback}`);
     }
+
     const message = isExpected || process.env.NODE_ENV !== 'production'
         ? error instanceof Error ? error.message : fallback
         : fallback;
+
     const status = error instanceof AuthError
         ? 401
         : error instanceof RateLimitError
@@ -434,8 +513,15 @@ export function jsonError(error: unknown, fallback = 'Request failed'): NextResp
                 : error instanceof DomainError
                     ? 400
                     : 500;
+
     const headers = error instanceof RateLimitError
         ? { 'Retry-After': String(error.retryAfterSeconds) }
         : undefined;
-    return NextResponse.json({ error: message }, { status, headers });
+
+    const body: Record<string, any> = { error: message };
+    if (!isExpected || status === 500) {
+        body.traceId = traceId;
+    }
+
+    return NextResponse.json(body, { status, headers });
 }

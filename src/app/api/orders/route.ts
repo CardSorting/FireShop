@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        assertRateLimit(request, 'checkout:place-order', 3, 60_000);
+        await assertRateLimit(request, 'checkout:place-order', 3, 60_000);
         const user = await requireSessionUser();
         const { shippingAddress, paymentMethodId, idempotencyKey, discountCode } = parseCheckoutRequest(await readJsonObject(request));
         const services = await getServerServices();

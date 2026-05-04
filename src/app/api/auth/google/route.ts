@@ -7,13 +7,15 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(request: Request) {
     try {
-        assertRateLimit(request, 'auth:google', 10, 60_000);
+        await assertRateLimit(request, 'auth:google', 10, 60_000);
         const body = await readJsonObject(request);
         const idToken = requireString(body.idToken, 'idToken');
 
+        console.log('Verifying Google ID Token...');
         // Verify the ID token
         const decodedToken = await adminAuth.verifyIdToken(idToken);
         const uid = decodedToken.uid;
+        console.log('Verified UID:', uid);
 
         // Get or create user in Firestore
         const userDoc = await adminDb.collection('users').doc(uid).get();
