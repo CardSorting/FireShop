@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@infrastructure/firebase/admin';
 import { setSessionUser } from '@infrastructure/server/session';
-import { jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
+import { assertRateLimit, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
 import type { User, UserRole } from '@domain/models';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(request: Request) {
     try {
+        assertRateLimit(request, 'auth:google', 10, 60_000);
         const body = await readJsonObject(request);
         const idToken = requireString(body.idToken, 'idToken');
 

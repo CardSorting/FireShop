@@ -85,8 +85,8 @@ export function assertTrustedMutationOrigin(request: Request): void {
         return;
     }
 
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('x-forwarded-host')?.split(',')[0].trim() || request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim() || 'https';
     
     let originUrl: URL;
     try {
@@ -415,7 +415,8 @@ export function jsonError(error: unknown, fallback = 'Request failed'): NextResp
         || error instanceof OrderNotFoundError
         || error instanceof ProductNotFoundError
         || error instanceof RateLimitError
-        || error instanceof DomainError;
+        || error instanceof DomainError
+        || (error instanceof Error && (error.name === 'FirebaseError' || error.message.includes('auth/')));
     if (!isExpected) {
         logger.error(fallback, error);
     }
