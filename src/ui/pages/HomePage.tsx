@@ -85,6 +85,20 @@ export function HomePage() {
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-linear-to-br from-gray-950 via-gray-900 to-primary-900 opacity-95 z-10"></div>
           <div className="absolute inset-0 hero-pattern z-15 opacity-50"></div>
+          <div className="absolute inset-0 z-16 pointer-events-none overflow-hidden">
+            {[...Array(20)].map((_, i) => (
+              <div 
+                key={i} 
+                className="pollen" 
+                style={{ 
+                  left: `${Math.random() * 100}%`, 
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  animationDuration: `${4 + Math.random() * 6}s`
+                }} 
+              />
+            ))}
+          </div>
           <img src="https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=1600&h=800&fit=crop" alt="Art Background" className="w-full h-full object-cover" />
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32 relative z-20 text-center lg:text-left flex flex-col lg:flex-row items-center gap-12">
@@ -176,43 +190,49 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Featured Collections */}
-      <section className="py-20 bg-gray-50">
+      {/* Featured Collections - Minimalist Strategy */}
+      <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16 relative">
-            <FloatingBee className="absolute -top-12 left-1/2 -translate-x-32 w-12 h-12 hidden lg:block opacity-40 rotate-12" />
-            <h2 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tighter mb-4 honey-drip inline-block">Browse the Hive</h2>
-            <FloatingBee className="absolute -top-8 left-1/2 translate-x-24 w-8 h-8 hidden lg:block opacity-30 -rotate-12" />
-            <p className="text-gray-500 font-medium mt-4">Curated collection of handcrafted art, custom prints, and gear.</p>
+          <div className="mb-16 border-l-4 border-primary-500 pl-8">
+            <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-2 uppercase">Browse the Hive</h2>
+            <p className="text-gray-500 font-medium">Curated collection of handcrafted art, custom prints, and gear.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 lg:gap-16">
-            <Link href="/collections/artist-cards" className="group relative aspect-square transition-transform duration-500 hover:scale-105">
-              <div className="hexagon absolute inset-0 overflow-hidden shadow-2xl bg-gray-200 ring-4 ring-white">
-                <img src="https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Artist Cards" />
-                <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/20 to-transparent"></div>
-              </div>
-              <div className="absolute inset-x-0 bottom-8 px-8 flex items-center justify-center text-center">
-                <h3 className="text-xl font-black text-white uppercase tracking-widest drop-shadow-lg">Artist Cards</h3>
-              </div>
-            </Link>
-            <Link href="/collections/prints" className="group relative aspect-square transition-transform duration-500 hover:scale-105 md:-translate-y-8">
-              <div className="hexagon absolute inset-0 overflow-hidden shadow-2xl bg-gray-200 ring-4 ring-white">
-                <img src="https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Prints" />
-                <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/20 to-transparent"></div>
-              </div>
-              <div className="absolute inset-x-0 bottom-8 px-8 flex items-center justify-center text-center">
-                <h3 className="text-xl font-black text-white uppercase tracking-widest drop-shadow-lg">Art Prints</h3>
-              </div>
-            </Link>
-            <Link href="/collections/accessories" className="group relative aspect-square transition-transform duration-500 hover:scale-105">
-              <div className="hexagon absolute inset-0 overflow-hidden shadow-2xl bg-gray-200 ring-4 ring-white">
-                <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Accessories" />
-                <div className="absolute inset-0 bg-linear-to-t from-gray-900 via-gray-900/20 to-transparent"></div>
-              </div>
-              <div className="absolute inset-x-0 bottom-8 px-8 flex items-center justify-center text-center">
-                <h3 className="text-xl font-black text-white uppercase tracking-widest drop-shadow-lg">TCG Accessories</h3>
-              </div>
-            </Link>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+            {[
+              { 
+                href: "/collections/artist-cards", 
+                title: "Artist Cards", 
+                sub: "Hand-drawn originals",
+                img: "https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=800&auto=format&fit=crop" 
+              },
+              { 
+                href: "/collections/prints", 
+                title: "Art Prints", 
+                sub: "Museum-grade quality",
+                img: "https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=800&auto=format&fit=crop" 
+              },
+              { 
+                href: "/collections/accessories", 
+                title: "TCG Accessories", 
+                sub: "Premium protection",
+                img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop" 
+              }
+            ].map((col) => (
+              <Link key={col.href} href={col.href} className="group block">
+                <div className="relative aspect-3/2 overflow-hidden rounded-2xl bg-gray-100 mb-6 border border-gray-100 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-primary-500/10">
+                  <img src={col.img} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={col.title} />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                    {col.title}
+                    <ArrowRight className="w-4 h-4 opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary-600" />
+                  </h3>
+                  <p className="text-sm font-bold text-gray-400 uppercase tracking-tighter mt-1">{col.sub}</p>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>

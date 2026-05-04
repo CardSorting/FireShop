@@ -162,16 +162,75 @@ input[type="number"] {
   filter: blur(1px);
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
+/* Pollen Particles */
+@keyframes pollen-float {
+  0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+  50% { opacity: 0.6; }
+  100% { transform: translateY(-100px) translateX(20px) rotate(360deg); opacity: 0; }
 }
-.custom-scrollbar::-webkit-scrollbar-track {
+
+.pollen {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--color-primary-400);
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(1px);
+  animation: pollen-float 4s ease-in infinite;
+}
+
+/* Honey Shimmer for Loading */
+@keyframes honey-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.honey-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(251, 191, 36, 0.1) 25%,
+    rgba(251, 191, 36, 0.2) 37%,
+    rgba(251, 191, 36, 0.1) 63%
+  );
+  background-size: 200% 100%;
+  animation: honey-shimmer 1.5s infinite linear;
+}
+
+/* Global Honey Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
   background: transparent;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-500);
   border-radius: 10px;
+  border: 2px solid white;
+  background-clip: padding-box;
 }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-600);
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary-500) transparent;
+}
+
+/* Honey Drip Header Effect */
+.header-honey-drip {
+  position: relative;
+}
+.header-honey-drip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(180deg, var(--color-primary-500) 0%, transparent 100%);
+  opacity: 0.3;
+  pointer-events: none;
 }

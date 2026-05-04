@@ -254,12 +254,12 @@ export function ProductReviews({ productId }: { productId: string }) {
             ))
           ) : (
             <div className="py-32 text-center space-y-6">
-              <div className="w-20 h-20 bg-gray-50 rounded-xl flex items-center justify-center mx-auto">
-                <AlertCircle className="w-8 h-8 text-gray-200" />
+              <div className="w-20 h-20 bg-primary-50 rounded-2xl flex items-center justify-center mx-auto transition-transform hover:scale-110">
+                <HiveCell className="w-8 h-8 text-primary-200" />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900 mb-2">No reviews found</p>
-                <p className="text-gray-400 font-medium text-sm">Try broadening your search or clearing filters.</p>
+                <p className="text-xl font-black text-gray-900 mb-2 uppercase tracking-tight">The Hive is Quiet</p>
+                <p className="text-gray-400 font-medium text-sm">No reviews found for this selection. Be the first to start the buzz!</p>
               </div>
               <button 
                 onClick={() => { setFilter('all'); setSearchQuery(''); setSelectedTags([]); }} 

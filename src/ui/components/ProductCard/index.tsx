@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Star, ShoppingCart, Eye, Sparkles, TrendingUp, Heart, Check } from 'lucide-react';
+import { HiveCell } from '../Logo';
 import { formatCurrency } from '@utils/formatters';
 import { useWishlist } from '../../hooks/useWishlist';
 import type { Product } from '@domain/models';
@@ -143,9 +144,9 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
                Handcrafted
             </span>
           </div>
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-50/50">
-            <Star className="w-3 h-3 text-amber-400 fill-current" />
-            <span className="text-[10px] font-black text-amber-700">4.9</span>
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50">
+            <HiveCell className="w-3 h-3 text-primary-600" />
+            <span className="text-[10px] font-black text-primary-700">4.9</span>
           </div>
         </div>
 
@@ -154,9 +155,12 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
         </h3>
         
         <div className="mt-auto flex items-center justify-between">
-          <p className="text-xl font-black text-gray-900 tracking-tight">
-            {formatCurrency(product.price)}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-xl font-black text-gray-900 tracking-tight">
+              {formatCurrency(product.price)}
+            </p>
+            <HiveCell className="w-3 h-3 text-primary-200" />
+          </div>
           <div className="flex flex-col items-end">
             <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest leading-none mb-1">
               {isTrending ? 'High Demand' : 'Limited Supply'}

@@ -138,6 +138,29 @@ export function Footer() {
 
 
 
+        {/* Join the Hive Newsletter */}
+        <div className="my-20 py-16 px-8 rounded-4xl bg-linear-to-br from-primary-600 to-primary-700 text-white relative overflow-hidden shadow-2xl shadow-primary-500/20">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <BeeLogo className="w-64 h-64 rotate-12" />
+          </div>
+          <div className="relative z-10 max-w-2xl">
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-6 leading-none uppercase">Join the Hive</h2>
+            <p className="text-primary-50 font-medium text-lg mb-10 max-w-lg">
+              Get the latest artist drops, limited editions, and sweet deals delivered straight to your inbox.
+            </p>
+            <form className="flex flex-col sm:flex-row gap-4" onSubmit={(e) => e.preventDefault()}>
+              <input 
+                type="email" 
+                placeholder="honey@hive.com" 
+                className="flex-1 px-8 py-5 rounded-2xl bg-white text-gray-900 font-bold placeholder:text-gray-300 focus:outline-hidden focus:ring-4 focus:ring-primary-400 transition-all"
+              />
+              <button className="px-10 py-5 rounded-2xl bg-gray-900 text-white font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl">
+                Subscribe
+              </button>
+            </form>
+          </div>
+        </div>
+
         {/* Bottom Utility Bar */}
         <div className="pt-10 border-t border-gray-100 flex flex-col lg:flex-row justify-between items-center gap-10">
           <div className="flex flex-wrap justify-center lg:justify-start gap-x-10 gap-y-4">
