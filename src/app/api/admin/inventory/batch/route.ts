@@ -9,7 +9,7 @@ import { requireAdminSession, readJsonObject, jsonError } from '@infrastructure/
  */
 export async function POST(request: Request) {
   try {
-    const user = await requireAdminSession();
+    const user = await requireAdminSession(request);
     const actor = { id: user.id, email: user.email };
     const services = await getServerServices();
     

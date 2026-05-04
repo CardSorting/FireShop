@@ -58,7 +58,7 @@ class FirestoreRateLimitStore implements RateLimitStore {
     async increment(key: string, windowMs: number): Promise<RateLimitBucket> {
         const docRef = adminDb.collection('rate_limits').doc(key.replace(/\//g, '_'));
         try {
-            return await adminDb.runTransaction(async (transaction) => {
+            return await adminDb.runTransaction(async (transaction: any) => {
                 const doc = await transaction.get(docRef);
                 const now = Date.now();
                 
@@ -103,9 +103,10 @@ export async function requireSessionUser(): Promise<User> {
     return user;
 }
 
-export async function requireAdminSession(): Promise<User & { role: 'admin' }> {
+export async function requireAdminSession(request?: Request): Promise<User & { role: 'admin' }> {
     const user = await requireSessionUser();
     if (user.role !== 'admin') throw new UnauthorizedError();
+    if (request) assertTrustedMutationOrigin(request);
     return user as User & { role: 'admin' };
 }
 
@@ -137,17 +138,25 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
         throw new DomainError('Request body must be a JSON object.');
     }
     
-    assertJsonObjectDepth(body, 5);
+    assertJsonObjectSafety(body);
     return body as Record<string, unknown>;
 }
 
-function assertJsonObjectDepth(value: unknown, maxDepth: number, currentDepth = 0): void {
-    if (currentDepth > maxDepth) throw new DomainError('Request body depth limit exceeded.');
-    if (value && typeof value === 'object') {
-        const values = Array.isArray(value) ? value : Object.values(value);
-        for (const val of values) {
-            assertJsonObjectDepth(val, maxDepth, currentDepth + 1);
+function assertJsonObjectSafety(value: unknown, depth = 0): void {
+    if (depth > 5) throw new DomainError('Request body depth limit exceeded.');
+    if (!value || typeof value !== 'object') return;
+
+    if (Array.isArray(value)) {
+        for (const item of value) assertJsonObjectSafety(item, depth + 1);
+        return;
+    }
+
+    const obj = value as Record<string, unknown>;
+    for (const key in obj) {
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+            throw new DomainError('Malicious object keys detected.');
         }
+        assertJsonObjectSafety(obj[key], depth + 1);
     }
 }
 

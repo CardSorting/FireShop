@@ -30,7 +30,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const admin = await requireAdminSession();
+    const admin = await requireAdminSession(request);
     const services = await getServerServices();
     
     const { searchParams } = new URL(request.url);

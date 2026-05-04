@@ -49,7 +49,7 @@ export async function GET() {
 
 export async function DELETE(req: NextRequest) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(req);
     const body = await readJsonObject(req);
     const { url } = body;
     
