@@ -73,7 +73,7 @@ export function SearchCommandPalette() {
   const hasResults = quickActions.length > 0 || matchingCategories.length > 0 || results.length > 0;
 
   return (
-    <div className="fixed inset-0 z-200 flex items-start justify-center sm:pt-[12vh] sm:px-4">
+    <div className="fixed inset-0 z-[200] flex items-start justify-center sm:pt-[12vh] sm:px-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300" 

@@ -60,7 +60,13 @@ export function useSearchDiscovery() {
   // Load recent searches and categories
   useEffect(() => {
     const saved = localStorage.getItem('search:recent');
-    if (saved) setRecentSearches(JSON.parse(saved));
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (e) {
+        localStorage.removeItem('search:recent');
+      }
+    }
 
     const loadCategories = async () => {
       try {
