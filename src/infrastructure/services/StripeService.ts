@@ -6,7 +6,7 @@
 import Stripe from 'stripe';
 import { PaymentFailedError } from '@domain/errors';
 import { logger } from '@utils/logger';
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, runTransaction } from 'firebase/firestore';
 import { getDb } from '../firebase/firebase';
 
 export class StripeService {
@@ -80,6 +80,29 @@ export class StripeService {
       logger.error('Stripe webhook signature verification failed', err);
       throw new Error(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown'}`);
     }
+  }
+
+  /**
+   * Checks if an event is processed and marks it as processing in a single transaction.
+   * Returns true if the event was already processed.
+   */
+  async tryProcessEvent(eventId: string, type: string): Promise<boolean> {
+    const db = getDb();
+    const eventRef = doc(db, this.collectionName, eventId);
+
+    return await runTransaction(db, async (transaction: any) => {
+      const docSnap = await transaction.get(eventRef);
+      if (docSnap.exists()) {
+        return true; // Already processed
+      }
+
+      transaction.set(eventRef, {
+        id: eventId,
+        type,
+        processedAt: Timestamp.now(),
+      });
+      return false; // Not processed, now marked
+    });
   }
 
   /**

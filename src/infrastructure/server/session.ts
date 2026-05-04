@@ -4,7 +4,7 @@ import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import type { User } from '@domain/models';
 import { logger } from '@utils/logger';
 
-const COOKIE_NAME = '__session';
+const COOKIE_NAME = process.env.NODE_ENV === 'production' ? '__Host-session' : '__session';
 const SESSION_VERSION = 1;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 14;
 const MAX_SESSION_COOKIE_BYTES = 4096;

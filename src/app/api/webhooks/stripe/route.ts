@@ -25,10 +25,11 @@ export async function POST(request: Request) {
   const services = await getServerServices();
 
   try {
-    // 1. Idempotency Check: Prevent duplicate processing of the same event
-    if (await stripeService.isEventProcessed(event.id)) {
+    // 1. Atomic Idempotency Check: Prevent duplicate processing of the same event
+    const alreadyProcessed = await stripeService.tryProcessEvent(event.id, event.type);
+    if (alreadyProcessed) {
       logger.info(`Webhook event ${event.id} already processed. Skipping.`);
-      return NextResponse.json({ received: true, duplicate: true });
+      return Response.json({ received: true, duplicate: true });
     }
 
     switch (event.type) {
@@ -56,10 +57,7 @@ export async function POST(request: Request) {
         logger.info(`Unhandled event type: ${event.type}`);
     }
 
-    // 2. Persist processing success to prevent double-processing on retries
-    await stripeService.markEventProcessed(event.id, event.type);
-
-    return NextResponse.json({ received: true });
+    return Response.json({ received: true });
   } catch (error) {
     logger.error('Error processing Stripe webhook', error);
     return NextResponse.json({ error: 'Internal server error processing webhook' }, { status: 500 });
