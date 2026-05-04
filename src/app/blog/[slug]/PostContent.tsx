@@ -27,11 +27,13 @@ export default function PostContent({ post, initialComments, initialAuthor, init
   const [scrollProgress, setScrollProgress] = useState(0);
 
   // Dynamic Table of Contents extraction
-  const toc = useMemo(() => {
-    if (!post.content) return [];
-    // Simple regex to find Markdown style headings (## Heading)
+  const [toc, setToc] = useState<{ text: string, id: string }[]>([]);
+  const [activeId, setActiveId] = useState<string>('');
+
+  useEffect(() => {
+    if (!post.content) return;
     const headingRegex = /^##\s+(.+)$/gm;
-    const matches = [];
+    const matches: { text: string; id: string }[] = [];
     let match;
     while ((match = headingRegex.exec(post.content)) !== null) {
       matches.push({
@@ -39,7 +41,29 @@ export default function PostContent({ post, initialComments, initialAuthor, init
         id: match[1].toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-')
       });
     }
-    return matches;
+    setToc(matches);
+
+    // Observer for active headings
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-20% 0% -35% 0%', threshold: 1 }
+    );
+
+    // Wait for content to render then observe
+    setTimeout(() => {
+      matches.forEach(m => {
+        const el = document.getElementById(m.id);
+        if (el) observer.observe(el);
+      });
+    }, 100);
+
+    return () => observer.disconnect();
   }, [post.content]);
 
   useEffect(() => {
@@ -241,19 +265,24 @@ export default function PostContent({ post, initialComments, initialAuthor, init
                     <Sparkles className="h-3 w-3 text-primary-600" /> In This Article
                   </h4>
                   <nav className="space-y-4">
-                     {toc.map((item: { text: string; id: string }, i: number) => (
-                       <button 
-                         key={i}
-                         onClick={() => {
-                           const el = document.getElementById(item.id);
-                           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                         }}
-                         className="text-sm font-bold text-gray-500 hover:text-primary-600 transition-colors text-left group flex items-center gap-3"
-                       >
-                         <span className="text-[10px] text-gray-300 group-hover:text-primary-600 transition-colors">0{i + 1}</span>
-                         {item.text}
-                       </button>
-                     ))}
+                     {toc.map((item: { text: string; id: string }, i: number) => {
+                       const isActive = activeId === item.id;
+                       return (
+                         <button 
+                           key={i}
+                           onClick={() => {
+                             const el = document.getElementById(item.id);
+                             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                           }}
+                           className={`text-sm font-bold transition-all text-left group flex items-center gap-3 ${
+                             isActive ? 'text-primary-600 translate-x-2' : 'text-gray-500 hover:text-primary-600'
+                           }`}
+                         >
+                           <span className={`text-[10px] transition-colors ${isActive ? 'text-primary-600' : 'text-gray-300 group-hover:text-primary-600'}`}>0{i + 1}</span>
+                           {item.text}
+                         </button>
+                       );
+                     })}
                   </nav>
                </div>
              )}
