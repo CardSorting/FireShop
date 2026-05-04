@@ -1,7 +1,8 @@
 import type { KnowledgebaseArticle, Author } from '@domain/models';
 
 export type DashboardTab = 'all' | 'published' | 'scheduled' | 'draft';
-export type DashboardViewMode = 'table' | 'kanban';
+export type DashboardViewMode = 'table' | 'kanban' | 'calendar';
+export type DashboardHubView = 'editorial' | 'insights' | 'audience' | 'settings';
 
 export interface DashboardState {
   posts: KnowledgebaseArticle[];
@@ -11,6 +12,8 @@ export interface DashboardState {
   setSearchQuery: (q: string) => void;
   currentTab: DashboardTab;
   setCurrentTab: (t: DashboardTab) => void;
+  activeView: DashboardHubView;
+  setActiveView: (v: DashboardHubView) => void;
   selectedPosts: string[];
   setSelectedPosts: (ids: string[] | ((prev: string[]) => string[])) => void;
   viewMode: DashboardViewMode;
@@ -28,5 +31,6 @@ export interface DashboardState {
     lowSEO: KnowledgebaseArticle[];
     lowWordCount: KnowledgebaseArticle[];
     missingImages: KnowledgebaseArticle[];
+    score: number;
   };
 }

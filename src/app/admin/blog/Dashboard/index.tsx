@@ -1,20 +1,23 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useServices } from '@ui/hooks/useServices';
-import { Plus, User, NotebookPen, Sparkles as SparklesIcon } from 'lucide-react';
+import { Plus, User, NotebookPen, Sparkles as SparklesIcon, BarChart3, Users, Settings as SettingsIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import type { KnowledgebaseArticle, Author } from '@domain/models';
-import type { DashboardTab, DashboardViewMode } from './types';
+import type { DashboardTab, DashboardViewMode, DashboardHubView, DashboardState } from './types';
 
 import { StatsOverview } from './components/StatsOverview';
 import { CategoryDistribution } from './components/CategoryDistribution';
 import { ControlBar } from './components/ControlBar';
 import { AuditPanel } from './components/AuditPanel';
-import { KanbanBoard } from './components/KanbanBoard';
-import { BlogTable } from './components/BlogTable';
 import { StrategyGuide } from './components/StrategyGuide';
 import { BulkActionBar } from './components/BulkActionBar';
+import { BlogSubNav } from './components/BlogSubNav';
+import { ActionCenter } from './components/ActionCenter';
+
+// Views
+import { EditorialView } from './views/EditorialView';
 
 export default function BlogDashboard() {
   const services = useServices();
@@ -25,6 +28,7 @@ export default function BlogDashboard() {
   const [currentTab, setCurrentTab] = useState<DashboardTab>('all');
   const [selectedPosts, setSelectedPosts] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<DashboardViewMode>('table');
+  const [activeView, setActiveView] = useState<DashboardHubView>('editorial');
   const [showGuide, setShowGuide] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
 
@@ -54,6 +58,19 @@ export default function BlogDashboard() {
       return matchesSearch && matchesTab;
     });
   }, [posts, searchQuery, currentTab]);
+
+  const healthAudit = useMemo(() => {
+    const lowSEO = posts.filter((p: KnowledgebaseArticle) => !p.metaTitle || !p.metaDescription);
+    const lowWordCount = posts.filter((p: KnowledgebaseArticle) => (p.content?.split(/\s+/).length || 0) < 300);
+    const missingImages = posts.filter((p: KnowledgebaseArticle) => !p.featuredImageUrl);
+    
+    // Calculate a rough "Health Score"
+    const totalPossiblePoints = posts.length * 3;
+    const deductions = lowSEO.length + lowWordCount.length + missingImages.length;
+    const score = posts.length > 0 ? Math.round(((totalPossiblePoints - deductions) / totalPossiblePoints) * 100) : 100;
+    
+    return { lowSEO, lowWordCount, missingImages, score };
+  }, [posts]);
 
   const toggleSelectAll = () => {
     if (selectedPosts.length === filteredPosts.length) {
@@ -128,97 +145,142 @@ export default function BlogDashboard() {
     }
   };
 
-  const healthAudit = useMemo(() => {
-    const lowSEO = posts.filter((p: KnowledgebaseArticle) => !p.metaTitle || !p.metaDescription);
-    const lowWordCount = posts.filter((p: KnowledgebaseArticle) => (p.content?.split(/\s+/).length || 0) < 300);
-    const missingImages = posts.filter((p: KnowledgebaseArticle) => !p.featuredImageUrl);
-    return { lowSEO, lowWordCount, missingImages };
-  }, [posts]);
+  const state: DashboardState = {
+    posts: filteredPosts,
+    authors,
+    loading,
+    searchQuery,
+    setSearchQuery,
+    currentTab,
+    setCurrentTab,
+    activeView,
+    setActiveView,
+    selectedPosts,
+    setSelectedPosts,
+    viewMode,
+    setViewMode,
+    showGuide,
+    setShowGuide,
+    showAudit,
+    setShowAudit,
+    handleBulkAction,
+    handleIndividualDelete,
+    handleSyncScheduling,
+    toggleSelect,
+    toggleSelectAll,
+    healthAudit
+  };
 
   return (
-    <div className="p-8 space-y-10 animate-in fade-in duration-500 max-w-[1600px] mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight flex items-center gap-4">
-            <NotebookPen className="h-10 w-10 text-primary-600" />
-            Journal Dashboard
-          </h1>
-          <p className="text-gray-500 font-medium mt-2">Manage your editorial calendar and collector engagement.</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => setShowGuide(true)}
-            className="hidden lg:flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-gray-100 text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <SparklesIcon className="h-4 w-4 text-primary-600" />
-            Strategy Guide
-          </button>
-          <Link 
-            href="/admin/blog/subscribers" 
-            className="hidden lg:flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-gray-100 text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm"
-          >
-            <User className="h-4 w-4" />
-            Subscribers
-          </Link>
-          <Link 
-            href="/admin/blog/new" 
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary-600 text-white font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-600/20"
-          >
-            <Plus className="h-4 w-4" />
-            Create Entry
-          </Link>
-        </div>
-      </div>
+    <div className="flex gap-8 p-8 min-h-[calc(100vh-4rem)] max-w-[1700px] mx-auto animate-in fade-in duration-500">
+      {/* Local Sidebar */}
+      <BlogSubNav activeView={activeView} setActiveView={setActiveView} />
 
-      {showGuide && <StrategyGuide onClose={() => setShowGuide(false)} />}
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <StatsOverview posts={posts} />
-        <CategoryDistribution />
-      </div>
-
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-        <ControlBar 
-          currentTab={currentTab}
-          setCurrentTab={setCurrentTab}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          handleSyncScheduling={handleSyncScheduling}
-          showAudit={showAudit}
-          setShowAudit={setShowAudit}
-        />
-
-        {showAudit && <AuditPanel healthAudit={healthAudit} setSelectedPosts={setSelectedPosts} />}
-
-        <div className="p-0">
-          {viewMode === 'kanban' ? (
-            <div className="p-8">
-              <KanbanBoard posts={filteredPosts} />
+      {/* Main Content Area */}
+      <div className="flex-1 space-y-10 min-w-0">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-3 text-primary-600 mb-2">
+               <NotebookPen className="h-5 w-5" />
+               <span className="text-[10px] font-black uppercase tracking-[0.2em]">DreamBees Editorial</span>
             </div>
-          ) : (
-            <BlogTable 
-              posts={filteredPosts}
-              loading={loading}
-              selectedPosts={selectedPosts}
-              toggleSelect={toggleSelect}
-              toggleSelectAll={toggleSelectAll}
-              handleIndividualDelete={handleIndividualDelete}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              setCurrentTab={setCurrentTab}
-            />
-          )}
+            <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">
+              {activeView === 'editorial' ? 'Content Hub' : activeView}
+            </h1>
+            <p className="text-gray-500 font-medium mt-2">
+              {activeView === 'editorial' && "Orchestrate your stories and collector engagement."}
+              {activeView === 'insights' && "Analyzing reach, velocity, and content health."}
+              {activeView === 'audience' && "Understanding your growing community of collectors."}
+              {activeView === 'settings' && "Global configurations for your blogging engine."}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setShowGuide(true)}
+              className="hidden lg:flex items-center gap-3 px-6 py-4 rounded-2xl bg-white border border-gray-100 text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm"
+            >
+              <SparklesIcon className="h-4 w-4 text-primary-600" />
+              Strategy
+            </button>
+            <Link 
+              href="/admin/blog/new" 
+              className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary-600 text-white font-black text-xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-xl shadow-primary-600/20"
+            >
+              <Plus className="h-4 w-4" />
+              New Entry
+            </Link>
+          </div>
         </div>
-      </div>
 
-      <BulkActionBar 
-        selectedPosts={selectedPosts}
-        setSelectedPosts={setSelectedPosts}
-        handleBulkAction={handleBulkAction}
-      />
+        {showGuide && <StrategyGuide onClose={() => setShowGuide(false)} />}
+
+        {activeView === 'editorial' && (
+          <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Quick Insights Bar */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <StatsOverview posts={posts} />
+              <CategoryDistribution />
+            </div>
+
+            {/* Action Center - The Industrial CRM "Priority" pattern */}
+            <ActionCenter healthAudit={healthAudit} posts={posts} />
+
+            {/* Main Editorial Workspace */}
+            <div className="space-y-6">
+              <ControlBar 
+                {...state}
+              />
+
+              {showAudit && <AuditPanel healthAudit={healthAudit} setSelectedPosts={setSelectedPosts} />}
+
+              <EditorialView {...state} />
+            </div>
+          </div>
+        )}
+
+        {activeView === 'insights' && (
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="h-24 w-24 rounded-4xl bg-primary-50 text-primary-600 flex items-center justify-center mx-auto">
+              <BarChart3 className="h-10 w-10" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-900">Advanced Analytics</h2>
+              <p className="text-gray-500 max-w-md mx-auto mt-2">Deep dive into content performance and SEO health metrics is being industrialized. Check back soon for velocity charts and heatmaps.</p>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'audience' && (
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="h-24 w-24 rounded-4xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
+              <Users className="h-10 w-10" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-900">Audience Hub</h2>
+              <p className="text-gray-500 max-w-md mx-auto mt-2">Managing subscribers, segmenting lists, and analyzing open rates will be centralized here.</p>
+            </div>
+          </div>
+        )}
+
+        {activeView === 'settings' && (
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="h-24 w-24 rounded-4xl bg-gray-50 text-gray-600 flex items-center justify-center mx-auto">
+              <SettingsIcon className="h-10 w-10" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-900">Blog Configuration</h2>
+              <p className="text-gray-500 max-w-md mx-auto mt-2">Manage authors, categories, tags, and SEO defaults for your entire blogging engine.</p>
+            </div>
+          </div>
+        )}
+
+        <BulkActionBar 
+          selectedPosts={selectedPosts}
+          setSelectedPosts={setSelectedPosts}
+          handleBulkAction={handleBulkAction}
+        />
+      </div>
     </div>
   );
 }
