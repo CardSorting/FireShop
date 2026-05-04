@@ -26,10 +26,14 @@ export function Navbar() {
   const { recentlyViewed } = useWishlist();
   const router = useRouter();
   const pathname = usePathname();
+  
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showRecent, setShowRecent] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  
   const searchRef = useRef<HTMLDivElement>(null);
   const recentRef = useRef<HTMLDivElement>(null);
 
@@ -42,6 +46,20 @@ export function Navbar() {
         if (!data.error) setNavMenu(data);
       })
       .catch(console.error);
+  }, []);
+
+  // Handle scroll and progress
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+      
+      const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+      setScrollProgress(scrolled);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // Close menu on route change
@@ -114,7 +132,12 @@ export function Navbar() {
       </div>
 
       <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 transition-all header-honey-drip">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Nectar Progress Bar */}
+        <div 
+          className="absolute bottom-0 left-0 h-0.5 bg-primary-500 z-60 transition-all duration-300"
+          style={{ width: `${scrollProgress}%` }}
+        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-6 lg:gap-12 flex-1">
             <Link href={STORE_PATHS.HOME} className="flex items-center gap-3 text-gray-900 font-black text-2xl tracking-tighter transition-transform hover:scale-105 shrink-0">

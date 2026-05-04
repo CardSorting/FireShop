@@ -116,7 +116,7 @@ export function HomePage() {
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               <Link
                 href="/products"
-                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-white text-gray-900 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-100 hover:scale-105 transition-all shadow-xl shadow-white/10"
+                className="w-full sm:w-auto inline-flex justify-center items-center gap-2 btn-honey-glazed text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-xl shadow-primary-500/20"
               >
                 Shop All Art
                 <ArrowRight className="w-4 h-4" />
@@ -237,6 +237,7 @@ export function HomePage() {
         </div>
       </section>
 
+      <div className="honey-drip-divider" />
 
       {/* Featured Products */}
       <section className="py-24 px-4 bg-white">

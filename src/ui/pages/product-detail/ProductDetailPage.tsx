@@ -96,8 +96,8 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
           ]}
         />
 
-        {/* Sticky Sub-Navigation */}
-        <nav className="sticky top-0 lg:top-[64px] z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-8">
+        {/* Sub-Navigation (Non-sticky) */}
+        <nav className="bg-white border-b border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-8">
           <div className="max-w-7xl mx-auto">
             <div className="flex gap-8 py-4 overflow-x-auto no-scrollbar">
               {[
@@ -119,8 +119,8 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
 
         {/* Main 3-Column Layout: Gallery | Info | Buy Box */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
-          {/* Left: Image Gallery (sticky) */}
-          <div className="lg:col-span-6 lg:sticky lg:top-32">
+          {/* Left: Image Gallery */}
+          <div className="lg:col-span-6">
             <ProductImageGallery
               images={pdp.allImages}
               selectedIndex={pdp.selectedImageIndex}
@@ -156,8 +156,8 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
             </div>
           </div>
 
-          {/* Right: Buy Box (sticky) */}
-          <div ref={buyBoxRef} className="lg:col-span-3 lg:sticky lg:top-32">
+          {/* Right: Buy Box */}
+          <div ref={buyBoxRef} className="lg:col-span-3">
             <ProductBuyBox
               currentPrice={pdp.currentPrice}
               compareAtPrice={pdp.currentCompareAtPrice}
@@ -202,16 +202,7 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
         />
       </div>
 
-      {/* Mobile Sticky CTA */}
-      <MobileStickyBuyBar
-        name={product.name}
-        price={pdp.currentPrice}
-        adding={pdp.adding}
-        added={pdp.added}
-        onAddToCart={pdp.handleAddToCart}
-        onOpenCart={pdp.openCart}
-        visible={showMobileStickyBar}
-      />
+      {/* Mobile Sticky CTA Disabled */}
     </div>
   );
 }
