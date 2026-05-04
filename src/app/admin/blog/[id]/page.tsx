@@ -1,6 +1,9 @@
+/**
+ * [LAYER: INFRASTRUCTURE]
+ */
 import React from 'react';
-import { getInitialServices } from '@/core/container';
-import AdminBlogForm from '@/ui/components/AdminBlogForm';
+import { getInitialServices } from '@core/container';
+import AdminBlogForm from '@ui/components/AdminBlogForm';
 import { notFound } from 'next/navigation';
 
 interface Props {
