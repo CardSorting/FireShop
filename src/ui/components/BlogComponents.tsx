@@ -11,6 +11,7 @@ import type { KnowledgebaseArticle, Author, BlogComment, Product } from '@domain
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
+import { Bookmark, ExternalLink } from 'lucide-react';
 
 
 export function BlogCard({ post, variant = 'standard' }: { 
@@ -121,6 +122,56 @@ export function BlogCard({ post, variant = 'standard' }: {
         </div>
       </div>
     </Link>
+  );
+}
+
+export function TrendingPostItem({ post, index }: { post: KnowledgebaseArticle, index: number }) {
+  const readingTime = Math.ceil((post.content?.split(' ').length || 0) / 200);
+  
+  return (
+    <Link 
+      href={`/blog/${post.slug}`}
+      className="group flex items-start gap-6 p-4 rounded-2xl hover:bg-white hover:shadow-xl transition-all duration-500 border border-transparent hover:border-gray-100"
+    >
+      <span className="text-3xl font-black text-gray-100 group-hover:text-primary-500 transition-colors tabular-nums pt-1">
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="h-5 w-5 rounded-lg overflow-hidden border border-gray-100">
+            <img 
+              src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
+              alt="Author" 
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">{post.authorName}</span>
+        </div>
+        <h4 className="text-sm font-black text-gray-900 leading-snug group-hover:text-primary-600 transition-colors line-clamp-2 tracking-tight">
+          {post.title}
+        </h4>
+        <div className="flex items-center gap-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+          <span>{new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+          <span className="h-1 w-1 rounded-full bg-gray-200" />
+          <span>{readingTime} Min Read</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export function TopicPill({ name, isActive, onClick }: { name: string, isActive?: boolean, onClick?: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+        isActive 
+          ? 'bg-gray-900 text-white shadow-xl shadow-gray-200' 
+          : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+      }`}
+    >
+      {name}
+    </button>
   );
 }
 

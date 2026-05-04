@@ -4,7 +4,7 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useServices } from '@ui/hooks/useServices';
-import { BlogCard, NewsletterBox } from '@ui/components/BlogComponents';
+import { BlogCard, NewsletterBox, TrendingPostItem, TopicPill } from '@ui/components/BlogComponents';
 import { BlogHero } from '@ui/components/Blog/BlogHero';
 import { CategoryNavigator } from '@ui/components/Blog/CategoryNavigator';
 import { TrendingSection } from '@ui/components/Blog/TrendingSection';
@@ -87,47 +87,63 @@ export default function BlogPage() {
     <div className="bg-white">
       {/* Magazine Style Top Fold */}
       {!loading && selectedCategory === 'all' && !searchQuery && (
-        <section className="max-w-[1600px] mx-auto px-4 pt-12 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <section className="max-w-[1600px] mx-auto px-4 pt-12 pb-24 border-b border-gray-100">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
             
             {/* Featured Hero Story */}
             <div className="lg:col-span-8">
+              <div className="mb-10 flex items-center justify-between">
+                <div className="space-y-1">
+                  <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">Featured Today</h2>
+                  <p className="text-sm font-bold text-gray-400">Hand-picked insights for the modern creator.</p>
+                </div>
+              </div>
               {featuredPost && <BlogHero post={featuredPost} />}
             </div>
 
             {/* Popular Blog Strategies Component */}
-            <div className="lg:col-span-4 bg-gray-50 rounded-[3rem] p-8 border border-gray-100 flex flex-col h-full">
-              <div className="mb-8">
-                 <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 mb-2">Editor's Picks</h2>
-                 <h3 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">Popular Blog Strategies</h3>
+            <div className="lg:col-span-4 flex flex-col h-full">
+              <div className="mb-10">
+                 <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 mb-1">Trending Strategies</h2>
+                 <h3 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">Popular in the Hive</h3>
               </div>
-              <div className="flex-1 space-y-6 overflow-y-auto pr-2 no-scrollbar">
-                {trendingPosts.slice(0, 5).map((post, i) => (
-                  <a key={post.id} href={`/blog/${post.slug}`} className="group flex items-center justify-between gap-5 p-4 rounded-2xl hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100">
-                    <div className="flex items-start gap-5">
-                      <span className="text-2xl font-black text-primary-200 group-hover:text-primary-500 transition-colors pt-1 tabular-nums">
-                        {String(i + 1).padStart(2, '0')}
-                      </span>
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{post.categoryName}</span>
-                        <h4 className="text-sm font-black text-gray-900 leading-snug group-hover:text-primary-600 transition-colors line-clamp-2">
-                          {post.title}
-                        </h4>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-1">
-                          {Math.ceil((post.content?.split(' ').length || 0) / 200)} Min Read
-                        </p>
-                      </div>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                      <ArrowRight className="h-3 w-3 text-primary-600 -rotate-45" />
-                    </div>
-                  </a>
+              <div className="flex-1 space-y-4">
+                {trendingPosts.slice(0, 6).map((post, i) => (
+                  <TrendingPostItem key={post.id} post={post} index={i} />
                 ))}
+              </div>
+              <div className="mt-10 pt-8 border-t border-gray-100">
+                 <a href="#feed" className="text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 transition-colors flex items-center gap-2">
+                   View Full feed
+                   <ArrowRight className="h-3 w-3" />
+                 </a>
               </div>
             </div>
 
           </div>
         </section>
+      )}
+
+      {/* Discover Topics Bar */}
+      {!loading && (
+        <div className="bg-gray-50/50 border-b border-gray-100">
+          <div className="max-w-[1600px] mx-auto px-4 py-6">
+            <div className="flex items-center gap-8 overflow-x-auto no-scrollbar py-2">
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-gray-400">Discover Topics:</span>
+              <div className="flex items-center gap-3">
+                <TopicPill name="All" isActive={selectedCategory === 'all'} onClick={() => setSelectedCategory('all')} />
+                {categories.map(cat => (
+                  <TopicPill 
+                    key={cat.id} 
+                    name={cat.name} 
+                    isActive={selectedCategory === cat.id} 
+                    onClick={() => setSelectedCategory(cat.id)} 
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Navigation & Feed */}
