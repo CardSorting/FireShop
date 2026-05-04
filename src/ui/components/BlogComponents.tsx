@@ -10,16 +10,49 @@ import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
 
 
-export function BlogCard({ post }: { post: KnowledgebaseArticle }) {
+export function BlogCard({ post, variant = 'standard' }: { 
+  post: KnowledgebaseArticle, 
+  variant?: 'standard' | 'wide' | 'compact' 
+}) {
   const readingTime = Math.ceil((post.content?.split(' ').length || 0) / 200);
   
+  if (variant === 'compact') {
+    return (
+      <Link 
+        href={`/blog/${post.slug}`}
+        className="group flex items-center gap-6 p-4 rounded-3xl hover:bg-gray-50 transition-all duration-300"
+      >
+        <div className="shrink-0 h-20 w-20 rounded-2xl overflow-hidden bg-gray-100">
+          {post.featuredImageUrl ? (
+            <img src={post.featuredImageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-gray-200" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 space-y-1">
+          <h4 className="text-sm font-black text-gray-900 line-clamp-2 leading-tight group-hover:text-primary-600 transition-colors">
+            {post.title}
+          </h4>
+          <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-gray-400">
+             <span>{post.categoryName}</span>
+             <span className="h-1 w-1 rounded-full bg-gray-200" />
+             <span>{readingTime}m Read</span>
+          </div>
+        </div>
+      </Link>
+    );
+  }
+
+  const isWide = variant === 'wide';
+
   return (
     <Link 
       href={`/blog/${post.slug}`}
-      className="group flex flex-col bg-white rounded-4xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500"
+      className={`group flex flex-col ${isWide ? 'md:flex-row md:col-span-2' : ''} bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500`}
     >
-
-      <div className="relative h-64 overflow-hidden">
+      <div className={`relative ${isWide ? 'md:w-1/2 h-80 md:h-auto' : 'h-72'} overflow-hidden`}>
         {post.featuredImageUrl ? (
           <img 
             src={post.featuredImageUrl} 
@@ -32,40 +65,55 @@ export function BlogCard({ post }: { post: KnowledgebaseArticle }) {
           </div>
         )}
         <div className="absolute top-6 left-6">
-          <span className="px-4 py-2 rounded-full bg-white/90 backdrop-blur-md text-[10px] font-black uppercase tracking-widest text-gray-900 shadow-sm">
+          <span className="px-4 py-2 rounded-xl bg-white/90 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-gray-900 shadow-sm border border-white/20">
             {post.categoryName || 'General'}
           </span>
         </div>
+        {post.isFeatured && (
+          <div className="absolute top-6 right-6">
+            <div className="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white shadow-xl shadow-primary-600/20">
+              <Sparkles className="h-4 w-4" />
+            </div>
+          </div>
+        )}
       </div>
       
-      <div className="p-8 flex-1 flex flex-col">
-        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">
-          <div className="flex items-center gap-1.5">
+      <div className={`p-10 flex-1 flex flex-col ${isWide ? 'md:justify-center' : ''}`}>
+        <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-gray-400 mb-6">
+          <div className="flex items-center gap-2">
             <Calendar className="h-3 w-3" />
-            <span>{new Date(post.createdAt).toLocaleDateString()}</span>
+            <span>{new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
           </div>
-          <div className="flex items-center gap-1.5">
+          <span className="h-1 w-1 rounded-full bg-gray-200" />
+          <div className="flex items-center gap-2">
             <Clock className="h-3 w-3" />
             <span>{readingTime} Min Read</span>
           </div>
         </div>
         
-        <h3 className="text-2xl font-black text-gray-900 leading-tight mb-4 group-hover:text-primary-600 transition-colors">
+        <h3 className={`${isWide ? 'text-3xl md:text-4xl' : 'text-2xl'} font-black text-gray-900 leading-tight mb-4 group-hover:text-primary-600 transition-colors tracking-tight`}>
           {post.title}
         </h3>
         
-        <p className="text-gray-500 font-medium line-clamp-2 mb-8 leading-relaxed">
+        <p className="text-gray-500 font-medium line-clamp-3 mb-10 leading-relaxed text-sm">
           {post.excerpt}
         </p>
         
-        <div className="mt-auto flex items-center justify-between">
+        <div className="mt-auto flex items-center justify-between pt-8 border-t border-gray-50">
           <div className="flex items-center gap-3">
-             <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-               <User className="h-4 w-4" />
+             <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border-2 border-white shadow-sm">
+               <img 
+                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
+                 alt="Author" 
+                 className="h-full w-full object-cover"
+               />
              </div>
-             <span className="text-xs font-bold text-gray-900">{post.authorName || 'Staff'}</span>
+             <div className="flex flex-col">
+               <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{post.authorName || 'Staff'}</span>
+               <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Journalist</span>
+             </div>
           </div>
-          <div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary-600 group-hover:text-white transition-all">
+          <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary-600 group-hover:text-white group-hover:rotate-45 transition-all duration-500">
             <ChevronRight className="h-5 w-5" />
           </div>
         </div>
@@ -73,6 +121,8 @@ export function BlogCard({ post }: { post: KnowledgebaseArticle }) {
     </Link>
   );
 }
+
+
 
 export function AuthorBox({ author }: { author: Author }) {
   return (

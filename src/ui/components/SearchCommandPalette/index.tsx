@@ -17,10 +17,11 @@ import { getCollectionUrl, getSearchUrl } from '@utils/navigation';
 export function SearchCommandPalette() {
   const {
     isOpen, setIsOpen, query, setQuery, results,
-    matchingCategories, quickActions, loading,
+    blogResults, matchingCategories, quickActions, loading,
     selectedIndex, setSelectedIndex, categories,
     recentSearches, inputRef, handleSelectProduct,
-    clearRecent, totalResults, addItem, router
+    handleSelectArticle, clearRecent, totalResults, 
+    addItem, router
   } = useSearchDiscovery();
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -58,7 +59,14 @@ export function SearchCommandPalette() {
       }
       currentIdx += matchingCategories.length;
 
-      // 3. Products
+      // 3. Blog Articles
+      if (selectedIndex < currentIdx + blogResults.length) {
+        handleSelectArticle(blogResults[selectedIndex - currentIdx]);
+        return;
+      }
+      currentIdx += blogResults.length;
+
+      // 4. Products
       if (selectedIndex < currentIdx + results.length) {
         handleSelectProduct(results[selectedIndex - currentIdx]);
       } else if (query.trim()) {
@@ -70,7 +78,7 @@ export function SearchCommandPalette() {
 
   if (!isOpen) return null;
 
-  const hasResults = quickActions.length > 0 || matchingCategories.length > 0 || results.length > 0;
+  const hasResults = quickActions.length > 0 || matchingCategories.length > 0 || results.length > 0 || blogResults.length > 0;
 
   return (
     <div className="fixed inset-0 z-modal flex items-start justify-center sm:pt-[12vh] sm:px-4">
@@ -105,9 +113,11 @@ export function SearchCommandPalette() {
               quickActions={quickActions}
               matchingCategories={matchingCategories}
               results={results}
+              blogResults={blogResults}
               selectedIndex={selectedIndex}
               setSelectedIndex={setSelectedIndex}
               onSelectProduct={handleSelectProduct}
+              onSelectArticle={handleSelectArticle}
               onClose={() => setIsOpen(false)}
               addItem={addItem}
               router={router}

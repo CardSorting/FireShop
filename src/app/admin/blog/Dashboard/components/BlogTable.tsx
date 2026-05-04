@@ -77,14 +77,14 @@ export const BlogTable: React.FC<Pick<DashboardState,
                           <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </Link>
                         {isTopPerforming && (
-                          <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-[0.1em] text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                          <span className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
                             <TrendingUp className="h-2 w-2" />
                             Hot
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black uppercase tracking-[0.1em] text-primary-500/60 bg-primary-50 px-2 py-0.5 rounded-md">{post.categoryName || 'Journal'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-primary-500/60 bg-primary-50 px-2 py-0.5 rounded-md">{post.categoryName || 'Journal'}</span>
                         <span className="h-1 w-1 rounded-full bg-gray-200" />
                         <div className="flex items-center gap-1.5">
                            <div className="h-4 w-4 rounded-full bg-primary-100 flex items-center justify-center">

@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, RefreshCcw, Search, Layers3, Archive, Zap } from 'lucide-react';
+import { Sparkles, RefreshCcw, Search, Layers3, Archive, Zap, NotebookPen, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { getCollectionUrl } from '@utils/navigation';
 import type { ProductCategory } from '@domain/models';
 
@@ -88,6 +89,32 @@ export function SearchEmptyState({ setQuery, recentSearches, clearRecent, catego
               </button>
             );
           })}
+        </div>
+      </section>
+
+      <section className="bg-primary-50/30 rounded-3xl p-8 border border-primary-100/50">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+             <NotebookPen className="h-4 w-4 text-primary-600" />
+             <h3 className="text-sm font-black text-gray-900">Explore the Hive Journal</h3>
+          </div>
+          <Link href="/blog" onClick={onClose} className="text-[10px] font-black uppercase tracking-widest text-primary-600 hover:underline flex items-center gap-2">
+            View All <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+        <p className="text-xs text-gray-500 font-medium leading-relaxed mb-6">
+          Deep dives into art techniques, collector spotlights, and the future of digital-physical collectibles.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {['Artist Spotlights', 'Behind the Scenes', 'Collector Guides'].map(topic => (
+             <button 
+              key={topic}
+              onClick={() => { setQuery(topic); }}
+              className="px-4 py-2 rounded-xl bg-white text-[9px] font-black uppercase tracking-widest text-gray-600 shadow-sm border border-gray-100 hover:border-primary-200 transition-all"
+             >
+               {topic}
+             </button>
+          ))}
         </div>
       </section>
     </div>

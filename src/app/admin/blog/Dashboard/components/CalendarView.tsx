@@ -46,7 +46,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts }) => {
         <div className="space-y-12">
           {Object.entries(grouped).map(([date, items]) => (
             <div key={date} className="relative pl-8 border-l-2 border-gray-50 space-y-6">
-              <div className="absolute -left-[9px] top-0 h-4 w-4 rounded-full bg-primary-600 ring-4 ring-white shadow-sm shadow-primary-600/20" />
+              <div className="absolute left-[-9px] top-0 h-4 w-4 rounded-full bg-primary-600 ring-4 ring-white shadow-sm shadow-primary-600/20" />
               
               <h4 className="text-xs font-black uppercase tracking-[0.2em] text-primary-600">{date}</h4>
               

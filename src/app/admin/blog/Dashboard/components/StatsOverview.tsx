@@ -15,7 +15,7 @@ export const StatsOverview: React.FC<Pick<DashboardState, 'posts'>> = ({ posts }
   return (
     <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {stats.map((stat, i) => (
-        <div key={i} className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-6 group hover:border-primary-100 transition-all">
+        <div key={i} className="bg-white p-8 rounded-4xl border border-gray-100 shadow-sm flex flex-col gap-6 group hover:border-primary-100 transition-all">
            <div className="flex items-center justify-between w-full">
               <div className={`h-12 w-12 rounded-xl ${stat.bg} flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform`}>
                 <stat.icon className="h-5 w-5" />

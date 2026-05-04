@@ -219,6 +219,10 @@ export function Navbar() {
                   {link.label}
                 </Link>
               ))}
+              <Link href="/blog" className="text-sm font-black text-primary-600 hover:text-primary-700 transition-colors py-8 h-20 flex items-center uppercase tracking-widest group/journal">
+                Journal
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-primary-50 text-[8px] font-black group-hover:bg-primary-100 transition-colors">NEW</span>
+              </Link>
             </div>
           </div>
 

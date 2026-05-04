@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Archive, ArrowRight, ShoppingCart } from 'lucide-react';
+import { Archive, ArrowRight, ShoppingCart, NotebookPen } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import { getCollectionUrl } from '@utils/navigation';
-import type { Product, ProductCategory } from '@domain/models';
+import type { Product, ProductCategory, KnowledgebaseArticle } from '@domain/models';
 import type { QuickAction } from './useSearchDiscovery';
 
 interface SearchResultsProps {
@@ -12,9 +12,11 @@ interface SearchResultsProps {
   quickActions: QuickAction[];
   matchingCategories: ProductCategory[];
   results: Product[];
+  blogResults: KnowledgebaseArticle[];
   selectedIndex: number;
   setSelectedIndex: (index: number) => void;
   onSelectProduct: (product: Product) => void;
+  onSelectArticle: (article: KnowledgebaseArticle) => void;
   onClose: () => void;
   addItem: (id: string, qty: number) => Promise<void>;
   router: any;
@@ -37,8 +39,8 @@ const HighlightMatch = ({ text, match }: { text: string; match: string }) => {
 };
 
 export function SearchResults({ 
-  query, quickActions, matchingCategories, results, 
-  selectedIndex, setSelectedIndex, onSelectProduct, 
+  query, quickActions, matchingCategories, results, blogResults = [],
+  selectedIndex, setSelectedIndex, onSelectProduct, onSelectArticle,
   onClose, addItem, router 
 }: SearchResultsProps) {
   
@@ -121,12 +123,54 @@ export function SearchResults({
         </div>
       )}
 
+      {/* Journal / Articles */}
+      {blogResults.length > 0 && (
+        <div className="py-2">
+          <h3 className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Journal Articles</h3>
+          {blogResults.map((article, index) => {
+            const globalIdx = quickActions.length + matchingCategories.length + index;
+            const isSelected = selectedIndex === globalIdx;
+            return (
+              <button
+                key={article.id}
+                onClick={() => onSelectArticle(article)}
+                onMouseEnter={() => setSelectedIndex(globalIdx)}
+                className={`w-full flex items-center gap-4 p-3.5 rounded-xl transition-all group ${
+                  isSelected ? 'bg-primary-50 ring-1 ring-primary-100' : 'hover:bg-gray-50'
+                }`}
+              >
+                <div className="h-14 w-14 rounded-xl bg-gray-50 border overflow-hidden shrink-0 ring-1 ring-gray-100 group-hover:ring-primary-200 transition-all">
+                  {article.featuredImageUrl ? (
+                    <img src={article.featuredImageUrl} alt="" className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center text-gray-200">
+                      <NotebookPen className="h-6 w-6" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className={`text-sm font-black truncate transition-colors ${
+                    isSelected ? 'text-primary-900' : 'text-gray-900'
+                  }`}>
+                    <HighlightMatch text={article.title} match={query} />
+                  </p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5 line-clamp-1">{article.excerpt}</p>
+                </div>
+                <ArrowRight className={`ml-auto h-4 w-4 transition-all ${
+                  isSelected ? 'text-primary-600 translate-x-0 opacity-100' : 'opacity-0 -translate-x-2'
+                }`} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Products */}
       {results.length > 0 && (
         <div className="py-2">
           <h3 className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400">Products</h3>
           {results.map((product, index) => {
-            const globalIdx = quickActions.length + matchingCategories.length + index;
+            const globalIdx = quickActions.length + matchingCategories.length + blogResults.length + index;
             const isSelected = selectedIndex === globalIdx;
             return (
               <button
