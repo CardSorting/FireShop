@@ -225,6 +225,39 @@ export function writeBatch(db: any) {
   return client.writeBatch(db);
 }
 
+/**
+ * Environment-aware 'increment' helper
+ */
+export function increment(n: number) {
+  if (isServer) {
+    const admin = require('firebase-admin');
+    return admin.firestore.FieldValue.increment(n);
+  }
+  return client.increment(n);
+}
+
+/**
+ * Environment-aware 'arrayUnion' helper
+ */
+export function arrayUnion(...elements: any[]) {
+  if (isServer) {
+    const admin = require('firebase-admin');
+    return admin.firestore.FieldValue.arrayUnion(...elements);
+  }
+  return client.arrayUnion(...elements);
+}
+
+/**
+ * Environment-aware 'arrayRemove' helper
+ */
+export function arrayRemove(...elements: any[]) {
+  if (isServer) {
+    const admin = require('firebase-admin');
+    return admin.firestore.FieldValue.arrayRemove(...elements);
+  }
+  return client.arrayRemove(...elements);
+}
+
 export const Timestamp = client.Timestamp;
 export type DocumentData = client.DocumentData;
 export type QueryDocumentSnapshot = client.QueryDocumentSnapshot;

@@ -13,9 +13,10 @@ import {
   query, 
   limit, 
   Timestamp,
-  type DocumentData
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type DocumentData,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { ISupplierRepository } from '@domain/repositories';
 import type { Supplier } from '@domain/models';
 
@@ -32,16 +33,16 @@ export class FirestoreSupplierRepository implements ISupplierRepository {
   }
 
   async getAll(options?: { query?: string; limit?: number; offset?: number }): Promise<Supplier[]> {
-    let q = query(collection(getDb(), this.collectionName));
+    let q = query(collection(getUnifiedDb(), this.collectionName));
     if (options?.limit) q = query(q, limit(options.limit));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => this.mapDocToSupplier(d.id, d.data()));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToSupplier(d.id, d.data() as any));
   }
 
   async getById(id: string): Promise<Supplier | null> {
-    const docSnap = await getDoc(doc(getDb(), this.collectionName, id));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, id));
     if (!docSnap.exists()) return null;
-    return this.mapDocToSupplier(docSnap.id, docSnap.data());
+    return this.mapDocToSupplier(docSnap.id, docSnap.data() as any);
   }
 
   async save(supplier: Supplier): Promise<Supplier> {
@@ -53,16 +54,16 @@ export class FirestoreSupplierRepository implements ISupplierRepository {
       updatedAt: now,
       createdAt: supplier.createdAt ? Timestamp.fromDate(new Date(supplier.createdAt)) : now
     };
-    await setDoc(doc(getDb(), this.collectionName, id), data);
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), data);
     return (await this.getById(id))!;
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(getDb(), this.collectionName, id));
+    await deleteDoc(doc(getUnifiedDb(), this.collectionName, id));
   }
 
   async count(): Promise<number> {
-    const snapshot = await getDocs(collection(getDb(), this.collectionName));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
     return snapshot.size;
   }
 }

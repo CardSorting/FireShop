@@ -15,10 +15,11 @@ import {
   limit, 
   startAfter, 
   Timestamp,
+  writeBatch,
+  getUnifiedDb,
   type DocumentData,
-  writeBatch
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { IOrderRepository } from '@domain/repositories';
 import type { Address, Order, OrderItem, OrderStatus } from '@domain/models';
 
@@ -47,34 +48,34 @@ export class FirestoreOrderRepository implements IOrderRepository {
       riskScore: this.calculateRiskScore(order),
     };
 
-    await setDoc(doc(getDb(), this.collectionName, id), orderData);
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), orderData);
     return (await this.getById(id))!;
   }
 
   async getById(id: string): Promise<Order | null> {
-    const docSnap = await getDoc(doc(getDb(), this.collectionName, id));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, id));
     if (!docSnap.exists()) return null;
     return this.mapDocToOrder(docSnap.id, docSnap.data());
   }
 
   async getByIdempotencyKey(key: string): Promise<Order | null> {
-    const q = query(collection(getDb(), this.collectionName), where('idempotencyKey', '==', key), limit(1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('idempotencyKey', '==', key), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return this.mapDocToOrder(snapshot.docs[0].id, snapshot.docs[0].data());
   }
 
   async getByPaymentTransactionId(id: string): Promise<Order | null> {
-    const q = query(collection(getDb(), this.collectionName), where('paymentTransactionId', '==', id), limit(1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('paymentTransactionId', '==', id), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return this.mapDocToOrder(snapshot.docs[0].id, snapshot.docs[0].data());
   }
 
   async getByUserId(userId: string): Promise<Order[]> {
-    const q = query(collection(getDb(), this.collectionName), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('userId', '==', userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => this.mapDocToOrder(d.id, d.data()));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any));
   }
 
   async getAll(options?: {
@@ -83,7 +84,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     limit?: number;
     cursor?: string;
   }): Promise<{ orders: Order[]; nextCursor?: string }> {
-    let q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'));
+    let q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
 
     if (options?.status) {
       q = query(q, where('status', '==', options.status));
@@ -93,14 +94,14 @@ export class FirestoreOrderRepository implements IOrderRepository {
     q = query(q, limit(limitVal + 1));
 
     if (options?.cursor) {
-      const cursorDoc = await getDoc(doc(getDb(), this.collectionName, options.cursor));
+      const cursorDoc = await getDoc(doc(getUnifiedDb(), this.collectionName, options.cursor));
       if (cursorDoc.exists()) {
         q = query(q, startAfter(cursorDoc));
       }
     }
 
     const snapshot = await getDocs(q);
-    const results = snapshot.docs.map(d => this.mapDocToOrder(d.id, d.data()));
+    const results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any));
     
     const hasNextPage = results.length > limitVal;
     const orders = results.slice(0, limitVal);
@@ -110,32 +111,32 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, id), { status, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { status, updatedAt: Timestamp.now() });
   }
 
   async updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, id), { paymentTransactionId, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { paymentTransactionId, updatedAt: Timestamp.now() });
   }
 
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
-    const batch = writeBatch(getDb());
+    const batch = writeBatch(getUnifiedDb());
     const now = Timestamp.now();
     for (const id of ids) {
-      batch.update(doc(getDb(), this.collectionName, id), { status, updatedAt: now });
+      batch.update(doc(getUnifiedDb(), this.collectionName, id), { status, updatedAt: now });
     }
     await batch.commit();
   }
 
   async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[]): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, orderId), { notes, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { notes, updatedAt: Timestamp.now() });
   }
 
   async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string }): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, orderId), { ...data, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { ...data, updatedAt: Timestamp.now() });
   }
 
   async updateRiskScore(orderId: string, score: number): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, orderId), { riskScore: score, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { riskScore: score, updatedAt: Timestamp.now() });
   }
 
   async getDashboardStats(): Promise<{
@@ -143,7 +144,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     dailyRevenue: number[];
     orderCountsByStatus: Record<OrderStatus, number>;
   }> {
-    const snapshot = await getDocs(collection(getDb(), this.collectionName));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
     const orderCountsByStatus: Record<OrderStatus, number> = {
       pending: 0,
       confirmed: 0,
@@ -155,7 +156,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     const dailyRevenue = new Array(7).fill(0);
     const now = new Date();
 
-    snapshot.forEach(d => {
+    snapshot.forEach((d: any) => {
       const data = d.data();
       const status = data.status as OrderStatus;
       if (orderCountsByStatus[status] !== undefined) {
@@ -176,10 +177,10 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async getTopProducts(limitVal: number): Promise<Array<{ id: string; name: string; revenue: number; sales: number }>> {
-    const snapshot = await getDocs(collection(getDb(), this.collectionName));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
     const productStats: Record<string, { name: string; revenue: number; sales: number }> = {};
 
-    snapshot.forEach(d => {
+    snapshot.forEach((d: any) => {
       const data = d.data();
       if (data.status === 'cancelled') return;
       

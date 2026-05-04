@@ -14,9 +14,10 @@ import {
   where, 
   limit, 
   Timestamp,
-  type DocumentData
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type DocumentData,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { ICartRepository } from '@domain/repositories';
 import type { Cart } from '@domain/models';
 
@@ -30,10 +31,10 @@ export class FirestoreCartRepository implements ICartRepository {
   }
 
   async getByUserId(userId: string): Promise<Cart | null> {
-    const q = query(collection(getDb(), this.collectionName), where('userId', '==', userId), limit(1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('userId', '==', userId), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
-    return this.mapDocToCart(snapshot.docs[0].id, snapshot.docs[0].data());
+    return this.mapDocToCart(snapshot.docs[0].id, snapshot.docs[0].data() as any);
   }
 
   async save(cart: Cart): Promise<void> {
@@ -41,13 +42,13 @@ export class FirestoreCartRepository implements ICartRepository {
     const now = Timestamp.now();
     
     if (existing) {
-      await updateDoc(doc(getDb(), this.collectionName, existing.id), {
+      await updateDoc(doc(getUnifiedDb(), this.collectionName, existing.id), {
         items: cart.items,
         updatedAt: now
       });
     } else {
       const id = cart.id || crypto.randomUUID();
-      await setDoc(doc(getDb(), this.collectionName, id), {
+      await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
         ...cart,
         id,
         updatedAt: now
@@ -58,7 +59,7 @@ export class FirestoreCartRepository implements ICartRepository {
   async clear(userId: string): Promise<void> {
     const existing = await this.getByUserId(userId);
     if (existing) {
-      await deleteDoc(doc(getDb(), this.collectionName, existing.id));
+      await deleteDoc(doc(getUnifiedDb(), this.collectionName, existing.id));
     }
   }
 }

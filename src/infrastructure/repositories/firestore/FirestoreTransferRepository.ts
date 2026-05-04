@@ -11,9 +11,10 @@ import {
   query, 
   orderBy, 
   Timestamp,
-  type DocumentData
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type DocumentData,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { ITransferRepository } from '@domain/repositories';
 import type { Transfer } from '@domain/models';
 
@@ -30,13 +31,13 @@ export class FirestoreTransferRepository implements ITransferRepository {
   }
 
   async getAll(): Promise<Transfer[]> {
-    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'));
+    const q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => this.mapDocToTransfer(d.id, d.data()));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToTransfer(d.id, d.data() as any));
   }
 
   async update(id: string, updates: Partial<Transfer>): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, id), {
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), {
       ...updates,
       updatedAt: Timestamp.now()
     });
@@ -44,7 +45,7 @@ export class FirestoreTransferRepository implements ITransferRepository {
 
   async create(transfer: Transfer): Promise<void> {
     const id = transfer.id || crypto.randomUUID();
-    await setDoc(doc(getDb(), this.collectionName, id), {
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
       ...transfer,
       id,
       createdAt: Timestamp.now(),

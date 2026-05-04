@@ -15,9 +15,10 @@ import {
   limit, 
   increment,
   Timestamp,
-  type DocumentData
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type DocumentData,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { ICollectionRepository } from '@domain/repositories';
 import type { Collection } from '@domain/models';
 
@@ -31,24 +32,24 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
   }
 
   async getAll(options?: { status?: 'active' | 'archived'; limit?: number }): Promise<Collection[]> {
-    let q = query(collection(getDb(), this.collectionName));
+    let q = query(collection(getUnifiedDb(), this.collectionName));
     if (options?.status) q = query(q, where('status', '==', options.status));
     if (options?.limit) q = query(q, limit(options.limit));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => this.mapDocToCollection(d.id, d.data()));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToCollection(d.id, d.data() as any));
   }
 
   async getById(id: string): Promise<Collection | null> {
-    const docSnap = await getDoc(doc(getDb(), this.collectionName, id));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, id));
     if (!docSnap.exists()) return null;
-    return this.mapDocToCollection(docSnap.id, docSnap.data());
+    return this.mapDocToCollection(docSnap.id, docSnap.data() as any);
   }
 
   async getByHandle(handle: string): Promise<Collection | null> {
-    const q = query(collection(getDb(), this.collectionName), where('handle', '==', handle), limit(1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('handle', '==', handle), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
-    return this.mapDocToCollection(snapshot.docs[0].id, snapshot.docs[0].data());
+    return this.mapDocToCollection(snapshot.docs[0].id, snapshot.docs[0].data() as any);
   }
 
   async save(col: Collection): Promise<Collection> {
@@ -65,7 +66,7 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
       updatedAt: now,
       createdAt: col.createdAt ? Timestamp.fromDate(new Date(col.createdAt)) : now
     };
-    await setDoc(doc(getDb(), this.collectionName, id), data);
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), data);
     return (await this.getById(id))!;
   }
 
@@ -76,7 +77,7 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
 
     while (attempts < maxAttempts) {
       const q = query(
-        collection(getDb(), this.collectionName), 
+        collection(getUnifiedDb(), this.collectionName), 
         where('handle', '==', currentHandle), 
         limit(1)
       );
@@ -93,10 +94,10 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(getDb(), this.collectionName, id));
+    await deleteDoc(doc(getUnifiedDb(), this.collectionName, id));
   }
 
   async updateProductCount(id: string, delta: number): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, id), { productCount: increment(delta), updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { productCount: increment(delta), updatedAt: Timestamp.now() });
   }
 }

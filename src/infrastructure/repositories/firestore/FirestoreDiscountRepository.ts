@@ -15,9 +15,10 @@ import {
   limit, 
   increment,
   Timestamp,
-  type DocumentData
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type DocumentData,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { IDiscountRepository } from '@domain/repositories';
 import type { Discount, DiscountDraft, DiscountUpdate } from '@domain/models';
 
@@ -35,21 +36,21 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
   }
 
   async getAll(): Promise<Discount[]> {
-    const snapshot = await getDocs(collection(getDb(), this.collectionName));
-    return snapshot.docs.map(d => this.mapDocToDiscount(d.id, d.data()));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToDiscount(d.id, d.data() as any));
   }
 
   async getById(id: string): Promise<Discount | null> {
-    const docSnap = await getDoc(doc(getDb(), this.collectionName, id));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, id));
     if (!docSnap.exists()) return null;
-    return this.mapDocToDiscount(docSnap.id, docSnap.data());
+    return this.mapDocToDiscount(docSnap.id, docSnap.data() as any);
   }
 
   async getByCode(code: string): Promise<Discount | null> {
-    const q = query(collection(getDb(), this.collectionName), where('code', '==', code.toUpperCase()), limit(1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('code', '==', code.toUpperCase()), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
-    return this.mapDocToDiscount(snapshot.docs[0].id, snapshot.docs[0].data());
+    return this.mapDocToDiscount(snapshot.docs[0].id, snapshot.docs[0].data() as any);
   }
 
   async create(discount: DiscountDraft): Promise<Discount> {
@@ -63,7 +64,7 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
       endsAt: discount.endsAt ? Timestamp.fromDate(new Date(discount.endsAt)) : null,
       usageCount: 0
     };
-    await setDoc(doc(getDb(), this.collectionName, id), data);
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), data);
     return (await this.getById(id))!;
   }
 
@@ -73,15 +74,15 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
     if (updates.startsAt) firestoreUpdates.startsAt = Timestamp.fromDate(new Date(updates.startsAt));
     if (updates.endsAt) firestoreUpdates.endsAt = Timestamp.fromDate(new Date(updates.endsAt));
     
-    await updateDoc(doc(getDb(), this.collectionName, id), firestoreUpdates);
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), firestoreUpdates);
     return (await this.getById(id))!;
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(getDb(), this.collectionName, id));
+    await deleteDoc(doc(getUnifiedDb(), this.collectionName, id));
   }
 
   async incrementUsage(id: string): Promise<void> {
-    await updateDoc(doc(getDb(), this.collectionName, id), { usageCount: increment(1) });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { usageCount: increment(1) });
   }
 }

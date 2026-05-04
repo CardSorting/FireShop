@@ -11,8 +11,9 @@ import {
   where, 
   orderBy, 
   Timestamp,
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 
 export interface DigitalAccessLog {
   id: string;
@@ -27,7 +28,7 @@ export class FirestoreDigitalAccessRepository {
   private readonly collectionName = 'digital_access_logs';
 
   async record(log: Omit<DigitalAccessLog, 'createdAt'>): Promise<void> {
-    await setDoc(doc(getDb(), this.collectionName, log.id), {
+    await setDoc(doc(getUnifiedDb(), this.collectionName, log.id), {
       ...log,
       createdAt: Timestamp.now(),
     });
@@ -39,15 +40,15 @@ export class FirestoreDigitalAccessRepository {
     // Firestore has a limit on 'in' queries (10-30 items depending on version)
     // For this app, it should be fine.
     const q = query(
-      collection(getDb(), this.collectionName),
+      collection(getUnifiedDb(), this.collectionName),
       where('userId', '==', userId),
       where('assetId', 'in', assetIds),
       orderBy('createdAt', 'desc')
     );
     
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => {
-      const data = d.data();
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => {
+      const data = d.data() as any;
       return {
         ...data,
         createdAt: data.createdAt.toDate(),

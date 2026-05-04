@@ -13,9 +13,10 @@ import {
   where, 
   increment,
   Timestamp,
-  runTransaction
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  runTransaction,
+  getUnifiedDb,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { IInventoryLevelRepository } from '@domain/repositories';
 import type { InventoryLevel } from '@domain/models';
 
@@ -27,26 +28,26 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
   }
 
   async findByProduct(productId: string): Promise<InventoryLevel[]> {
-    const q = query(collection(getDb(), this.collectionName), where('productId', '==', productId));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('productId', '==', productId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as InventoryLevel);
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as any as InventoryLevel);
   }
 
   async findByLocation(locationId: string): Promise<InventoryLevel[]> {
-    const q = query(collection(getDb(), this.collectionName), where('locationId', '==', locationId));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('locationId', '==', locationId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => d.data() as InventoryLevel);
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as any as InventoryLevel);
   }
 
   async findByProductAndLocation(productId: string, locationId: string): Promise<InventoryLevel | null> {
-    const docSnap = await getDoc(doc(getDb(), this.collectionName, this.getDocId(productId, locationId)));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, this.getDocId(productId, locationId)));
     if (!docSnap.exists()) return null;
-    return docSnap.data() as InventoryLevel;
+    return docSnap.data() as any as InventoryLevel;
   }
 
   async save(level: InventoryLevel): Promise<InventoryLevel> {
     const id = this.getDocId(level.productId, level.locationId);
-    await setDoc(doc(getDb(), this.collectionName, id), {
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
       ...level,
       updatedAt: Timestamp.now()
     });
@@ -55,9 +56,9 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
 
   async adjustQuantity(productId: string, locationId: string, delta: number, reason: string): Promise<InventoryLevel> {
     const id = this.getDocId(productId, locationId);
-    const docRef = doc(getDb(), this.collectionName, id);
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
     
-    await runTransaction(getDb(), async (transaction) => {
+    await runTransaction(getUnifiedDb(), async (transaction) => {
       const docSnap = await transaction.get(docRef);
       if (!docSnap.exists()) {
         transaction.set(docRef, {
@@ -83,7 +84,7 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
 
   async updateReorderPoint(productId: string, locationId: string, reorderPoint: number, reorderQty: number): Promise<InventoryLevel> {
     const id = this.getDocId(productId, locationId);
-    await updateDoc(doc(getDb(), this.collectionName, id), {
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), {
       reorderPoint,
       reorderQty,
       updatedAt: Timestamp.now()
