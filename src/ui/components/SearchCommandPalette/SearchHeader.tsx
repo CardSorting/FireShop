@@ -4,7 +4,7 @@ import React from 'react';
 import { Search, Command, X } from 'lucide-react';
 
 interface SearchHeaderProps {
-  inputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLInputElement>;
   query: string;
   setQuery: (query: string) => void;
   onKeyDown: (e: React.KeyboardEvent) => void;
