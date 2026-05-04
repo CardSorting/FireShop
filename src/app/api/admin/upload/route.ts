@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // If it's a digital asset, use the StorageService for private storage with STREAMING
+    // If it's a digital asset, use the StorageService for private getStorage() with STREAMING
     if (folder === 'digital-assets') {
       const stream = Readable.fromWeb(file.stream() as any);
       const result = await StorageService.saveStream(
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // Default to raw storage for other public files
+    // Default to raw getStorage() for other public files
     const result = await StorageService.saveFile(
       buffer,
       folder,

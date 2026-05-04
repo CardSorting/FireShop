@@ -15,7 +15,7 @@ import {
   type DocumentData,
   deleteDoc
 } from 'firebase/firestore';
-import { db } from '@infrastructure/firebase/firebase';
+import { getDb } from '@infrastructure/firebase/firebase';
 import { logger } from '@utils/logger';
 import crypto from 'crypto';
 
@@ -62,7 +62,7 @@ export class AuditService {
     const detailsStr = JSON.stringify(params.details || {});
 
     // Get the latest log to link the chain
-    const q = query(collection(db, this.collectionName), orderBy('createdAt', 'desc'), limit(1));
+    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(1));
     const snapshot = await getDocs(q);
     const lastEntry = snapshot.empty ? null : snapshot.docs[0].data();
 
@@ -72,7 +72,7 @@ export class AuditService {
     const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${now.toDate().toISOString()}`;
     const hash = crypto.createHash('sha256').update(payload).digest('hex');
 
-    await setDoc(doc(db, this.collectionName, id), {
+    await setDoc(doc(getDb(), this.collectionName, id), {
       id,
       userId: params.userId,
       userEmail: params.userEmail,
@@ -96,7 +96,7 @@ export class AuditService {
     targetId?: string;
     query?: string;
   }): Promise<AuditEntry[]> {
-    let q = query(collection(db, this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
+    let q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
     
     // Firestore limited filtering: multiple where + orderBy requires composite index
     // For now, we'll fetch and filter in memory if multiple options are present
@@ -117,7 +117,7 @@ export class AuditService {
   }
 
   async verifyChain(): Promise<{ valid: boolean; total: number; corruptedId?: string }> {
-    const q = query(collection(db, this.collectionName), orderBy('createdAt', 'asc'));
+    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'asc'));
     const snapshot = await getDocs(q);
     const logs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
 
@@ -139,7 +139,7 @@ export class AuditService {
   }
 
   async clearAll(): Promise<void> {
-    const snapshot = await getDocs(collection(db, this.collectionName));
+    const snapshot = await getDocs(collection(getDb(), this.collectionName));
     const batchSize = 100;
     // Simple deletion for small numbers, but for safety:
     for (const d of snapshot.docs) {

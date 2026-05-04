@@ -12,7 +12,7 @@ import {
   orderBy, 
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { getDb } from '../../firebase/firebase';
 
 export interface DigitalAccessLog {
   id: string;
@@ -27,7 +27,7 @@ export class FirestoreDigitalAccessRepository {
   private readonly collectionName = 'digital_access_logs';
 
   async record(log: Omit<DigitalAccessLog, 'createdAt'>): Promise<void> {
-    await setDoc(doc(db, this.collectionName, log.id), {
+    await setDoc(doc(getDb(), this.collectionName, log.id), {
       ...log,
       createdAt: Timestamp.now(),
     });
@@ -39,7 +39,7 @@ export class FirestoreDigitalAccessRepository {
     // Firestore has a limit on 'in' queries (10-30 items depending on version)
     // For this app, it should be fine.
     const q = query(
-      collection(db, this.collectionName),
+      collection(getDb(), this.collectionName),
       where('userId', '==', userId),
       where('assetId', 'in', assetIds),
       orderBy('createdAt', 'desc')

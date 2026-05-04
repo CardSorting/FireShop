@@ -17,7 +17,7 @@ import {
   arrayRemove,
   type DocumentData
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { getDb } from '../../firebase/firebase';
 import type { IWishlistRepository } from '@domain/repositories';
 import type { Wishlist, Product } from '@domain/models';
 import { FirestoreProductRepository } from './FirestoreProductRepository';
@@ -36,13 +36,13 @@ export class FirestoreWishlistRepository implements IWishlistRepository {
   }
 
   async getByUserId(userId: string): Promise<Wishlist[]> {
-    const q = query(collection(db, this.collectionName), where('userId', '==', userId));
+    const q = query(collection(getDb(), this.collectionName), where('userId', '==', userId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => this.mapDocToWishlist(d.id, d.data()));
   }
 
   async getById(id: string): Promise<Wishlist | null> {
-    const docSnap = await getDoc(doc(db, this.collectionName, id));
+    const docSnap = await getDoc(doc(getDb(), this.collectionName, id));
     if (!docSnap.exists()) return null;
     return this.mapDocToWishlist(docSnap.id, docSnap.data());
   }
@@ -56,28 +56,28 @@ export class FirestoreWishlistRepository implements IWishlistRepository {
       createdAt: now,
       updatedAt: now,
     };
-    await setDoc(doc(db, this.collectionName, id), data);
+    await setDoc(doc(getDb(), this.collectionName, id), data);
     return (await this.getById(id))!;
   }
 
   async update(id: string, name: string): Promise<Wishlist> {
-    await updateDoc(doc(db, this.collectionName, id), { name, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getDb(), this.collectionName, id), { name, updatedAt: Timestamp.now() });
     return (await this.getById(id))!;
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(db, this.collectionName, id));
+    await deleteDoc(doc(getDb(), this.collectionName, id));
   }
 
   async addItem(wishlistId: string, productId: string): Promise<void> {
-    await updateDoc(doc(db, this.collectionName, wishlistId), {
+    await updateDoc(doc(getDb(), this.collectionName, wishlistId), {
       itemIds: arrayUnion(productId),
       updatedAt: Timestamp.now()
     });
   }
 
   async removeItem(wishlistId: string, productId: string): Promise<void> {
-    await updateDoc(doc(db, this.collectionName, wishlistId), {
+    await updateDoc(doc(getDb(), this.collectionName, wishlistId), {
       itemIds: arrayRemove(productId),
       updatedAt: Timestamp.now()
     });

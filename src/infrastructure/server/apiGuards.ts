@@ -490,7 +490,7 @@ export function jsonError(error: unknown, fallback = 'Request failed'): NextResp
         || error instanceof ProductNotFoundError
         || error instanceof RateLimitError
         || error instanceof DomainError
-        || (error instanceof Error && (error.name === 'FirebaseError' || error.message.includes('auth/')));
+        || (error instanceof Error && (error.name === 'FirebaseError' || error.message.includes('getAuth()/')));
     
     if (!isExpected) {
         logger.error(`Unexpected Error [${traceId}]: ${fallback}`, error);

@@ -11,7 +11,7 @@ import type {
     ProductSavedView, ProductSavedViewResult, ProductUpdate, Order, OrderNote, Supplier,
     InventoryOverview, ProductCategory, ProductType
 } from '@domain/models';
-import { auth } from '@infrastructure/firebase/firebase';
+import { getAuth } from '@infrastructure/firebase/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 const sessionScoped = (userId: string) => void userId;
@@ -64,7 +64,7 @@ export function createApiClientServices() {
             signIn: (email: string, password: string) => request<User>('/api/auth/sign-in', { method: 'POST', body: JSON.stringify({ email, password }) }),
             signInWithGoogle: async () => {
                 const provider = new GoogleAuthProvider();
-                const result = await signInWithPopup(auth, provider);
+                const result = await signInWithPopup(getAuth(), provider);
                 const idToken = await result.user.getIdToken();
                 return request<User>('/api/auth/google', { 
                     method: 'POST', 

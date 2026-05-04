@@ -5,7 +5,7 @@ import path from 'node:path';
 export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
-    const storagePath = path.join(process.cwd(), 'public', 'storage');
+    const storagePath = path.join(process.cwd(), 'public', 'getStorage()');
     
     // Ensure directories exist
     await fs.mkdir(path.join(storagePath, 'products'), { recursive: true });
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         allFiles.push({
           id: file,
           name: file,
-          url: `/storage/${folder}/${file}`,
+          url: `/getStorage()/${folder}/${file}`,
           folder,
           size: stats.size,
           createdAt: stats.birthtime,

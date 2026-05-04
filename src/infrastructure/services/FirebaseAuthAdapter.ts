@@ -12,7 +12,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, getDocs, collection, updateDoc, Timestamp } from 'firebase/firestore';
-import { auth, db } from '../firebase/firebase';
+import { getAuth, getDb } from '../firebase/firebase';
 import type { IAuthProvider } from '@domain/repositories';
 import type { User, UserRole } from '@domain/models';
 
@@ -21,10 +21,10 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   private authListeners: ((user: User | null) => void)[] = [];
 
   constructor() {
-    firebaseOnAuthStateChanged(auth, async (firebaseUser) => {
+    firebaseOnAuthStateChanged(getAuth(), async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch additional data from Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        const userDoc = await getDoc(doc(getDb(), 'users', firebaseUser.uid));
         const userData = userDoc.data();
         
         const user: User = {
@@ -46,10 +46,10 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signIn(email: string, password: string): Promise<User> {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
     const firebaseUser = userCredential.user;
     
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    const userDoc = await getDoc(doc(getDb(), 'users', firebaseUser.uid));
     const userData = userDoc.data();
     
     const user: User = {
@@ -66,11 +66,11 @@ export class FirebaseAuthAdapter implements IAuthProvider {
 
   async signInWithGoogle(): Promise<User> {
     const provider = new GoogleAuthProvider();
-    const userCredential = await signInWithPopup(auth, provider);
+    const userCredential = await signInWithPopup(getAuth(), provider);
     const firebaseUser = userCredential.user;
     
     // Check if user exists in Firestore
-    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+    const userDoc = await getDoc(doc(getDb(), 'users', firebaseUser.uid));
     let user: User;
     
     if (!userDoc.exists()) {
@@ -82,7 +82,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
         createdAt: new Date(),
       };
       
-      await setDoc(doc(db, 'users', firebaseUser.uid), {
+      await setDoc(doc(getDb(), 'users', firebaseUser.uid), {
         email: user.email,
         displayName: user.displayName,
         role: user.role,
@@ -104,7 +104,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signUp(email: string, password: string, displayName: string): Promise<User> {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
     const firebaseUser = userCredential.user;
     
     await updateProfile(firebaseUser, { displayName });
@@ -118,7 +118,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
     };
     
     // Save additional data to Firestore
-    await setDoc(doc(db, 'users', firebaseUser.uid), {
+    await setDoc(doc(getDb(), 'users', firebaseUser.uid), {
       email: user.email,
       displayName: user.displayName,
       role: user.role,
@@ -130,7 +130,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signOut(): Promise<void> {
-    await firebaseSignOut(auth);
+    await firebaseSignOut(getAuth());
     this.setCurrentUser(null);
   }
 
@@ -144,7 +144,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async getAllUsers(): Promise<User[]> {
-    const snapshot = await getDocs(collection(db, 'users'));
+    const snapshot = await getDocs(collection(getDb(), 'users'));
     return snapshot.docs.map(d => {
       const data = d.data();
       return {
@@ -165,9 +165,9 @@ export class FirebaseAuthAdapter implements IAuthProvider {
       // In Firestore we can store objects directly, no need for JSON.stringify if not needed
     }
     
-    await updateDoc(doc(db, 'users', id), firestoreUpdates);
+    await updateDoc(doc(getDb(), 'users', id), firestoreUpdates);
     
-    const userDoc = await getDoc(doc(db, 'users', id));
+    const userDoc = await getDoc(doc(getDb(), 'users', id));
     const data = userDoc.data()!;
     
     return {

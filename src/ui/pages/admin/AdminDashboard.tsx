@@ -131,7 +131,7 @@ export function AdminDashboard() {
         <AdminMetricCard label="Total Revenue" value={formatCurrency(summary.totalRevenue)} icon={DollarSign} color="success" trend={{ value: `${Math.round(((summary.dailyRevenue[6] || 0) / (summary.dailyRevenue[5] || 1)) * 100 - 100)}%`, positive: (summary.dailyRevenue[6] || 0) >= (summary.dailyRevenue[5] || 0) }} description={<div className="flex items-center justify-between"><span className="text-[10px] font-bold text-gray-400 uppercase">7D Performance</span><AdminSparkline data={summary.dailyRevenue} color="success" /></div>} />
         <AdminMetricCard label="Pending Tasks" value={pendingCount + readyCount} icon={ShoppingBag} color="primary" onClick={() => router.push('/admin/orders')} description="Orders awaiting action" />
         <AdminMetricCard label="Out of Stock" value={summary.outOfStockCount} icon={Boxes} color={summary.outOfStockCount > 0 ? 'danger' : 'success'} onClick={() => router.push('/admin/inventory')} description={summary.outOfStockCount > 0 ? `${summary.outOfStockCount} items need restocking` : 'Inventory is healthy'} />
-        <AdminMetricCard label="Media Assets" value={mediaStats?.count.toLocaleString() || '0'} icon={ImageIcon} color="info" onClick={() => router.push('/admin/files')} description={mediaStats ? `Using ${formatBytes(mediaStats.size)} storage` : 'No media uploaded'} />
+        <AdminMetricCard label="Media Assets" value={mediaStats?.count.toLocaleString() || '0'} icon={ImageIcon} color="info" onClick={() => router.push('/admin/files')} description={mediaStats ? `Using ${formatBytes(mediaStats.size)} getStorage()` : 'No media uploaded'} />
       </div>
 
       {/* ── Quick Actions (High Velocity) ── */}
@@ -244,7 +244,7 @@ export function AdminDashboard() {
                   <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
                      <div className="h-full bg-primary-600" style={{ width: `${Math.min((mediaStats?.size || 0) / (500 * 1024 * 1024) * 100, 100)}%` }} />
                   </div>
-                  <p className="mt-2 text-[9px] text-gray-400 font-medium italic">Industry-standard Lean Local storage active.</p>
+                  <p className="mt-2 text-[9px] text-gray-400 font-medium italic">Industry-standard Lean Local getStorage() active.</p>
                </div>
                <Link href="/admin/files" className="block w-full text-center py-2 text-[10px] font-bold text-primary-600 uppercase tracking-widest border border-primary-100 rounded-lg hover:bg-primary-50 transition">
                   Manage Asset Library

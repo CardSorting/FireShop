@@ -50,7 +50,7 @@ export class ImageService {
   }
 
   /**
-   * Deletes an image from storage
+   * Deletes an image from getStorage()
    */
   static async delete(path: string): Promise<void> {
     await StorageService.deleteFile(path);

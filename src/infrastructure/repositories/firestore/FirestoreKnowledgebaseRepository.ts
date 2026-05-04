@@ -18,7 +18,7 @@ import {
   type DocumentData,
   runTransaction
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { getDb } from '../../firebase/firebase';
 import type { KnowledgebaseCategory, KnowledgebaseArticle } from '@domain/models';
 
 export class FirestoreKnowledgebaseRepository {
@@ -40,12 +40,12 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async getCategories(): Promise<KnowledgebaseCategory[]> {
-    const snapshot = await getDocs(collection(db, this.categoryCollection));
+    const snapshot = await getDocs(collection(getDb(), this.categoryCollection));
     return snapshot.docs.map(d => this.mapDocToCategory(d.id, d.data()));
   }
 
   async getArticles(categoryId?: string): Promise<KnowledgebaseArticle[]> {
-    let q = query(collection(db, this.articleCollection), orderBy('createdAt', 'desc'));
+    let q = query(collection(getDb(), this.articleCollection), orderBy('createdAt', 'desc'));
     if (categoryId) {
       q = query(q, where('categoryId', '==', categoryId));
     }
@@ -54,7 +54,7 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async getArticleBySlug(slug: string): Promise<KnowledgebaseArticle | null> {
-    const q = query(collection(db, this.articleCollection), where('slug', '==', slug), limit(1));
+    const q = query(collection(getDb(), this.articleCollection), where('slug', '==', slug), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return this.mapDocToArticle(snapshot.docs[0].id, snapshot.docs[0].data());
@@ -64,7 +64,7 @@ export class FirestoreKnowledgebaseRepository {
     // Firestore doesn't support 'like' queries. 
     // For now, we'll fetch all and filter in memory or just use a simple prefix match if appropriate.
     // For this migration, memory filter is easiest.
-    const snapshot = await getDocs(collection(db, this.articleCollection));
+    const snapshot = await getDocs(collection(getDb(), this.articleCollection));
     const q = queryString.toLowerCase();
     return snapshot.docs
       .map(d => this.mapDocToArticle(d.id, d.data()))
@@ -73,19 +73,19 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async getPopularArticles(limitVal: number = 5): Promise<KnowledgebaseArticle[]> {
-    const q = query(collection(db, this.articleCollection), orderBy('viewCount', 'desc'), limit(limitVal));
+    const q = query(collection(getDb(), this.articleCollection), orderBy('viewCount', 'desc'), limit(limitVal));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => this.mapDocToArticle(d.id, d.data()));
   }
 
   async addFeedback(articleId: string, isHelpful: boolean, userId?: string): Promise<void> {
-    await runTransaction(db, async (transaction) => {
-      const articleRef = doc(db, this.articleCollection, articleId);
+    await runTransaction(getDb(), async (transaction) => {
+      const articleRef = doc(getDb(), this.articleCollection, articleId);
       const field = isHelpful ? 'helpfulCount' : 'notHelpfulCount';
       transaction.update(articleRef, { [field]: increment(1) });
 
       const feedbackId = crypto.randomUUID();
-      const feedbackRef = doc(db, this.feedbackCollection, feedbackId);
+      const feedbackRef = doc(getDb(), this.feedbackCollection, feedbackId);
       transaction.set(feedbackRef, {
         id: feedbackId,
         articleId,
@@ -97,7 +97,7 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async saveCategory(category: KnowledgebaseCategory): Promise<void> {
-    await setDoc(doc(db, this.categoryCollection, category.id), category);
+    await setDoc(doc(getDb(), this.categoryCollection, category.id), category);
   }
 
   async saveArticle(article: KnowledgebaseArticle): Promise<void> {
@@ -106,7 +106,7 @@ export class FirestoreKnowledgebaseRepository {
       createdAt: article.createdAt ? Timestamp.fromDate(new Date(article.createdAt)) : Timestamp.now(),
       updatedAt: article.updatedAt ? Timestamp.fromDate(new Date(article.updatedAt)) : Timestamp.now(),
     };
-    await setDoc(doc(db, this.articleCollection, article.id), data);
+    await setDoc(doc(getDb(), this.articleCollection, article.id), data);
   }
 }
 

@@ -20,7 +20,7 @@ import {
   type DocumentData,
   writeBatch
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { getDb } from '../../firebase/firebase';
 import type { IProductRepository } from '@domain/repositories';
 import type { 
   Product, 
@@ -49,7 +49,7 @@ export class FirestoreProductRepository implements IProductRepository {
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
-    let q = query(collection(db, this.collectionName), orderBy('createdAt', 'desc'));
+    let q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'));
 
     if (options.category) {
       q = query(q, where('category', '==', options.category));
@@ -69,7 +69,7 @@ export class FirestoreProductRepository implements IProductRepository {
     }
 
     if (options.cursor) {
-      const cursorDoc = await getDoc(doc(db, this.collectionName, options.cursor));
+      const cursorDoc = await getDoc(doc(getDb(), this.collectionName, options.cursor));
       if (cursorDoc.exists()) {
         q = query(q, startAfter(cursorDoc));
       }
@@ -87,14 +87,14 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async getById(id: string): Promise<Product | null> {
-    const docRef = doc(db, this.collectionName, id);
+    const docRef = doc(getDb(), this.collectionName, id);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) return null;
     return this.mapDocToProduct(docSnap.id, docSnap.data());
   }
 
   async getByHandle(handle: string): Promise<Product | null> {
-    const q = query(collection(db, this.collectionName), where('handle', '==', handle), limit(1));
+    const q = query(collection(getDb(), this.collectionName), where('handle', '==', handle), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     const d = snapshot.docs[0];
@@ -118,12 +118,12 @@ export class FirestoreProductRepository implements IProductRepository {
       handle,
     };
 
-    await setDoc(doc(db, this.collectionName, id), productData);
+    await setDoc(doc(getDb(), this.collectionName, id), productData);
     return (await this.getById(id))!;
   }
 
   async update(id: string, updates: ProductUpdate): Promise<Product> {
-    const docRef = doc(db, this.collectionName, id);
+    const docRef = doc(getDb(), this.collectionName, id);
     const now = Timestamp.now();
     
     let firestoreUpdates: any = { ...updates, updatedAt: now };
@@ -156,12 +156,12 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(db, this.collectionName, id));
+    await deleteDoc(doc(getDb(), this.collectionName, id));
   }
 
   async updateStock(id: string, delta: number): Promise<void> {
-    await runTransaction(db, async (transaction) => {
-      const docRef = doc(db, this.collectionName, id);
+    await runTransaction(getDb(), async (transaction) => {
+      const docRef = doc(getDb(), this.collectionName, id);
       const docSnap = await transaction.get(docRef);
       if (!docSnap.exists()) throw new ProductNotFoundError(id);
 
@@ -178,14 +178,14 @@ export class FirestoreProductRepository implements IProductRepository {
   async updateVariantStock(variantId: string, delta: number): Promise<void> {
     // In Firestore, if variants are embedded, we need to find the product containing the variant
     // This is less efficient than SQLite. For now, we'll query for the product.
-    const q = query(collection(db, this.collectionName), where('variants', 'array-contains-any', [{ id: variantId }]));
+    const q = query(collection(getDb(), this.collectionName), where('variants', 'array-contains-any', [{ id: variantId }]));
     // Wait, array-contains-any works on whole objects. This won't work as expected if we don't know the whole object.
     // Better: use a separate collection for variants OR iterate in transaction.
     // Given the small number of variants, we'll use a collection query if we can't find it easily.
     
     // Alternative: search all products (slow) or require productId.
     // For now, let's assume we need to find the product.
-    const snapshot = await getDocs(collection(db, this.collectionName));
+    const snapshot = await getDocs(collection(getDb(), this.collectionName));
     let targetProductDoc: any = null;
     for (const d of snapshot.docs) {
       const variants = d.data().variants || [];
@@ -197,8 +197,8 @@ export class FirestoreProductRepository implements IProductRepository {
 
     if (!targetProductDoc) throw new Error(`Variant not found: ${variantId}`);
 
-    await runTransaction(db, async (transaction) => {
-      const docRef = doc(db, this.collectionName, targetProductDoc.id);
+    await runTransaction(getDb(), async (transaction) => {
+      const docRef = doc(getDb(), this.collectionName, targetProductDoc.id);
       const docSnap = await transaction.get(docRef);
       const data = docSnap.data()!;
       const variants = [...(data.variants || [])];
@@ -224,14 +224,14 @@ export class FirestoreProductRepository implements IProductRepository {
   async batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[]): Promise<void> {
     // Complex logic for batch update in Firestore
     // For simplicity, we'll process them sequentially or in a transaction
-    await runTransaction(db, async (transaction) => {
+    await runTransaction(getDb(), async (transaction) => {
       for (const update of updates) {
         if (update.variantId) {
           // This is tricky in Firestore transaction without knowing the productId
           // For now, let's skip batch variant updates or implement a better way
           console.warn('Batch variant stock update not fully optimized in Firestore implementation');
         } else {
-          const docRef = doc(db, this.collectionName, update.id);
+          const docRef = doc(getDb(), this.collectionName, update.id);
           const docSnap = await transaction.get(docRef);
           if (docSnap.exists()) {
             const currentStock = docSnap.data().stock || 0;
@@ -252,7 +252,7 @@ export class FirestoreProductRepository implements IProductRepository {
       healthy: number;
     };
   }> {
-    const snapshot = await getDocs(collection(db, this.collectionName));
+    const snapshot = await getDocs(collection(getDb(), this.collectionName));
     const stats = {
       totalProducts: 0,
       totalUnits: 0,
@@ -281,7 +281,7 @@ export class FirestoreProductRepository implements IProductRepository {
 
   async getLowStockProducts(limitVal: number): Promise<Product[]> {
     const q = query(
-      collection(db, this.collectionName), 
+      collection(getDb(), this.collectionName), 
       where('status', '==', 'active'),
       where('stock', '<', 10),
       orderBy('stock', 'asc'),
@@ -302,7 +302,7 @@ export class FirestoreProductRepository implements IProductRepository {
 
     while (attempts < maxAttempts) {
       const q = query(
-        collection(db, this.collectionName), 
+        collection(getDb(), this.collectionName), 
         where('handle', '==', currentHandle), 
         limit(1)
       );

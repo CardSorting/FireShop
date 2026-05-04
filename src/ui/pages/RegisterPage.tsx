@@ -28,9 +28,9 @@ export function RegisterPage() {
       router.push('/');
     } catch (err) {
       console.error('Google sign in error:', err);
-      if (err instanceof Error && err.message.includes('auth/operation-not-allowed')) {
+      if (err instanceof Error && err.message.includes('getAuth()/operation-not-allowed')) {
         setError('Google sign-in is not enabled in Firebase Console.');
-      } else if (err instanceof Error && err.message.includes('auth/unauthorized-domain')) {
+      } else if (err instanceof Error && err.message.includes('getAuth()/unauthorized-domain')) {
         setError('This domain is not authorized for Google sign-in.');
       } else {
         setError(err instanceof Error ? err.message : 'Google sign in failed');

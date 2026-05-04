@@ -100,7 +100,7 @@ export function AdminLocationCreate() {
               </div>
               <div>
                 <h4 className="text-sm font-bold text-gray-900">Warehouse</h4>
-                <p className="mt-1 text-xs text-gray-500">Distribution center, storage, or primary hub.</p>
+                <p className="mt-1 text-xs text-gray-500">Distribution center, getStorage(), or primary hub.</p>
               </div>
             </button>
             <button 

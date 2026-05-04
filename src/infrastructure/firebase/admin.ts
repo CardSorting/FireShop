@@ -10,30 +10,52 @@ import { getStorage } from 'firebase-admin/storage';
 const PROD_PROJECT_ID = "shopmore-1e34b";
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || PROD_PROJECT_ID;
 
-// If we have a service account in environment variables, use it.
-// Otherwise, try to use default application credentials.
-let app;
-if (getApps().length === 0) {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-    app = initializeApp({
-      credential: cert(serviceAccount),
-      projectId,
-      storageBucket: `${projectId}.firebasestorage.app`
-    });
-  } else {
-    // In Firebase Functions environment, this will use the default service account
-    app = initializeApp({
-      projectId,
-      storageBucket: `${projectId}.firebasestorage.app`
-    });
+// Internal lazy instances
+let _app: any;
+let _db: any;
+let _auth: any;
+let _storage: any;
+
+function getAdminApp() {
+  if (!_app) {
+    if (getApps().length > 0) {
+      _app = getApps()[0];
+    } else {
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+        _app = initializeApp({
+          credential: cert(serviceAccount),
+          projectId,
+          storageBucket: `${projectId}.firebasestorage.app`
+        });
+      } else {
+        _app = initializeApp({
+          projectId,
+          storageBucket: `${projectId}.firebasestorage.app`
+        });
+      }
+    }
   }
-} else {
-  app = getApps()[0];
+  return _app;
 }
 
-const adminDb = getFirestore(app);
-const adminAuth = getAuth(app);
-const adminStorage = getStorage(app);
+export const adminDb = new Proxy({} as any, {
+  get(_, prop) {
+    if (!_db) _db = getFirestore(getAdminApp());
+    return (Reflect as any).get(_db, prop);
+  }
+});
 
-export { adminDb, adminAuth, adminStorage };
+export const adminAuth = new Proxy({} as any, {
+  get(_, prop) {
+    if (!_auth) _auth = getAuth(getAdminApp());
+    return (Reflect as any).get(_auth, prop);
+  }
+});
+
+export const adminStorage = new Proxy({} as any, {
+  get(_, prop) {
+    if (!_storage) _storage = getStorage(getAdminApp());
+    return (Reflect as any).get(_storage, prop);
+  }
+});

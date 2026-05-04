@@ -6,8 +6,8 @@
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
+import { getAuth as getAuthSDK } from 'firebase/auth';
+import { getStorage as getStorageSDK } from 'firebase/storage';
 
 // Production constants for robust fallback
 const PROD_CONFIG = {
@@ -28,10 +28,40 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || PROD_CONFIG.appId,
 };
 
-// Initialize Firebase
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const storage = getStorage(app);
+// Internal lazy instances
+let _app: any;
+let _db: any;
+let _auth: any;
+let _storage: any;
 
-export { app, db, auth, storage };
+function getFirebaseApp() {
+  if (!_app) {
+    _app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  }
+  return _app;
+}
+
+export function getDb() {
+  if (!_db) _db = getFirestore(getFirebaseApp());
+  return _db;
+}
+
+export function getAuth() {
+  if (!_auth) _auth = getAuthSDK(getFirebaseApp());
+  return _auth;
+}
+
+export function getStorage() {
+  if (!_storage) _storage = getStorageSDK(getFirebaseApp());
+  return _storage;
+}
+
+// Keep the old exports for compatibility but they are now EAGER to avoid Proxy issues
+// However, we should gradually migrate to the getters.
+// For now, to fix the build, we make them getters where possible or just keep them as is
+// but we will update the repositories to use getDb().
+export const db = typeof window !== 'undefined' ? getDb() : {} as any;
+export const auth = typeof window !== 'undefined' ? getAuth() : {} as any;
+export const storage = typeof window !== 'undefined' ? getStorage() : {} as any;
+
+export { getFirebaseApp as app };

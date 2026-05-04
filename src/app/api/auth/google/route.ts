@@ -7,7 +7,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(request: Request) {
     try {
-        await assertRateLimit(request, 'auth:google', 10, 60_000);
+        await assertRateLimit(request, 'getAuth():google', 10, 60_000);
         const body = await readJsonObject(request);
         const idToken = requireString(body.idToken, 'idToken');
 

@@ -1,6 +1,8 @@
 import { MetadataRoute } from 'next';
 import { getServerServices } from '@infrastructure/server/services';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * [LAYER: APP]
  * Dynamic Sitemap Generator.

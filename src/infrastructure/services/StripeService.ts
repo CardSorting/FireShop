@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import { PaymentFailedError } from '@domain/errors';
 import { logger } from '@utils/logger';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
-import { db } from '../firebase/firebase';
+import { getDb } from '../firebase/firebase';
 
 export class StripeService {
   private stripe: Stripe;
@@ -86,7 +86,7 @@ export class StripeService {
    * Checks if a webhook event has already been processed.
    */
   async isEventProcessed(eventId: string): Promise<boolean> {
-    const docSnap = await getDoc(doc(db, this.collectionName, eventId));
+    const docSnap = await getDoc(doc(getDb(), this.collectionName, eventId));
     return docSnap.exists();
   }
 
@@ -94,7 +94,7 @@ export class StripeService {
    * Marks a webhook event as processed.
    */
   async markEventProcessed(eventId: string, type: string): Promise<void> {
-    await setDoc(doc(db, this.collectionName, eventId), {
+    await setDoc(doc(getDb(), this.collectionName, eventId), {
       id: eventId,
       type,
       processedAt: Timestamp.now(),

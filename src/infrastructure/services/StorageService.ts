@@ -10,7 +10,7 @@ import {
   getBytes,
   listAll
 } from 'firebase/storage';
-import { storage } from '../firebase/firebase';
+import { getStorage } from '../firebase/firebase';
 import { randomUUID } from 'node:crypto';
 
 export type StorageFolder = 'products' | 'collections' | 'general' | 'digital-assets';
@@ -38,7 +38,7 @@ export class StorageService {
     const name = `${id.slice(0, 8)}-${filename}`;
     const storagePath = `${folder}/${name}`;
     
-    const storageRef = ref(storage, storagePath);
+    const storageRef = ref(getStorage(), storagePath);
     
     const metadata = {
       contentType: mimeType,
@@ -107,7 +107,7 @@ export class StorageService {
       
       return { buffer, mimeType: contentType, name };
     } else {
-      storageRef = ref(storage, storedPath);
+      storageRef = ref(getStorage(), storedPath);
       const arrayBuffer = await getBytes(storageRef);
       const buffer = Buffer.from(arrayBuffer);
       const name = storedPath.split('/').pop() || 'file';
@@ -125,12 +125,12 @@ export class StorageService {
       let storageRef;
       if (storedPath.startsWith('http')) {
          // This is tricky with download URLs. 
-         // Ideally we should store the storage path in the DB too.
+         // Ideally we should store the getStorage() path in the DB too.
          // For now, we'll try to extract the path from the URL if possible or just log.
          console.warn('Deleting by URL is not directly supported without path extraction.');
          return;
       } else {
-        storageRef = ref(storage, storedPath);
+        storageRef = ref(getStorage(), storedPath);
       }
       
       await deleteObject(storageRef);

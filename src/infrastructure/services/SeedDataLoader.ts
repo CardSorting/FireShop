@@ -306,7 +306,7 @@ export async function seedCustomers(): Promise<number> {
         const userRecord = await adminAuth.getUserByEmail(customer.email);
         uid = userRecord.uid;
       } catch (authErr: any) {
-        if (authErr.code === 'auth/user-not-found') {
+        if (authErr.code === 'getAuth()/user-not-found') {
           const userRecord = await adminAuth.createUser({
             email: customer.email,
             password: customer.password,

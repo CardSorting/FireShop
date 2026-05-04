@@ -15,7 +15,7 @@ import {
   Timestamp,
   type DocumentData
 } from 'firebase/firestore';
-import { db } from '../../firebase/firebase';
+import { getDb } from '../../firebase/firebase';
 import type { IPurchaseOrderRepository } from '@domain/repositories';
 import type { PurchaseOrder, PurchaseOrderStatus, ReceivingSession } from '@domain/models';
 
@@ -43,12 +43,12 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
       createdAt: order.createdAt ? Timestamp.fromDate(new Date(order.createdAt)) : now,
       expectedAt: order.expectedAt ? Timestamp.fromDate(new Date(order.expectedAt)) : null,
     };
-    await setDoc(doc(db, this.poCollection, id), data);
+    await setDoc(doc(getDb(), this.poCollection, id), data);
     return (await this.findById(id))!;
   }
 
   async findById(id: string): Promise<PurchaseOrder | null> {
-    const docSnap = await getDoc(doc(db, this.poCollection, id));
+    const docSnap = await getDoc(doc(getDb(), this.poCollection, id));
     if (!docSnap.exists()) return null;
     return this.mapDocToPO(docSnap.id, docSnap.data());
   }
@@ -59,7 +59,7 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
     limit?: number;
     offset?: number;
   }): Promise<PurchaseOrder[]> {
-    let q = query(collection(db, this.poCollection), orderBy('createdAt', 'desc'));
+    let q = query(collection(getDb(), this.poCollection), orderBy('createdAt', 'desc'));
     if (options?.status) q = query(q, where('status', '==', options.status));
     if (options?.supplier) q = query(q, where('supplier', '==', options.supplier));
     if (options?.limit) q = query(q, limit(options.limit));
@@ -69,14 +69,14 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
   }
 
   async count(options?: { status?: PurchaseOrderStatus }): Promise<number> {
-    let q = query(collection(db, this.poCollection));
+    let q = query(collection(getDb(), this.poCollection));
     if (options?.status) q = query(q, where('status', '==', options.status));
     const snapshot = await getDocs(q);
     return snapshot.size;
   }
 
   async updateStatus(id: string, status: PurchaseOrderStatus): Promise<PurchaseOrder> {
-    await updateDoc(doc(db, this.poCollection, id), { status, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getDb(), this.poCollection, id), { status, updatedAt: Timestamp.now() });
     return (await this.findById(id))!;
   }
 
@@ -88,12 +88,12 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
       receivedAt: Timestamp.fromDate(new Date(session.receivedAt)),
       completedAt: session.completedAt ? Timestamp.fromDate(new Date(session.completedAt)) : null,
     };
-    await setDoc(doc(db, this.sessionCollection, id), data);
+    await setDoc(doc(getDb(), this.sessionCollection, id), data);
     return session;
   }
 
   async findReceivingSessions(purchaseOrderId: string): Promise<ReceivingSession[]> {
-    const q = query(collection(db, this.sessionCollection), where('purchaseOrderId', '==', purchaseOrderId));
+    const q = query(collection(getDb(), this.sessionCollection), where('purchaseOrderId', '==', purchaseOrderId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({
       ...d.data(),
@@ -105,7 +105,7 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
 
   async findReceivingSessionByIdempotencyKey(purchaseOrderId: string, idempotencyKey: string): Promise<ReceivingSession | null> {
     const q = query(
-      collection(db, this.sessionCollection), 
+      collection(getDb(), this.sessionCollection), 
       where('purchaseOrderId', '==', purchaseOrderId),
       where('idempotencyKey', '==', idempotencyKey),
       limit(1)
