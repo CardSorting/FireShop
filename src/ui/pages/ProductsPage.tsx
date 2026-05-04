@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { Breadcrumbs } from '../components/Breadcrumbs';
 import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+import { logger } from '@utils/logger';
 import { ProductCard } from '../components/ProductCard';
 import { ProductCardSkeleton } from '../components/ProductCard/ProductCardSkeleton';
 import { QuickViewModal } from '../components/QuickViewModal';
@@ -129,12 +130,13 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           const cats = await services.taxonomyService.getCategories();
           const cat = cats.find((c: any) => c.slug === collectionSlug);
           if (cat) setCollectionInfo({ name: cat.name, description: cat.description || '' });
-        } else {
+        } else if (resolvedType === 'collection') {
           const col = await services.collectionService.getCollectionByHandle(collectionSlug);
           if (col) setCollectionInfo({ name: col.name, description: col.description || '', imageUrl: col.imageUrl });
         }
       } catch (err) {
-        console.error('Failed to load collection metadata', err);
+        // Silently handle 404s for metadata lookups to prevent UI crashes in dev/prod
+        logger.warn(`Metadata lookup failed for ${resolvedType}:${collectionSlug}`, err);
       }
     };
     void loadMetadata();

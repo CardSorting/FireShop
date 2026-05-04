@@ -54,8 +54,7 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
   const resolved = await getCategoryOrCollection(slug);
   
   if (!resolved && slug !== 'all') {
-    // If it's not the special 'all' collection and not found, 404 could be triggered
-    // notFound();
+    notFound();
   }
   
   // Industry Standard: Breadcrumb structured data for categories

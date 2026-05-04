@@ -13,8 +13,9 @@ import {
   where, 
   limit, 
   Timestamp,
-} from 'firebase/firestore';
-import { getDb } from '../../firebase/firebase';
+  getUnifiedDb,
+  type QueryDocumentSnapshot
+} from '../../firebase/bridge';
 import type { ITaxonomyRepository } from '@domain/repositories';
 import type { ProductCategory, ProductType } from '@domain/models';
 
@@ -26,18 +27,18 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
 
   // Categories
   async getAllCategories(): Promise<ProductCategory[]> {
-    const snapshot = await getDocs(collection(getDb(), this.categoriesCollection));
-    return snapshot.docs.map(d => mapDoc<ProductCategory>(d.id, d.data()));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.categoriesCollection));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<ProductCategory>(d.id, d.data()));
   }
 
   async getCategoryById(id: string): Promise<ProductCategory | null> {
-    const docSnap = await getDoc(doc(getDb(), this.categoriesCollection, id));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.categoriesCollection, id));
     if (!docSnap.exists()) return null;
     return mapDoc<ProductCategory>(docSnap.id, docSnap.data());
   }
 
   async getCategoryBySlug(slug: string): Promise<ProductCategory | null> {
-    const q = query(collection(getDb(), this.categoriesCollection), where('slug', '==', slug), limit(1));
+    const q = query(collection(getUnifiedDb(), this.categoriesCollection), where('slug', '==', slug), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return mapDoc<ProductCategory>(snapshot.docs[0].id, snapshot.docs[0].data());
@@ -51,22 +52,22 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
       updatedAt: Timestamp.now(),
       createdAt: category.createdAt ? Timestamp.fromDate(new Date(category.createdAt)) : Timestamp.now()
     };
-    await setDoc(doc(getDb(), this.categoriesCollection, id), data);
+    await setDoc(doc(getUnifiedDb(), this.categoriesCollection, id), data);
     return (await this.getCategoryById(id))!;
   }
 
   async deleteCategory(id: string): Promise<void> {
-    await deleteDoc(doc(getDb(), this.categoriesCollection, id));
+    await deleteDoc(doc(getUnifiedDb(), this.categoriesCollection, id));
   }
 
   // Types
   async getAllTypes(): Promise<ProductType[]> {
-    const snapshot = await getDocs(collection(getDb(), this.typesCollection));
-    return snapshot.docs.map(d => mapDoc<ProductType>(d.id, d.data()));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.typesCollection));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<ProductType>(d.id, d.data()));
   }
 
   async getTypeById(id: string): Promise<ProductType | null> {
-    const docSnap = await getDoc(doc(getDb(), this.typesCollection, id));
+    const docSnap = await getDoc(doc(getUnifiedDb(), this.typesCollection, id));
     if (!docSnap.exists()) return null;
     return mapDoc<ProductType>(docSnap.id, docSnap.data());
   }
@@ -79,11 +80,11 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
       updatedAt: Timestamp.now(),
       createdAt: type.createdAt ? Timestamp.fromDate(new Date(type.createdAt)) : Timestamp.now()
     };
-    await setDoc(doc(getDb(), this.typesCollection, id), data);
+    await setDoc(doc(getUnifiedDb(), this.typesCollection, id), data);
     return (await this.getTypeById(id))!;
   }
 
   async deleteType(id: string): Promise<void> {
-    await deleteDoc(doc(getDb(), this.typesCollection, id));
+    await deleteDoc(doc(getUnifiedDb(), this.typesCollection, id));
   }
 }
