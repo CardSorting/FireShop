@@ -242,6 +242,30 @@ export class FirestoreProductRepository implements IProductRepository {
     });
   }
 
+  async batchSetInventory(updates: { id: string; variantId?: string; stock: number }[]): Promise<void> {
+    await runTransaction(getDb(), async (transaction) => {
+      for (const update of updates) {
+        const docRef = doc(getDb(), this.collectionName, update.id);
+        const docSnap = await transaction.get(docRef);
+        if (!docSnap.exists()) continue;
+        
+        if (update.variantId) {
+          const data = docSnap.data();
+          const variants = [...(data.variants || [])];
+          const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
+          if (vIdx !== -1) {
+            variants[vIdx].stock = update.stock;
+            variants[vIdx].updatedAt = Timestamp.now();
+            const total = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+            transaction.update(docRef, { variants, stock: total, updatedAt: Timestamp.now() });
+          }
+        } else {
+          transaction.update(docRef, { stock: update.stock, updatedAt: Timestamp.now() });
+        }
+      }
+    });
+  }
+
   async getStats(): Promise<{
     totalProducts: number;
     totalUnits: number;

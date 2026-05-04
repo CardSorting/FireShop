@@ -26,6 +26,7 @@ export interface IProductRepository {
   updateStock(id: string, delta: number): Promise<void>;
   updateVariantStock(variantId: string, delta: number): Promise<void>;
   batchUpdateStock?(updates: { id: string; variantId?: string; delta: number }[]): Promise<void>;
+  batchSetInventory?(updates: { id: string; variantId?: string; stock: number }[]): Promise<void>;
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
   getStats(): Promise<{

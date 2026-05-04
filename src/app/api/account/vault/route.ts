@@ -1,19 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { getServerServices } from '../../../../infrastructure/server/services';
+import { requireSessionUser, jsonError } from '@infrastructure/server/apiGuards';
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const userId = req.nextUrl.searchParams.get('userId');
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
-    }
-
+    const user = await requireSessionUser();
     const services = await getServerServices();
-    const assets = await services.orderService.getDigitalAssets(userId);
+    const assets = await services.orderService.getDigitalAssets(user.id);
 
-    return NextResponse.json(assets);
+    return Response.json(assets);
   } catch (error: any) {
-    console.error('Vault API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch vault assets' }, { status: 500 });
+    return jsonError(error, 'Failed to fetch vault assets');
   }
 }
