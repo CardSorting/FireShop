@@ -1,4 +1,4 @@
-import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
+import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
 import type { NavigationMenu } from '@domain/models';
 
@@ -36,7 +36,7 @@ export async function PUT(request: Request) {
     const { searchParams } = new URL(request.url);
     const menuId = searchParams.get('id') || 'main-nav';
 
-    const menuData: NavigationMenu = await request.json();
+    const menuData = await readJsonObject(request) as unknown as NavigationMenu;
 
     await services.settingsService.updateNavigationMenu(menuId, menuData, {
       id: admin.id,

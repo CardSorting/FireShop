@@ -1,4 +1,4 @@
-import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
+import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 
 export async function POST(
@@ -8,10 +8,10 @@ export async function POST(
   try {
     await requireAdminSession();
     const { id: ticketId } = await params;
-    const { userId, userName } = await request.json();
+    const { userId, userName } = await readJsonObject(request);
     
-    await ticketRepository.markHeartbeat(ticketId, userId, userName);
-    const viewers = await ticketRepository.getActiveViewers(ticketId, userId);
+    await ticketRepository.markHeartbeat(ticketId, userId as string, userName as string);
+    const viewers = await ticketRepository.getActiveViewers(ticketId, userId as string);
     
     return Response.json({ viewers });
   } catch (err) {

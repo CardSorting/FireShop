@@ -3,7 +3,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
   try {
@@ -42,10 +42,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     await requireAdminSession();
-    const body = await request.json();
+    const body = await readJsonObject(request);
     const services = await getServerServices();
-    const order = await services.purchaseOrderService.createPurchaseOrder(body);
-    return NextResponse.json(order, { status: 201 });
+    const order = await services.purchaseOrderService.createPurchaseOrder(body as any);
+    return Response.json(order, { status: 201 });
   } catch (error) {
     return jsonError(error, 'Failed to create purchase order');
   }

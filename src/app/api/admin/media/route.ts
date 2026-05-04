@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
+import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -50,8 +50,15 @@ export async function GET() {
 export async function DELETE(req: NextRequest) {
   try {
     await requireAdminSession();
-    const { url } = await req.json();
-    if (!url) return jsonError(new Error('URL required'));
+    const body = await readJsonObject(req);
+    const { url } = body;
+    
+    if (!url || typeof url !== 'string') return jsonError(new Error('URL required'));
+
+    // Security: Prevent path traversal by ensuring the URL starts with /storage/ and contains no ..
+    if (!url.startsWith('/storage/') || url.includes('..')) {
+      return jsonError(new Error('Invalid storage path'));
+    }
 
     const filePath = path.join(process.cwd(), 'public', url);
     await fs.unlink(filePath);

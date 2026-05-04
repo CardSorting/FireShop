@@ -22,6 +22,7 @@ import type {
 } from '@domain/models';
 import { AuditService } from './AuditService';
 import { ProductNotFoundError } from '@domain/errors';
+import { Sanitizer } from '@utils/sanitizer';
 import {
   assertValidProductDraft,
   assertValidProductUpdate,
@@ -80,7 +81,11 @@ export class ProductService {
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
-    return this.repo.getAll(options);
+    const result = await this.repo.getAll(options);
+    return {
+      ...result,
+      products: result.products.map(p => Sanitizer.product(p))
+    };
   }
 
   async getInventoryOverview(): Promise<InventoryOverview> {
@@ -329,13 +334,13 @@ export class ProductService {
   async getProduct(id: string): Promise<Product> {
     const product = await this.repo.getById(id);
     if (!product) throw new ProductNotFoundError(id);
-    return product;
+    return Sanitizer.product(product);
   }
 
   async getProductByHandle(handle: string): Promise<Product> {
     const product = await this.repo.getByHandle(handle);
     if (!product) throw new ProductNotFoundError(handle);
-    return product;
+    return Sanitizer.product(product);
   }
 
   async createProduct(data: ProductDraft, actor: { id: string, email: string }): Promise<Product> {

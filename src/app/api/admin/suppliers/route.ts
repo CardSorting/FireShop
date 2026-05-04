@@ -1,9 +1,5 @@
-/**
- * [LAYER: INFRASTRUCTURE]
- */
-import { NextResponse } from 'next/server';
+import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +12,7 @@ export async function GET(request: Request) {
       limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
     });
     
-    return NextResponse.json(suppliers);
+    return Response.json(suppliers);
   } catch (error) {
     return jsonError(error, 'Failed to list suppliers');
   }
@@ -25,15 +21,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const session = await requireAdminSession();
-    const body = await request.json();
+    const body = await readJsonObject(request);
     const services = await getServerServices();
     
-    const supplier = await services.supplierService.create(body, {
+    const supplier = await services.supplierService.create(body as any, {
       id: session.id,
       email: session.email
     });
     
-    return NextResponse.json(supplier);
+    return Response.json(supplier);
   } catch (error) {
     return jsonError(error, 'Failed to create supplier');
   }

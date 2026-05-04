@@ -26,6 +26,7 @@ import type {
   OrderItem
 } from '@domain/models';
 import { AuditService } from './AuditService';
+import { Sanitizer } from '@utils/sanitizer';
 import {
   assertValidOrderItems,
   assertValidOrderStatusTransition,
@@ -550,12 +551,13 @@ export class OrderService {
   }
 
   private enrichOrderForCustomerView(order: Order): Order {
-    return {
+    const enriched = {
       ...order,
       trackingUrl: order.trackingUrl ?? deriveTrackingUrl(order),
       estimatedDeliveryDate: order.estimatedDeliveryDate ?? deriveEstimatedDeliveryDate(order),
       fulfillmentEvents: order.fulfillmentEvents ?? deriveOrderFulfillmentEvents(order),
     };
+    return Sanitizer.order(enriched);
   }
 
   async getAllOrders(options?: {
