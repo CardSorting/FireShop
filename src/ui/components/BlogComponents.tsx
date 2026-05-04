@@ -11,7 +11,8 @@ import type { KnowledgebaseArticle, Author, BlogComment, Product } from '@domain
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
 import { useServices } from '../hooks/useServices';
-import { Bookmark, ExternalLink } from 'lucide-react';
+import { Bookmark, ExternalLink, Play, CheckCircle2, BarChart3, BookOpen } from 'lucide-react';
+import type { BlogSeries } from '@domain/models';
 
 
 export function BlogCard({ post, variant = 'standard' }: { 
@@ -24,7 +25,7 @@ export function BlogCard({ post, variant = 'standard' }: {
     return (
       <Link 
         href={`/blog/${post.slug}`}
-        className="group flex items-center gap-6 p-4 md:p-6 rounded-[2rem] hover:bg-gray-50 transition-all duration-500 border border-transparent hover:border-gray-100"
+        className="group flex items-center gap-6 p-4 md:p-6 rounded-4xl hover:bg-gray-50 transition-all duration-500 border border-transparent hover:border-gray-100"
       >
         <div className="shrink-0 h-20 w-20 md:h-24 md:w-24 rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
           {post.featuredImageUrl ? (
@@ -96,6 +97,21 @@ export function BlogCard({ post, variant = 'standard' }: {
           <p className="text-gray-500 font-medium line-clamp-3 leading-relaxed text-sm md:text-base">
             {post.excerpt}
           </p>
+        </div>
+
+        {/* Premium Actions & Metadata */}
+        <div className="mt-8 flex items-center gap-6">
+           <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-primary-600 transition-colors group/action">
+             <Play className="h-3.5 w-3.5 fill-current opacity-20 group-hover/action:opacity-100 transition-all" />
+             Listen
+           </button>
+           <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-primary-600 transition-colors group/action">
+             <Bookmark className="h-3.5 w-3.5 group-hover/action:fill-current transition-all" />
+             Save
+           </button>
+           <div className="flex-1 h-0.5 bg-gray-50 rounded-full overflow-hidden">
+             <div className="h-full bg-primary-600/20 w-0 group-hover:w-1/3 transition-all duration-1000" />
+           </div>
         </div>
         
         <div className="mt-8 md:mt-12 flex items-center justify-between pt-6 md:pt-8 border-t border-gray-50">
@@ -172,6 +188,62 @@ export function TopicPill({ name, isActive, onClick }: { name: string, isActive?
     >
       {name}
     </button>
+  );
+}
+
+export function SeriesCard({ series }: { series: BlogSeries }) {
+  return (
+    <Link 
+      href={`/blog/series/${series.slug}`}
+      className="group relative flex flex-col w-[350px] md:w-[450px] shrink-0 bg-gray-900 rounded-[3rem] overflow-hidden shadow-2xl hover:-translate-y-2 transition-all duration-700"
+    >
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-linear-to-b from-transparent via-gray-900/60 to-gray-900 z-10" />
+        {series.featuredImageUrl ? (
+          <img src={series.featuredImageUrl} alt={series.title} className="w-full h-full object-cover transition-transform duration-[10s] group-hover:scale-110" />
+        ) : (
+          <div className="w-full h-full bg-gray-800" />
+        )}
+      </div>
+
+      <div className="relative z-20 mt-auto p-10 space-y-6">
+        <div className="flex items-center justify-between">
+          <span className="px-4 py-1.5 rounded-full bg-primary-600 text-white text-[9px] font-black uppercase tracking-widest shadow-xl shadow-primary-600/30">
+            Learning Path
+          </span>
+          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40">
+            <BarChart3 className="h-3 w-3" />
+            {series.difficulty}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight group-hover:text-primary-400 transition-colors">
+            {series.title}
+          </h3>
+          <p className="text-white/60 text-sm font-medium line-clamp-2 leading-relaxed">
+            {series.description}
+          </p>
+        </div>
+
+        <div className="pt-4 flex items-center justify-between border-t border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="flex -space-x-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-8 w-8 rounded-full bg-gray-800 border-2 border-gray-900 flex items-center justify-center overflow-hidden">
+                   <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Strategy${i}`} alt="Avatar" />
+                </div>
+              ))}
+            </div>
+            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{series.articleCount} Articles</span>
+          </div>
+          
+          <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-all shadow-xl">
+             <ChevronRight className="h-5 w-5" />
+          </div>
+        </div>
+      </div>
+    </Link>
   );
 }
 

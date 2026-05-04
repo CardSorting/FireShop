@@ -9,7 +9,7 @@ import type {
     KnowledgebaseCategory, KnowledgebaseArticle, SupportMacro, AdminDashboardSummary, 
     OrderStatus, ProductDraft, ProductManagementFilters, ProductManagementOverview, 
     ProductSavedView, ProductSavedViewResult, ProductUpdate, Order, OrderNote, Supplier,
-    InventoryOverview, ProductCategory, ProductType
+    InventoryOverview, ProductCategory, ProductType, BlogSeries
 } from '@domain/models';
 import { getAuth } from '@infrastructure/firebase/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -290,9 +290,10 @@ export function createApiClientServices() {
         },
         knowledgebaseService: {
             getCategories: () => request<KnowledgebaseCategory[]>('/api/support/categories'),
-            getArticles: (options?: { categoryId?: string; query?: string; type?: 'article' | 'blog'; status?: string }) => {
+            getArticles: (options?: { categoryId?: string; seriesId?: string; query?: string; type?: 'article' | 'blog'; status?: string }) => {
                 const qs = new URLSearchParams();
                 if (options?.categoryId) qs.set('categoryId', options.categoryId);
+                if (options?.seriesId) qs.set('seriesId', options.seriesId);
                 if (options?.query) qs.set('query', options.query);
                 if (options?.type) qs.set('type', options.type);
                 if (options?.status) qs.set('status', options.status);
@@ -302,6 +303,8 @@ export function createApiClientServices() {
             submitFeedback: (articleId: string, isHelpful: boolean, userId?: string) => request<void>('/api/support/feedback', { method: 'POST', body: JSON.stringify({ articleId, isHelpful, userId }) }),
             
             // New Blogging Methods
+            getSeries: () => request<BlogSeries[]>('/api/blog/series'),
+            getSeriesBySlug: (slug: string) => request<BlogSeries>(`/api/blog/series/${slug}`),
             getAuthors: () => request<import('@domain/models').Author[]>('/api/blog/authors'),
             getAuthor: (id: string) => request<import('@domain/models').Author>(`/api/blog/authors/${id}`),
             getComments: (postId: string) => request<import('@domain/models').BlogComment[]>(`/api/blog/posts/${postId}/comments`),

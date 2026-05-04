@@ -36,9 +36,24 @@ export function DiscoverySidebar({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search the journal..."
-            className="w-full h-18 pl-16 pr-8 rounded-[2rem] bg-gray-50 border border-transparent outline-none font-bold text-gray-900 focus:bg-white focus:border-gray-100 focus:ring-8 focus:ring-primary-500/5 transition-all shadow-sm"
+            className="w-full h-18 pl-16 pr-8 rounded-4xl bg-gray-50 border border-transparent outline-none font-bold text-gray-900 focus:bg-white focus:border-gray-100 focus:ring-8 focus:ring-primary-500/5 transition-all shadow-sm"
            />
         </div>
+
+        {!searchQuery && (
+          <div className="flex flex-wrap gap-2 px-2">
+            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 w-full mb-2">Popular:</span>
+            {['Monetization', 'SEO', 'AI', 'Creator Economy'].map(tag => (
+              <button 
+                key={tag}
+                onClick={() => setSearchQuery(tag)}
+                className="px-4 py-2 rounded-xl bg-gray-50 text-[9px] font-black uppercase tracking-widest text-gray-500 hover:bg-primary-50 hover:text-primary-600 transition-all border border-transparent hover:border-primary-100"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        )}
         
         <div className="flex bg-gray-100/50 p-1.5 rounded-2xl border border-gray-100">
           <button 

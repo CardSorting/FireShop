@@ -4,19 +4,20 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useServices } from '@ui/hooks/useServices';
-import { BlogCard, NewsletterBox, TrendingPostItem, TopicPill } from '@ui/components/BlogComponents';
+import { BlogCard, NewsletterBox, TrendingPostItem, TopicPill, SeriesCard } from '@ui/components/BlogComponents';
 import { BlogHero } from '@ui/components/Blog/BlogHero';
 import { CategoryNavigator } from '@ui/components/Blog/CategoryNavigator';
 import { TrendingSection } from '@ui/components/Blog/TrendingSection';
 import { DiscoverySidebar } from '@ui/components/Blog/DiscoverySidebar';
 
-import { Loader2, Search, Sparkles, Filter, X, ArrowRight } from 'lucide-react';
-import type { KnowledgebaseArticle, KnowledgebaseCategory } from '@domain/models';
+import { Loader2, Search, Sparkles, Filter, X, ArrowRight, BookOpen, Layers } from 'lucide-react';
+import type { KnowledgebaseArticle, KnowledgebaseCategory, BlogSeries } from '@domain/models';
 
 export default function BlogPage() {
   const services = useServices();
   const [posts, setPosts] = useState<KnowledgebaseArticle[]>([]);
   const [categories, setCategories] = useState<KnowledgebaseCategory[]>([]);
+  const [series, setSeries] = useState<BlogSeries[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'new' | 'popular'>('new');
@@ -25,12 +26,14 @@ export default function BlogPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [postsData, categoriesData] = await Promise.all([
+        const [postsData, categoriesData, seriesData] = await Promise.all([
           services.knowledgebaseService.getArticles({ type: 'blog', status: 'published' }),
-          services.knowledgebaseService.getCategories()
+          services.knowledgebaseService.getCategories(),
+          services.knowledgebaseService.getSeries()
         ]);
         setPosts(postsData);
         setCategories(categoriesData);
+        setSeries(seriesData);
       } catch (err) {
         console.error('Failed to load blog data', err);
       } finally {
@@ -186,15 +189,40 @@ export default function BlogPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-20">
               {filteredPosts.length > 0 ? (
                 filteredPosts.map((post, index) => {
+                  // Mid-feed break for series
+                  const showSeriesMidFeed = index === 2 && series.length > 0 && selectedCategory === 'all' && !searchQuery;
+                  
                   // Every 3rd post is wide to break the rhythm
                   const isWide = index % 3 === 0 && selectedCategory === 'all' && !searchQuery;
+                  
                   return (
-                    <div key={post.id} className={isWide ? 'md:col-span-2' : ''}>
-                      <BlogCard 
-                        post={post} 
-                        variant={isWide ? 'wide' : 'standard'} 
-                      />
-                    </div>
+                    <React.Fragment key={post.id}>
+                      {showSeriesMidFeed && (
+                        <div className="col-span-full py-16 -mx-4 md:-mx-12">
+                           <div className="px-4 md:px-12 mb-10 flex items-center justify-between">
+                              <div className="space-y-1">
+                                <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 flex items-center gap-2">
+                                  <Layers className="h-3 w-3" />
+                                  Strategy Paths
+                                </h2>
+                                <h3 className="text-3xl font-black text-gray-900 tracking-tight">Curated Learning Journeys</h3>
+                              </div>
+                           </div>
+                           <div className="flex gap-8 overflow-x-auto no-scrollbar px-4 md:px-12 pb-8">
+                             {series.map(s => (
+                               <SeriesCard key={s.id} series={s} />
+                             ))}
+                           </div>
+                        </div>
+                      )}
+                      
+                      <div className={isWide ? 'md:col-span-2' : ''}>
+                        <BlogCard 
+                          post={post} 
+                          variant={isWide ? 'wide' : 'standard'} 
+                        />
+                      </div>
+                    </React.Fragment>
                   );
                 })
               ) : (

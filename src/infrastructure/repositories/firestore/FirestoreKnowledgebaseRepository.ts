@@ -22,7 +22,7 @@ import {
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
-import type { KnowledgebaseCategory, KnowledgebaseArticle, Author, BlogComment, Subscriber } from '@domain/models';
+import type { KnowledgebaseCategory, KnowledgebaseArticle, Author, BlogComment, Subscriber, BlogSeries } from '@domain/models';
 
 
 
@@ -36,6 +36,7 @@ export class FirestoreKnowledgebaseRepository {
 
   private readonly subscriberCollection = 'crm_subscribers';
   private readonly engagementCollection = 'content_engagements';
+  private readonly seriesCollection = 'blog_series';
 
   private mapDocToCategory(id: string, data: DocumentData): KnowledgebaseCategory {
     return { ...data, id } as KnowledgebaseCategory;
@@ -77,16 +78,29 @@ export class FirestoreKnowledgebaseRepository {
     } as Subscriber;
   }
 
+  private mapDocToSeries(id: string, data: DocumentData): BlogSeries {
+    return {
+      ...data,
+      id,
+      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
+      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+    } as BlogSeries;
+  }
+
   async getCategories(): Promise<KnowledgebaseCategory[]> {
     const snapshot = await getDocs(collection(getUnifiedDb(), this.categoryCollection));
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToCategory(d.id, d.data() as any));
   }
 
-  async getArticles(options?: { categoryId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all' }): Promise<KnowledgebaseArticle[]> {
+  async getArticles(options?: { categoryId?: string; seriesId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all' }): Promise<KnowledgebaseArticle[]> {
     let q = query(collection(getUnifiedDb(), this.articleCollection), orderBy('createdAt', 'desc'));
     
     if (options?.categoryId) {
       q = query(q, where('categoryId', '==', options.categoryId));
+    }
+
+    if (options?.seriesId) {
+      q = query(q, where('seriesId', '==', options.seriesId));
     }
     
     if (options?.type) {
@@ -138,6 +152,18 @@ export class FirestoreKnowledgebaseRepository {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToArticle(d.id, d.data() as any));
+  }
+
+  async getSeries(): Promise<BlogSeries[]> {
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.seriesCollection));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToSeries(d.id, d.data() as any));
+  }
+
+  async getSeriesBySlug(slug: string): Promise<BlogSeries | null> {
+    const q = query(collection(getUnifiedDb(), this.seriesCollection), where('slug', '==', slug), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    return this.mapDocToSeries(snapshot.docs[0].id, snapshot.docs[0].data() as any);
   }
 
   async addFeedback(articleId: string, isHelpful: boolean, userId?: string): Promise<void> {

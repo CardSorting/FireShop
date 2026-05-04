@@ -813,6 +813,21 @@ export interface KnowledgebaseArticle {
 
   createdAt: Date;
   updatedAt: Date;
+  seriesId?: string; // LINK to BlogSeries
+  seriesPosition?: number;
+}
+
+export interface BlogSeries {
+  id: string;
+  title: string;
+  slug: string;
+  description: string;
+  featuredImageUrl?: string;
+  categoryIds: string[];
+  articleCount: number;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Author {

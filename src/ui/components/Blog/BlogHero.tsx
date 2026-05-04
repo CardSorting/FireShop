@@ -11,44 +11,50 @@ export function BlogHero({ post }: { post: KnowledgebaseArticle }) {
   const readingTime = Math.ceil((post.content?.split(' ').length || 0) / 200);
 
   return (
-    <div className="relative w-full h-full min-h-[600px] rounded-[3rem] overflow-hidden group shadow-2xl flex flex-col justify-end bg-gray-900">
-      {/* Content Side */}
-      <div className="relative z-20 flex flex-col justify-end p-10 lg:p-12 space-y-8 bg-linear-to-t from-gray-900 via-gray-900/80 to-transparent pt-32">
-        <div className="flex flex-wrap items-center gap-3">
-           <span className="px-4 py-1.5 rounded-lg bg-primary-600 text-white text-[9px] font-black uppercase tracking-[0.2em] shadow-lg shadow-primary-600/30">
-             Featured Story
-           </span>
-           <span className="px-5 py-2 rounded-xl bg-white/5 backdrop-blur-md text-white/60 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em]">
-             {post.categoryName || 'Strategy'}
-           </span>
-        </div>
+    <div className="relative w-full h-full min-h-[650px] md:min-h-[750px] rounded-[4rem] overflow-hidden group shadow-2xl flex flex-col justify-end bg-gray-950">
+      {/* Content Side - Immersive Overlay */}
+      <div className="relative z-20 flex flex-col justify-end p-8 md:p-16 space-y-10 bg-linear-to-t from-gray-950 via-gray-950/60 to-transparent pt-40">
+        
+        <div className="max-w-4xl space-y-8">
+          <div className="flex flex-wrap items-center gap-4">
+             <div className="px-5 py-2 rounded-2xl bg-primary-600 text-white text-[10px] font-black uppercase tracking-[0.25em] shadow-2xl shadow-primary-600/40 animate-pulse">
+               Spotlight
+             </div>
+             <div className="px-6 py-2 rounded-2xl bg-white/10 backdrop-blur-2xl text-white/80 border border-white/10 text-[10px] font-black uppercase tracking-[0.25em]">
+               {post.categoryName || 'Strategy'}
+             </div>
+          </div>
 
-        <div className="space-y-4">
-          <h1 className="text-4xl lg:text-6xl font-black text-white tracking-tighter leading-tight group-hover:text-primary-400 transition-colors duration-700">
-            {post.title}
-          </h1>
-          <p className="text-white/60 text-lg lg:text-xl font-medium max-w-3xl line-clamp-2 leading-relaxed">
-            {post.excerpt}
-          </p>
-        </div>
+          <div className="space-y-6">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white tracking-tighter leading-[0.9] group-hover:tracking-tight transition-all duration-1000">
+              {post.title}
+            </h1>
+            <p className="text-white/50 text-xl md:text-2xl font-medium max-w-2xl line-clamp-3 leading-relaxed tracking-tight">
+              {post.excerpt}
+            </p>
+          </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-6 pt-4">
-           <Link 
-            href={`/blog/${post.slug}`}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-4 px-8 py-4 rounded-2xl bg-white text-gray-900 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-primary-600 hover:text-white transition-all shadow-xl active:scale-95 group/btn"
-           >
-             Read Deep Dive
-             <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-2 transition-transform" />
-           </Link>
+          <div className="flex flex-col sm:flex-row items-center gap-8 pt-6">
+             <Link 
+              href={`/blog/${post.slug}`}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-5 px-10 py-5 rounded-4xl bg-white text-gray-950 font-black text-[11px] uppercase tracking-[0.3em] hover:bg-primary-600 hover:text-white transition-all duration-500 shadow-[0_20px_50px_-20px_rgba(255,255,255,0.3)] active:scale-95 group/btn"
+             >
+               Begin Reading
+               <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-3 transition-transform duration-500" />
+             </Link>
 
-           <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-[0.2em] text-white/40">
-              <div className="flex items-center gap-2">
-                <Clock className="h-3 w-3 text-primary-500" />
-                <span>{readingTime}m Read</span>
-              </div>
-              <span className="h-1 w-1 rounded-full bg-white/20" />
-              <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-           </div>
+             <div className="flex items-center gap-6 px-8 py-5 rounded-4xl bg-white/5 backdrop-blur-3xl border border-white/10">
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
+                  <Clock className="h-4 w-4 text-primary-500" />
+                  <span>{readingTime} MIN</span>
+                </div>
+                <div className="h-4 w-px bg-white/10" />
+                <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
+                  <Calendar className="h-4 w-4 text-primary-500" />
+                  <span>{new Date(post.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}</span>
+                </div>
+             </div>
+          </div>
         </div>
       </div>
 

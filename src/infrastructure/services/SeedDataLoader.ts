@@ -170,6 +170,32 @@ const BLOG_DATA = {
       updatedAt: new Date()
     }
   ],
+  series: [
+    {
+      id: 'ser-1',
+      title: 'The Monetization Blueprint',
+      slug: 'monetization-blueprint',
+      description: 'A step-by-step guide to building a $100k/year creator business from scratch.',
+      categoryIds: ['creator-strategies'],
+      articleCount: 3,
+      difficulty: 'intermediate' as const,
+      featuredImageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    },
+    {
+      id: 'ser-2',
+      title: 'SEO Supremacy 2026',
+      slug: 'seo-supremacy-2026',
+      description: 'Master the technical and semantic aspects of search in the age of generative AI.',
+      categoryIds: ['creator-strategies'],
+      articleCount: 2,
+      difficulty: 'advanced' as const,
+      featuredImageUrl: 'https://images.unsplash.com/photo-1432888622747-4eb9a8f2c20a?w=800',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ],
   posts: [
     {
       id: 'blog-1',
@@ -624,6 +650,15 @@ export async function seedBlog(): Promise<number> {
   assertSeedingAllowed();
   let created = 0;
   
+  for (const s of BLOG_DATA.series) {
+    await adminDb.collection('blog_series').doc(s.id).set({
+      ...s,
+      createdAt: Timestamp.fromDate(s.createdAt),
+      updatedAt: Timestamp.fromDate(s.updatedAt)
+    });
+    created++;
+  }
+
   for (const auth of BLOG_DATA.authors) {
     await adminDb.collection('blog_authors').doc(auth.id).set({
       ...auth,
@@ -641,6 +676,8 @@ export async function seedBlog(): Promise<number> {
     
     await adminDb.collection('knowledgebase_articles').doc(post.id).set({
       ...post,
+      seriesId: post.id === 'blog-3' ? 'ser-1' : (post.id === 'blog-8' ? 'ser-1' : (post.id === 'blog-4' ? 'ser-2' : undefined)),
+      seriesPosition: post.id === 'blog-3' ? 1 : (post.id === 'blog-8' ? 2 : (post.id === 'blog-4' ? 1 : undefined)),
       relatedProductIds: prodIds,
       createdAt: Timestamp.fromDate(post.createdAt),
       updatedAt: Timestamp.fromDate(post.updatedAt),
