@@ -244,11 +244,40 @@ export interface ITicketRepository {
 
 export interface IKnowledgebaseRepository {
   getCategories(): Promise<import('./models').KnowledgebaseCategory[]>;
-  getArticles(categoryId?: string): Promise<import('./models').KnowledgebaseArticle[]>;
+  getArticles(options?: { categoryId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all' }): Promise<import('./models').KnowledgebaseArticle[]>;
+  getArticleById(id: string): Promise<import('./models').KnowledgebaseArticle | null>;
   getArticleBySlug(slug: string): Promise<import('./models').KnowledgebaseArticle | null>;
+
   searchArticles(queryString: string): Promise<import('./models').KnowledgebaseArticle[]>;
   getPopularArticles(limitVal?: number): Promise<import('./models').KnowledgebaseArticle[]>;
   addFeedback(articleId: string, isHelpful: boolean, userId?: string): Promise<void>;
   saveCategory(category: import('./models').KnowledgebaseCategory): Promise<void>;
   saveArticle(article: import('./models').KnowledgebaseArticle): Promise<void>;
+  deleteArticle(id: string): Promise<void>;
+
+  // Author management
+  getAuthors(): Promise<import('./models').Author[]>;
+  getAuthorById(id: string): Promise<import('./models').Author | null>;
+  saveAuthor(author: import('./models').Author): Promise<void>;
+  deleteAuthor(id: string): Promise<void>;
+
+  // Comment management
+  getComments(postId: string): Promise<import('./models').BlogComment[]>;
+  getAllComments(): Promise<import('./models').BlogComment[]>;
+  addComment(comment: Omit<import('./models').BlogComment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<import('./models').BlogComment>;
+
+  updateCommentStatus(commentId: string, status: 'published' | 'spam'): Promise<void>;
+  deleteComment(commentId: string): Promise<void>;
+
+  // CRM & Analytics
+  subscribe(email: string, source: string): Promise<void>;
+  getSubscribers(): Promise<import('./models').Subscriber[]>;
+  trackEngagement(postId: string, type: 'view' | 'share', userId?: string): Promise<void>;
+  incrementViewCount(postId: string): Promise<void>;
+
+  // Batch Operations
+  batchUpdateArticles(ids: string[], updates: Partial<import('./models').KnowledgebaseArticle>): Promise<void>;
+  batchDeleteArticles(ids: string[]): Promise<void>;
 }
+
+

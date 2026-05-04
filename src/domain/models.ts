@@ -789,13 +789,77 @@ export interface KnowledgebaseArticle {
   content: string; // Markdown or HTML
   excerpt: string;
   authorName?: string;
+  authorId?: string; // LINK to Author
   viewCount: number;
   helpfulCount: number;
   notHelpfulCount: number;
   tags?: string[];
+  type: 'article' | 'blog';
+  status: 'draft' | 'published' | 'archived' | 'scheduled';
+  featuredImageUrl?: string;
+  featuredImageAlt?: string;
+  relatedProductIds?: string[];
+  isFeatured?: boolean;
+  publishedAt?: Date;
+  scheduledAt?: Date;
+  
+  // SEO & Social
+  metaTitle?: string;
+  metaDescription?: string;
+  canonicalUrl?: string;
+  ogImage?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface Author {
+  id: string;
+  name: string;
+  bio: string;
+  avatarUrl?: string;
+  role: string;
+  socialLinks?: { twitter?: string; instagram?: string; website?: string; github?: string };
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BlogComment {
+  id: string;
+  postId: string;
+  postTitle?: string; // CONTEXT for admin moderation
+  userId: string;
+
+  userName: string;
+  userAvatar?: string;
+  content: string;
+  status: 'pending' | 'published' | 'spam';
+  likes: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Subscriber {
+  id: string;
+  email: string;
+  source: string; // e.g., 'blog_footer', 'exit_intent'
+  metadata?: Record<string, any>;
+  subscribedAt: Date;
+}
+
+export interface ContentEngagement {
+  id: string;
+  postId: string;
+  userId?: string;
+  type: 'view' | 'share' | 'helpful' | 'not_helpful';
+  metadata?: Record<string, any>;
+  createdAt: Date;
+}
+
+
 // ─────────────────────────────────────────────
 // Reviews & Ratings
 // ─────────────────────────────────────────────

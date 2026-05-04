@@ -88,22 +88,38 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
   onBack: () => void,
   onArticleClick: (a: KnowledgebaseArticle) => void
 }) {
-  const [voted, setVoted] = useState(false);
+  const [feedbackStep, setFeedbackStep] = useState<'initial' | 'negative_reason' | 'thanks'>('initial');
+  const [negativeReason, setNegativeReason] = useState('');
   const services = useServices();
   const { user } = useAuth();
 
   const handleFeedback = async (isHelpful: boolean) => {
-    if (voted) return;
+    if (isHelpful) {
+      try {
+        await services.knowledgebaseService.submitFeedback(article.id, true, user?.id);
+        setFeedbackStep('thanks');
+      } catch (err) {
+        console.error('Failed to submit feedback', err);
+      }
+    } else {
+      setFeedbackStep('negative_reason');
+    }
+  };
+
+  const submitNegativeFeedback = async () => {
     try {
-      await services.knowledgebaseService.submitFeedback(article.id, isHelpful, user?.id);
-      setVoted(true);
+      await services.knowledgebaseService.submitFeedback(article.id, false, user?.id, negativeReason);
+      setFeedbackStep('thanks');
     } catch (err) {
       console.error('Failed to submit feedback', err);
     }
   };
 
+  // Simple TOC generation from headers (simulated for now, would use regex or DOM in real app)
+  const headers = article.content.split('\n').filter(line => line.startsWith('## ') || line.startsWith('### '));
+
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors">
@@ -117,62 +133,131 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
                <ChevronRight className="h-2 w-2 text-gray-300" />
                <span className="text-[10px] font-black uppercase tracking-widest text-primary-600 truncate max-w-[150px]">{article.title}</span>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight">{article.title}</h1>
+            <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">{article.title}</h1>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-8 space-y-12">
-          <article className="bg-white rounded-4xl p-8 md:p-12 border border-gray-100 shadow-xl max-w-none prose prose-slate prose-lg prose-headings:font-black prose-headings:tracking-tight prose-a:text-primary-600 prose-strong:text-gray-900">
+          {headers.length > 0 && (
+            <div className="bg-gray-50 rounded-3xl p-8 border border-gray-100/50">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-6 flex items-center gap-2">
+                <AlignLeft className="h-3 w-3" /> In this article
+              </h3>
+              <nav className="space-y-3">
+                {headers.map((h, i) => {
+                  const level = h.startsWith('### ') ? 'ml-4' : '';
+                  const text = h.replace(/^#+ /, '');
+                  return (
+                    <button key={i} className={`block text-sm font-bold text-gray-600 hover:text-primary-600 transition-colors ${level}`}>
+                      {text}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          )}
+
+          <article className="bg-white rounded-4xl p-8 md:p-14 border border-gray-100 shadow-xl max-w-none prose prose-slate prose-lg prose-headings:font-black prose-headings:tracking-tight prose-a:text-primary-600 prose-strong:text-gray-900">
             <div className="whitespace-pre-wrap font-medium text-gray-600 leading-relaxed text-base">
                {article.content}
             </div>
           </article>
 
           {/* Recommended Next Step */}
-          <div className="bg-primary-50 rounded-[2.5rem] p-8 md:p-10 border border-primary-100 flex flex-col md:flex-row items-center gap-8">
+          <div className="bg-primary-50 rounded-4xl p-8 md:p-10 border border-primary-100 flex flex-col md:flex-row items-center gap-8 shadow-sm">
             <div className="h-16 w-16 rounded-2xl bg-white flex items-center justify-center shadow-sm text-primary-600 shrink-0">
                <MessageSquare className="h-8 w-8" />
             </div>
             <div className="flex-1 text-center md:text-left">
-              <h4 className="text-xl font-black text-gray-900 tracking-tight">Need further assistance?</h4>
-              <p className="text-sm font-medium text-gray-500 mt-1">If this guide didn't solve your issue, our collectors are ready to help personally.</p>
+              <h4 className="text-xl font-black text-gray-900 tracking-tight">Still stuck? We're here.</h4>
+              <p className="text-sm font-medium text-gray-500 mt-1">Our support team is available to help you personally with any issue.</p>
             </div>
-            <Link href="/support?contact=true" className="px-8 py-4 rounded-2xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg shadow-black/10">
+            <Link href="/support?contact=true" className="px-8 py-4 rounded-2xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg">
               Open a Ticket
             </Link>
           </div>
 
-          <div className="bg-gray-900 rounded-[2.5rem] p-8 md:p-12 text-white flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
-            <div className="relative z-10 text-center md:text-left">
-              <h3 className="text-xl font-black tracking-tight">Was this article helpful?</h3>
-              <p className="text-white/50 text-sm font-medium mt-1">Your feedback helps us improve our support.</p>
-            </div>
+          {/* Forensic Feedback Loop */}
+          <div className="bg-gray-900 rounded-4xl p-8 md:p-12 text-white shadow-2xl relative overflow-hidden transition-all duration-500">
+            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary-600/10 blur-3xl" />
             
-            <div className="flex items-center gap-4 relative z-10">
-              {voted ? (
-                <div className="bg-white/10 px-6 py-3 rounded-2xl flex items-center gap-3 animate-in fade-in zoom-in duration-300">
-                  <CheckCircle2 className="h-5 w-5 text-green-400" />
-                  <span className="text-sm font-black uppercase tracking-widest">Thank you!</span>
+            <div className="relative z-10">
+              {feedbackStep === 'initial' && (
+                <div className="flex flex-col md:flex-row items-center justify-between gap-8 animate-in fade-in zoom-in duration-300">
+                  <div className="text-center md:text-left">
+                    <h3 className="text-2xl font-black tracking-tight">Was this article helpful?</h3>
+                    <p className="text-white/50 text-sm font-medium mt-2">Your feedback helps us refine our support guides.</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => handleFeedback(true)}
+                      className="flex items-center gap-3 bg-white/10 hover:bg-white/20 px-8 py-5 rounded-2xl transition-all group border border-white/5"
+                    >
+                      <ThumbsUp className="h-5 w-5 text-primary-400 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">Yes, It helped</span>
+                    </button>
+                    <button 
+                      onClick={() => handleFeedback(false)}
+                      className="flex items-center gap-3 bg-white/10 hover:bg-white/20 px-8 py-5 rounded-2xl transition-all group border border-white/5"
+                    >
+                      <ThumbsDown className="h-5 w-5 text-red-400 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">Not really</span>
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <button 
-                    onClick={() => handleFeedback(true)}
-                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl transition-all group"
-                  >
-                    <ThumbsUp className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-black uppercase tracking-widest">Yes</span>
-                  </button>
-                  <button 
-                    onClick={() => handleFeedback(false)}
-                    className="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-6 py-4 rounded-2xl transition-all group"
-                  >
-                    <ThumbsDown className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-black uppercase tracking-widest">No</span>
-                  </button>
-                </>
+              )}
+
+              {feedbackStep === 'negative_reason' && (
+                <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                  <div className="text-center md:text-left">
+                    <h3 className="text-2xl font-black tracking-tight text-red-400">How can we improve this?</h3>
+                    <p className="text-white/50 text-sm font-medium mt-2">Help us understand why this wasn't helpful so we can fix it.</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        "Instructions were unclear",
+                        "Content is outdated",
+                        "Didn't solve my specific issue",
+                        "Too technical/complex",
+                        "Other"
+                      ].map((reason) => (
+                        <button 
+                          key={reason}
+                          onClick={() => setNegativeReason(reason)}
+                          className={`p-4 rounded-xl text-xs font-bold text-left transition-all border ${
+                            negativeReason === reason 
+                              ? 'bg-primary-600 border-primary-500 text-white' 
+                              : 'bg-white/5 border-white/5 text-white/60 hover:bg-white/10'
+                          }`}
+                        >
+                          {reason}
+                        </button>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={submitNegativeFeedback}
+                      disabled={!negativeReason}
+                      className="w-full py-5 rounded-2xl bg-white text-gray-900 font-black text-xs uppercase tracking-widest hover:bg-gray-100 transition-all disabled:opacity-50"
+                    >
+                      Submit Feedback
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {feedbackStep === 'thanks' && (
+                <div className="text-center py-4 animate-in zoom-in duration-500">
+                  <div className="h-16 w-16 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center mx-auto mb-6">
+                    <CheckCircle2 className="h-8 w-8" />
+                  </div>
+                  <h3 className="text-2xl font-black tracking-tight">Feedback Received!</h3>
+                  <p className="text-white/50 text-sm font-medium mt-2 max-w-sm mx-auto">
+                    Thank you for helping us build a better experience for the DreamBees community.
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -180,31 +265,47 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
 
         <div className="lg:col-span-4 space-y-8">
            <div className="bg-gray-50 rounded-4xl p-8 border border-gray-100/50">
-             <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-6">Article Metadata</h3>
-             <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                  <User className="h-4 w-4 text-gray-400" />
+             <h3 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-8">Discovery Details</h3>
+             <div className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-gray-400">
+                    <User className="h-5 w-5" />
+                  </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-gray-400">Author</p>
-                    <p className="text-xs font-bold text-gray-900">{article.authorName || 'Support Team'}</p>
+                    <p className="text-[10px] font-black uppercase text-gray-400">Written By</p>
+                    <p className="text-sm font-bold text-gray-900">{article.authorName || 'Expert Collector'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-gray-400" />
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-gray-400">
+                    <Calendar className="h-5 w-5" />
+                  </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-gray-400">Last Updated</p>
-                    <p className="text-xs font-bold text-gray-900">{new Date(article.updatedAt).toLocaleDateString()}</p>
+                    <p className="text-[10px] font-black uppercase text-gray-400">Last Audited</p>
+                    <p className="text-sm font-bold text-gray-900">{new Date(article.updatedAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Clock className="h-4 w-4 text-gray-400" />
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-gray-400">
+                    <Clock className="h-5 w-5" />
+                  </div>
                   <div>
-                    <p className="text-[10px] font-black uppercase text-gray-400">Reading Time</p>
-                    <p className="text-xs font-bold text-gray-900">{Math.ceil(article.content.split(' ').length / 200)} Minutes</p>
+                    <p className="text-[10px] font-black uppercase text-gray-400">Complexity</p>
+                    <p className="text-sm font-bold text-gray-900">{Math.ceil(article.content.split(' ').length / 200)} Min Read</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary-600">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase text-gray-400">Audience</p>
+                    <p className="text-sm font-bold text-gray-900">{article.tags?.includes('beginner') ? 'Beginner' : 'All Collectors'}</p>
                   </div>
                 </div>
              </div>
            </div>
+
 
            {relatedArticles.length > 0 && (
              <div className="bg-white rounded-4xl p-8 border border-gray-100 shadow-sm">

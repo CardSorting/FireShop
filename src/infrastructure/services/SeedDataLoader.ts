@@ -124,6 +124,7 @@ const KB_DATA = {
   categories: [
     { id: 'order-issues', name: 'Order Issues', slug: 'order-issues', description: 'Track, change, or cancel your orders.', icon: 'package', articleCount: 2 },
     { id: 'returns-refunds', name: 'Returns & Refunds', slug: 'returns-refunds', description: 'Everything you need to know about our return policy.', icon: 'rotate-ccw', articleCount: 1 },
+    { id: 'collecting-101', name: 'Collecting 101', slug: 'collecting-101', description: 'Beginner guides for aspiring art collectors.', icon: 'sparkles', articleCount: 3 },
   ],
   articles: [
     {
@@ -137,11 +138,67 @@ const KB_DATA = {
       helpfulCount: 120,
       notHelpfulCount: 5,
       tags: ['tracking', 'shipping'],
+      type: 'article' as const,
+      status: 'published' as const,
       createdAt: new Date(),
       updatedAt: new Date()
     }
   ]
 };
+
+const BLOG_DATA = {
+  authors: [
+    {
+      id: 'auth-1',
+      name: 'Leonardo DaBee',
+      bio: 'Master of the canvas and the hive. 15 years experience in digital-physical hybrid art.',
+      role: 'Master Artist',
+      avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
+      socialLinks: { twitter: '#', instagram: '#' },
+
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ],
+  posts: [
+    {
+      id: 'blog-1',
+      categoryId: 'collecting-101',
+      title: 'The Future of Hybrid Collectibles',
+      slug: 'future-of-hybrid-collectibles',
+      excerpt: 'Why physical art is merging with digital identity in the next decade.',
+      content: '## The Convergence\n\nIn the ever-evolving landscape of contemporary art, the distinction between "physical" and "digital" is becoming increasingly blurred. For collectors at DreamBeesArt, this represents a new frontier of value and utility.\n\n### Why Physical Matters\n\nThere is an inherent tactile joy in holding a high-quality print. The texture of the paper, the way the light hits the pigment, and the physical presence it commands in a room cannot be replicated by a screen.\n\n### The Digital Bridge\n\nBy embedding digital signatures and provenance tracking, we ensure that your physical piece is more than just an object—it is a verifiable asset in the global hive.',
+      authorName: 'Leonardo DaBee',
+      authorId: 'auth-1',
+      viewCount: 5420,
+      helpfulCount: 450,
+      notHelpfulCount: 12,
+      tags: ['trends', 'collecting', 'hybrid'],
+      type: 'blog' as const,
+      status: 'published' as const,
+      isFeatured: true,
+      featuredImageUrl: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1200',
+      relatedProductIds: ['scarlet-violet-booster-box', 'charizard-ex-holo'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      publishedAt: new Date()
+    }
+  ],
+  comments: [
+    {
+      id: 'comm-1',
+      postId: 'blog-1',
+      userId: 'user-1',
+      userName: 'Ash Ketchum',
+      content: 'This is incredible! I love the idea of physical provenance.',
+      status: 'published' as const,
+      likes: 12,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+  ]
+};
+
 
 const SUPPLIERS: Partial<Supplier>[] = [
   { 
@@ -399,6 +456,48 @@ export async function seedKnowledgebase(): Promise<number> {
   return created;
 }
 
+export async function seedBlog(): Promise<number> {
+  assertSeedingAllowed();
+  let created = 0;
+  
+  for (const auth of BLOG_DATA.authors) {
+    await adminDb.collection('blog_authors').doc(auth.id).set({
+      ...auth,
+      createdAt: Timestamp.fromDate(auth.createdAt),
+      updatedAt: Timestamp.fromDate(auth.updatedAt)
+    });
+    created++;
+  }
+  
+  for (const post of BLOG_DATA.posts) {
+    // Get actual product IDs for relations if possible
+    const productsSnap = await adminDb.collection('products').limit(2).get();
+    const prodIds = productsSnap.docs.map((d: any) => d.id);
+
+    
+    await adminDb.collection('knowledgebase_articles').doc(post.id).set({
+      ...post,
+      relatedProductIds: prodIds,
+      createdAt: Timestamp.fromDate(post.createdAt),
+      updatedAt: Timestamp.fromDate(post.updatedAt),
+      publishedAt: post.publishedAt ? Timestamp.fromDate(post.publishedAt) : null
+    });
+    created++;
+  }
+  
+  for (const comm of BLOG_DATA.comments) {
+    await adminDb.collection('blog_comments').doc(comm.id).set({
+      ...comm,
+      createdAt: Timestamp.fromDate(comm.createdAt),
+      updatedAt: Timestamp.fromDate(comm.updatedAt)
+    });
+    created++;
+  }
+  
+  return created;
+}
+
+
 export async function seedTickets(): Promise<number> {
   assertSeedingAllowed();
   const customersSnap = await adminDb.collection('users').limit(1).get();
@@ -506,6 +605,7 @@ export async function seedAll(): Promise<void> {
   await seedLocations();
   await seedInventory();
   await seedKnowledgebase();
+  await seedBlog();
   await seedOrders();
   await seedTickets();
   await seedProcurement();

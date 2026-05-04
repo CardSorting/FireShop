@@ -28,8 +28,10 @@ import {
   User,
   Zap,
   MessageSquare,
+  NotebookPen,
   type LucideIcon,
 } from 'lucide-react';
+
 
 export interface AdminNavItem {
   id: string;
@@ -185,6 +187,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         description: 'Manage custom content pages',
         icon: ClipboardCheck,
         aliases: ['content', 'blog', 'about', 'contact'],
+      },
+      {
+        id: 'blog',
+        href: '/admin/blog',
+        label: 'Journal',
+        description: 'Manage blog posts and articles',
+        icon: NotebookPen,
+        aliases: ['blog', 'posts', 'authors'],
       },
       {
         id: 'files',

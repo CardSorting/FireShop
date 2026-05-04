@@ -290,14 +290,52 @@ export function createApiClientServices() {
         },
         knowledgebaseService: {
             getCategories: () => request<KnowledgebaseCategory[]>('/api/support/categories'),
-            getArticles: (options?: { categoryId?: string; query?: string }) => {
+            getArticles: (options?: { categoryId?: string; query?: string; type?: 'article' | 'blog'; status?: string }) => {
                 const qs = new URLSearchParams();
                 if (options?.categoryId) qs.set('categoryId', options.categoryId);
                 if (options?.query) qs.set('query', options.query);
+                if (options?.type) qs.set('type', options.type);
+                if (options?.status) qs.set('status', options.status);
                 return request<KnowledgebaseArticle[]>(`/api/support/articles?${qs}`);
             },
             getArticle: (slug: string) => request<KnowledgebaseArticle>(`/api/support/articles/${slug}`),
             submitFeedback: (articleId: string, isHelpful: boolean, userId?: string) => request<void>('/api/support/feedback', { method: 'POST', body: JSON.stringify({ articleId, isHelpful, userId }) }),
+            
+            // New Blogging Methods
+            getAuthors: () => request<import('@domain/models').Author[]>('/api/blog/authors'),
+            getAuthor: (id: string) => request<import('@domain/models').Author>(`/api/blog/authors/${id}`),
+            getComments: (postId: string) => request<import('@domain/models').BlogComment[]>(`/api/blog/posts/${postId}/comments`),
+            addComment: (postId: string, content: string, userId: string, userName: string, userAvatar?: string) => 
+                request<import('@domain/models').BlogComment>(`/api/blog/posts/${postId}/comments`, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ content, userId, userName, userAvatar }) 
+                }),
+            
+            // CRM & Analytics
+            subscribe: (email: string, source: string) => 
+                request<void>('/api/crm/subscribe', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ email, source }) 
+                }),
+            trackEngagement: (postId: string, type: 'view' | 'share', userId?: string) => 
+                request<void>(`/api/blog/posts/${postId}/engage`, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ type, userId }) 
+                }),
+            
+            // Batch Operations
+            batchUpdateArticles: (ids: string[], updates: any) => 
+                request<void>('/api/admin/blog/batch', { 
+                    method: 'PATCH', 
+                    body: JSON.stringify({ ids, updates }) 
+                }),
+            batchDeleteArticles: (ids: string[]) => 
+                request<void>('/api/admin/blog/batch', { 
+                    method: 'DELETE', 
+                    body: JSON.stringify({ ids }) 
+                }),
         },
+
+
     };
 }
