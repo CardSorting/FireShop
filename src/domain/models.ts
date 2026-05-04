@@ -795,7 +795,7 @@ export interface KnowledgebaseArticle {
   notHelpfulCount: number;
   tags?: string[];
   type: 'article' | 'blog';
-  status: 'draft' | 'published' | 'archived' | 'scheduled';
+  status: 'draft' | 'review' | 'published' | 'archived' | 'scheduled';
   featuredImageUrl?: string;
   featuredImageAlt?: string;
   relatedProductIds?: string[];

@@ -85,7 +85,23 @@ export default function PostContent({ post, initialComments, initialAuthor, init
   const readingTime = Math.ceil(wordCount / 225);
 
   return (
-    <div className="pb-32 space-y-24 animate-in fade-in duration-1000">
+    <>
+      {/* Reading Progress Capsule */}
+      <div className="fixed bottom-10 right-10 z-100 animate-in slide-in-from-right-10 duration-500">
+         <div className="bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border border-white/10 backdrop-blur-md">
+            <div className="h-2 w-2 rounded-full bg-primary-500 animate-pulse" />
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {Math.max(1, Math.ceil(readingTime * (1 - scrollProgress / 100)))} min left
+            </span>
+            <div className="h-4 w-px bg-white/20 mx-1" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary-400">
+              {Math.round(scrollProgress)}%
+            </span>
+         </div>
+      </div>
+
+      <div className="pb-32 space-y-24 animate-in fade-in duration-1000">
+
       {/* Reading Progress Bar */}
       <div className="fixed top-0 left-0 right-0 h-1.5 z-100 bg-gray-100">
         <div 
@@ -164,10 +180,47 @@ export default function PostContent({ post, initialComments, initialAuthor, init
 
       {/* Article Content */}
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 lg:grid-cols-12 gap-20">
-        <div className="lg:col-span-8 space-y-20">
+        {/* Main Content */}
+        <div className="lg:col-span-8 space-y-20 relative">
+          {/* Sticky Social Share (Desktop) */}
+          <div className="hidden lg:block absolute -left-24 top-0 h-full">
+            <div className="sticky top-40 flex flex-col gap-4">
+              {[
+                { icon: Share2, label: 'Share', color: 'hover:bg-blue-50 hover:text-blue-600' },
+                { icon: Heart, label: 'Like', color: 'hover:bg-red-50 hover:text-red-600' },
+                { icon: MessageSquare, label: 'Discuss', color: 'hover:bg-primary-50 hover:text-primary-600' }
+              ].map((item, i) => (
+                <button 
+                  key={i}
+                  className={`h-12 w-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center transition-all shadow-sm ${item.color}`}
+                  title={item.label}
+                >
+                  <item.icon className="h-5 w-5" />
+                </button>
+              ))}
+            </div>
+          </div>
+
           <article className="prose prose-slate lg:prose-2xl max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-p:font-medium prose-p:text-gray-600 prose-p:leading-relaxed prose-a:text-primary-600 prose-strong:text-gray-900 prose-img:rounded-[3rem] prose-img:shadow-2xl">
             {post.content}
           </article>
+
+          {/* Post Navigation */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-20 border-t border-gray-100">
+            <div className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-start gap-4 group cursor-pointer hover:bg-white hover:shadow-xl transition-all">
+               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                 <ChevronLeft className="h-3 w-3" /> Previous Story
+               </span>
+               <h4 className="font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">The Future of Art Conservation</h4>
+            </div>
+            <div className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-end text-right gap-4 group cursor-pointer hover:bg-white hover:shadow-xl transition-all">
+               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                 Next Story <ChevronRight className="h-3 w-3" />
+               </span>
+               <h4 className="font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">Digital Brushstrokes in the 21st Century</h4>
+            </div>
+          </div>
+
           
           <div className="pt-20 border-t border-gray-100">
             {author && <AuthorBox author={author} />}
@@ -260,6 +313,7 @@ export default function PostContent({ post, initialComments, initialAuthor, init
       <div id="newsletter-section" className="max-w-7xl mx-auto px-4">
         <NewsletterBox />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
