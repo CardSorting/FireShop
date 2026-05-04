@@ -1,11 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 export const dynamic = 'force-dynamic';
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const storagePath = path.join(process.cwd(), 'public', 'getStorage()');
+    await requireAdminSession();
+    const storagePath = path.join(process.cwd(), 'public', 'storage');
     
     // Ensure directories exist
     await fs.mkdir(path.join(storagePath, 'products'), { recursive: true });
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
         allFiles.push({
           id: file,
           name: file,
-          url: `/getStorage()/${folder}/${file}`,
+          url: `/storage/${folder}/${file}`,
           folder,
           size: stats.size,
           createdAt: stats.birthtime,
@@ -39,24 +41,23 @@ export async function GET(req: NextRequest) {
     // Sort by newest first
     allFiles.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 
-    return NextResponse.json({ files: allFiles });
+    return Response.json({ files: allFiles });
   } catch (error) {
-    console.error('Failed to list media:', error);
-    return NextResponse.json({ error: 'Failed to list media' }, { status: 500 });
+    return jsonError(error, 'Failed to list media');
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
+    await requireAdminSession();
     const { url } = await req.json();
-    if (!url) return NextResponse.json({ error: 'URL required' }, { status: 400 });
+    if (!url) return jsonError(new Error('URL required'));
 
     const filePath = path.join(process.cwd(), 'public', url);
     await fs.unlink(filePath);
 
-    return NextResponse.json({ success: true });
+    return Response.json({ success: true });
   } catch (error) {
-    console.error('Failed to delete media:', error);
-    return NextResponse.json({ error: 'Failed to delete media' }, { status: 500 });
+    return jsonError(error, 'Failed to delete media');
   }
 }

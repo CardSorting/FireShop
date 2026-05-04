@@ -1,8 +1,4 @@
-/**
- * [LAYER: INFRASTRUCTURE]
- */
-import { NextResponse } from 'next/server';
-import { requireAdminSession } from '@infrastructure/server/apiGuards';
+import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
 import { getServerServices } from '@infrastructure/server/services';
 import type { NavigationMenu } from '@domain/models';
 
@@ -18,7 +14,7 @@ export async function GET(request: Request) {
     
     // Return empty state if not found so admin can create it
     if (!menu) {
-      return NextResponse.json({
+      return Response.json({
         id: menuId,
         shopCategories: { title: 'Categories', links: [] },
         shopCollections: { title: 'Collections', links: [] },
@@ -26,13 +22,9 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json(menu);
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('Failed to get navigation menu:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return Response.json(menu);
+  } catch (error) {
+    return jsonError(error, 'Failed to get navigation menu');
   }
 }
 
@@ -51,12 +43,8 @@ export async function PUT(request: Request) {
       email: admin.email
     });
 
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    if (error.message === 'Unauthorized') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    console.error('Failed to update navigation menu:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return Response.json({ success: true });
+  } catch (error) {
+    return jsonError(error, 'Failed to update navigation menu');
   }
 }

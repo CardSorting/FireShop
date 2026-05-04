@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 
 export async function PATCH(
@@ -6,14 +6,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdminSession();
     const properties = await req.json();
     const { id } = await params;
     
     await ticketRepository.updateTicketProperties(id, properties);
     const updatedTicket = await ticketRepository.getTicketById(id);
     
-    return NextResponse.json(updatedTicket);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return Response.json(updatedTicket);
+  } catch (err) {
+    return jsonError(err);
   }
 }

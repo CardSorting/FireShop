@@ -1,20 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { ImageService, ImageFolder } from '../../../../infrastructure/services/ImageService';
 import { StorageService, StorageFolder } from '../../../../infrastructure/services/StorageService';
+import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
 import { Readable } from 'node:stream';
 
 export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   try {
+    await requireAdminSession();
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const folder = (formData.get('folder') as StorageFolder) || 'products';
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+      return jsonError(new Error('No file provided'));
     }
 
-    // If it's a digital asset, use the StorageService for private getStorage() with STREAMING
+    // If it's a digital asset, use the StorageService for private storage with STREAMING
     if (folder === 'digital-assets') {
       const stream = Readable.fromWeb(file.stream() as any);
       const result = await StorageService.saveStream(
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
         file.name,
         file.type
       );
-      return NextResponse.json(result);
+      return Response.json(result);
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -32,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (file.type.startsWith('image/')) {
       // Limit size to 10MB for processed images
       if (file.size > 10 * 1024 * 1024) {
-        return NextResponse.json({ error: 'Image size exceeds 10MB' }, { status: 400 });
+        return jsonError(new Error('Image size exceeds 10MB'));
       }
 
       const result = await ImageService.processAndSave(
@@ -40,10 +42,10 @@ export async function POST(req: NextRequest) {
         folder as ImageFolder,
         file.name
       );
-      return NextResponse.json(result);
+      return Response.json(result);
     }
 
-    // Default to raw getStorage() for other public files
+    // Default to raw storage for other public files
     const result = await StorageService.saveFile(
       buffer,
       folder,
@@ -51,12 +53,8 @@ export async function POST(req: NextRequest) {
       file.type
     );
 
-    return NextResponse.json(result);
+    return Response.json(result);
   } catch (error: any) {
-    console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process upload', details: error.message },
-      { status: 500 }
-    );
+    return jsonError(error, 'Failed to process upload');
   }
 }

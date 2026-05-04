@@ -5,7 +5,7 @@
  * Includes robust fallbacks for production environment variables.
  */
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, initializeFirestore } from 'firebase/firestore';
 import { getAuth as getAuthSDK } from 'firebase/auth';
 import { getStorage as getStorageSDK } from 'firebase/storage';
 
@@ -42,7 +42,17 @@ function getFirebaseApp() {
 }
 
 export function getDb() {
-  if (!_db) _db = getFirestore(getFirebaseApp());
+  if (!_db) {
+    const app = getFirebaseApp();
+    if (typeof window === 'undefined') {
+      // Force long polling on the server to prevent gRPC connection issues
+      _db = initializeFirestore(app, {
+        experimentalForceLongPolling: true,
+      });
+    } else {
+      _db = getFirestore(app);
+    }
+  }
   return _db;
 }
 
