@@ -17,7 +17,7 @@ import type {
 } from '@domain/models';
 import { logger } from '@utils/logger';
 import { adminAuth, adminDb } from '../firebase/admin';
-import { Timestamp } from 'firebase-admin/firestore';
+import { Timestamp, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 
 // ─────────────────────────────────────────────
@@ -37,6 +37,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     set: 'Scarlet & Violet',
     sku: 'SV-BB-001',
     handle: 'scarlet-violet-booster-box',
+    collections: ['new', 'bestsellers'],
     trackQuantity: true,
     physicalItem: true,
     weightGrams: 800,
@@ -58,6 +59,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     rarity: 'holo',
     sku: 'XY-CHZ-EX',
     handle: 'charizard-ex-holo',
+    collections: ['new', 'artist-cards'],
     trackQuantity: true,
     physicalItem: true,
     weightGrams: 5,
@@ -73,6 +75,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1611083360739-bdad6e0eb1fa?w=400',
     handle: 'custom-playmat-pod',
+    collections: ['accessories', 'sale'],
     hasVariants: true,
     options: [
       { id: 'opt-size', productId: '', name: 'Size', position: 1, values: ['Standard', 'XL'] },
@@ -98,6 +101,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     status: 'active',
     imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400',
     handle: 'tcg-master-class-digital',
+    collections: ['new'],
     isDigital: true,
     digitalAssets: [
       { id: 'asset-1', name: 'Mastering_TCG_v1.pdf', url: '/downloads/guides/tcg_master_v1.pdf', size: 15420000, mimeType: 'application/pdf', createdAt: new Date() }
@@ -179,8 +183,12 @@ function assertSeedingAllowed(): void {
 export async function seedTaxonomy(): Promise<void> {
   // Collections
   const collections = [
-    { id: 'coll-new', name: 'New Arrivals', handle: 'new-arrivals', status: 'active' as const, productCount: 10, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
-    { id: 'coll-best', name: 'Best Sellers', handle: 'best-sellers', status: 'active' as const, productCount: 25, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-new', name: 'New Drops', handle: 'new', status: 'active' as const, productCount: 10, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-best', name: 'Bestsellers', handle: 'bestsellers', status: 'active' as const, productCount: 25, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-sale', name: 'Sale', handle: 'sale', status: 'active' as const, productCount: 5, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-cards', name: 'Artist Trading Cards', handle: 'artist-cards', status: 'active' as const, productCount: 12, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-prints', name: 'Art Prints', handle: 'prints', status: 'active' as const, productCount: 8, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
+    { id: 'coll-acc', name: 'TCG Accessories', handle: 'accessories', status: 'active' as const, productCount: 15, createdAt: Timestamp.now(), updatedAt: Timestamp.now() },
   ];
 
   for (const coll of collections) {
@@ -245,7 +253,7 @@ export async function seedInventory(): Promise<number> {
     return 0;
   }
 
-  const locations = locationsSnap.docs.map(d => d.id);
+  const locations = locationsSnap.docs.map((d: QueryDocumentSnapshot) => d.id);
 
   for (const prodDoc of productsSnap.docs) {
     const prod = prodDoc.data();
@@ -290,7 +298,7 @@ export async function clearAuditLogs(): Promise<void> {
   assertSeedingAllowed();
   const snapshot = await adminDb.collection('hive_audit').get();
   const batch = adminDb.batch();
-  snapshot.docs.forEach(doc => batch.delete(doc.ref));
+  snapshot.docs.forEach((doc: QueryDocumentSnapshot) => batch.delete(doc.ref));
   await batch.commit();
   logger.info('[Forensic] Audit logs cleared for clean chain initialization.');
 }

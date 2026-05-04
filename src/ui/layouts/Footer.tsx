@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getProductUrl, getCollectionUrl, STORE_PATHS } from '@utils/navigation';
+import { BeeLogo } from '../components/Logo';
 
 
 export function Footer() {
@@ -92,8 +93,7 @@ export function Footer() {
           <div className="lg:col-span-4 space-y-8">
             <div className="space-y-4">
               <Link href={STORE_PATHS.HOME} className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
-
-                <Package className="w-10 h-10" />
+                <BeeLogo className="w-12 h-12" />
                 DreamBeesArt
               </Link>
               <p className="text-gray-500 text-base leading-relaxed">

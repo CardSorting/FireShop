@@ -12,6 +12,7 @@ import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
 import { SearchCommandPalette } from '../components/SearchCommandPalette';
+import { BeeLogo, HiveCell } from '../components/Logo';
 
 import { useWishlist } from '../hooks/useWishlist';
 import { getProductUrl, getCollectionUrl, STORE_PATHS, getSearchUrl } from '@utils/navigation';
@@ -117,10 +118,10 @@ export function Navbar() {
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-6 lg:gap-12 flex-1">
             <Link href={STORE_PATHS.HOME} className="flex items-center gap-3 text-gray-900 font-black text-2xl tracking-tighter transition-transform hover:scale-105 shrink-0">
-              <div className="h-10 w-10 rounded-xl bg-gray-900 flex items-center justify-center text-white shadow-xl shadow-gray-200">
-                <Package className="w-6 h-6" />
+              <div className="h-10 w-10 rounded-xl flex items-center justify-center">
+                <BeeLogo className="w-10 h-10" />
               </div>
-              <span className="hidden sm:block">DreamBees Art</span>
+              <span className="hidden sm:block bg-clip-text text-transparent bg-linear-to-r from-gray-900 to-primary-700">DreamBees Art</span>
             </Link>
 
 
@@ -295,10 +296,10 @@ export function Navbar() {
               {/* Mobile Menu Toggle */}
               <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden p-3 rounded-2xl text-gray-500 hover:bg-gray-50 transition-colors"
+                className="md:hidden p-3 rounded-2xl text-gray-500 hover:bg-primary-50 transition-colors"
                 aria-label={isMenuOpen ? "Close menu" : "Open menu"}
               >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                {isMenuOpen ? <X className="w-6 h-6" /> : <HiveCell className="w-6 h-6 text-primary-600" />}
               </button>
             </div>
           </div>
@@ -311,7 +312,7 @@ export function Navbar() {
           <div className="absolute inset-y-0 left-0 w-full max-w-xs bg-white shadow-2xl animate-in slide-in-from-left duration-300 ease-out flex flex-col">
             <div className="flex items-center justify-between px-6 py-6 border-b">
                <Link href={STORE_PATHS.HOME} onClick={() => setIsMenuOpen(false)} className="flex items-center gap-2 text-gray-900 font-black text-xl tracking-tighter">
-                 <Package className="w-6 h-6" />
+                 <BeeLogo className="w-8 h-8" />
                  DreamBees Art
                </Link>
 

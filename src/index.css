@@ -4,16 +4,16 @@
   --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, Consolas, monospace;
 
-  --color-primary-50: #f5f3ff;
-  --color-primary-100: #ede9fe;
-  --color-primary-200: #ddd6fe;
-  --color-primary-300: #c4b5fd;
-  --color-primary-400: #a78bfa;
-  --color-primary-500: #8b5cf6;
-  --color-primary-600: #7c3aed;
-  --color-primary-700: #6d28d9;
-  --color-primary-800: #5b21b6;
-  --color-primary-900: #4c1d95;
+  --color-primary-50: #fffbeb;
+  --color-primary-100: #fef3c7;
+  --color-primary-200: #fde68a;
+  --color-primary-300: #fcd34d;
+  --color-primary-400: #fbbf24;
+  --color-primary-500: #f59e0b;
+  --color-primary-600: #d97706;
+  --color-primary-700: #b45309;
+  --color-primary-800: #92400e;
+  --color-primary-900: #78350f;
 
   --color-gray-50: #f9fafb;
   --color-gray-100: #f3f4f6;
@@ -126,6 +126,40 @@ input[type="number"] {
   z-index: 100;
   transform-origin: 0% 50%;
   animation: navProgress 2s ease-out infinite;
+}
+
+@keyframes buzz {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(2px, -2px) rotate(5deg); }
+  50% { transform: translate(-2px, 2px) rotate(-5deg); }
+  75% { transform: translate(2px, 2px) rotate(5deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+.animate-buzz {
+  animation: buzz 0.2s linear infinite;
+}
+
+.hero-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23ffffff' stroke-opacity='0.03' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+.hexagon {
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.honey-drip {
+  position: relative;
+}
+.honey-drip::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 10%;
+  right: 10%;
+  height: 4px;
+  background: var(--color-primary-500);
+  border-radius: 0 0 100% 100%;
+  filter: blur(1px);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
