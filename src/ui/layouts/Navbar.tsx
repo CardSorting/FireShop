@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, ChevronDown, Search, Sparkles, Archive, Layers3, Heart, RefreshCcw, Zap, Truck, ShieldCheck, ArrowRight } from 'lucide-react';
+import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, ChevronDown, Search, Zap, Truck, ShieldCheck, ArrowRight, Heart, RefreshCcw } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
 import { CartDrawer } from '../components/CartDrawer';
 
@@ -147,64 +147,45 @@ export function Navbar() {
                   Shop <ChevronDown className="w-4 h-4 transition-transform group-hover:rotate-180 opacity-50" />
                 </button>
                 
-                {/* Mega-menu style dropdown - High Fidelity */}
+                {/* Simplified Mega-menu */}
                 {navMenu && (
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-[700px] bg-white rounded-4xl shadow-2xl border border-gray-100 p-10 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-50 ring-1 ring-black/5">
-                    <div className="grid grid-cols-3 gap-10">
-                      <div className="col-span-2 space-y-8">
-                         <div className="grid grid-cols-2 gap-x-10 gap-y-8">
-                           <div>
-                              <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                                <Archive className="w-3 h-3 text-primary-500" />
-                                {navMenu.shopCategories.title || 'Categories'}
-                              </h4>
-                              <ul className="space-y-4">
-                                {navMenu.shopCategories.links.map((link, i) => (
-                                  <li key={i}>
-                                    <Link href={link.href} className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-bold flex items-center justify-between group/link">
-                                      {link.label}
-                                      <ChevronRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-2 group-hover/link:translate-x-0 transition-all" />
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                           </div>
-                           <div>
-                              <h4 className="text-[10px] font-black text-gray-900 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                                <Sparkles className="w-3 h-3 text-amber-500" />
-                                {navMenu.shopCollections.title || 'Collections'}
-                              </h4>
-                              <ul className="space-y-4">
-                                {navMenu.shopCollections.links.map((link, i) => (
-                                  <li key={i}>
-                                    <Link href={link.href} className="text-sm text-gray-500 hover:text-primary-600 transition-colors font-bold flex items-center justify-between group/link">
-                                      {link.label}
-                                      <ChevronRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-2 group-hover/link:translate-x-0 transition-all" />
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                           </div>
-                         </div>
-                         <div className="pt-8 border-t border-gray-50">
-                            <Link href="/products" className="text-[10px] font-black text-primary-600 uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform">
-                               Browse Complete Catalog <ArrowRight className="w-3 h-3" />
-                            </Link>
-                         </div>
+                  <div className="absolute top-full left-0 w-[540px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-50 ring-1 ring-black/5">
+                    <div className="grid grid-cols-2 gap-12">
+                      <div>
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                          {navMenu.shopCategories.title || 'Categories'}
+                        </h4>
+                        <ul className="space-y-4">
+                          {navMenu.shopCategories.links.map((link, i) => (
+                            <li key={i}>
+                              <Link href={link.href} className="text-sm text-gray-600 hover:text-primary-600 transition-colors font-bold flex items-center justify-between group/link">
+                                {link.label}
+                                <ChevronRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      {navMenu.featuredPromotion && (
-                        <div className="col-span-1 bg-gray-50 rounded-3xl p-5 flex flex-col justify-between border border-gray-100 hover:bg-white hover:shadow-xl transition-all duration-500 group/promo">
-                           <div className="relative">
-                             <div className="aspect-square rounded-2xl bg-white overflow-hidden mb-4 shadow-sm border border-gray-100 ring-4 ring-white">
-                               <img src={navMenu.featuredPromotion.imageUrl} alt={navMenu.featuredPromotion.title} className="w-full h-full object-cover group-hover/promo:scale-110 transition duration-700" />
-                             </div>
-                             <div className="absolute top-2 right-2 px-2 py-1 bg-primary-600 text-[8px] font-black text-white uppercase rounded-lg shadow-lg">New</div>
-                             <p className="text-sm font-black text-gray-900 line-clamp-1">{navMenu.featuredPromotion.title}</p>
-                             {navMenu.featuredPromotion.subtitle && <p className="text-xs text-gray-500 font-bold mt-0.5">{navMenu.featuredPromotion.subtitle}</p>}
-                           </div>
-                           <Link href={navMenu.featuredPromotion.linkHref} className="w-full bg-gray-900 text-white text-center py-3 rounded-xl text-[10px] font-black uppercase tracking-widest mt-6 hover:bg-primary-600 transition-colors shadow-lg shadow-gray-200">{navMenu.featuredPromotion.linkText}</Link>
-                        </div>
-                      )}
+                      <div>
+                        <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                          {navMenu.shopCollections.title || 'Collections'}
+                        </h4>
+                        <ul className="space-y-4">
+                          {navMenu.shopCollections.links.map((link, i) => (
+                            <li key={i}>
+                              <Link href={link.href} className="text-sm text-gray-600 hover:text-primary-600 transition-colors font-bold flex items-center justify-between group/link">
+                                {link.label}
+                                <ChevronRight className="w-3 h-3 opacity-0 group-hover/link:opacity-100 -translate-x-1 group-hover/link:translate-x-0 transition-all" />
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="mt-8 pt-6 border-t border-gray-50">
+                      <Link href="/products" className="text-[10px] font-black text-primary-600 uppercase tracking-widest flex items-center gap-2 hover:translate-x-1 transition-transform">
+                        Browse Complete Catalog <ArrowRight className="w-3 h-3" />
+                      </Link>
                     </div>
                   </div>
                 )}
