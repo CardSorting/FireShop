@@ -347,9 +347,8 @@ export function OrdersPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <SupportCard icon={<CircleHelp className="h-6 w-6" />} title="Order Support" text="Need help with a delivery, return, or missing item?" href="/support" action="Talk to us" />
-        <SupportCard icon={<ShoppingBag className="h-6 w-6" />} title="Collector Community" text="Share your latest pulls and rare finds with the hive." href="/community" action="Join Discord" />
         <SupportCard icon={<ShieldCheck className="h-6 w-6" />} title="Artist Quality" text="All purchases directly support our artists and creators." href="/shipping-policy" action="Learn more" />
       </section>
 
