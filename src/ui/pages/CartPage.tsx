@@ -34,6 +34,42 @@ export function CartPage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loadingFeatured, setLoadingFeatured] = useState(false);
   const [showPromo, setShowPromo] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoMessage, setPromoMessage] = useState<{ text: string, isError: boolean } | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; amount: number } | null>(null);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setIsApplying(true);
+    setPromoMessage(null);
+
+    try {
+      const code = promoCode.trim().toUpperCase();
+      const res = await fetch('/api/discounts/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, cartTotal: subtotal }),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.valid) {
+          setAppliedPromo({ code, amount: result.discountAmount });
+          setPromoMessage({ text: `${code} applied!`, isError: false });
+        } else {
+          setPromoMessage({ text: result.message || 'Invalid code', isError: true });
+        }
+      } else {
+        setPromoMessage({ text: 'Unable to validate code', isError: true });
+      }
+    } catch (err) {
+      logger.error('Failed to validate promo code', err);
+      setPromoMessage({ text: 'Error validating code', isError: true });
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   useEffect(() => {
     const loadFeatured = async () => {
@@ -280,10 +316,16 @@ export function CartPage() {
                     <span>Estimated Tax</span>
                     <span className="text-gray-900 font-bold">$0.00</span>
                   </div>
+                  {appliedPromo && (
+                    <div className="flex justify-between items-center text-green-600 font-bold">
+                      <span className="flex items-center gap-1">Discount ({appliedPromo.code})</span>
+                      <span>-{formatMoney(appliedPromo.amount)}</span>
+                    </div>
+                  )}
                   <div className="pt-4 border-t-2 border-gray-50 flex justify-between items-center">
                     <span className="text-xl font-black text-gray-900 tracking-tight">Total</span>
                     <span className="text-3xl font-black text-primary-600 tracking-tighter">
-                       {formatMoney(subtotal + (subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 599))}
+                       {formatMoney(subtotal + (subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 599) - (appliedPromo?.amount || 0))}
                     </span>
                   </div>
                 </div>
@@ -303,13 +345,28 @@ export function CartPage() {
                     {showPromo ? "Remove promo code" : "Have a promo code?"}
                   </button>
                   {showPromo && (
-                    <div className="flex gap-2 animate-in fade-in slide-in-from-top-2">
-                      <input 
-                        type="text" 
-                        placeholder="ENTER CODE" 
-                        className="flex-1 bg-gray-50 border-2 border-transparent focus:border-primary-100 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-widest outline-none"
-                      />
-                      <button className="bg-gray-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black transition-colors">Apply</button>
+                    <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          placeholder="ENTER CODE" 
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          className="flex-1 bg-gray-50 border-2 border-transparent focus:border-primary-100 rounded-xl px-4 py-3 text-sm font-bold uppercase tracking-widest outline-none"
+                        />
+                        <button 
+                          onClick={handleApplyPromo}
+                          disabled={isApplying || !promoCode.trim()}
+                          className="bg-gray-900 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-50"
+                        >
+                          {isApplying ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                      {promoMessage && (
+                        <p className={`text-[10px] font-black uppercase tracking-widest ${promoMessage.isError ? 'text-red-500' : 'text-green-600'}`}>
+                          {promoMessage.text}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>

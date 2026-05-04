@@ -41,10 +41,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await requireAdminSession();
+    const user = await requireAdminSession();
     const body = await readJsonObject(request);
     const services = await getServerServices();
-    const order = await services.purchaseOrderService.createPurchaseOrder(body as any);
+    const order = await services.purchaseOrderService.createPurchaseOrder({
+      ...(body as any),
+      adminUserId: user.id,
+      adminUserEmail: user.email,
+    });
     return Response.json(order, { status: 201 });
   } catch (error) {
     return jsonError(error, 'Failed to create purchase order');

@@ -1,18 +1,18 @@
 # DreamBeesArt: The Sovereign Commerce Engine
 
-ShopMore is a neutral, high-performance, and deeply customizable e-commerce engine designed for merchants who prioritize data ownership and operational sovereignty. Built on a hardened TypeScript substrate, ShopMore provides an industry-leading alternative to SaaS platforms, offering absolute control over the entire commerce lifecycle.
+DreamBeesArt is a neutral, high-performance, and deeply customizable e-commerce engine designed for merchants who prioritize data ownership and operational sovereignty. Built on a hardened TypeScript substrate, DreamBeesArt provides an industry-leading alternative to SaaS platforms, offering absolute control over the entire commerce lifecycle.
 
 ---
 
 ## 🏗 Architecture (Joy-Zoning)
 
-ShopMore adheres to a strict layered architecture (Clean Architecture / DDD) to ensure business logic remains pure, testable, and decoupled from infrastructure.
+DreamBeesArt adheres to a strict layered architecture (Clean Architecture / DDD) to ensure business logic remains pure, testable, and decoupled from infrastructure.
 
 | Layer | Path | Responsibility |
 | :--- | :--- | :--- |
 | **Domain** | `src/domain/` | Pure business logic: models, rules, and repository contracts. **Zero dependencies.** |
 | **Core** | `src/core/` | Application orchestration: services coordinate domain logic and infrastructure adapters. |
-| **Infrastructure** | `src/infrastructure/` | Adapters for SQLite, API-backed services, and payment processors. |
+| **Infrastructure** | `src/infrastructure/` | Adapters for Firestore, API-backed services, and payment processors. |
 | **UI** | `src/ui/` | React 19 components, Next.js pages, and high-fidelity layouts. |
 | **Plumbing** | `src/utils/` | Stateless helpers, formatters, and global constants. |
 
@@ -42,14 +42,15 @@ Follow these steps to initialize your sovereign commerce workspace.
 ### 1. Prerequisites
 - **Node.js**: 20.x or higher
 - **npm**: 10.x or higher
+- **Firebase Account**: For Firestore and Authentication
 
 ### 2. Quick Initialization
 ```bash
-# Install dependencies, initialize .env, and seed the database
-npm run setup
+# Install dependencies, initialize .env, and verify connections
+npm install
 ```
 > [!TIP]
-> The setup script automatically copies `.env.example` to `.env` and generates a fresh `SESSION_SECRET` for you.
+> Ensure your `.env` file contains the necessary Firebase and Stripe credentials before launching.
 
 ### 3. Launch Engine
 ```bash
@@ -63,7 +64,7 @@ npm run dev
 
 - **Framework**: Next.js 15 (App Router) + React 19
 - **Logic**: TypeScript 5+ (Strict Mode)
-- **Persistence**: SQLite via Kysely & better-sqlite3
+- **Persistence**: Google Cloud Firestore (Distributed NoSQL)
 - **Styling**: Tailwind CSS 4
 - **Security**: Signed HTTP-only session cookies & Rate-limiting guards
 - **Monitoring**: PRODUCTION_READY_METRICS.md
@@ -85,10 +86,10 @@ For deep technical dives and operational guides, refer to the internal **[Knowle
 ---
 
 > [!NOTE]
-> **Industrial Neutrality**: ShopMore is designed to be industry-agnostic. While the current workspace includes TCG-focused mock data, the underlying models and services are ready for any vertical (Apparel, Digital Goods, etc.).
+> **Industrial Neutrality**: DreamBeesArt is designed to be industry-agnostic. While the current workspace includes TCG-focused mock data, the underlying models and services are ready for any vertical (Apparel, Digital Goods, etc.).
 
 ---
 
 ## 📄 License
 
-MIT © [ShopMore Contributors](LICENSE)
+MIT © [DreamBeesArt Contributors](LICENSE)

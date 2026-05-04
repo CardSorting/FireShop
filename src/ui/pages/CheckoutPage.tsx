@@ -145,54 +145,27 @@ export function CheckoutPage() {
     try {
       const code = discountCode.trim().toUpperCase();
       
-      // Query the discount service for the code
-      const res = await fetch(`/api/admin/discounts?code=${encodeURIComponent(code)}`);
+      const res = await fetch('/api/discounts/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, cartTotal: subtotal }),
+      });
       
       if (res.ok) {
-        const data = await res.json();
-        const discount = Array.isArray(data) 
-          ? data.find((d: any) => d.code?.toUpperCase() === code)
-          : data?.discounts?.find((d: any) => d.code?.toUpperCase() === code);
-        
-        if (discount && discount.status === 'active') {
-          // Check expiration
-          if (discount.endsAt && new Date(discount.endsAt) < new Date()) {
-            setDiscountMessage('This discount code has expired.');
-            setIsApplying(false);
-            setDiscountCode('');
-            return;
-          }
+        const result = await res.json();
+        if (result.valid) {
+          // result.discountAmount is returned from service
+          let amount = result.discountAmount;
           
-          // Check usage limit
-          if (discount.usageLimit && discount.usageCount >= discount.usageLimit) {
-            setDiscountMessage('This discount code has reached its usage limit.');
-            setIsApplying(false);
-            setDiscountCode('');
-            return;
-          }
-          
-          // Check minimum requirements
-          if (discount.minimumRequirementType === 'minimum_amount' && discount.minimumAmount && subtotal < discount.minimumAmount) {
-            setDiscountMessage(`This code requires a minimum order of ${formatMoney(discount.minimumAmount)}.`);
-            setIsApplying(false);
-            setDiscountCode('');
-            return;
-          }
-          
-          // Calculate discount amount
-          let amount = 0;
-          if (discount.type === 'percentage') {
-            amount = Math.floor(subtotal * (discount.value / 100));
-          } else if (discount.type === 'fixed') {
-            amount = discount.value;
-          } else if (discount.type === 'free_shipping') {
+          // Handle free shipping separately if needed
+          if (result.discount.type === 'free_shipping') {
             amount = shipping;
           }
           
           setAppliedDiscount({ code, amount });
           setDiscountMessage(`${code} applied. Your discount is reflected below.`);
         } else {
-          setDiscountMessage('That code is not available. Check the spelling or try another code.');
+          setDiscountMessage(result.message || 'That code is not available.');
         }
       } else {
         setDiscountMessage('Unable to validate discount code. Please try again.');

@@ -23,18 +23,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdminSession();
+    const user = await requireAdminSession();
     const { id } = await params;
     const body = await request.json();
     const services = await getServerServices();
 
     if (body.action === 'submit') {
-      const order = await services.purchaseOrderService.submitOrder(id);
+      const order = await services.purchaseOrderService.submitOrder(id, user.id, user.email);
       return NextResponse.json(order);
     }
 
     if (body.action === 'cancel') {
-      const order = await services.purchaseOrderService.cancelOrder(id);
+      const order = await services.purchaseOrderService.cancelOrder(id, user.id, user.email);
       return NextResponse.json(order);
     }
 
@@ -43,14 +43,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         id,
         discrepancyReason: body.discrepancyReason,
         notes: body.notes,
-      });
+      }, user.id, user.email);
       return NextResponse.json(order);
     }
 
     if (body.action === 'receive') {
       const result = await services.purchaseOrderService.receiveItems({
         purchaseOrderId: id,
-        receivedBy: body.receivedBy || 'admin',
+        receivedBy: user.id,
         items: body.items,
         notes: body.notes,
         locationId: body.locationId,
