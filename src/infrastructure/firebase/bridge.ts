@@ -258,7 +258,9 @@ export function arrayRemove(...elements: any[]) {
   return client.arrayRemove(...elements);
 }
 
-export const Timestamp = client.Timestamp;
+export const Timestamp = isServer 
+  ? require('firebase-admin').firestore.Timestamp 
+  : client.Timestamp;
 export type DocumentData = client.DocumentData;
 export type QueryDocumentSnapshot = client.QueryDocumentSnapshot;
 export type Transaction = client.Transaction;

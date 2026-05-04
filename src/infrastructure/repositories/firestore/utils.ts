@@ -2,7 +2,7 @@
  * [LAYER: INFRASTRUCTURE]
  * Firestore Repository Utilities
  */
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp } from '../../firebase/bridge';
 
 /**
  * Robustly converts a Firestore value (Timestamp, Date, String, or Object) to a JS Date.
