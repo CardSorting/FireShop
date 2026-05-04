@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { logger } from '@utils/logger';
+import { jsonError } from '@infrastructure/server/apiGuards';
 
 /**
  * [LAYER: SYSTEM]
@@ -8,10 +8,11 @@ import { logger } from '@utils/logger';
  * This prevents inventory leakage from abandoned checkouts.
  */
 export async function POST(request: Request) {
-  // Simple internal secret check or just rely on platform-level security
   const authHeader = request.headers.get('Authorization');
-  if (process.env.SYSTEM_JOB_TOKEN && authHeader !== `Bearer ${process.env.SYSTEM_JOB_TOKEN}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const systemToken = process.env.SYSTEM_JOB_TOKEN;
+
+  if (!systemToken || authHeader !== `Bearer ${systemToken}`) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -21,13 +22,12 @@ export async function POST(request: Request) {
     
     logger.info(`System cleanup: Processed ${count} expired orders.`);
     
-    return NextResponse.json({ 
+    return Response.json({ 
       success: true, 
       processed: count,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    logger.error('System cleanup failed', error);
-    return NextResponse.json({ error: 'Cleanup failed' }, { status: 500 });
+    return jsonError(error, 'System cleanup failed');
   }
 }
