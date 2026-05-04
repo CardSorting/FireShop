@@ -508,7 +508,9 @@ export class OrderService {
 
   async getOrders(userId: string): Promise<Order[]> {
     const orders = await this.orderRepo.getByUserId(userId);
-    return orders.map((order) => this.enrichOrderForCustomerView(order));
+    return orders
+      .map((order) => this.enrichOrderForCustomerView(order))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   async getOrder(id: string): Promise<Order | null> {

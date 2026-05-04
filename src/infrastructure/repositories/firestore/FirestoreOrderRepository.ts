@@ -73,7 +73,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async getByUserId(userId: string): Promise<Order[]> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('userId', '==', userId));
     const snapshot = await getDocs(q);
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any));
   }

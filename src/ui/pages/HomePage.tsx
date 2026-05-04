@@ -204,22 +204,25 @@ export function HomePage() {
                 href: "/collections/artist-cards", 
                 title: "Artist Cards", 
                 sub: "Hand-drawn originals",
-                img: "https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=800&auto=format&fit=crop" 
+                img: "https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=800&auto=format&fit=crop",
+                delay: "reveal-delay-1"
               },
               { 
                 href: "/collections/prints", 
                 title: "Art Prints", 
                 sub: "Museum-grade quality",
-                img: "https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=800&auto=format&fit=crop" 
+                img: "https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=800&auto=format&fit=crop",
+                delay: "reveal-delay-2"
               },
               { 
                 href: "/collections/accessories", 
                 title: "TCG Accessories", 
                 sub: "Premium protection",
-                img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop" 
+                img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop",
+                delay: "reveal-delay-3"
               }
             ].map((col) => (
-              <Link key={col.href} href={col.href} className="group block">
+              <Link key={col.href} href={col.href} className={`group block opacity-0 reveal-up ${col.delay}`}>
                 <div className="relative aspect-3/2 overflow-hidden rounded-2xl bg-gray-100 mb-6 border border-gray-100 transition-all duration-500 group-hover:shadow-2xl group-hover:shadow-primary-500/10">
                   <img src={col.img} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" alt={col.title} />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
@@ -266,12 +269,13 @@ export function HomePage() {
             <div className="space-y-20">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
                 {featured.map((p, i) => (
-                  <ProductCard 
-                    key={p.id} 
-                    product={p} 
-                    onAddToCart={handleQuickAdd}
-                    priority={i < 4}
-                  />
+                  <div key={p.id} className={`opacity-0 reveal-up`} style={{ animationDelay: `${i * 0.1}s` }}>
+                    <ProductCard 
+                      product={p} 
+                      onAddToCart={handleQuickAdd}
+                      priority={i < 4}
+                    />
+                  </div>
                 ))}
               </div>
 
