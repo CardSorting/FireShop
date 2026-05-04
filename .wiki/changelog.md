@@ -1613,4 +1613,6 @@
 ### Notes
 
 - No Domain, Core, UI, or application source-code changes were required.
-- The `/sw.js 404` log is separate from the SQLite native binding failure and was not remediated as part of this repair.
+- The `/sw.js 404` log is separate from the SQLite native binding failure and was not remediated as part of this repair.- [2026-05-04] Refactored Blog landing page (`src/app/blog/page.tsx`) to a Magazine-style layout focusing on Popular Blog Strategies.
+  - Adjusted `BlogHero` and `BlogCard` UI components for grid proportions.
+  - Rebuilt `CategoryNavigator` for improved categorical isolation.

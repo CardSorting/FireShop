@@ -377,7 +377,7 @@ export class OrderService {
 
         let price = product.price;
         let stock = product.stock;
-        let name = product.name;
+        const name = product.name;
         let imageUrl = product.imageUrl;
         let variantTitle = undefined;
 

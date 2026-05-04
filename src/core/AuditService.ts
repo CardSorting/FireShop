@@ -96,7 +96,7 @@ export class AuditService {
     targetId?: string;
     query?: string;
   }): Promise<AuditEntry[]> {
-    let q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
+    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
     
     // Firestore limited filtering: multiple where + orderBy requires composite index
     // For now, we'll fetch and filter in memory if multiple options are present

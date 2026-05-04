@@ -128,7 +128,7 @@ export class FirestoreProductRepository implements IProductRepository {
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
     const now = Timestamp.now();
     
-    let firestoreUpdates: any = { ...updates, updatedAt: now };
+    const firestoreUpdates: any = { ...updates, updatedAt: now };
 
     // If handle is being updated, ensure it's unique
     if (updates.handle) {

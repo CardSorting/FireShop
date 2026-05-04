@@ -1,3 +1,6 @@
+/**
+ * [LAYER: INFRASTRUCTURE]
+ */
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useServices } from '@ui/hooks/useServices';
@@ -82,30 +85,59 @@ export default function BlogPage() {
 
   return (
     <div className="bg-white">
-      {/* Immersive Hero Section */}
-      {!loading && featuredPost && selectedCategory === 'all' && !searchQuery && (
-        <section className="max-w-[1600px] mx-auto px-4 pt-12 pb-24">
-          <BlogHero post={featuredPost} />
-        </section>
-      )}
-
-      {/* Popular Leaderboard - Mirror.xyz Style */}
+      {/* Magazine Style Top Fold */}
       {!loading && selectedCategory === 'all' && !searchQuery && (
-        <section className="bg-gray-50/50 py-24 border-y border-gray-100">
-          <div className="max-w-[1600px] mx-auto px-4">
-            <TrendingSection posts={trendingPosts} />
+        <section className="max-w-[1600px] mx-auto px-4 pt-12 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            
+            {/* Featured Hero Story */}
+            <div className="lg:col-span-8">
+              {featuredPost && <BlogHero post={featuredPost} />}
+            </div>
+
+            {/* Popular Blog Strategies Component */}
+            <div className="lg:col-span-4 bg-gray-50 rounded-[3rem] p-8 border border-gray-100 flex flex-col h-full">
+              <div className="mb-8">
+                 <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600 mb-2">Editor's Picks</h2>
+                 <h3 className="text-3xl font-black text-gray-900 tracking-tight leading-tight">Popular Blog Strategies</h3>
+              </div>
+              <div className="flex-1 space-y-6 overflow-y-auto pr-2 no-scrollbar">
+                {trendingPosts.slice(0, 5).map((post, i) => (
+                  <a key={post.id} href={`/blog/${post.slug}`} className="group flex items-center justify-between gap-5 p-4 rounded-2xl hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-gray-100">
+                    <div className="flex items-start gap-5">
+                      <span className="text-2xl font-black text-primary-200 group-hover:text-primary-500 transition-colors pt-1 tabular-nums">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{post.categoryName}</span>
+                        <h4 className="text-sm font-black text-gray-900 leading-snug group-hover:text-primary-600 transition-colors line-clamp-2">
+                          {post.title}
+                        </h4>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mt-1">
+                          {Math.ceil((post.content?.split(' ').length || 0) / 200)} Min Read
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                      <ArrowRight className="h-3 w-3 text-primary-600 -rotate-45" />
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+
           </div>
         </section>
       )}
 
       {/* Navigation & Feed */}
-      <div className="max-w-[1600px] mx-auto px-4 py-16">
+      <div className="max-w-[1600px] mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           
           {/* Main Feed Area */}
           <main className="lg:col-span-8 space-y-16">
             {/* Sticky Topic Navigator */}
-            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl -mx-4 px-4 py-4 mb-8 border-b border-gray-100">
+            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl -mx-4 px-4 py-4 mb-4 border-b border-gray-100 transition-all">
               <CategoryNavigator 
                 categories={categories} 
                 selectedCategory={selectedCategory} 

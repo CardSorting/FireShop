@@ -1,3 +1,6 @@
+/**
+ * [LAYER: UI]
+ */
 'use client';
 import React, { useState } from 'react';
 import { 
@@ -20,26 +23,26 @@ export function BlogCard({ post, variant = 'standard' }: {
     return (
       <Link 
         href={`/blog/${post.slug}`}
-        className="group flex items-center gap-6 p-4 rounded-3xl hover:bg-gray-50 transition-all duration-300"
+        className="group flex items-center gap-6 p-4 md:p-6 rounded-[2rem] hover:bg-gray-50 transition-all duration-500 border border-transparent hover:border-gray-100"
       >
-        <div className="shrink-0 h-20 w-20 rounded-2xl overflow-hidden bg-gray-100">
+        <div className="shrink-0 h-20 w-20 md:h-24 md:w-24 rounded-2xl overflow-hidden bg-gray-100 shadow-sm">
           {post.featuredImageUrl ? (
-            <img src={post.featuredImageUrl} alt={post.title} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+            <img src={post.featuredImageUrl} alt={post.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-gray-200" />
+              <Sparkles className="h-8 w-8 text-gray-200" />
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-1">
-          <h4 className="text-sm font-black text-gray-900 line-clamp-2 leading-tight group-hover:text-primary-600 transition-colors">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[9px] font-black uppercase tracking-widest text-primary-600">{post.categoryName}</span>
+            <span className="h-1 w-1 rounded-full bg-gray-200" />
+            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{readingTime}m Read</span>
+          </div>
+          <h4 className="text-base md:text-lg font-black text-gray-900 line-clamp-2 leading-tight group-hover:text-primary-600 transition-colors tracking-tight">
             {post.title}
           </h4>
-          <div className="flex items-center gap-2 text-[8px] font-black uppercase tracking-widest text-gray-400">
-             <span>{post.categoryName}</span>
-             <span className="h-1 w-1 rounded-full bg-gray-200" />
-             <span>{readingTime}m Read</span>
-          </div>
         </div>
       </Link>
     );
@@ -50,71 +53,70 @@ export function BlogCard({ post, variant = 'standard' }: {
   return (
     <Link 
       href={`/blog/${post.slug}`}
-      className={`group flex flex-col ${isWide ? 'md:flex-row md:col-span-2' : ''} bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500`}
+      className={`group flex flex-col ${isWide ? 'lg:flex-row lg:col-span-2' : ''} bg-white rounded-[2.5rem] md:rounded-[3rem] overflow-hidden border border-gray-100 shadow-xs hover:shadow-2xl hover:-translate-y-1 transition-all duration-500`}
     >
-      <div className={`relative ${isWide ? 'md:w-1/2 h-80 md:h-auto' : 'h-72'} overflow-hidden`}>
+      <div className={`relative ${isWide ? 'lg:w-1/2 h-72 md:h-96 lg:h-auto' : 'h-64 md:h-80'} overflow-hidden`}>
         {post.featuredImageUrl ? (
           <img 
             src={post.featuredImageUrl} 
             alt={post.title} 
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gray-50 flex items-center justify-center">
-            <Sparkles className="h-12 w-12 text-gray-200" />
+            <Sparkles className="h-16 w-16 text-gray-200" />
           </div>
         )}
-        <div className="absolute top-6 left-6">
-          <span className="px-4 py-2 rounded-xl bg-white/90 backdrop-blur-md text-[9px] font-black uppercase tracking-widest text-gray-900 shadow-sm border border-white/20">
-            {post.categoryName || 'General'}
+        
+        <div className="absolute inset-0 bg-linear-to-t from-gray-900/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+        <div className="absolute top-6 left-6 md:top-8 md:left-8">
+          <span className="px-4 py-2 md:px-5 md:py-2.5 rounded-xl bg-white/90 backdrop-blur-md text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] text-gray-900 shadow-xl border border-white/20">
+            {post.categoryName || 'Strategy'}
           </span>
         </div>
-        {post.isFeatured && (
-          <div className="absolute top-6 right-6">
-            <div className="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center text-white shadow-xl shadow-primary-600/20">
-              <Sparkles className="h-4 w-4" />
-            </div>
-          </div>
-        )}
       </div>
       
-      <div className={`p-10 flex-1 flex flex-col ${isWide ? 'md:justify-center' : ''}`}>
-        <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-widest text-gray-400 mb-6">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-3 w-3" />
-            <span>{new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      <div className={`p-8 md:p-10 lg:p-12 flex-1 flex flex-col ${isWide ? 'lg:justify-center lg:px-16' : ''}`}>
+        <div className="space-y-4 md:space-y-6">
+          <div className="flex items-center gap-3 md:gap-4 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400">
+            <span>{new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+            <span className="h-1 w-1 rounded-full bg-gray-200" />
+            <div className="flex items-center gap-1.5 md:gap-2">
+              <Clock className="h-3 w-3 md:h-4 md:w-4" />
+              <span>{readingTime} Min</span>
+            </div>
           </div>
-          <span className="h-1 w-1 rounded-full bg-gray-200" />
-          <div className="flex items-center gap-2">
-            <Clock className="h-3 w-3" />
-            <span>{readingTime} Min Read</span>
-          </div>
+          
+          <h3 className={`${isWide ? 'text-3xl md:text-4xl lg:text-5xl' : 'text-2xl md:text-3xl'} font-black text-gray-900 leading-tight group-hover:text-primary-600 transition-colors tracking-tight`}>
+            {post.title}
+          </h3>
+          
+          <p className="text-gray-500 font-medium line-clamp-3 leading-relaxed text-sm md:text-base">
+            {post.excerpt}
+          </p>
         </div>
         
-        <h3 className={`${isWide ? 'text-3xl md:text-4xl' : 'text-2xl'} font-black text-gray-900 leading-tight mb-4 group-hover:text-primary-600 transition-colors tracking-tight`}>
-          {post.title}
-        </h3>
-        
-        <p className="text-gray-500 font-medium line-clamp-3 mb-10 leading-relaxed text-sm">
-          {post.excerpt}
-        </p>
-        
-        <div className="mt-auto flex items-center justify-between pt-8 border-t border-gray-50">
-          <div className="flex items-center gap-3">
-             <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border-2 border-white shadow-sm">
+        <div className="mt-8 md:mt-12 flex items-center justify-between pt-6 md:pt-8 border-t border-gray-50">
+          <div className="flex items-center gap-3 md:gap-4">
+             <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border-[3px] md:border-4 border-white shadow-lg ring-1 ring-gray-100">
                <img 
                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
                  alt="Author" 
                  className="h-full w-full object-cover"
                />
              </div>
-             <div className="flex flex-col">
-               <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">{post.authorName || 'Staff'}</span>
-               <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Journalist</span>
+             <div className="flex flex-col -space-y-0.5 md:-space-y-1">
+               <span className="text-[10px] md:text-[11px] font-black text-gray-900 uppercase tracking-widest">{post.authorName || 'Staff'}</span>
+               <span className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-widest">Hive Mind</span>
              </div>
           </div>
-          <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-primary-600 group-hover:text-white group-hover:rotate-45 transition-all duration-500">
-            <ChevronRight className="h-5 w-5" />
+          
+          <div className="group/btn flex items-center gap-2 md:gap-3 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary-600 transition-all">
+            Read Story
+            <div className="h-8 w-8 md:h-10 md:w-10 rounded-2xl bg-gray-50 flex items-center justify-center group-hover/btn:bg-primary-600 group-hover/btn:text-white group-hover/btn:rotate-45 transition-all duration-500">
+              <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
+            </div>
           </div>
         </div>
       </div>
