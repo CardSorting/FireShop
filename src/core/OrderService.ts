@@ -506,9 +506,8 @@ export class OrderService {
     }
   }
 
-  async getOrders(userId: string): Promise<Order[]> {
-    const orders = await this.orderRepo.getByUserId(userId);
-    return orders.map((order) => this.enrichOrderForCustomerView(order));
+  async getOrders(userId: string, options?: any): Promise<Order[]> {
+    return this.getOrdersForCustomerView(userId, options);
   }
 
   async getOrder(id: string): Promise<Order | null> {
@@ -521,24 +520,34 @@ export class OrderService {
     options?: {
       status?: OrderStatus | 'all';
       query?: string;
-      from?: Date;
-      to?: Date;
+      from?: string | Date;
+      to?: string | Date;
       sort?: 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
+      limit?: number;
+      cursor?: string;
     }
   ): Promise<Order[]> {
-    const orders = (await this.orderRepo.getByUserId(userId)).map((order) => this.enrichOrderForCustomerView(order));
+    const fromDate = options?.from ? (options.from instanceof Date ? options.from : new Date(options.from)) : undefined;
+    const toDate = options?.to ? (options.to instanceof Date ? options.to : new Date(options.to)) : undefined;
+
+    const { orders } = await this.orderRepo.getByUserId(userId, {
+      status: options?.status,
+      limit: options?.limit ?? 100,
+      cursor: options?.cursor,
+      from: fromDate,
+      to: toDate,
+    });
+
+    const enriched = orders.map((order) => this.enrichOrderForCustomerView(order));
     const q = options?.query?.trim().toLowerCase() ?? '';
 
-    const filtered = orders.filter((order) => {
-      const matchesStatus = !options?.status || options.status === 'all' || order.status === options.status;
-      const matchesQuery = !q
-        || order.id.toLowerCase().includes(q)
-        || order.items.some((item) => item.name.toLowerCase().includes(q) || item.variantTitle?.toLowerCase().includes(q));
-      const createdAt = order.createdAt.getTime();
-      const matchesFrom = !options?.from || createdAt >= options.from.getTime();
-      const matchesTo = !options?.to || createdAt <= options.to.getTime();
-      return matchesStatus && matchesQuery && matchesFrom && matchesTo;
-    });
+    // Still filter by query in memory as Firestore doesn't support full-text search easily
+    const filtered = q 
+      ? enriched.filter((order) => 
+          order.id.toLowerCase().includes(q)
+          || order.items.some((item) => item.name.toLowerCase().includes(q) || item.variantTitle?.toLowerCase().includes(q))
+        )
+      : enriched;
 
     const sort = options?.sort ?? 'newest';
     return [...filtered].sort((a, b) => {
@@ -734,13 +743,15 @@ export class OrderService {
     const summaries = await Promise.all(
       users.map(async (user) => {
         try {
-          const orders = await this.orderRepo.getByUserId(user.id);
+          const { orders } = await this.orderRepo.getByUserId(user.id, { limit: 1000 });
           const spent = orders
             .filter((o) => o.status !== 'cancelled')
             .reduce((sum, o) => sum + o.total, 0);
           const lastOrder = orders.length > 0
             ? new Date(Math.max(...orders.map(o => toDate(o.createdAt).getTime())))
             : null;
+
+
 
           const joined = toDate(user.createdAt);
           const joinedTime = joined.getTime();
@@ -902,10 +913,10 @@ export class OrderService {
     productImageUrl: string;
     assets: any[];
   }>> {
-    const orders = await this.orderRepo.getByUserId(userId);
+    const result = await this.orderRepo.getByUserId(userId, { limit: 1000 });
     const digitalAssets: any[] = [];
 
-    for (const order of orders) {
+    for (const order of result.orders) {
       if (order.status === 'cancelled') continue;
       
       for (const item of order.items) {

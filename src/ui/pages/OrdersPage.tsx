@@ -20,6 +20,8 @@ import {
   Truck,
   ExternalLink,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { SLIDE_UP_VARIANTS } from '@ui/animations';
 import type { Order, OrderStatus } from '@domain/models';
 import { logger } from '@utils/logger';
 import {
@@ -278,68 +280,85 @@ export function OrdersPage() {
                     </div>
                   </div>
 
-                  {expanded && (
-                    <div className="border-t border-gray-100 bg-gray-50/30 p-8 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
-                        <div className="lg:col-span-7">
-                          <h3 className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-gray-400">Order Items</h3>
-                          <div className="space-y-4">
-                            {order.items.map((item) => (
-                              <div key={item.productId} className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-white bg-white/50 p-4 shadow-sm transition hover:shadow-md">
-                                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
-                                  <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <p className="truncate text-sm font-black text-gray-900">{item.name}</p>
-                                    {item.digitalAssets && item.digitalAssets.length > 0 && (
-                                      <span className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-1.5 py-0.5 text-[10px] font-black uppercase text-primary-600 border border-primary-100">
-                                        Digital
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-xs font-bold text-gray-400">Qty: {item.quantity} • {formatMoney(item.unitPrice)} each</p>
-                                </div>
-                                <div className="flex flex-col gap-2 shrink-0">
-                                  {item.digitalAssets && item.digitalAssets.length > 0 && (
-                                    <Link href="/account/vault" className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-sm text-center">Download Assets</Link>
+                  <AnimatePresence>
+                    {expanded && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden border-t border-gray-100 bg-gray-50/30"
+                      >
+                        <div className="p-8">
+                          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12">
+                            <div className="lg:col-span-7">
+                              <h3 className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-gray-400">Order Items</h3>
+                              <div className="space-y-4">
+                                {order.items.map((item) => (
+                                  <motion.div 
+                                    key={item.productId} 
+                                    variants={SLIDE_UP_VARIANTS}
+                                    initial="initial"
+                                    animate="animate"
+                                    className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-2xl border border-white bg-white/50 p-4 shadow-sm transition hover:shadow-md"
+                                  >
+                                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 shadow-sm">
+                                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="truncate text-sm font-black text-gray-900">{item.name}</p>
+                                        {item.digitalAssets && item.digitalAssets.length > 0 && (
+                                          <span className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-1.5 py-0.5 text-[10px] font-black uppercase text-primary-600 border border-primary-100">
+                                            Digital
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs font-bold text-gray-400">Qty: {item.quantity} • {formatMoney(item.unitPrice)} each</p>
+                                    </div>
+                                    <div className="flex flex-col gap-2 shrink-0">
+                                      {item.digitalAssets && item.digitalAssets.length > 0 && (
+                                        <Link href="/account/vault" className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition-colors shadow-sm text-center">Download Assets</Link>
+                                      )}
+                                      <Link href={`/support?orderId=${order.id}&productId=${item.productId}&productName=${encodeURIComponent(item.name)}`} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm text-center">Get Support</Link>
+                                    </div>
+                                  </motion.div>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="lg:col-span-5">
+                              <h3 className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-gray-400">Shipment Timeline</h3>
+                              <div className="rounded-4xl border border-white bg-white/50 p-6 shadow-sm">
+                                <OrderTimeline order={order} />
+                                
+                                <div className="mt-10 grid grid-cols-1 gap-3">
+                                  {order.trackingUrl ? (
+                                    <a href={order.trackingUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-2xl bg-primary-600 px-6 py-4 text-sm font-black text-white shadow-lg transition hover:bg-primary-700">
+                                      Track Package <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  ) : (
+                                    <div className="rounded-2xl border-2 border-dashed border-gray-200 p-4 text-center text-xs font-bold text-gray-400">
+                                      Tracking number will appear once shipped.
+                                    </div>
                                   )}
-                                  <Link href={`/support?orderId=${order.id}&productId=${item.productId}&productName=${encodeURIComponent(item.name)}`} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors shadow-sm text-center">Get Support</Link>
+                                  <button 
+                                    onClick={() => onReorder(order)} 
+                                    disabled={reordering === order.id}
+                                    className="flex items-center justify-between rounded-2xl bg-gray-900 px-6 py-4 text-sm font-black text-white shadow-lg transition hover:bg-black disabled:opacity-50"
+                                  >
+                                    {reordering === order.id ? 'Adding to cart...' : 'Buy it again'} 
+                                    <RefreshCcw className={`h-4 w-4 ${reordering === order.id ? 'animate-spin' : ''}`} />
+                                  </button>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="lg:col-span-5">
-                          <h3 className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-gray-400">Shipment Timeline</h3>
-                          <div className="rounded-4xl border border-white bg-white/50 p-6 shadow-sm">
-                            <OrderTimeline order={order} />
-                            
-                            <div className="mt-10 grid grid-cols-1 gap-3">
-                              {order.trackingUrl ? (
-                                <a href={order.trackingUrl} target="_blank" rel="noreferrer" className="flex items-center justify-between rounded-2xl bg-primary-600 px-6 py-4 text-sm font-black text-white shadow-lg transition hover:bg-primary-700">
-                                  Track Package <ExternalLink className="h-4 w-4" />
-                                </a>
-                              ) : (
-                                <div className="rounded-2xl border-2 border-dashed border-gray-200 p-4 text-center text-xs font-bold text-gray-400">
-                                  Tracking number will appear once shipped.
-                                </div>
-                              )}
-                              <button 
-                                onClick={() => onReorder(order)} 
-                                disabled={reordering === order.id}
-                                className="flex items-center justify-between rounded-2xl bg-gray-900 px-6 py-4 text-sm font-black text-white shadow-lg transition hover:bg-black disabled:opacity-50"
-                              >
-                                {reordering === order.id ? 'Adding to cart...' : 'Buy it again'} 
-                                <RefreshCcw className={`h-4 w-4 ${reordering === order.id ? 'animate-spin' : ''}`} />
-                              </button>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                 </article>
               );
             })
@@ -358,10 +377,14 @@ export function OrdersPage() {
 
 function MetricCard({ label, value, icon, dark }: { label: string; value: string; icon: React.ReactNode; dark?: boolean }) {
   return (
-    <div className={`rounded-2xl border px-5 py-4 min-w-[140px] transition hover:scale-105 ${dark ? 'border-white/10 bg-white/5 text-white' : 'border-gray-100 bg-gray-50 text-gray-900'}`}>
+    <motion.div 
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.98 }}
+      className={`rounded-2xl border px-5 py-4 min-w-[140px] transition-colors ${dark ? 'border-white/10 bg-white/5 text-white' : 'border-gray-100 bg-gray-50 text-gray-900'}`}
+    >
       <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest opacity-60">{icon}{label}</p>
       <p className="mt-1 text-2xl font-black">{value}</p>
-    </div>
+    </motion.div>
   );
 }
 
@@ -382,14 +405,20 @@ function FilterSelect({ value, onChange, options }: { value: string; onChange: (
 
 function SupportCard({ icon, title, text, href, action }: { icon: React.ReactNode; title: string; text: string; href: string; action: string }) {
   return (
-    <Link href={href} className="group relative overflow-hidden rounded-4xl border border-gray-100 bg-white p-8 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl">
-      <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary-50 transition-transform group-hover:scale-150" />
-      <div className="relative">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white">{icon}</div>
-        <h3 className="text-xl font-black text-gray-900">{title}</h3>
-        <p className="mt-2 text-sm font-medium text-gray-500 leading-relaxed">{text}</p>
-        <p className="mt-6 inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-primary-600 group-hover:gap-3 transition-all">{action} <ArrowRight className="h-4 w-4" /></p>
-      </div>
+    <Link href={href}>
+      <motion.div 
+        whileHover={{ y: -4 }}
+        whileTap={{ scale: 0.98 }}
+        className="group relative overflow-hidden rounded-4xl border border-gray-100 bg-white p-8 shadow-sm transition-all hover:shadow-xl h-full"
+      >
+        <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary-50 transition-transform group-hover:scale-150" />
+        <div className="relative">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-primary-600 transition-colors group-hover:bg-primary-600 group-hover:text-white">{icon}</div>
+          <h3 className="text-xl font-black text-gray-900">{title}</h3>
+          <p className="mt-2 text-sm font-medium text-gray-500 leading-relaxed">{text}</p>
+          <p className="mt-6 inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-primary-600 group-hover:gap-3 transition-all">{action} <ArrowRight className="h-4 w-4" /></p>
+        </div>
+      </motion.div>
     </Link>
   );
 }

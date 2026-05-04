@@ -72,10 +72,49 @@ export class FirestoreOrderRepository implements IOrderRepository {
     return this.mapDocToOrder(snapshot.docs[0].id, snapshot.docs[0].data());
   }
 
-  async getByUserId(userId: string): Promise<Order[]> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+  async getByUserId(userId: string, options?: {
+    status?: OrderStatus | 'all';
+    limit?: number;
+    cursor?: string;
+    from?: Date;
+    to?: Date;
+  }): Promise<{ orders: Order[]; nextCursor?: string }> {
+    let q = query(
+      collection(getUnifiedDb(), this.collectionName), 
+      where('userId', '==', userId), 
+      orderBy('createdAt', 'desc')
+    );
+
+    if (options?.status && options.status !== 'all') {
+      q = query(q, where('status', '==', options.status));
+    }
+
+    if (options?.from) {
+      q = query(q, where('createdAt', '>=', Timestamp.fromDate(options.from)));
+    }
+
+    if (options?.to) {
+      q = query(q, where('createdAt', '<=', Timestamp.fromDate(options.to)));
+    }
+
+    const limitVal = options?.limit ?? 20;
+    q = query(q, limit(limitVal + 1));
+
+    if (options?.cursor) {
+      const cursorDoc = await getDoc(doc(getUnifiedDb(), this.collectionName, options.cursor));
+      if (cursorDoc.exists()) {
+        q = query(q, startAfter(cursorDoc));
+      }
+    }
+
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any));
+    const results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToOrder(d.id, d.data() as any));
+    
+    const hasNextPage = results.length > limitVal;
+    const orders = results.slice(0, limitVal);
+    const nextCursor = hasNextPage ? orders[orders.length - 1].id : undefined;
+
+    return { orders, nextCursor };
   }
 
   async getAll(options?: {

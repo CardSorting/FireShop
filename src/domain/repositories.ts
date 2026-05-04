@@ -53,7 +53,13 @@ export interface IOrderRepository {
   getById(id: string): Promise<Order | null>;
   getByIdempotencyKey(key: string): Promise<Order | null>;
   getByPaymentTransactionId(id: string): Promise<Order | null>;
-  getByUserId(userId: string): Promise<Order[]>;
+  getByUserId(userId: string, options?: {
+    status?: OrderStatus | 'all';
+    limit?: number;
+    cursor?: string;
+    from?: Date;
+    to?: Date;
+  }): Promise<{ orders: Order[]; nextCursor?: string }>;
   getAll(options?: {
     status?: OrderStatus;
     query?: string;
