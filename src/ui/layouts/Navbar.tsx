@@ -131,10 +131,10 @@ export function Navbar() {
         </div>
       </div>
 
-      <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50 transition-all header-honey-drip">
+      <nav className="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-nav transition-all header-honey-drip">
         {/* Nectar Progress Bar */}
         <div 
-          className="absolute bottom-0 left-0 h-0.5 bg-primary-500 z-60 transition-all duration-300"
+          className="absolute bottom-0 left-0 h-0.5 bg-primary-500 z-nav transition-all duration-300"
           style={{ width: `${scrollProgress}%` }}
         />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -173,7 +173,7 @@ export function Navbar() {
                 
                 {/* Simplified Mega-menu */}
                 {navMenu && (
-                  <div className="absolute top-full left-0 w-[540px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-50 ring-1 ring-black/5">
+                  <div className="absolute top-full left-0 w-[540px] bg-white rounded-3xl shadow-2xl border border-gray-100 p-8 opacity-0 translate-y-2 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 z-nav ring-1 ring-black/5">
                     <div className="grid grid-cols-2 gap-12">
                       <div>
                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
@@ -330,7 +330,7 @@ export function Navbar() {
 
       {/* Mobile Menu Overlay - Upgrade to Drawer */}
       {isMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 overflow-hidden">
+        <div className="md:hidden fixed inset-0 z-drawer overflow-hidden">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" onClick={() => setIsMenuOpen(false)} />
           <div className="absolute inset-y-0 left-0 w-full max-w-xs bg-white shadow-2xl animate-in slide-in-from-left duration-300 ease-out flex flex-col">
             <div className="flex items-center justify-between px-6 py-6 border-b">

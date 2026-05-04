@@ -37,7 +37,7 @@ export function QuickViewModal({
   };
 
   return (
-    <div className="fixed inset-0 z-300 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="fixed inset-0 z-popover flex items-center justify-center p-4 sm:p-6 lg:p-8">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-gray-900/60 backdrop-blur-md animate-in fade-in duration-300" 

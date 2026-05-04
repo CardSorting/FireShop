@@ -47,7 +47,7 @@ export function CartDrawer() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-100 flex justify-end">
+    <div className="fixed inset-0 z-drawer flex justify-end">
       {/* Backdrop: with smoother blur and opacity */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-500"

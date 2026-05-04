@@ -506,7 +506,15 @@ export class OrderService {
     }
   }
 
-  async getOrders(userId: string, options?: any): Promise<Order[]> {
+  async getOrders(userId: string, options?: {
+    status?: OrderStatus | 'all';
+    query?: string;
+    from?: string | Date;
+    to?: string | Date;
+    sort?: 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
+    limit?: number;
+    cursor?: string;
+  }): Promise<Order[]> {
     return this.getOrdersForCustomerView(userId, options);
   }
 

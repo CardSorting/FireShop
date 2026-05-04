@@ -25,7 +25,7 @@ export function MobileStickyBuyBar({
   return (
     <div 
       className={`
-        fixed bottom-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-xl border-t border-gray-100 p-4 
+        fixed bottom-0 left-0 right-0 z-nav bg-white/90 backdrop-blur-xl border-t border-gray-100 p-4 
         transition-transform duration-500 ease-in-out lg:hidden
         ${visible ? 'translate-y-0' : 'translate-y-full'}
       `}

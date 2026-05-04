@@ -25,6 +25,15 @@
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
   --color-gray-900: #111827;
+
+  --z-below: -1;
+  --z-base: 0;
+  --z-nav: 50;
+  --z-drawer: 100;
+  --z-modal: 200;
+  --z-popover: 300;
+  --z-toast: 400;
+  --z-max: 9999;
 }
 
 html {

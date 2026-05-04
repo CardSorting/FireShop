@@ -291,7 +291,7 @@ export function ProductReviews({ productId }: { productId: string }) {
       )}
 
       {selectedImage && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-12">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4 sm:p-12">
            <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setSelectedImage(null)} />
            <div className="relative max-w-5xl w-full aspect-square sm:aspect-video rounded-4xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500">
               <img src={selectedImage} alt="Fullscreen preview" className="w-full h-full object-contain bg-black" />
@@ -449,7 +449,7 @@ function ReviewForm({ onClose, onSubmit, submitting }: {
   };
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-8">
+    <div className="fixed inset-0 z-drawer flex items-center justify-center p-4 sm:p-8">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-2xl animate-in fade-in duration-500" onClick={onClose} />
       
       <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-300">

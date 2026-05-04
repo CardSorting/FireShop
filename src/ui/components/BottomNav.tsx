@@ -17,7 +17,7 @@ export function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-nav lg:hidden">
       {/* Safe Area Spacer */}
       <div className="h-[calc(4.5rem+env(safe-area-inset-bottom))] bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 pb-[env(safe-area-inset-bottom)] flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
         {navItems.map((item) => {
