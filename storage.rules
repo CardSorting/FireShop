@@ -36,6 +36,11 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    match /blog/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Digital Assets: Restricted to Admin write and read.
     // Client access is mediated via the secure Next.js /api/downloads endpoint
     // which verifies ownership in Firestore before streaming the file.

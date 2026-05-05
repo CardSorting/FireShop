@@ -9,6 +9,10 @@ import {
   Share2, Heart, MessageSquare, ChevronLeft, ChevronRight, Sparkles 
 } from 'lucide-react';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeSlug from 'rehype-slug';
+import rehypeRaw from 'rehype-raw';
 import type { KnowledgebaseArticle, Author, BlogComment, Product } from '@domain/models';
 
 export default function PostContent({ post, initialComments, initialAuthor, initialRelatedProducts, latestPosts = [] }: { 
@@ -226,7 +230,12 @@ export default function PostContent({ post, initialComments, initialAuthor, init
           </div>
 
           <article className="prose prose-slate lg:prose-2xl max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-p:font-medium prose-p:text-gray-600 prose-p:leading-relaxed prose-a:text-primary-600 prose-strong:text-gray-900 prose-img:rounded-[3rem] prose-img:shadow-2xl">
-            {post.content}
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]} 
+              rehypePlugins={[rehypeSlug, rehypeRaw]}
+            >
+              {post.content}
+            </ReactMarkdown>
           </article>
 
           {/* Post Navigation */}

@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
 import { knowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
 
-export async function GET(req: Request, { params }: { params: { postId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ postId: string }> }) {
   try {
-    const comments = await knowledgebaseRepository.getComments(params.postId);
+    const { postId } = await params;
+    const comments = await knowledgebaseRepository.getComments(postId);
     return NextResponse.json(comments);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-export async function POST(req: Request, { params }: { params: { postId: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ postId: string }> }) {
   try {
+    const { postId } = await params;
     const body = await req.json();
     const comment = await knowledgebaseRepository.addComment({
-      postId: params.postId,
+      postId,
       userId: body.userId,
       userName: body.userName,
       userAvatar: body.userAvatar,
