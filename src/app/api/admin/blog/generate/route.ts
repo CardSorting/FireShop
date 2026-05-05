@@ -64,16 +64,27 @@ export async function POST(req: Request) {
       }
     };
 
-    const preferredModel = 'gemini-3-flash-preview';
-    const fallbackModel = 'gemini-3-flash-preview';
+    const preferredModel = 'gemini-3.1-pro-preview';
+    const fallbackModel = 'gemini-1.5-flash';
+    const imageModelName = 'gemini-3.1-flash-image-preview';
     const isVertex = !process.env.GEMINI_API_KEY;
 
+    // 1. Generate Article Content
     text = await tryGenerate(preferredModel, isVertex) || '';
-    
     if (!text) {
-      console.log(`[AI] Falling back to ${fallbackModel}`);
+      console.log(`[AI] Falling back to ${fallbackModel} for content`);
       text = await tryGenerate(fallbackModel, isVertex) || '';
     }
+
+    if (!text) {
+      throw new Error('Failed to generate content: Empty response from AI model');
+    }
+
+    // 2. Generate Feature Image (using the new image-preview model)
+    console.log(`[AI] Generating feature image using ${imageModelName}...`);
+    const imagePrompt = `Generate a high-quality, professional feature image for a blog post titled: "${topic}". The style should be high-end tech photography or epic digital art, optimized for TCG collectors. Return ONLY the image URL or a base64 string.`;
+    const featureImageResult = await tryGenerate(imageModelName, isVertex);
+    const featuredImageUrl = featureImageResult || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop'; // High-quality fallback
 
     if (!text) {
       throw new Error('Failed to generate content: Empty response from AI model');
@@ -100,6 +111,7 @@ export async function POST(req: Request) {
       notHelpfulCount: 0,
       metaTitle: data.metaTitle,
       metaDescription: data.metaDescription,
+      featuredImageUrl: featuredImageUrl,
       seriesId: seriesId || null,
       createdAt: new Date(),
       updatedAt: new Date(),
