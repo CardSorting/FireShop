@@ -292,22 +292,24 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                 <ChevronRight className="absolute right-8 top-1/2 -translate-y-1/2 w-4 h-4 rotate-90 text-gray-400 pointer-events-none" />
               </div>
 
-              {/* Grid Density Controls */}
               <div className="hidden lg:flex items-center gap-2 p-1 bg-gray-50 rounded-2xl ml-4">
                 <button 
                   onClick={() => setGridCols(2)}
+                  title="2-column grid view"
                   className={`p-3 rounded-xl transition-all ${gridCols === 2 ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   <Grid2X2 className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={() => setGridCols(3)}
+                  title="3-column grid view"
                   className={`p-3 rounded-xl transition-all ${gridCols === 3 ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   <Grid3X3 className="w-5 h-5" />
                 </button>
                 <button 
                   onClick={() => setGridCols(4)}
+                  title="4-column grid view"
                   className={`p-3 rounded-xl transition-all ${gridCols === 4 ? 'bg-white text-gray-900 shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
                 >
                   <LayoutGrid className="w-5 h-5" />
@@ -515,15 +517,21 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                 <div className="flex items-center justify-between mb-8">
                    <p className="text-sm font-bold text-gray-400 tracking-tight">Showing <span className="text-gray-900">{products.length}</span> items</p>
                 </div>
-                <div className={`grid grid-cols-1 sm:grid-cols-2 ${gridCols === 2 ? 'xl:grid-cols-2' : gridCols === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'} gap-x-8 gap-y-16 animate-in fade-in duration-700`}>
+                <div 
+                  className={`grid grid-cols-1 sm:grid-cols-2 ${gridCols === 2 ? 'xl:grid-cols-2' : gridCols === 3 ? 'xl:grid-cols-3' : 'xl:grid-cols-4'} gap-x-8 gap-y-16 animate-in fade-in duration-700`}
+                  itemScope itemType="https://schema.org/ItemList"
+                >
+                  <meta itemProp="numberOfItems" content={products.length.toString()} />
                   {products.map((p, i) => (
-                    <ProductCard 
-                      key={p.id} 
-                      product={p} 
-                      onAddToCart={handleQuickAdd}
-                      onQuickView={setQuickViewProduct}
-                      priority={i < (gridCols * 2)}
-                    />
+                    <div key={p.id} itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+                      <meta itemProp="position" content={(i + 1).toString()} />
+                      <ProductCard 
+                        product={p} 
+                        onAddToCart={handleQuickAdd}
+                        onQuickView={setQuickViewProduct}
+                        priority={i < (gridCols * 2)}
+                      />
+                    </div>
                   ))}
                 </div>
 

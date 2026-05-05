@@ -75,12 +75,27 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+    const searchActionLd = {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        url: 'https://dreambeesart.com',
+        potentialAction: {
+            '@type': 'SearchAction',
+            target: 'https://dreambeesart.com/search?q={search_term_string}',
+            'query-input': 'required name=search_term_string',
+        },
+    };
+
     return (
         <html lang="en" suppressHydrationWarning className={inter.variable}>
             <head>
                 <link rel="preconnect" href="https://js.stripe.com" />
                 <link rel="dns-prefetch" href="https://js.stripe.com" />
                 <link rel="preconnect" href="https://api.stripe.com" />
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(searchActionLd) }}
+                />
             </head>
             <body suppressHydrationWarning className={inter.className}>
                 <ErrorBoundary>
@@ -88,7 +103,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <CartProvider>
                             <WishlistProvider>
                                 <StorefrontShell>
-                                    {children}
+                                    <div id="main-content">
+                                        {children}
+                                    </div>
                                 </StorefrontShell>
                             </WishlistProvider>
                         </CartProvider>

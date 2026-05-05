@@ -92,7 +92,7 @@ export function Footer() {
           {/* Brand and Description */}
           <div className="lg:col-span-4 space-y-8">
             <div className="space-y-4">
-              <Link href={STORE_PATHS.HOME} className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
+              <Link href={STORE_PATHS.HOME} rel="home" title="DreamBeesArt Home" className="flex items-center gap-3 text-primary-700 font-black text-3xl tracking-tighter hover:opacity-80 transition-opacity">
                 <BeeLogo className="w-12 h-12" />
                 DreamBeesArt
               </Link>
@@ -103,7 +103,7 @@ export function Footer() {
             
 
 
-            <Link href="/support" className="flex items-center gap-3 p-4 bg-primary-600 rounded-2xl text-white shadow-xl shadow-primary-600/20 group hover:bg-primary-700 transition-colors">
+            <Link href="/support" title="Contact Support Hive" className="flex items-center gap-3 p-4 bg-primary-600 rounded-2xl text-white shadow-xl shadow-primary-600/20 group hover:bg-primary-700 transition-colors">
               <Headset className="w-6 h-6" />
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider opacity-80">Need help?</p>
@@ -118,10 +118,10 @@ export function Footer() {
             <div className="space-y-4">
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Shop</h3>
               <ul className="space-y-3">
-                <li><Link href={STORE_PATHS.PRODUCTS} className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">All Products</Link></li>
-                <li><Link href="/collections/artist-cards" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Artist Trading Cards</Link></li>
-                <li><Link href="/collections/prints" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Art Prints</Link></li>
-                <li><Link href="/collections/accessories" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">TCG Accessories</Link></li>
+                <li><Link href={STORE_PATHS.PRODUCTS} title="Shop all art and accessories" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">All Products</Link></li>
+                <li><Link href="/collections/artist-cards" title="Browse handcrafted Artist Trading Cards" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Artist Trading Cards</Link></li>
+                <li><Link href="/collections/prints" title="Explore premium art prints" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Art Prints</Link></li>
+                <li><Link href="/collections/accessories" title="Shop TCG protection and gear" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">TCG Accessories</Link></li>
               </ul>
             </div>
 
@@ -182,7 +182,7 @@ export function Footer() {
 
           <div className="text-right" itemScope itemType="https://schema.org/LocalBusiness">
             <meta itemProp="name" content="DreamBeesArt" />
-            <meta itemProp="email" content="[EMAIL_ADDRESS]" />
+            <meta itemProp="email" content="support@dreambeesart.com" />
             <meta itemProp="url" content="https://dreambeesart.com" />
             <div itemProp="address" itemScope itemType="https://schema.org/PostalAddress" className="hidden">
               <span itemProp="streetAddress">123 Art Lane</span>

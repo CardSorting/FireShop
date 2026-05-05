@@ -90,8 +90,31 @@ export function HomePage() {
     }
   };
 
+  const orgLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'DreamBeesArt',
+    url: 'https://dreambeesart.com',
+    logo: 'https://dreambeesart.com/logo.png',
+    sameAs: [
+      'https://twitter.com/dreambeesart',
+      'https://instagram.com/dreambeesart',
+      'https://facebook.com/dreambeesart'
+    ],
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: '+1-555-ART-HIVE',
+      contactType: 'customer service',
+      email: 'support@dreambeesart.com'
+    }
+  };
+
   return (
     <div className="bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
+      />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gray-900 text-white">
         <div className="absolute inset-0">
@@ -394,6 +417,32 @@ export function HomePage() {
           <Link href="/blog" className="mt-12 sm:hidden w-full flex items-center justify-center py-5 rounded-2xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest shadow-xl">
             Enter the Journal
           </Link>
+        </div>
+      </section>
+
+      {/* Industrial Content Anchor: Topical Relevance */}
+      <section className="py-24 bg-white border-t border-gray-100">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 mb-8">
+            <HiveCell className="w-8 h-8 text-primary-600" />
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-6 uppercase">The Heart of the Hive</h2>
+          <div className="space-y-6 text-gray-600 font-medium leading-relaxed text-lg">
+            <p>
+              At <strong className="text-gray-900">DreamBeesArt</strong>, we believe that art should be more than just a digital file. Our mission is to bridge the gap between digital creativity and physical collectability through premium <Link href="/collections/artist-cards" className="text-primary-600 hover:underline">Artist Trading Cards (ATC)</Link>, high-fidelity art prints, and professional-grade TCG accessories.
+            </p>
+            <p>
+              Every piece in our marketplace is vetted for quality and originality. From limited-edition fandom-inspired prints to hand-drawn one-of-a-kind trading cards, we provide independent artists with a platform to reach collectors who value craftsmanship and archival quality. Whether you are looking to protect your most valuable cards or find the next centerpiece for your gallery wall, the Hive is your home for premium artistic expression.
+            </p>
+            <p className="text-sm text-gray-400">
+              Specializing in: Handcrafted Artist Trading Cards, Museum-Grade Art Prints, TCG Deck Boxes, Custom Card Sleeves, and Independent Artist Merch.
+            </p>
+          </div>
+          <div className="mt-12 flex flex-wrap justify-center gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+             <span className="text-xs font-black uppercase tracking-[0.3em]">Indie Artist Collective</span>
+             <span className="text-xs font-black uppercase tracking-[0.3em]">Archival Quality Guaranteed</span>
+             <span className="text-xs font-black uppercase tracking-[0.3em]">Global Collector Network</span>
+          </div>
         </div>
       </section>
     </div>
