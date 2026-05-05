@@ -2,6 +2,7 @@
 
 @theme {
   --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Charter', 'Georgia', 'Cambria', 'Times New Roman', serif;
   --font-mono: ui-monospace, Consolas, monospace;
 
   --color-primary-50: #fffbeb;
@@ -45,6 +46,7 @@ body {
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* Scrollbar polish */
@@ -308,4 +310,90 @@ html {
   background: linear-gradient(180deg, var(--color-primary-500) 0%, transparent 100%);
   opacity: 0.3;
   pointer-events: none;
+}
+/* Editorial Utilities */
+.drop-cap::first-letter {
+  float: left;
+  font-size: 5rem;
+  line-height: 0.8;
+  font-weight: 900;
+  margin-right: 0.75rem;
+  margin-top: 0.5rem;
+  color: var(--color-primary-600);
+}
+
+.editorial-blockquote {
+  position: relative;
+  padding-left: 3rem;
+  margin: 4rem 0;
+  font-style: italic;
+  font-size: 1.5rem;
+  color: var(--color-gray-700);
+  border-left: 4px solid var(--color-primary-500);
+}
+
+.editorial-blockquote::before {
+  content: '"';
+  position: absolute;
+  left: -0.5rem;
+  top: -1.5rem;
+  font-size: 6rem;
+  color: var(--color-primary-100);
+  font-family: serif;
+  opacity: 0.5;
+}
+
+.editorial-hr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 5rem 0;
+  gap: 1rem;
+}
+
+.editorial-hr::before,
+.editorial-hr::after {
+  content: "";
+  height: 1px;
+  width: 5rem;
+  background-color: var(--color-gray-200);
+}
+
+.editorial-hr-hive {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin: 6rem 0;
+}
+
+.editorial-h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.editorial-h2::before {
+  content: "";
+  height: 2px;
+  width: 1.5rem;
+  background-color: var(--color-primary-500);
+}
+
+.prose-serif p {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  line-height: 1.8;
+  color: var(--color-gray-800);
+}
+
+.editorial-mark {
+  background: linear-gradient(120deg, var(--color-primary-100) 0%, var(--color-primary-100) 100%);
+  background-repeat: no-repeat;
+  background-size: 100% 0.4em;
+  background-position: 0 88%;
+  transition: background-size 0.25s ease-in;
+}
+
+.editorial-mark:hover {
+  background-size: 100% 0.8em;
 }

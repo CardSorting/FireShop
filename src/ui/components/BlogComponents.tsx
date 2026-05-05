@@ -64,10 +64,10 @@ export function BlogCard({ post, variant = 'standard' }: {
   return (
     <Link 
       href={`/blog/${post.slug}`}
-      className={`group flex flex-col ${isWide ? 'lg:flex-row lg:col-span-2' : ''} bg-white rounded-[2.5rem] md:rounded-[3rem] overflow-hidden border border-gray-100 shadow-xs hover:shadow-2xl hover:-translate-y-1 transition-all duration-500`}
+      className={`group flex flex-col ${isWide ? 'lg:flex-row lg:col-span-2' : ''} h-full bg-gray-50/30 rounded-3xl overflow-hidden border border-gray-100 transition-all duration-500 hover:bg-white hover:border-primary-200`}
       itemProp="blogPost" itemScope itemType="https://schema.org/BlogPosting"
     >
-      <div className={`relative ${isWide ? 'lg:w-1/2 h-72 md:h-96 lg:h-auto' : 'h-64 md:h-80'} overflow-hidden`}>
+      <div className={`relative ${isWide ? 'lg:w-[40%] h-64 md:h-80 lg:h-auto' : 'h-52 md:h-60'} overflow-hidden shrink-0`}>
         {post.featuredImageUrl ? (
           <Image 
             src={post.featuredImageUrl} 
@@ -77,69 +77,46 @@ export function BlogCard({ post, variant = 'standard' }: {
             itemProp="image"
           />
         ) : (
-          <div className="w-full h-full bg-gray-50 flex items-center justify-center">
-            <Sparkles className="h-16 w-16 text-gray-200" />
+          <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+            <Sparkles className="h-8 w-8 text-gray-300" />
           </div>
         )}
-        {/* ... badges ... */}
       </div>
       
-      <div className={`p-8 md:p-10 lg:p-12 flex-1 flex flex-col ${isWide ? 'lg:justify-center lg:px-16' : ''}`}>
-        <div className="space-y-4 md:space-y-6">
-          <div className="flex items-center gap-3 md:gap-4 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400">
-            <span>{new Date(post.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-            <span className="h-1 w-1 rounded-full bg-gray-200" />
-            <div className="flex items-center gap-1.5 md:gap-2">
-              <Clock className="h-3 w-3 md:h-4 md:w-4" />
-              <span>{readingTime} Min</span>
+      <div className={`p-6 md:p-8 flex-1 flex flex-col ${isWide ? 'lg:justify-center lg:px-10' : ''}`}>
+        <div className="space-y-3 flex-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-black uppercase tracking-widest text-primary-600">
+              {post.categoryName}
+            </span>
+            <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-400">
+              <Clock className="h-3 w-3" />
+              {readingTime}m
             </div>
           </div>
           
-          <h3 className={`${isWide ? 'text-3xl md:text-4xl lg:text-5xl' : 'text-2xl md:text-3xl'} font-black text-gray-900 leading-tight group-hover:text-primary-600 transition-colors tracking-tight`}>
+          <h3 className={`${isWide ? 'text-2xl md:text-3xl' : 'text-lg md:text-xl'} font-black text-gray-900 leading-tight group-hover:text-primary-600 transition-colors tracking-tight`}>
             {post.title}
           </h3>
           
-          <p className="text-gray-500 font-medium line-clamp-3 leading-relaxed text-sm md:text-base">
+          <p className="text-gray-500 font-medium line-clamp-2 text-xs md:text-sm leading-relaxed">
             {post.excerpt}
           </p>
         </div>
 
-        {/* Premium Actions & Metadata */}
-        <div className="mt-8 flex items-center gap-6">
-           <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-primary-600 transition-colors group/action">
-             <Play className="h-3.5 w-3.5 fill-current opacity-20 group-hover/action:opacity-100 transition-all" />
-             Listen
-           </button>
-           <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-primary-600 transition-colors group/action">
-             <Bookmark className="h-3.5 w-3.5 group-hover/action:fill-current transition-all" />
-             Save
-           </button>
-           <div className="flex-1 h-0.5 bg-gray-50 rounded-full overflow-hidden">
-             <div className="h-full bg-primary-600/20 w-0 group-hover:w-1/3 transition-all duration-1000" />
-           </div>
-        </div>
-        
-        <div className="mt-8 md:mt-12 flex items-center justify-between pt-6 md:pt-8 border-t border-gray-50">
-          <div className="flex items-center gap-3 md:gap-4">
-             <div className="h-10 w-10 md:h-12 md:w-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border-[3px] md:border-4 border-white shadow-lg ring-1 ring-gray-100">
+        <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-100/50">
+          <div className="flex items-center gap-2">
+             <div className="h-6 w-6 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden grayscale group-hover:grayscale-0 transition-all">
                <img 
                  src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
                  alt="Author" 
                  className="h-full w-full object-cover"
                />
              </div>
-             <div className="flex flex-col -space-y-0.5 md:-space-y-1">
-               <span className="text-[10px] md:text-[11px] font-black text-gray-900 uppercase tracking-widest">{post.authorName || 'Staff'}</span>
-               <span className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-widest">Hive Mind</span>
-             </div>
+             <span className="text-[9px] font-black text-gray-400 group-hover:text-gray-900 uppercase tracking-widest transition-colors">{post.authorName || 'Staff'}</span>
           </div>
           
-          <div className="group/btn flex items-center gap-2 md:gap-3 text-[9px] md:text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary-600 transition-all">
-            Read Story
-            <div className="h-8 w-8 md:h-10 md:w-10 rounded-2xl bg-gray-50 flex items-center justify-center group-hover/btn:bg-primary-600 group-hover/btn:text-white group-hover/btn:rotate-45 transition-all duration-500">
-              <ChevronRight className="h-3 w-3 md:h-4 md:w-4" />
-            </div>
-          </div>
+          <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" />
         </div>
       </div>
     </Link>
@@ -181,17 +158,45 @@ export function TrendingPostItem({ post, index }: { post: KnowledgebaseArticle, 
   );
 }
 
-export function TopicPill({ name, isActive, onClick }: { name: string, isActive?: boolean, onClick?: () => void }) {
+import * as LucideIcons from 'lucide-react';
+
+export function TopicPill({ 
+  name, 
+  isActive, 
+  onClick, 
+  icon, 
+  count 
+}: { 
+  name: string, 
+  isActive?: boolean, 
+  onClick?: () => void, 
+  icon?: string,
+  count?: number
+}) {
+  const Icon = icon ? (LucideIcons as any)[icon] || LucideIcons.Sparkles : null;
+
   return (
     <button
       onClick={onClick}
-      className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+      className={`group relative flex items-center gap-3 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 whitespace-nowrap ${
         isActive 
-          ? 'bg-gray-900 text-white shadow-xl shadow-gray-200' 
-          : 'bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+          ? 'bg-gray-900 text-white shadow-2xl shadow-gray-200 -translate-y-1' 
+          : 'bg-white text-gray-500 hover:bg-gray-50 hover:text-gray-900 border border-gray-100 shadow-sm'
       }`}
     >
-      {name}
+      {Icon && (
+        <Icon className={`h-4 w-4 transition-transform duration-500 ${isActive ? 'text-primary-400' : 'text-gray-300 group-hover:text-primary-600 group-hover:scale-110'}`} />
+      )}
+      <span>{name}</span>
+      {count !== undefined && (
+        <span className={`px-2 py-0.5 rounded-lg text-[8px] font-bold ${isActive ? 'bg-white/10 text-white/40' : 'bg-gray-100 text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600'}`}>
+          {count}
+        </span>
+      )}
+      
+      {isActive && (
+        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary-500 rounded-full blur-[2px]" />
+      )}
     </button>
   );
 }
@@ -200,52 +205,39 @@ export function SeriesCard({ series }: { series: BlogSeries }) {
   return (
     <Link 
       href={`/blog/series/${series.slug}`}
-      className="group relative flex flex-col w-[350px] md:w-[450px] shrink-0 bg-gray-900 rounded-[3rem] overflow-hidden shadow-2xl hover:-translate-y-2 transition-all duration-700"
+      className="group relative flex flex-col w-[320px] md:w-[400px] shrink-0 bg-white rounded-3xl overflow-hidden border border-gray-100 transition-all duration-500 hover:border-primary-200"
     >
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-linear-to-b from-transparent via-gray-900/60 to-gray-900 z-10" />
+      <div className="relative h-48 overflow-hidden">
         {series.featuredImageUrl ? (
           <img src={series.featuredImageUrl} alt={series.title} className="w-full h-full object-cover transition-transform duration-[10s] group-hover:scale-110" />
         ) : (
-          <div className="w-full h-full bg-gray-800" />
+          <div className="w-full h-full bg-gray-100" />
         )}
+        <div className="absolute inset-0 bg-linear-to-t from-white via-white/20 to-transparent" />
       </div>
 
-      <div className="relative z-20 mt-auto p-10 space-y-6">
+      <div className="relative p-8 space-y-4">
         <div className="flex items-center justify-between">
-          <span className="px-4 py-1.5 rounded-full bg-primary-600 text-white text-[9px] font-black uppercase tracking-widest shadow-xl shadow-primary-600/30">
+          <span className="text-[9px] font-black uppercase tracking-widest text-primary-600">
             Learning Path
           </span>
-          <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-white/40">
-            <BarChart3 className="h-3 w-3" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-gray-300">
             {series.difficulty}
-          </div>
+          </span>
         </div>
 
-        <div className="space-y-3">
-          <h3 className="text-2xl md:text-3xl font-black text-white tracking-tight leading-tight group-hover:text-primary-400 transition-colors">
+        <div className="space-y-2">
+          <h3 className="text-xl font-black text-gray-900 tracking-tight leading-tight group-hover:text-primary-600 transition-colors">
             {series.title}
           </h3>
-          <p className="text-white/60 text-sm font-medium line-clamp-2 leading-relaxed">
+          <p className="text-gray-500 text-xs font-medium line-clamp-2 leading-relaxed">
             {series.description}
           </p>
         </div>
 
-        <div className="pt-4 flex items-center justify-between border-t border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="flex -space-x-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-8 w-8 rounded-full bg-gray-800 border-2 border-gray-900 flex items-center justify-center overflow-hidden">
-                   <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=Strategy${i}`} alt="Avatar" />
-                </div>
-              ))}
-            </div>
-            <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{series.articleCount} Articles</span>
-          </div>
-          
-          <div className="h-12 w-12 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-all shadow-xl">
-             <ChevronRight className="h-5 w-5" />
-          </div>
+        <div className="pt-4 flex items-center justify-between border-t border-gray-50">
+          <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">{series.articleCount} Articles</span>
+          <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" />
         </div>
       </div>
     </Link>

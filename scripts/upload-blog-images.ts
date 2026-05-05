@@ -27,7 +27,26 @@ const UPLOAD_MAP = [
   
   // Aesthetics
   { local: 'custom_keyboard_battle_station_feature_1778019935329.png', remote: 'blog/custom_keyboard_battle_station_feature.png' },
-  { local: 'rgb_lighting_setup_feature_1778019952258.png', remote: 'blog/rgb_lighting_setup_feature.png' }
+  { local: 'rgb_lighting_setup_feature_1778019952258.png', remote: 'blog/rgb_lighting_setup_feature.png' },
+  
+  // Tabletop & Misc
+  { local: 'warhammer_40k_feature_1777994876481.png', remote: 'blog/warhammer_40k_feature.png' },
+  { local: 'dark_magician_deck_feature_1777994677233.png', remote: 'blog/dark_magician_deck_feature.png' },
+  { local: 'gloomhaven_feature_1777994861107.png', remote: 'blog/gloomhaven_feature.png' },
+  { local: 'red_eyes_deck_feature_1777994605199.png', remote: 'blog/red_eyes_deck_feature.png' },
+  { local: 'blue_eyes_deck_feature_1777994586600.png', remote: 'blog/blue_eyes_deck_feature.png' },
+  { local: 'fourth_blue_eyes_meme_feature_1777994357106.png', remote: 'blog/fourth_blue_eyes_meme_feature.png' },
+  { local: 'pot_of_greed_meme_feature_1777994268527.png', remote: 'blog/pot_of_greed_meme_feature.png' },
+  { local: 'reading_card_meme_feature_1777994286428.png', remote: 'blog/reading_card_meme_feature.png' },
+  { local: 'psa_vs_bgs_feature_1777993930295.png', remote: 'blog/psa_vs_bgs_feature.png' },
+  { local: 'custom_keyboard_feature_1777993967532.png', remote: 'blog/custom_keyboard_feature.png' },
+  { local: 'infinite_forbidden_feature_1777993949847.png', remote: 'blog/infinite_forbidden_feature.png' },
+  { local: 'kdm_feature_1777994949531.png', remote: 'blog/kdm_feature.png' },
+  { local: 'melee_competitive_feature_1777995095907.png', remote: 'blog/melee_competitive_feature.png' },
+  { local: 'sonic_melee_rumor_feature_1777995117091.png', remote: 'blog/sonic_melee_rumor_feature.png' },
+  { local: 'smash_evolution_feature_1777995196753.png', remote: 'blog/smash_evolution_feature.png' },
+  { local: 'tekken_mishima_feature_1778022265127.png', remote: 'blog/tekken_mishima_feature.png' },
+  { local: 'evo_moment_37_feature_1778022277934.png', remote: 'blog/evo_moment_37_feature.png' }
 ];
 
 async function uploadImages() {
