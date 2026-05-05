@@ -43,8 +43,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     },
     openGraph: {
       title: resolved.data.name,
-      description: resolved.data.description || '',
+      description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}.`,
       type: 'website',
+      images: resolved.type === 'collection' && resolved.data.imageUrl ? [resolved.data.imageUrl] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: resolved.data.name,
+      description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}.`,
+      images: resolved.type === 'collection' && resolved.data.imageUrl ? [resolved.data.imageUrl] : [],
     },
   };
 }

@@ -7,6 +7,7 @@ import { HiveCell } from '../Logo';
 import { formatCurrency } from '@utils/formatters';
 import { useWishlist } from '../../hooks/useWishlist';
 import type { Product } from '@domain/models';
+import Image from 'next/image';
 
 interface ProductCardProps {
   product: Product;
@@ -56,15 +57,20 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   };
 
   return (
-    <div className="group relative flex flex-col h-full">
+    <div className="group relative flex flex-col h-full" itemScope itemType="https://schema.org/Product">
+      <meta itemProp="sku" content={product.sku || product.id} />
+      <meta itemProp="brand" content="DreamBeesArt" />
+      
       {/* Visual Container */}
       <div className="relative aspect-4/5 rounded-4xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-700 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-primary-100/50">
         <Link href={`/products/${product.handle || product.id}`} className="absolute inset-0 z-10" aria-label={`View ${product.name}`}>
-          <img
+          <Image
             src={product.imageUrl}
-            alt={product.name}
-            loading={priority ? 'eager' : 'lazy'}
-            className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+            alt={`${product.name} - Handcrafted ${product.category}`}
+            fill
+            priority={priority}
+            itemProp="image"
+            className="object-cover transition-transform duration-1000 group-hover:scale-110"
           />
         </Link>
 
@@ -136,7 +142,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
       <div className="mt-6 px-1 flex-1 flex flex-col">
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest">
+            <span className="text-[10px] font-black text-primary-600 uppercase tracking-widest" itemProp="category">
               {product.category}
             </span>
             <div className="h-1 w-1 rounded-full bg-gray-200" />
@@ -145,20 +151,26 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
             </span>
           </div>
           {displayRating && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50">
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary-50" itemProp="aggregateRating" itemScope itemType="https://schema.org/AggregateRating">
+              <meta itemProp="ratingValue" content={displayRating.toString()} />
+              <meta itemProp="reviewCount" content="12" />
               <HiveCell className="w-3 h-3 text-primary-600" />
               <span className="text-[10px] font-black text-primary-700">{displayRating.toFixed(1)}</span>
             </div>
           )}
         </div>
 
-        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 group-hover:text-primary-600 transition-colors">
+        <h3 className="font-bold text-gray-900 text-lg leading-tight mb-2 group-hover:text-primary-600 transition-colors" itemProp="name">
           <Link href={`/products/${product.handle || product.id}`}>{product.name}</Link>
         </h3>
         
-        <div className="mt-auto flex items-center justify-between">
+        <div className="mt-auto flex items-center justify-between" itemProp="offers" itemScope itemType="https://schema.org/Offer">
+          <meta itemProp="priceCurrency" content="USD" />
+          <meta itemProp="url" content={`https://dreambeesart.com/products/${product.handle || product.id}`} />
+          <meta itemProp="availability" content={product.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"} />
+          
           <div className="flex items-center gap-2">
-            <p className="text-xl font-black text-gray-900 tracking-tight">
+            <p className="text-xl font-black text-gray-900 tracking-tight" itemProp="price" content={(product.price / 100).toString()}>
               {formatCurrency(product.price)}
             </p>
             <HiveCell className="w-3 h-3 text-primary-200" />

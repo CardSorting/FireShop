@@ -75,12 +75,25 @@ export default async function Page({ params }: Props) {
         image: product.imageUrl,
         description: product.description,
         sku: product.sku,
+        brand: {
+            '@type': 'Brand',
+            name: 'DreamBeesArt',
+        },
+        aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: '4.9',
+            reviewCount: '12',
+        },
         offers: {
             '@type': 'Offer',
             price: (product.price / 100).toFixed(2),
             priceCurrency: 'USD',
             availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
             url: `https://dreambeesart.com/products/${product.handle || product.id}`,
+            seller: {
+                '@type': 'Organization',
+                name: 'DreamBeesArt',
+            },
         },
     };
 

@@ -14,12 +14,63 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-    title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
-    description: 'Fan art and artist-inspired merch — handcrafted trading cards, art prints, and TCG accessories from independent creators.',
+    metadataBase: new URL('https://dreambeesart.com'),
+    title: {
+        default: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
+        template: '%s | DreamBeesArt',
+    },
+    description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories. Fan art and artist-inspired merch from independent creators you love.',
+    keywords: ['Artist Trading Cards', 'ATC', 'TCG Accessories', 'Handmade Art', 'Anime Art Prints', 'TCG Supplies'],
+    authors: [{ name: 'DreamBeesArt Team' }],
+    creator: 'DreamBeesArt',
+    publisher: 'DreamBeesArt',
+    formatDetection: {
+        email: false,
+        address: false,
+        telephone: false,
+    },
     icons: {
         icon: '/icon.png',
         shortcut: '/favicon.png',
         apple: '/icon.png',
+    },
+    openGraph: {
+        type: 'website',
+        locale: 'en_US',
+        url: 'https://dreambeesart.com',
+        siteName: 'DreamBeesArt',
+        title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
+        description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
+        images: [
+            {
+                url: '/og-image.png',
+                width: 1200,
+                height: 630,
+                alt: 'DreamBeesArt Storefront',
+            },
+        ],
+    },
+    twitter: {
+        card: 'summary_large_image',
+        title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
+        description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
+        images: ['/og-image.png'],
+        creator: '@DreamBeesArt',
+    },
+    robots: {
+        index: true,
+        follow: true,
+        googleBot: {
+            index: true,
+            follow: true,
+            'max-video-preview': -1,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+        },
+    },
+    verification: {
+        google: 'google-site-verification-placeholder',
+        // Add other verifications here if needed
     },
 };
 

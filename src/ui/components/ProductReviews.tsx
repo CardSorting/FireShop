@@ -66,16 +66,16 @@ export function ProductReviews({ productId }: { productId: string }) {
            <p className="text-gray-600 font-medium">Real stories and feedback from the hive.</p>
         </header>
 
-        <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-20 py-10 bg-gray-50/50 rounded-3xl px-10">
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-12 lg:gap-20 py-10 bg-gray-50/50 rounded-3xl px-10" itemProp="aggregateRating" itemScope itemType="https://schema.org/AggregateRating">
           <div className="flex items-center gap-6 shrink-0">
-            <div className="text-7xl font-bold text-gray-900 leading-none">{stats.averageRating}</div>
+            <div className="text-7xl font-bold text-gray-900 leading-none" itemProp="ratingValue">{stats.averageRating}</div>
             <div className="space-y-1.5">
               <div className="flex text-amber-400">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <Star key={i} className={`w-4 h-4 ${i <= Math.floor(stats.averageRating) ? 'fill-current' : ''}`} />
                 ))}
               </div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stats.totalReviews} Reviews</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest"><span itemProp="reviewCount">{stats.totalReviews}</span> Reviews</p>
             </div>
           </div>
 
@@ -323,15 +323,15 @@ function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id
   };
 
   return (
-    <article className="py-10 group animate-in fade-in duration-500">
+    <article className="py-10 group animate-in fade-in duration-500" itemProp="review" itemScope itemType="https://schema.org/Review">
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="lg:w-1/4 space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" itemProp="author" itemScope itemType="https://schema.org/Person">
             <div className="w-10 h-10 rounded-lg bg-gray-100 text-gray-900 flex items-center justify-center text-sm font-bold">
               {review.userName.charAt(0)}
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900 tracking-tight">{review.userName}</p>
+              <p className="text-sm font-bold text-gray-900 tracking-tight" itemProp="name">{review.userName}</p>
               {review.isVerified && (
                 <div className="flex items-center gap-1 mt-0.5">
                   <ShieldCheck className="w-3 h-3 text-green-600" />
@@ -341,12 +341,15 @@ function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id
             </div>
           </div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <meta itemProp="datePublished" content={review.createdAt.toISOString()} />
             {formatDistanceToNow(review.createdAt, { addSuffix: true })}
           </p>
         </div>
 
         <div className="flex-1 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between" itemProp="reviewRating" itemScope itemType="https://schema.org/Rating">
+            <meta itemProp="ratingValue" content={review.rating.toString()} />
+            <meta itemProp="bestRating" content="5" />
             <div className="flex gap-0.5 text-amber-400">
               {[1, 2, 3, 4, 5].map((i) => (
                 <Star key={i} className={`w-3.5 h-3.5 ${i <= review.rating ? 'fill-current' : 'text-gray-100'}`} />
@@ -355,8 +358,8 @@ function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id
           </div>
           
           <div className="space-y-2">
-            <h4 className="text-lg font-bold text-gray-900 tracking-tight">{review.title}</h4>
-            <p className="text-gray-600 font-medium text-base leading-relaxed max-w-2xl">{review.content}</p>
+            <h4 className="text-lg font-bold text-gray-900 tracking-tight" itemProp="name">{review.title}</h4>
+            <p className="text-gray-600 font-medium text-base leading-relaxed max-w-2xl" itemProp="reviewBody">{review.content}</p>
           </div>
 
           {review.images && review.images.length > 0 && (

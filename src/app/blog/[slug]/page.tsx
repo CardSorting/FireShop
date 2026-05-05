@@ -59,15 +59,47 @@ export default async function BlogPostPage({ params }: Props) {
 
     const filteredLatest = latestPosts.filter((p: any) => p.id !== post.id).slice(0, 3);
 
-    
+    // Industry Standard: Inject JSON-LD for rich snippets
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: post.title,
+      image: post.featuredImageUrl || post.ogImage,
+      datePublished: post.publishedAt?.toISOString(),
+      dateModified: post.updatedAt?.toISOString() || post.publishedAt?.toISOString(),
+      author: {
+        '@type': 'Person',
+        name: post.authorName || 'DreamBeesArt Team',
+      },
+      publisher: {
+        '@type': 'Organization',
+        name: 'DreamBeesArt',
+        logo: {
+          '@type': 'ImageObject',
+          url: 'https://dreambeesart.com/logo.png',
+        },
+      },
+      description: post.metaDescription || post.excerpt,
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': `https://dreambeesart.com/blog/${post.slug}`,
+      },
+    };
+
     return (
-      <PostContent 
-        post={JSON.parse(JSON.stringify(post))} 
-        initialComments={JSON.parse(JSON.stringify(comments))} 
-        initialAuthor={JSON.parse(JSON.stringify(author))}
-        initialRelatedProducts={JSON.parse(JSON.stringify(relatedProducts))}
-        latestPosts={JSON.parse(JSON.stringify(filteredLatest))}
-      />
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        <PostContent 
+          post={JSON.parse(JSON.stringify(post))} 
+          initialComments={JSON.parse(JSON.stringify(comments))} 
+          initialAuthor={JSON.parse(JSON.stringify(author))}
+          initialRelatedProducts={JSON.parse(JSON.stringify(relatedProducts))}
+          latestPosts={JSON.parse(JSON.stringify(filteredLatest))}
+        />
+      </>
     );
   } catch (err) {
     console.error('Error loading blog post:', err);

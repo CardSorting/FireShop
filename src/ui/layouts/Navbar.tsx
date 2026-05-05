@@ -103,8 +103,23 @@ export function Navbar() {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
   };
 
+  const navigationLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SiteNavigationElement',
+    itemListElement: [
+      { '@type': 'ItemList', position: 1, name: 'Home', url: 'https://dreambeesart.com/' },
+      { '@type': 'ItemList', position: 2, name: 'Shop All', url: 'https://dreambeesart.com/products' },
+      { '@type': 'ItemList', position: 3, name: 'Journal', url: 'https://dreambeesart.com/blog' },
+      { '@type': 'ItemList', position: 4, name: 'Support', url: 'https://dreambeesart.com/support' },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(navigationLd) }}
+      />
       <SearchCommandPalette />
       <a 
         href="#main-content" 

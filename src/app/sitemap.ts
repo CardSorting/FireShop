@@ -17,6 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '',
     '/products',
     '/collections',
+    '/blog',
+    '/support',
     '/wishlist',
     '/cart',
     '/login',
@@ -45,5 +47,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...productRoutes, ...collectionRoutes];
+  // 4. Fetch all blog posts
+  const blogPosts = await services.knowledgebaseRepository.getArticles({ type: 'blog', status: 'published' });
+  const blogRoutes = blogPosts.map((post) => ({
+    url: `${baseUrl}/blog/${post.slug}`,
+    lastModified: post.updatedAt || post.publishedAt || new Date(),
+    changeFrequency: 'monthly' as const,
+    priority: 0.5,
+  }));
+
+  return [...staticRoutes, ...productRoutes, ...collectionRoutes, ...blogRoutes];
 }

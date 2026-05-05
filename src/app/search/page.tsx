@@ -11,6 +11,10 @@ export async function generateMetadata({ searchParams }: SearchProps): Promise<M
   return {
     title: query ? `Search: ${query} | DreamBeesArt` : 'Search Catalog | DreamBeesArt',
     description: `Search our extensive catalog of trading cards, sets, and supplies. Results for ${query || 'all products'}.`,
+    robots: {
+      index: false,
+      follow: true,
+    },
     alternates: {
       canonical: query ? `/search?q=${encodeURIComponent(query)}` : '/search',
     },
