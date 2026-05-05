@@ -24,6 +24,12 @@ lerna-debug.log*
 .env.production.local
 .env*.local
 
+# Credentials
+*-service-account.json
+dreambees-alchemist-*.json
+service-account.json
+*.json.key
+
 # Database
 *.db
 *.db-shm
