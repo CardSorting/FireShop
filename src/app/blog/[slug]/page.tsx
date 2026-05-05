@@ -47,19 +47,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params;
   const services = getInitialServices();
-  let post: KnowledgebaseArticle;
+  const post = await services.knowledgebaseRepository.getArticleBySlug(slug);
+  
+  if (!post) {
+    notFound();
+  }
+  
   let comments: BlogComment[];
   let author: Author | null;
   let relatedProducts: Product[];
   let filteredLatest: KnowledgebaseArticle[];
   
   try {
-    post = await services.knowledgebaseRepository.getArticleBySlug(slug);
-    
-    if (!post) {
-      notFound();
-    }
-    
     const [commentsData, authorData, relatedProductsData, latestPosts] = await Promise.all([
       services.knowledgebaseRepository.getComments(post.id),
       post.authorId ? services.knowledgebaseRepository.getAuthorById(post.authorId) : Promise.resolve(null),
@@ -74,8 +73,12 @@ export default async function BlogPostPage({ params }: Props) {
     relatedProducts = relatedProductsData;
     filteredLatest = latestPosts.filter((p: any) => p.id !== post.id).slice(0, 3);
   } catch (err) {
-    console.error('Error loading blog post:', err);
-    notFound();
+    console.error('Error loading blog post metadata:', err);
+    // Even if comments or related products fail, we might still want to show the post
+    comments = [];
+    author = null;
+    relatedProducts = [];
+    filteredLatest = [];
   }
 
   const jsonLd = {

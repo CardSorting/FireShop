@@ -59,3 +59,5 @@ export const adminStorage = new Proxy({} as any, {
     return (Reflect as any).get(_storage, prop);
   }
 });
+
+export { Timestamp, FieldValue } from 'firebase-admin/firestore';

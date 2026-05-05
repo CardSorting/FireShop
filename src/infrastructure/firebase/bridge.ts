@@ -6,7 +6,7 @@
  * Resolves gRPC "Listen" stream errors and connectivity issues in Node.js environments.
  */
 import * as client from 'firebase/firestore';
-import { adminDb } from './admin';
+import { adminDb, Timestamp as AdminTimestamp, FieldValue as AdminFieldValue } from './admin';
 import { getDb as getClientDb } from './firebase';
 
 const isServer = typeof window === 'undefined';
@@ -230,8 +230,7 @@ export function writeBatch(db: any) {
  */
 export function increment(n: number) {
   if (isServer) {
-    const admin = require('firebase-admin');
-    return admin.firestore.FieldValue.increment(n);
+    return AdminFieldValue.increment(n);
   }
   return client.increment(n);
 }
@@ -241,8 +240,7 @@ export function increment(n: number) {
  */
 export function arrayUnion(...elements: any[]) {
   if (isServer) {
-    const admin = require('firebase-admin');
-    return admin.firestore.FieldValue.arrayUnion(...elements);
+    return AdminFieldValue.arrayUnion(...elements);
   }
   return client.arrayUnion(...elements);
 }
@@ -252,14 +250,13 @@ export function arrayUnion(...elements: any[]) {
  */
 export function arrayRemove(...elements: any[]) {
   if (isServer) {
-    const admin = require('firebase-admin');
-    return admin.firestore.FieldValue.arrayRemove(...elements);
+    return AdminFieldValue.arrayRemove(...elements);
   }
   return client.arrayRemove(...elements);
 }
 
 export const Timestamp = isServer 
-  ? require('firebase-admin').firestore.Timestamp 
+  ? AdminTimestamp
   : client.Timestamp;
 export type DocumentData = client.DocumentData;
 export type QueryDocumentSnapshot = client.QueryDocumentSnapshot;
