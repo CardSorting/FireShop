@@ -183,12 +183,21 @@ export default function PostContent({ post, initialComments, initialAuthor, init
              
              <div className="flex flex-wrap items-center gap-8 text-white/60 pt-4">
                 <div className="flex items-center gap-3">
-                   <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md">
-                     <User className="h-5 w-5" />
+                   <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md overflow-hidden border border-white/20">
+                     <img 
+                       src={author?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || 'DreamBees Editorial')}&background=random&color=fff`} 
+                       alt={post.authorName || 'DreamBees Editorial'} 
+                       className="h-full w-full object-cover opacity-80"
+                       onError={(e) => {
+                         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=DE&background=000&color=fff`;
+                       }}
+                     />
                    </div>
                    <div>
-                     <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Written By</p>
-                     <p className="text-sm font-bold text-white">{post.authorName || 'Staff Writer'}</p>
+                     <p className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                       {author ? author.role : 'Editorial Team'}
+                     </p>
+                     <p className="text-sm font-bold text-white">{post.authorName || 'DreamBees Editorial'}</p>
                    </div>
                 </div>
                 <div className="h-10 w-px bg-white/10 hidden md:block" />

@@ -108,12 +108,15 @@ export function BlogCard({ post, variant = 'standard' }: {
           <div className="flex items-center gap-2">
              <div className="h-6 w-6 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden grayscale group-hover:grayscale-0 transition-all">
                <img 
-                 src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
+                 src={`https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || 'DreamBees Editorial')}&background=random&color=fff`} 
                  alt="Author" 
                  className="h-full w-full object-cover"
+                 onError={(e) => {
+                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=DE&background=000&color=fff`;
+                 }}
                />
              </div>
-             <span className="text-[9px] font-black text-gray-400 group-hover:text-gray-900 uppercase tracking-widest transition-colors">{post.authorName || 'Staff'}</span>
+             <span className="text-[9px] font-black text-gray-400 group-hover:text-gray-900 uppercase tracking-widest transition-colors">{post.authorName || 'DreamBees Editorial'}</span>
           </div>
           
           <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-primary-600 group-hover:translate-x-1 transition-all" />
