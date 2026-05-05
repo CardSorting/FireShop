@@ -5,6 +5,7 @@ import { CartProvider } from '@ui/hooks/useCart';
 import { WishlistProvider } from '@ui/hooks/useWishlist';
 import { ErrorBoundary } from '@ui/components/ErrorBoundary';
 import { StorefrontShell } from '@ui/layouts/StorefrontShell';
+import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from '@utils/seo';
 import '../index.css';
 
 const inter = Inter({
@@ -14,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-    metadataBase: new URL('https://dreambeesart.com'),
+    metadataBase: new URL(SITE_URL),
     title: {
         default: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
         template: '%s | DreamBeesArt',
@@ -37,13 +38,13 @@ export const metadata: Metadata = {
     openGraph: {
         type: 'website',
         locale: 'en_US',
-        url: 'https://dreambeesart.com',
-        siteName: 'DreamBeesArt',
+        url: SITE_URL,
+        siteName: SITE_NAME,
         title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
         description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
         images: [
             {
-                url: '/og-image.png',
+                url: absoluteUrl(DEFAULT_OG_IMAGE),
                 width: 1200,
                 height: 630,
                 alt: 'DreamBeesArt Storefront',
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
         card: 'summary_large_image',
         title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
         description: 'Discover handcrafted Artist Trading Cards, stunning art prints, and premium TCG accessories from independent creators.',
-        images: ['/og-image.png'],
+        images: [absoluteUrl(DEFAULT_OG_IMAGE)],
         creator: '@DreamBeesArt',
     },
     robots: {
@@ -68,20 +69,21 @@ export const metadata: Metadata = {
             'max-snippet': -1,
         },
     },
-    verification: {
-        google: 'google-site-verification-placeholder',
-        // Add other verifications here if needed
-    },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     const searchActionLd = {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
-        url: 'https://dreambeesart.com',
+        url: SITE_URL,
+        name: SITE_NAME,
+        alternateName: 'Dream Bees Art',
         potentialAction: {
             '@type': 'SearchAction',
-            target: 'https://dreambeesart.com/search?q={search_term_string}',
+            target: {
+                '@type': 'EntryPoint',
+                urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
+            },
             'query-input': 'required name=search_term_string',
         },
     };

@@ -29,6 +29,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const fallbackSlug = (params?.slug as string | undefined) || (params?.handle as string | undefined); 
   const collectionSlug = resolvedSlug || fallbackSlug;
   const { addItem } = useCart();
+  const wishlist = useWishlist();
 
   const services = useServices();
   const [sortBy, setSortBy] = useState<string>('newest');
@@ -236,11 +237,10 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
           product={quickViewProduct}
           onClose={() => setQuickViewProduct(null)}
           onAddToCart={handleQuickAdd}
-          isFavorited={useWishlist().isInWishlist(quickViewProduct.id)}
+          isFavorited={wishlist.isInWishlist(quickViewProduct.id)}
           onToggleFavorite={async (id) => {
-            const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
-            if (isInWishlist(id)) await removeFromWishlist(id);
-            else await addToWishlist(id);
+            if (wishlist.isInWishlist(id)) await wishlist.removeFromWishlist(id);
+            else await wishlist.addToWishlist(id);
           }}
         />
       )}
@@ -525,6 +525,8 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
                   {products.map((p, i) => (
                     <div key={p.id} itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
                       <meta itemProp="position" content={(i + 1).toString()} />
+                      <meta itemProp="name" content={p.name} />
+                      <link itemProp="url" href={getProductUrl(p)} />
                       <ProductCard 
                         product={p} 
                         onAddToCart={handleQuickAdd}
@@ -553,4 +555,3 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
     </div>
   );
 }
-

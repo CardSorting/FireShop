@@ -3,6 +3,9 @@ import { SupportPage } from '@ui/pages/SupportPage';
 export const metadata = {
   title: 'Help & Support | DreamBeesArt',
   description: 'Need help with your order? Visit our support center for FAQs, shipping information, and contact details.',
+  alternates: {
+    canonical: '/support',
+  },
 };
 
 import { Suspense } from 'react';

@@ -1,13 +1,15 @@
 import { Suspense } from 'react';
 import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
+import { breadcrumbJsonLd, cleanSeoText } from '@utils/seo';
 
 type SearchProps = {
   searchParams: Promise<{ q?: string }>;
 };
 
 export async function generateMetadata({ searchParams }: SearchProps): Promise<Metadata> {
-  const { q: query = '' } = await searchParams;
+  const { q = '' } = await searchParams;
+  const query = cleanSeoText(q);
   return {
     title: query ? `Search: ${query} | DreamBeesArt` : 'Search Catalog | DreamBeesArt',
     description: `Search our extensive catalog of trading cards, sets, and supplies. Results for ${query || 'all products'}.`,
@@ -16,33 +18,20 @@ export async function generateMetadata({ searchParams }: SearchProps): Promise<M
       follow: true,
     },
     alternates: {
-      canonical: query ? `/search?q=${encodeURIComponent(query)}` : '/search',
+      canonical: '/search',
     },
   };
 }
 
 
 export default async function SearchPage({ searchParams }: SearchProps) {
-  const { q: query = '' } = await searchParams;
+  const { q = '' } = await searchParams;
+  const query = cleanSeoText(q);
   
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: 'Home',
-        item: 'https://dreambeesart.com',
-      },
-      {
-        '@type': 'ListItem',
-        position: 2,
-        name: 'Search Results',
-        item: `https://dreambeesart.com/search${query ? `?q=${encodeURIComponent(query)}` : ''}`,
-      },
-    ],
-  };
+  const jsonLd = breadcrumbJsonLd([
+    { name: 'Home', path: '/' },
+    { name: 'Search Results', path: '/search' },
+  ]);
 
   return (
     <>

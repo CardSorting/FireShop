@@ -90,31 +90,8 @@ export function HomePage() {
     }
   };
 
-  const orgLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'DreamBeesArt',
-    url: 'https://dreambeesart.com',
-    logo: 'https://dreambeesart.com/logo.png',
-    sameAs: [
-      'https://twitter.com/dreambeesart',
-      'https://instagram.com/dreambeesart',
-      'https://facebook.com/dreambeesart'
-    ],
-    contactPoint: {
-      '@type': 'ContactPoint',
-      telephone: '+1-555-ART-HIVE',
-      contactType: 'customer service',
-      email: 'support@dreambeesart.com'
-    }
-  };
-
   return (
     <div className="bg-white">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
-      />
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gray-900 text-white">
         <div className="absolute inset-0">

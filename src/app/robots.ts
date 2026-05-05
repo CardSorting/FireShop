@@ -17,7 +17,6 @@ export default function robots(): MetadataRoute.Robots {
           '/checkout/',
           '/cart/',
           '/api/',
-          '/*?q=', // Avoid indexing internal search results
           '/*?sort_by=', // Avoid indexing sorted pages
           '/*?min_price=', // Avoid indexing price-filtered pages
           '/*?max_price=', // Avoid indexing price-filtered pages

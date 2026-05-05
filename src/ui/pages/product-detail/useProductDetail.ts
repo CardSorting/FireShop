@@ -6,7 +6,7 @@
  * for the Product Detail Page. Keeps the view layer clean.
  */
 import { useCallback, useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { useCart } from '../../hooks/useCart';
 import { useWishlist } from '../../hooks/useWishlist';
@@ -27,8 +27,14 @@ function toFriendlyError(err: unknown): string {
   return 'Unable to add this item to your cart right now.';
 }
 
+function optionParamName(optionName: string, index: number): string {
+  return optionName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `option-${index + 1}`;
+}
+
 export function useProductDetail(initialProduct?: Product | null) {
   const { handle } = useParams<{ handle: string }>();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { addItem, openCart } = useCart();
   const services = useServices();
   const { 
@@ -66,21 +72,25 @@ export function useProductDetail(initialProduct?: Product | null) {
 
   const isFavorite = product?.id ? isInWishlist(product.id) : false;
 
-  // Initialize variant options when product is available
+  const router = useRouter();
+
+  // Initialize variant options from URL parameters when product is available.
   useEffect(() => {
     if (product?.hasVariants && product.options) {
       const initial: Record<string, string> = {};
-      product.options.forEach(opt => {
-        if (opt.values.length > 0) initial[opt.name] = opt.values[0];
+      product.options.forEach((opt, index) => {
+        const requestedValue = searchParams.get(optionParamName(opt.name, index));
+        initial[opt.name] = requestedValue && opt.values.includes(requestedValue) ? requestedValue : opt.values[0];
       });
       setSelectedOptions(initial);
     }
+  }, [product, searchParams]);
+
+  useEffect(() => {
     if (product) {
       trackView(product);
     }
   }, [product, trackView]);
-
-  const router = useRouter();
 
   // --- Data Loading ---
   const loadProduct = useCallback(async () => {
@@ -220,7 +230,18 @@ export function useProductDetail(initialProduct?: Product | null) {
   function incrementQuantity() { setQuantity(Math.min(maxSelectableQuantity, quantity + 1)); }
   function decrementQuantity() { setQuantity(Math.max(1, quantity - 1)); }
   function selectOption(optionName: string, value: string) {
-    setSelectedOptions(prev => ({ ...prev, [optionName]: value }));
+    setSelectedOptions(prev => {
+      const next = { ...prev, [optionName]: value };
+      if (product?.options) {
+        const params = new URLSearchParams(searchParams.toString());
+        product.options.forEach((option, index) => {
+          const selectedValue = next[option.name];
+          if (selectedValue) params.set(optionParamName(option.name, index), selectedValue);
+        });
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      }
+      return next;
+    });
   }
 
   return {

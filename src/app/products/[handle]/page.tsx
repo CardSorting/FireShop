@@ -1,8 +1,9 @@
 import { ProductDetailPage } from '@ui/pages/product-detail';
 import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
+import { breadcrumbJsonLd, productImages, productJsonLd, productPath, productSeoDescription, productSeoTitle } from '@utils/seo';
 
-import { notFound, redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 
 type Props = {
     params: Promise<{ handle: string }>;
@@ -19,7 +20,7 @@ async function getProduct(handle: string) {
             const product = await services.productService.getProduct(handle);
             // If we found it by ID and it has a handle, 301 redirect to the canonical handle URL
             if (product.handle && product.handle !== handle) {
-                redirect(`/products/${product.handle}`);
+                permanentRedirect(productPath(product));
             }
             return product;
         } catch {
@@ -38,26 +39,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         };
     }
     
-    const title = product.seoTitle || `${product.name} | DreamBeesArt`;
-    const description = product.seoDescription || product.description.slice(0, 160);
+    const description = productSeoDescription(product);
     
     return {
-        title,
+        title: productSeoTitle(product),
         description,
         alternates: {
-            canonical: `/products/${product.handle || product.id}`,
+            canonical: productPath(product),
         },
         openGraph: {
             title: product.name,
-            description: product.description,
-            images: [product.imageUrl],
-            type: 'article',
+            description,
+            images: productImages(product),
+            type: 'website',
         },
         twitter: {
             card: 'summary_large_image',
             title: product.name,
-            description: product.description,
-            images: [product.imageUrl],
+            description,
+            images: productImages(product),
         },
     };
 }
@@ -67,35 +67,14 @@ export default async function Page({ params }: Props) {
     const product = await getProduct(handle);
     if (!product) notFound();
 
-    // Industry Standard: Inject JSON-LD for rich snippets
-    const jsonLd = {
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: product.name,
-        image: product.imageUrl,
-        description: product.description,
-        sku: product.sku,
-        brand: {
-            '@type': 'Brand',
-            name: 'DreamBeesArt',
-        },
-        aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: '4.9',
-            reviewCount: '12',
-        },
-        offers: {
-            '@type': 'Offer',
-            price: (product.price / 100).toFixed(2),
-            priceCurrency: 'USD',
-            availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-            url: `https://dreambeesart.com/products/${product.handle || product.id}`,
-            seller: {
-                '@type': 'Organization',
-                name: 'DreamBeesArt',
-            },
-        },
-    };
+    const jsonLd = [
+        breadcrumbJsonLd([
+            { name: 'Home', path: '/' },
+            { name: 'Catalog', path: '/products' },
+            { name: product.name, path: productPath(product) },
+        ]),
+        productJsonLd(product),
+    ];
 
     return (
         <>
@@ -107,4 +86,3 @@ export default async function Page({ params }: Props) {
         </>
     );
 }
-

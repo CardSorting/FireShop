@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { getServerServices } from '@infrastructure/server/services';
 import { notFound } from 'next/navigation';
 import type { ProductCategory } from '@domain/models';
+import { absoluteUrl, breadcrumbJsonLd, seoDescription } from '@utils/seo';
 
 
 
@@ -24,34 +25,54 @@ async function getCategoryOrCollection(slug: string) {
   }
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const { slug } = await params;
+  const filters = await searchParams;
   const resolved = await getCategoryOrCollection(slug);
+  const hasFilters = Object.keys(filters).length > 0;
   
   if (!resolved) {
     const fallbackTitle = slug.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     return {
       title: `${fallbackTitle} | DreamBeesArt`,
+      alternates: {
+        canonical: `/collections/${slug}`,
+      },
+      robots: hasFilters ? { index: false, follow: true } : undefined,
     };
   }
 
+  const description = seoDescription(
+    resolved.data.description,
+    `Shop ${resolved.data.name} at DreamBeesArt. Discover handcrafted artist trading cards, art prints, and collector accessories.`
+  );
+  const images = resolved.type === 'collection' && resolved.data.imageUrl ? [absoluteUrl(resolved.data.imageUrl)] : [];
+
   return {
     title: `${resolved.data.name} | DreamBeesArt`,
-    description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}. Discover amazing art and support independent creators.`,
+    description,
     alternates: {
       canonical: `/collections/${slug}`,
     },
+    robots: hasFilters ? { index: false, follow: true } : undefined,
     openGraph: {
       title: resolved.data.name,
-      description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}.`,
+      description,
       type: 'website',
-      images: resolved.type === 'collection' && resolved.data.imageUrl ? [resolved.data.imageUrl] : [],
+      url: absoluteUrl(`/collections/${slug}`),
+      images,
     },
     twitter: {
       card: 'summary_large_image',
       title: resolved.data.name,
-      description: resolved.data.description || `Shop our curated collection of ${resolved.data.name}.`,
-      images: resolved.type === 'collection' && resolved.data.imageUrl ? [resolved.data.imageUrl] : [],
+      description,
+      images,
     },
   };
 }
@@ -64,25 +85,11 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
     notFound();
   }
   
-  // Industry Standard: Breadcrumb structured data for categories
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      {
-        '@type': 'ListItem',
-        position: 1,
-        name: 'Home',
-        item: 'https://dreambeesart.com',
-      },
-      {
-        '@type': 'ListItem',
-        position: 2,
-        name: resolved?.data.name || 'Catalog',
-        item: `https://dreambeesart.com/collections/${slug}`,
-      },
-    ],
-  };
+  const jsonLd = breadcrumbJsonLd([
+    { name: 'Home', path: '/' },
+    { name: 'Catalog', path: '/products' },
+    { name: resolved?.data.name || 'All Products', path: `/collections/${slug}` },
+  ]);
 
   return (
     <>
@@ -96,4 +103,3 @@ export default async function CollectionPage({ params }: { params: Promise<{ slu
     </>
   );
 }
-

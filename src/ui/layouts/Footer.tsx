@@ -180,19 +180,9 @@ export function Footer() {
             <Lock className="w-4 h-4 text-green-600" />
           </div>
 
-          <div className="text-right" itemScope itemType="https://schema.org/LocalBusiness">
-            <meta itemProp="name" content="DreamBeesArt" />
-            <meta itemProp="email" content="support@dreambeesart.com" />
-            <meta itemProp="url" content="https://dreambeesart.com" />
-            <div itemProp="address" itemScope itemType="https://schema.org/PostalAddress" className="hidden">
-              <span itemProp="streetAddress">123 Art Lane</span>
-              <span itemProp="addressLocality">Salt Lake City</span>
-              <span itemProp="addressRegion">UT</span>
-              <span itemProp="postalCode">84120</span>
-              <span itemProp="addressCountry">US</span>
-            </div>
+          <div className="text-right">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              © {currentYear || 2026} <span itemProp="name">DreamBeesArt</span>. All Rights Reserved.
+              © {currentYear || 2026} DreamBeesArt. All Rights Reserved.
             </p>
             <p className="text-[10px] font-bold text-primary-500 mt-1 uppercase tracking-tighter">
               Fan Art & Artist-Inspired Merch

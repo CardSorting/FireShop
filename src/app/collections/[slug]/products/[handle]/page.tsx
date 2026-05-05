@@ -1,7 +1,7 @@
-import { ProductDetailPage } from '@ui/pages/product-detail';
 import { getServerServices } from '@infrastructure/server/services';
 import type { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
+import { productImages, productPath, productSeoDescription, productSeoTitle } from '@utils/seo';
 
 type Props = {
     params: Promise<{ slug: string; handle: string }>;
@@ -15,8 +15,7 @@ async function getProduct(handle: string) {
         try {
             const product = await services.productService.getProduct(handle);
             if (product.handle && product.handle !== handle) {
-                // In a nested route, we redirect to the handle version of the nested route
-                // We'll be careful here to not lose the slug context
+                permanentRedirect(productPath(product));
             }
             return product;
         } catch {
@@ -33,20 +32,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         return { title: 'Product Not Found | DreamBeesArt' };
     }
     
-    const title = product.seoTitle || `${product.name} | ${slug} | DreamBeesArt`;
-    const description = product.seoDescription || product.description.slice(0, 160);
+    const description = productSeoDescription(product);
     
     return {
-        title,
+        title: productSeoTitle(product),
         description,
         alternates: {
-            // THE MOST IMPORTANT PART: Canonical always points to the primary product URL
-            canonical: `/products/${product.handle || product.id}`,
+            canonical: productPath(product),
         },
         openGraph: {
             title: product.name,
-            description: product.description,
-            images: [product.imageUrl],
+            description,
+            images: productImages(product),
         },
     };
 }
@@ -55,31 +52,5 @@ export default async function Page({ params }: Props) {
     const { handle } = await params;
     const product = await getProduct(handle);
     if (!product) notFound();
-
-    // Industry Standard: Inject JSON-LD for rich snippets
-    const jsonLd = {
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: product.name,
-        image: product.imageUrl,
-        description: product.description,
-        sku: product.sku,
-        offers: {
-            '@type': 'Offer',
-            price: (product.price / 100).toFixed(2),
-            priceCurrency: 'USD',
-            availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-            url: `https://dreambeesart.com/products/${product.handle || product.id}`,
-        },
-    };
-
-    return (
-        <>
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
-            <ProductDetailPage initialProduct={JSON.parse(JSON.stringify(product))} />
-        </>
-    );
+    permanentRedirect(productPath(product));
 }

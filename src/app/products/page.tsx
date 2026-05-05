@@ -1,11 +1,44 @@
 import { Suspense } from 'react';
 import { ProductsPage } from '@ui/pages/ProductsPage';
 import type { Metadata } from 'next';
+import { absoluteUrl, DEFAULT_OG_IMAGE } from '@utils/seo';
 
-export const metadata: Metadata = {
-    title: 'Browse Trading Cards | DreamBeesArt',
-    description: 'Explore our curated catalog of rare Pokemon, MTG, and Yu-Gi-Oh! cards. Secure checkout and fast shipping.',
+type ProductsProps = {
+    searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ searchParams }: ProductsProps): Promise<Metadata> {
+    const params = await searchParams;
+    const hasFilters = Object.keys(params).length > 0;
+    const description = 'Shop artist trading cards, art prints, and TCG accessories from DreamBeesArt. Browse handcrafted drops, limited prints, and creator-made collector goods.';
+
+    return {
+        title: 'Shop Artist Trading Cards, Prints & TCG Accessories | DreamBeesArt',
+        description,
+        alternates: {
+            canonical: '/products',
+        },
+        robots: hasFilters
+            ? {
+                index: false,
+                follow: true,
+            }
+            : undefined,
+        openGraph: {
+            title: 'Shop DreamBeesArt',
+            description,
+            type: 'website',
+            url: absoluteUrl('/products'),
+            images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+        },
+        twitter: {
+            card: 'summary_large_image',
+            title: 'Shop DreamBeesArt',
+            description,
+            images: [absoluteUrl(DEFAULT_OG_IMAGE)],
+        },
+    };
+}
 
 export default function Page() {
     return (
