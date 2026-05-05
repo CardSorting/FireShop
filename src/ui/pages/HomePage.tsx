@@ -25,6 +25,11 @@ export function HomePage() {
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     
@@ -98,7 +103,7 @@ export function HomePage() {
           <div className="absolute inset-0 bg-linear-to-br from-gray-950 via-gray-900 to-primary-900 opacity-95 z-10"></div>
           <div className="absolute inset-0 hero-pattern z-15 opacity-50"></div>
           <div className="absolute inset-0 z-16 pointer-events-none overflow-hidden">
-            {[...Array(20)].map((_, i) => (
+            {mounted && [...Array(20)].map((_, i) => (
               <div 
                 key={i} 
                 className="pollen" 
@@ -116,6 +121,7 @@ export function HomePage() {
             alt="Handcrafted Artist Trading Cards and fandom-inspired art prints collection" 
             fill
             priority
+            sizes="100vw"
             className="object-cover" 
           />
         </div>
@@ -154,6 +160,7 @@ export function HomePage() {
                    <Image 
                     src="https://images.unsplash.com/photo-1643330683233-ff2ac89b002c?q=80&w=600&auto=format&fit=crop" 
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
                     alt="Premium handcrafted Artist Trading Card featuring intricate custom artwork" 
                    />
@@ -162,8 +169,9 @@ export function HomePage() {
                <div className="space-y-4">
                  <div className="relative aspect-4/5 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10">
                    <Image 
-                    src="https://images.unsplash.com/photo-1622814324203-b0ecadfc9122?w=600&auto=format&fit=crop" 
+                    src="https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=600&auto=format&fit=crop" 
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
                     alt="Limited edition TCG accessory box for protecting card collections" 
                    />
@@ -232,14 +240,14 @@ export function HomePage() {
                 href: "/collections/artist-cards", 
                 title: "Artist Cards", 
                 sub: "Hand-drawn originals",
-                img: "https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=800&auto=format&fit=crop",
+                img: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop",
                 delay: "reveal-delay-1"
               },
               { 
                 href: "/collections/prints", 
                 title: "Art Prints", 
                 sub: "Museum-grade quality",
-                img: "https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=800&auto=format&fit=crop",
+                img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=800&auto=format&fit=crop",
                 delay: "reveal-delay-2"
               },
               { 
@@ -255,6 +263,7 @@ export function HomePage() {
                   <Image 
                     src={col.img} 
                     fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover transition-transform duration-1000 group-hover:scale-110" 
                     alt={`Shop ${col.title}: ${col.sub}`} 
                   />
@@ -359,8 +368,9 @@ export function HomePage() {
               >
                 <div className="relative aspect-video overflow-hidden">
                   <Image 
-                    src={post.featuredImageUrl || post.ogImage || 'https://images.unsplash.com/photo-1614138096645-a90e3cd4eece?w=800'} 
+                    src={post.featuredImageUrl || post.ogImage || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800'} 
                     fill 
+                    sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover transition-transform duration-1000 group-hover:scale-110" 
                     alt={post.title}
                   />

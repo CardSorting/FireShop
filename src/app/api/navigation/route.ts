@@ -29,7 +29,7 @@ function getDefaultMenu(menuId: string): NavigationMenu {
       ]
     },
     featuredPromotion: {
-      imageUrl: 'https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=400&h=400&fit=crop',
+      imageUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=400&h=400&fit=crop',
       title: 'Latest Artist Drop',
       subtitle: 'Fan Favorites',
       linkText: 'Shop Now',
