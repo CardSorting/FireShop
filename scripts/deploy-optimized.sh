@@ -1,8 +1,7 @@
 #!/bin/bash
 
-# Ultra-Optimized Firebase Deployment Script (V5.2 - Safe Stability)
-# Features: Forensic pruning, Critical CSS, and safe build paths.
-# Removed: Pre-compression (Brotli) to prevent "Content-Encoding" mismatch corruption.
+# Ultra-Optimized Firebase Deployment Script (V5.3 - Production Hardened)
+# Features: Forensic pruning, Asset minification, and multi-service deployment.
 
 set -e
 
@@ -16,7 +15,7 @@ RED="\033[31m"
 CYAN="\033[36m"
 RESET="\033[0m"
 
-echo -e "${BLUE}${BOLD}Starting Optimized Deployment (V5.2)...${RESET}\n"
+echo -e "${BLUE}${BOLD}Starting Optimized Deployment (V5.3)...${RESET}\n"
 
 # 1. Forensic Workspace Sanitization
 echo -e "${PURPLE}Purging workspace clutter...${RESET}"
@@ -34,7 +33,11 @@ echo -e "${GREEN}✓ node_modules pruned for production.${RESET}"
 echo -e "${CYAN}Minifying SVG assets...${RESET}"
 if ls public/*.svg >/dev/null 2>&1; then
     for f in public/*.svg; do
-        sed -i '' 's/<!--.*-->//g' "$f"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            sed -i '' 's/<!--.*-->//g' "$f"
+        else
+            sed -i 's/<!--.*-->//g' "$f"
+        fi
         tr -d '\n' < "$f" > "$f.min" && mv "$f.min" "$f"
     done
     echo -e "${GREEN}✓ SVG assets minified.${RESET}"
@@ -46,7 +49,9 @@ NODE_ENV=production npm run build
 echo -e "${GREEN}✓ Production build complete.${RESET}"
 
 # 5. Atomic Deploy
-echo -e "${BLUE}Deploying ultra-clean atomic payload...${RESET}"
-firebase deploy --only hosting,functions
+echo -e "${BLUE}Deploying full stack (Hosting, Firestore, Storage)...${RESET}"
+# We deploy everything to ensure consistency across rules and hosting
+firebase deploy --only hosting,firestore,storage
 
 echo -e "\n${GREEN}${BOLD}Optimized Deployment Successful!${RESET}\n"
+
