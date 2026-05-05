@@ -68,6 +68,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
             alt={`${product.name} - Handcrafted ${product.category}`}
             fill
             priority={priority}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             className="object-cover transition-transform duration-1000 group-hover:scale-110"
           />
         </Link>

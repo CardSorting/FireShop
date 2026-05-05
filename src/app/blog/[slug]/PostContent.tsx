@@ -228,7 +228,7 @@ export default function PostContent({ post, initialComments, initialAuthor, init
       {/* Article Content */}
       <div className="relative max-w-4xl mx-auto px-4">
         {/* Paper Texture Overlay */}
-        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none mix-blend-multiply bg-[url('https://www.transparenttextures.com/patterns/asfalt-light.png')]" />
+        <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none mix-blend-multiply bg-[url('/textures/asfalt-light.png')]" />
         
         {/* Main Content */}
         <div className="space-y-20 relative">

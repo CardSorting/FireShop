@@ -36,6 +36,7 @@ export function BlogCard({ post, variant = 'standard' }: {
               src={post.featuredImageUrl} 
               alt={post.title} 
               fill
+              sizes="(max-width: 768px) 100px, 128px"
               className="object-cover transition-transform duration-700 group-hover:scale-110" 
               itemProp="image"
             />
@@ -73,6 +74,7 @@ export function BlogCard({ post, variant = 'standard' }: {
             src={post.featuredImageUrl} 
             alt={post.title} 
             fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover transition-transform duration-1000 group-hover:scale-105"
             itemProp="image"
           />
@@ -261,6 +263,7 @@ export function AuthorBox({ author }: { author: Author }) {
               src={author.avatarUrl} 
               alt={author.name} 
               fill
+              sizes="128px"
               className="rounded-4xl object-cover ring-4 ring-white/10 shadow-2xl" 
               itemProp="image"
             />
