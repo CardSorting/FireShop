@@ -16,6 +16,11 @@ const inter = Inter({
 export const metadata: Metadata = {
     title: 'DreamBeesArt | Artist Trading Cards, Prints & TCG Accessories',
     description: 'Fan art and artist-inspired merch — handcrafted trading cards, art prints, and TCG accessories from independent creators.',
+    icons: {
+        icon: '/icon.png',
+        shortcut: '/favicon.png',
+        apple: '/icon.png',
+    },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
