@@ -86,6 +86,18 @@ export async function getDocs(query: any) {
 }
 
 /**
+ * Environment-aware 'getCount' helper (Aggregations)
+ */
+export async function getCount(query: any) {
+  if (isServer) {
+    const snapshot = await query.count().get();
+    return snapshot.data().count;
+  }
+  const snapshot = await client.getCountFromServer(query);
+  return snapshot.data().count;
+}
+
+/**
  * Environment-aware 'setDoc' helper
  */
 export async function setDoc(docRef: any, data: any, options?: any) {

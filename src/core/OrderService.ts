@@ -40,7 +40,6 @@ import {
   calculateShipping,
   canPlaceOrder,
   deriveEstimatedDeliveryDate,
-  deriveOrderFulfillmentEvents,
   deriveTrackingUrl,
 } from '@domain/rules';
 import { coalesceCartStockDeductions } from '@domain/rules';
@@ -134,7 +133,7 @@ export class OrderService {
 
         if (discountCode) {
           const subtotal = calculateCartTotal(cart.items);
-          const validation = await new DiscountService(this.discountRepo, this.audit).validateDiscount(discountCode, subtotal, userId);
+          const validation = await new DiscountService(this.discountRepo, this.audit, this.orderRepo).validateDiscount(discountCode, subtotal, userId);
           if (validation.valid) {
             discountAmount = validation.discountAmount || 0;
             validDiscountCode = validation.discount?.code;
@@ -234,6 +233,7 @@ export class OrderService {
             createdAt: new Date(),
           }],
           riskScore: 0,
+          estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date(), status: 'pending' } as any),
           fulfillmentEvents: [this.createFulfillmentEvent('initial', 'order_placed')],
         });
 
@@ -292,7 +292,15 @@ export class OrderService {
     const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
 
     try {
-        await this.orderRepo.updateStatus(order.id, 'confirmed');
+        // High Risk Detection: If risk score is high, we keep the order as 'pending' for manual verification
+        const status: OrderStatus = riskScore > 75 ? 'pending' : 'confirmed';
+
+        await this.orderRepo.updateStatus(order.id, status);
+        
+        if (status === 'confirmed') {
+            await this.recordFulfillmentEvent(order.id, 'payment_confirmed');
+        }
+
         await this.cartRepo.clear(order.userId);
         
         if (order.discountCode) {
@@ -301,13 +309,17 @@ export class OrderService {
         }
 
         const noteId = crypto.randomUUID();
+        const riskNote = status === 'pending' 
+            ? `PAYMENT HELD FOR REVIEW: High risk detected (${riskLevel}: ${riskScore}).` 
+            : `Payment confirmed via Stripe (PI: ${paymentIntentId}). Risk: ${riskLevel} (${riskScore}).`;
+
         await this.orderRepo.updateNotes(order.id, [
             ...order.notes,
             {
                 id: noteId,
                 authorId: 'system',
                 authorEmail: 'stripe-webhook@dreambees.art',
-                text: `Payment confirmed via Stripe (PI: ${paymentIntentId}). Risk: ${riskLevel} (${riskScore}).`,
+                text: riskNote,
                 createdAt: new Date(),
             }
         ]);
@@ -319,19 +331,17 @@ export class OrderService {
           targetId: order.id,
           details: { 
               from: order.status, 
-              to: 'confirmed', 
+              to: status, 
               stripeId: paymentIntentId,
               risk: { level: riskLevel, score: riskScore },
               noteId
           }
         });
 
-        // Update risk score on order if it's high
-        if (riskScore > 50) {
-            await this.orderRepo.updateRiskScore(order.id, riskScore);
-        }
+        // Always persist the forensic risk score
+        await this.orderRepo.updateRiskScore(order.id, riskScore);
 
-        return { ...order, status: 'confirmed' };
+        return { ...order, status };
     } catch (error) {
         logger.error('Finalize order payment failed', { paymentIntentId, error });
         throw error;
@@ -377,7 +387,7 @@ export class OrderService {
 
       if (discountCode) {
         const subtotal = calculateCartTotal(cart.items);
-        const validation = await new DiscountService(this.discountRepo, this.audit).validateDiscount(discountCode, subtotal, userId);
+        const validation = await new DiscountService(this.discountRepo, this.audit, this.orderRepo).validateDiscount(discountCode, subtotal, userId);
         if (validation.valid) {
           discountAmount = validation.discountAmount || 0;
           validDiscountCode = validation.discount?.code;
@@ -515,6 +525,7 @@ export class OrderService {
           shippingClassId,
           notes: [],
           riskScore: 0,
+          estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date(), status: 'confirmed' } as any),
           fulfillmentEvents: [
             this.createFulfillmentEvent('initial', 'order_placed'),
             this.createFulfillmentEvent('initial', 'payment_confirmed')
@@ -622,9 +633,7 @@ export class OrderService {
   private enrichOrderForCustomerView(order: Order): Order {
     const enriched = {
       ...order,
-      trackingUrl: order.trackingUrl ?? deriveTrackingUrl(order),
-      estimatedDeliveryDate: order.estimatedDeliveryDate ?? deriveEstimatedDeliveryDate(order),
-      fulfillmentEvents: order.fulfillmentEvents ?? deriveOrderFulfillmentEvents(order),
+      fulfillmentEvents: order.fulfillmentEvents || [], // Hardening: No more simulated event derivation
     };
     return Sanitizer.order(enriched);
   }
@@ -913,7 +922,14 @@ export class OrderService {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
 
-    await this.orderRepo.updateFulfillment(orderId, data);
+    const trackingUrl = data.trackingNumber ? deriveTrackingUrl({ trackingNumber: data.trackingNumber } as any) : null;
+    
+    await this.orderRepo.updateFulfillment(orderId, { ...data, trackingUrl });
+
+    // Hardening: Record a specific fulfillment event for tracking updates
+    if (data.trackingNumber) {
+        await this.recordFulfillmentEvent(orderId, 'label_created');
+    }
 
     await this.audit.record({
       userId: actor.id,
@@ -923,7 +939,8 @@ export class OrderService {
       details: {
         type: 'fulfillment_update',
         tracking: data.trackingNumber,
-        carrier: data.shippingCarrier
+        carrier: data.shippingCarrier,
+        note: 'Fulfillment information updated and persistent event recorded.'
       }
     });
   }
@@ -948,24 +965,24 @@ export class OrderService {
   }
 
   async cleanupExpiredOrders(expirationMinutes: number = 60): Promise<number> {
-    // 1. Fetch all pending orders older than expirationMinutes
     const cutoff = new Date(Date.now() - expirationMinutes * 60 * 1000);
     
-    // This is a bit inefficient without a specialized repo method, but for now we'll filter
-    const { orders } = await this.orderRepo.getAll({ status: 'pending', limit: 100 });
-    const expired = orders.filter(o => o.createdAt < cutoff);
+    // Hardening: Use server-side filtering for expiration cleanup to improve performance and reliability
+    const { orders: expired } = await this.orderRepo.getAll({ 
+      status: 'pending', 
+      to: cutoff,
+      limit: 100 
+    });
 
     if (expired.length === 0) return 0;
-
+    
     logger.info(`Cleaning up ${expired.length} expired pending orders.`);
-
-    for (const order of expired) {
-      try {
-        await this.updateOrderStatus(order.id, 'cancelled', { id: 'system', email: 'cleanup-service@dreambees.art' });
-      } catch (err) {
-        logger.error(`Failed to cleanup order ${order.id}`, err);
-      }
-    }
+    const ids = expired.map(o => o.id);
+    
+    await this.batchUpdateOrderStatus(ids, 'cancelled', { 
+        id: 'system', 
+        email: 'cleanup-service@dreambees.art' 
+    });
 
     return expired.length;
   }

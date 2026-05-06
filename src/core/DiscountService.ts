@@ -1,7 +1,7 @@
 /**
  * [LAYER: CORE]
  */
-import type { IDiscountRepository } from '@domain/repositories';
+import type { IDiscountRepository, IOrderRepository } from '@domain/repositories';
 import type { Discount, DiscountDraft, DiscountUpdate } from '@domain/models';
 import { AuditService } from './AuditService';
 import { formatCurrency } from '@utils/formatters';
@@ -17,7 +17,8 @@ export interface DiscountValidationResult {
 export class DiscountService {
   constructor(
     private discountRepo: IDiscountRepository,
-    private audit: AuditService
+    private audit: AuditService,
+    private orderRepo?: IOrderRepository
   ) {}
 
   async getAllDiscounts() {
@@ -73,10 +74,11 @@ export class DiscountService {
     }
 
     // Production Hardening: Check for per-customer usage limits
-    if (discount.oncePerCustomer && userId) {
-      // Note: This would typically require a search in the OrderRepository for existing orders with this code
-      // For now we check the status in the repo if we had a usage map, but we'll assume the repo can handle a check
-      // For this pass, we'll mark a placeholder for the repo check but keep the logic in the service
+    if (discount.oncePerCustomer && userId && this.orderRepo) {
+      const hasUsed = await this.orderRepo.hasUsedDiscount(userId, discount.code);
+      if (hasUsed) {
+        return { valid: false, message: 'You have already used this discount code.' };
+      }
     }
 
     if (discount.minimumRequirementType === 'minimum_amount' && discount.minimumAmount !== null) {

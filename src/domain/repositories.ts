@@ -68,12 +68,14 @@ export interface IOrderRepository {
     query?: string;
     limit?: number;
     cursor?: string;
+    from?: Date;
+    to?: Date;
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
   updateNotes(orderId: string, notes: import('./models').OrderNote[]): Promise<void>;
-  updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string }): Promise<void>;
+  updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }): Promise<void>;
   updateRiskScore(orderId: string, score: number): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent): Promise<void>;
   getDashboardStats(): Promise<{
@@ -87,6 +89,7 @@ export interface IOrderRepository {
     revenue: number;
     sales: number;
   }>>;
+  hasUsedDiscount(userId: string, discountCode: string): Promise<boolean>;
 }
 
 export interface IAuthProvider {

@@ -147,7 +147,7 @@ export function getServiceContainer() {
       new FirestoreDigitalAccessRepository(),
       repos.shippingRepo
     ),
-    discountService: new DiscountService(repos.discountRepo, new AuditService()),
+    discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
     shippingService: new ShippingService(repos.shippingRepo, new AuditService()),
     transferService: new TransferService(repos.transferRepo, repos.productRepo),
@@ -233,7 +233,7 @@ export function getInitialServices() {
       })(),
       shippingRepoInstance!
     ),
-    discountService: new DiscountService(discountRepoInstance!, getAuditService()),
+    discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
     shippingService: (() => {
       if (!shippingServiceInstance) shippingServiceInstance = new ShippingService(shippingRepoInstance!, getAuditService());

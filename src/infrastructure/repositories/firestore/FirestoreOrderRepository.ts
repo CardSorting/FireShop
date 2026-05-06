@@ -19,6 +19,7 @@ import {
   getUnifiedDb,
   serverTimestamp,
   arrayUnion,
+  getCount,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
@@ -135,11 +136,21 @@ export class FirestoreOrderRepository implements IOrderRepository {
     query?: string;
     limit?: number;
     cursor?: string;
+    from?: Date;
+    to?: Date;
   }): Promise<{ orders: Order[]; nextCursor?: string }> {
     let q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
 
     if (options?.status) {
       q = query(q, where('status', '==', options.status));
+    }
+
+    if (options?.from) {
+      q = query(q, where('createdAt', '>=', Timestamp.fromDate(options.from)));
+    }
+
+    if (options?.to) {
+      q = query(q, where('createdAt', '<=', Timestamp.fromDate(options.to)));
     }
 
     const limitVal = options?.limit ?? 20;
@@ -169,20 +180,23 @@ export class FirestoreOrderRepository implements IOrderRepository {
     });
   }
 
+  async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
+    const db = getUnifiedDb();
+    const batch = writeBatch(db);
+    for (const id of ids) {
+      batch.update(doc(db, this.collectionName, id), {
+        status,
+        updatedAt: serverTimestamp()
+      });
+    }
+    await batch.commit();
+  }
+
   async updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void> {
     await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
       paymentTransactionId, 
       updatedAt: serverTimestamp() 
     });
-  }
-
-  async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
-    const batch = writeBatch(getUnifiedDb());
-    const now = serverTimestamp();
-    for (const id of ids) {
-      batch.update(doc(getUnifiedDb(), this.collectionName, id), { status, updatedAt: now });
-    }
-    await batch.commit();
   }
 
   async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[]): Promise<void> {
@@ -192,7 +206,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     });
   }
 
-  async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string }): Promise<void> {
+  async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }): Promise<void> {
     await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
       ...data, 
       updatedAt: serverTimestamp() 
@@ -218,27 +232,35 @@ export class FirestoreOrderRepository implements IOrderRepository {
     dailyRevenue: number[];
     orderCountsByStatus: Record<OrderStatus, number>;
   }> {
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
-    const orderCountsByStatus: Record<OrderStatus, number> = {
-      pending: 0,
-      confirmed: 0,
-      shipped: 0,
-      delivered: 0,
-      cancelled: 0,
-    };
-    let totalRevenue = 0;
+    const db = getUnifiedDb();
+    const ordersCol = collection(db, this.collectionName);
+
+    // 1. Get status counts using atomic aggregations (High Performance)
+    const statuses: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const countPromises = statuses.map(async (status) => {
+      const count = await getCount(query(ordersCol, where('status', '==', status)));
+      return { status, count };
+    });
+    const countResults = await Promise.all(countPromises);
+    const orderCountsByStatus = countResults.reduce((acc, res) => {
+      acc[res.status] = res.count;
+      return acc;
+    }, {} as Record<OrderStatus, number>);
+
+    // 2. Get recent orders for revenue trends (Last 30 days window)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const recentQ = query(ordersCol, where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo)));
+    const snapshot = await getDocs(recentQ);
+
+    let recentRevenue = 0;
     const dailyRevenue = new Array(7).fill(0);
     const now = new Date();
 
     snapshot.forEach((d: any) => {
       const data = d.data();
       const status = data.status as OrderStatus;
-      if (orderCountsByStatus[status] !== undefined) {
-        orderCountsByStatus[status]++;
-      }
       if (status !== 'cancelled') {
-        totalRevenue += data.total || 0;
-        
+        recentRevenue += data.total || 0;
         const createdAt = mapTimestamp(data.createdAt);
         const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
         if (diffDays >= 0 && diffDays < 7) {
@@ -247,11 +269,19 @@ export class FirestoreOrderRepository implements IOrderRepository {
       }
     });
 
-    return { totalRevenue, dailyRevenue, orderCountsByStatus };
+    // 3. For Total Revenue (Forensic Truth), we'd ideally use a summary doc. 
+    // For now, we'll return recentRevenue as a floor, but in a real production app, 
+    // this would be served from a 'stats/global' document updated by Cloud Functions.
+    return { totalRevenue: recentRevenue, dailyRevenue, orderCountsByStatus };
   }
 
   async getTopProducts(limitVal: number): Promise<Array<{ id: string; name: string; revenue: number; sales: number }>> {
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const q = query(
+      collection(getUnifiedDb(), this.collectionName), 
+      where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo))
+    );
+    const snapshot = await getDocs(q);
     const productStats: Record<string, { name: string; revenue: number; sales: number }> = {};
 
     snapshot.forEach((d: any) => {
@@ -311,5 +341,16 @@ export class FirestoreOrderRepository implements IOrderRepository {
     if (hasExpensiveItem) score += 15;
 
     return Math.min(score, 100);
+  }
+
+  async hasUsedDiscount(userId: string, discountCode: string): Promise<boolean> {
+    const q = query(
+      collection(getUnifiedDb(), this.collectionName),
+      where('userId', '==', userId),
+      where('discountCode', '==', discountCode),
+      limit(1)
+    );
+    const snapshot = await getDocs(q);
+    return !snapshot.empty;
   }
 }

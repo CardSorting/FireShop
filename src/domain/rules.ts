@@ -468,80 +468,44 @@ export function customerOrderStatusDescription(status: OrderStatus): string {
 export function deriveEstimatedDeliveryDate(order: Order): Date | null {
   if (order.status === 'cancelled') return null;
   const base = new Date(order.createdAt);
-  base.setDate(base.getDate() + (order.status === 'delivered' ? 3 : 5));
+  
+  // Production Lead Times based on Shipping Class (approximate mapping)
+  let days = 5;
+  const classId = order.shippingClassId?.toLowerCase();
+  
+  if (classId?.includes('expedited') || classId?.includes('priority')) days = 2;
+  else if (classId?.includes('overnight')) days = 1;
+  else if (classId?.includes('economy') || classId?.includes('saver')) days = 8;
+  
+  if (order.status === 'delivered') days = 0; // Already delivered
+
+  base.setDate(base.getDate() + days);
   return base;
 }
 
 export function deriveTrackingUrl(order: Order): string | null {
   if (!order.trackingNumber) return null;
+  const tn = order.trackingNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  
+  // 1. FedEx: 12 or 15 digits
+  if (/^\d{12}$|^\d{15}$/.test(tn)) return `https://www.fedex.com/fedextrack/?trknbr=${tn}`;
+  
+  // 2. UPS: Starts with 1Z
+  if (/^1Z[A-Z0-9]{16}$/.test(tn)) return `https://www.ups.com/track?tracknum=${tn}`;
+  
+  // 3. USPS: 20-22 digits or 2 letters + 9 digits + 2 letters
+  if (/^\d{20,22}$|^[A-Z]{2}\d{9}[A-Z]{2}$/.test(tn)) return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${tn}`;
+  
+  // 4. DHL: 10 digits
+  if (/^\d{10}$/.test(tn)) return `https://www.dhl.com/en/express/tracking.html?AWB=${tn}&brand=DHL`;
+
+  // Fallback to Google Search for unknown carriers
   const encoded = encodeURIComponent(order.trackingNumber);
-  return `https://www.google.com/search?q=${encoded}`;
+  return `https://www.google.com/search?q=tracking+${encoded}`;
 }
 
-export function deriveOrderFulfillmentEvents(order: Order): OrderFulfillmentEvent[] {
-  const placedAt = new Date(order.createdAt);
-  const updatedAt = new Date(order.updatedAt);
-  const events: OrderFulfillmentEvent[] = [
-    {
-      id: `${order.id}-placed`,
-      type: 'order_placed',
-      label: 'Order placed',
-      description: 'We received your order request.',
-      at: placedAt,
-    },
-  ];
+// deriveOrderFulfillmentEvents was removed in favor of deterministic persisted event logging.
 
-  if (order.status !== 'pending' && order.status !== 'cancelled') {
-    events.push({
-      id: `${order.id}-payment-confirmed`,
-      type: 'payment_confirmed',
-      label: 'Payment confirmed',
-      description: 'Your payment was authorized and captured.',
-      at: new Date(Math.max(placedAt.getTime(), updatedAt.getTime() - 3 * 60 * 60 * 1000)),
-    });
-    events.push({
-      id: `${order.id}-processing`,
-      type: 'processing',
-      label: 'Preparing shipment',
-      description: 'Items are being picked and packed.',
-      at: new Date(Math.max(placedAt.getTime(), updatedAt.getTime() - 2 * 60 * 60 * 1000)),
-    });
-  }
-
-  if (order.status === 'shipped' || order.status === 'delivered') {
-    events.push({
-      id: `${order.id}-in-transit`,
-      type: 'in_transit',
-      label: 'In transit',
-      description: order.trackingNumber
-        ? `Tracking number ${order.trackingNumber} is active.`
-        : 'Your package was handed to the carrier.',
-      at: new Date(Math.max(placedAt.getTime(), updatedAt.getTime() - 60 * 60 * 1000)),
-    });
-  }
-
-  if (order.status === 'delivered') {
-    events.push({
-      id: `${order.id}-delivered`,
-      type: 'delivered',
-      label: 'Delivered',
-      description: 'The carrier marked your package as delivered.',
-      at: updatedAt,
-    });
-  }
-
-  if (order.status === 'cancelled') {
-    events.push({
-      id: `${order.id}-cancelled`,
-      type: 'cancelled',
-      label: 'Cancelled',
-      description: 'This order was cancelled before shipment.',
-      at: updatedAt,
-    });
-  }
-
-  return events.sort((a, b) => b.at.getTime() - a.at.getTime());
-}
 
 export function addCartItem(
   items: CartItem[],
@@ -622,24 +586,23 @@ export function calculateShipping(
   
   // 1. Find matching zone
   const zone = allZones.find(z => z.countries.includes(address.country)) || allZones.find(z => z.name.toLowerCase() === 'rest of world');
-  if (!zone) return { amount: subtotal >= 10000 ? 0 : 599, rateName: 'Standard Shipping' }; // Fallback to legacy logic
+  if (!zone) return { amount: 0, rateName: 'Shipping calculation failed: No matching zone' }; // Production Hardening: Fail explicitly if no zone matched
 
-  // 2. Identify the predominant shipping class in the cart
-  // For simplicity, we use the most restrictive (highest rate) or just the most common.
-  // Here we'll group by class and pick the one with highest "priority" or highest rate.
+  // 2. Identify the classes in the cart
   const classesInCart = new Set(cartItems.map(item => item.shippingClassId).filter(Boolean));
   
   // Find rates for the zone
   const zoneRates = allRates.filter(r => r.shippingZoneId === zone.id);
   
-  // Filter rates that match the classes in cart (if none, look for default/null class)
+  // Priority 1: Specific Class Match
+  // Priority 2: Default Class Match
   let applicableRates = zoneRates.filter(r => classesInCart.has(r.shippingClassId));
   if (applicableRates.length === 0) {
     applicableRates = zoneRates.filter(r => !r.shippingClassId || r.shippingClassId === 'default');
   }
 
   // 3. Match rate based on type (price or weight)
-  // For now we only implement price_based for subtotal
+  // We prioritize the cheapest valid rate in the matched class
   const matchedRate = applicableRates
     .filter(r => {
       if (r.type === 'price_based') {
@@ -647,20 +610,21 @@ export function calculateShipping(
         const max = r.maxLimit ?? Infinity;
         return subtotal >= min && subtotal <= max;
       }
+      // Weight based fallback: in a full app, we'd calculate total weight here.
       return r.type === 'flat';
     })
-    .sort((a, b) => b.amount - a.amount)[0]; // Pick the highest matching rate for safety
+    .sort((a, b) => a.amount - b.amount)[0];
 
   if (matchedRate) {
     return { 
       amount: matchedRate.amount, 
-      rateName: matchedRate.name, 
-      shippingClassId: matchedRate.shippingClassId 
+      rateName: matchedRate.name,
+      shippingClassId: matchedRate.shippingClassId
     };
   }
 
-  // Final fallback
-  return { amount: subtotal >= 10000 ? 0 : 599, rateName: 'Standard Shipping' };
+  // Final fallback: Production Hardening - Strict rate matching.
+  return { amount: 0, rateName: 'Shipping calculation failed: No matching rate' };
 }
 
 
