@@ -6,6 +6,8 @@ import { notFound } from 'next/navigation';
 import { absoluteUrl, seoDescription } from '@utils/seo';
 import type { Author, BlogComment, KnowledgebaseArticle, Product } from '@domain/models';
 
+export const dynamic = 'force-dynamic';
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

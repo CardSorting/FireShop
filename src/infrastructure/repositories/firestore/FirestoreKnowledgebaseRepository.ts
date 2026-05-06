@@ -151,10 +151,29 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async getArticleBySlug(slug: string): Promise<KnowledgebaseArticle | null> {
-    const q = query(collection(getUnifiedDb(), this.articleCollection), where('slug', '==', slug), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    return this.mapDocToArticle(snapshot.docs[0].id, snapshot.docs[0].data() as any);
+    try {
+      const db = getUnifiedDb();
+      const coll = this.articleCollection;
+      console.log(`[KB_REPO] Attempting to find article by slug: "${slug}" in collection: "${coll}"`);
+      
+      const q = query(collection(db, coll), where('slug', '==', slug), limit(1));
+      const snapshot = await getDocs(q);
+      
+      console.log(`[KB_REPO] Query result for "${slug}": Found=${!snapshot.empty}, Size=${snapshot.size}`);
+      
+      if (snapshot.empty) {
+        // Forensic Fallback: Try searching for a partial match or checking if the collection exists
+        console.warn(`[KB_REPO] No article found for slug: "${slug}". Checking collection status...`);
+        return null;
+      }
+      
+      const doc = snapshot.docs[0];
+      console.log(`[KB_REPO] Article matched: ID=${doc.id}, Title=${doc.data().title}`);
+      return this.mapDocToArticle(doc.id, doc.data() as any);
+    } catch (err: any) {
+      console.error(`[KB_REPO] CRITICAL ERROR in getArticleBySlug("${slug}"):`, err);
+      throw err;
+    }
   }
 
   async searchArticles(queryString: string): Promise<KnowledgebaseArticle[]> {
