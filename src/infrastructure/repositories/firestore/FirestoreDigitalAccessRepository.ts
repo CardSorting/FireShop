@@ -12,8 +12,11 @@ import {
   orderBy, 
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
+import { mapDoc } from './utils';
 
 export interface DigitalAccessLog {
   id: string;
@@ -28,10 +31,15 @@ export class FirestoreDigitalAccessRepository {
   private readonly collectionName = 'digital_access_logs';
 
   async record(log: Omit<DigitalAccessLog, 'createdAt'>): Promise<void> {
-    await setDoc(doc(getUnifiedDb(), this.collectionName, log.id), {
-      ...log,
-      createdAt: Timestamp.now(),
-    });
+    try {
+      await setDoc(doc(getUnifiedDb(), this.collectionName, log.id), {
+        ...log,
+        createdAt: serverTimestamp(),
+      });
+      logger.info(`[Forensic] Digital Asset Access Recorded`, { assetId: log.assetId, userId: log.userId });
+    } catch (err) {
+      logger.error('Failed to record digital access log', { log, err });
+    }
   }
 
   async getLogsByUserAndAssets(userId: string, assetIds: string[]): Promise<DigitalAccessLog[]> {
@@ -47,12 +55,6 @@ export class FirestoreDigitalAccessRepository {
     );
     
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d: QueryDocumentSnapshot) => {
-      const data = d.data() as any;
-      return {
-        ...data,
-        createdAt: data.createdAt.toDate(),
-      } as DigitalAccessLog;
-    });
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<DigitalAccessLog>(d.id, d.data()));
   }
 }

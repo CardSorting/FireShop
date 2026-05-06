@@ -16,6 +16,7 @@ import {
   increment,
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
@@ -54,7 +55,7 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
 
   async save(col: Collection): Promise<Collection> {
     const id = col.id || crypto.randomUUID();
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     
     // Ensure handle is unique
     const handle = await this.ensureUniqueHandle(col.handle, id);
@@ -98,6 +99,9 @@ export class FirestoreCollectionRepository implements ICollectionRepository {
   }
 
   async updateProductCount(id: string, delta: number): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { productCount: increment(delta), updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
+      productCount: increment(delta), 
+      updatedAt: serverTimestamp() 
+    });
   }
 }

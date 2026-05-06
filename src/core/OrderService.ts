@@ -12,6 +12,7 @@ import type {
   ICheckoutGateway,
   ITaxonomyRepository,
 } from '@domain/repositories';
+import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
 import type {
   AdminDashboardSummary,
@@ -49,22 +50,6 @@ import {
 } from '@domain/errors';
 import { logger } from '@utils/logger';
 
-class InMemoryLockProvider implements ILockProvider {
-  private locks = new Set<string>();
-
-  async acquireLock(resourceId: string, owner: string, ttlMs?: number): Promise<boolean> {
-    void owner;
-    void ttlMs;
-    if (this.locks.has(resourceId)) return false;
-    this.locks.add(resourceId);
-    return true;
-  }
-
-  async releaseLock(resourceId: string, owner: string): Promise<void> {
-    void owner;
-    this.locks.delete(resourceId);
-  }
-}
 
 export class OrderService {
   constructor(
@@ -74,7 +59,7 @@ export class OrderService {
     private discountRepo: IDiscountRepository,
     private payment: IPaymentProcessor,
     private audit: AuditService,
-    private locker: ILockProvider = new InMemoryLockProvider(),
+    private locker: ILockProvider = new FirestoreLocker(),
     private checkoutGateway?: ICheckoutGateway,
     private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository()
   ) { }

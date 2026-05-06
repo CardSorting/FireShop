@@ -251,7 +251,7 @@ export class FirestoreKnowledgebaseRepository {
         articleId,
         isHelpful: isHelpful ? 1 : 0,
         userId: userId || null,
-        createdAt: Timestamp.now()
+        createdAt: serverTimestamp()
       });
     });
   }
@@ -353,8 +353,11 @@ export class FirestoreKnowledgebaseRepository {
   }
 
 
-  async updateCommentStatus(commentId: string, status: 'published' | 'spam'): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.commentCollection, commentId), { status, updatedAt: Timestamp.now() });
+  async updateCommentStatus(commentId: string, status: 'approved' | 'pending' | 'spam'): Promise<void> {
+    await updateDoc(doc(getUnifiedDb(), this.commentCollection, commentId), { 
+      status, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
   async deleteComment(commentId: string): Promise<void> {

@@ -177,7 +177,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
     const batch = writeBatch(getUnifiedDb());
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     for (const id of ids) {
       batch.update(doc(getUnifiedDb(), this.collectionName, id), { status, updatedAt: now });
     }

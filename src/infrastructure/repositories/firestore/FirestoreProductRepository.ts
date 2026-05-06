@@ -253,7 +253,7 @@ export class FirestoreProductRepository implements IProductRepository {
           const docSnap = await transaction.get(docRef);
           if (docSnap.exists()) {
             const currentStock = (docSnap.data() as any).stock || 0;
-            transaction.update(docRef, { stock: currentStock + update.delta, updatedAt: Timestamp.now() });
+            transaction.update(docRef, { stock: currentStock + update.delta, updatedAt: serverTimestamp() });
           }
         }
       }
@@ -273,12 +273,12 @@ export class FirestoreProductRepository implements IProductRepository {
           const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
           if (vIdx !== -1) {
             variants[vIdx].stock = update.stock;
-            variants[vIdx].updatedAt = Timestamp.now();
+            variants[vIdx].updatedAt = serverTimestamp();
             const total = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
-            transaction.update(docRef, { variants, stock: total, updatedAt: Timestamp.now() });
+            transaction.update(docRef, { variants, stock: total, updatedAt: serverTimestamp() });
           }
         } else {
-          transaction.update(docRef, { stock: update.stock, updatedAt: Timestamp.now() });
+          transaction.update(docRef, { stock: update.stock, updatedAt: serverTimestamp() });
         }
       }
     });
