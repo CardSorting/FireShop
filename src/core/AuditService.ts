@@ -135,26 +135,54 @@ export class AuditService {
     return logs;
   }
 
-  async verifyChain(): Promise<{ valid: boolean; total: number; corruptedId?: string }> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'asc'));
-    const snapshot = await getDocs(q);
-    const logs = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ ...d.data() as any, id: d.id }));
-
+  async verifyChain(batchSize: number = 100): Promise<{ valid: boolean; total: number; corruptedId?: string }> {
     let expectedPreviousHash = '0'.repeat(64);
+    let totalVerified = 0;
+    let lastDoc: QueryDocumentSnapshot | null = null;
+    let isFinished = false;
 
-    for (const log of logs) {
-      const createdAtStr = log.clientCreatedAt || (log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString());
-      const payload = `${log.id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${createdAtStr}`;
-      const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
-
-      if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {
-        return { valid: false, total: logs.length, corruptedId: log.id };
+    while (!isFinished) {
+      let q = query(
+        collection(getUnifiedDb(), this.collectionName), 
+        orderBy('createdAt', 'asc'), 
+        limit(batchSize)
+      );
+      
+      if (lastDoc) {
+        // startAfter needs the snapshot
+        const { startAfter } = await import('@infrastructure/firebase/bridge');
+        q = query(q, startAfter(lastDoc));
       }
 
-      expectedPreviousHash = log.hash!;
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) {
+        isFinished = true;
+        break;
+      }
+
+      for (const docSnap of snapshot.docs) {
+        const log = docSnap.data() as any;
+        const id = docSnap.id;
+        
+        const createdAtStr = log.clientCreatedAt || (log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString());
+        const payload = `${id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${createdAtStr}`;
+        const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
+
+        if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {
+          return { valid: false, total: totalVerified + 1, corruptedId: id };
+        }
+
+        expectedPreviousHash = log.hash!;
+        totalVerified++;
+      }
+
+      lastDoc = snapshot.docs[snapshot.docs.length - 1];
+      if (snapshot.docs.length < batchSize) {
+        isFinished = true;
+      }
     }
 
-    return { valid: true, total: logs.length };
+    return { valid: true, total: totalVerified };
   }
 
   async clearAll(): Promise<void> {

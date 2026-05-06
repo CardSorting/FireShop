@@ -267,11 +267,33 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   private calculateRiskScore(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): number {
-    let score = 5;
-    if (order.total > 100000) score += 20;
-    const itemCount = order.items.reduce((sum, i) => sum + i.quantity, 0);
-    if (itemCount > 10) score += 10;
-    if (order.shippingAddress.country.toUpperCase() !== 'US') score += 15;
+    let score = 5; // Base score
+
+    // Threshold Checks
+    if (order.total > 50000) score += 10; // >$500
+    if (order.total > 150000) score += 25; // >$1500
+
+    // Volume Checks
+    const totalQty = order.items.reduce((sum, i) => sum + i.quantity, 0);
+    if (totalQty > 20) score += 15;
+    
+    // Geographical Checks
+    const country = order.shippingAddress.country.toUpperCase();
+    if (country !== 'US' && country !== 'CA' && country !== 'GB') {
+      score += 20; // International non-primary markets
+    }
+
+    // Heuristics: High-risk item combinations
+    const hasDigital = order.items.some(i => i.isDigital);
+    const hasPhysical = order.items.some(i => !i.isDigital);
+    if (hasDigital && hasPhysical) {
+      score += 10; // Mixed orders can be harder to verify
+    }
+
+    // Heuristics: High-value items
+    const hasExpensiveItem = order.items.some(i => i.unitPrice > 30000); // >$300 item
+    if (hasExpensiveItem) score += 15;
+
     return Math.min(score, 100);
   }
 }

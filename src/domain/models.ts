@@ -285,6 +285,7 @@ export interface CartItem {
   quantity: number;
   imageUrl: string;
   isDigital?: boolean;
+  shippingClassId?: string;
 }
 
 export interface Order {
@@ -363,6 +364,8 @@ export interface OrderItem {
   unitPrice: number; // cents
   imageUrl?: string;
   digitalAssets?: DigitalAsset[];
+  isDigital?: boolean;
+  shippingClassId?: string;
 }
 
 export type OrderStatus =

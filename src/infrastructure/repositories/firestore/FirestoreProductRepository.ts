@@ -119,32 +119,33 @@ export class FirestoreProductRepository implements IProductRepository {
 
   async create(product: ProductDraft): Promise<Product> {
     const id = crypto.randomUUID();
-    const now = serverTimestamp();
-
-    const baseHandle = product.handle || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    const handle = await this.ensureUniqueHandle(baseHandle);
     
-    const variants = product.variants?.map(v => ({ 
-      ...v, 
-      id: v.id || crypto.randomUUID(), 
-      createdAt: now, 
-      updatedAt: now 
-    })) || [];
+    return await runTransaction(getUnifiedDb(), async (transaction: Transaction) => {
+      const baseHandle = product.handle || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const handle = await this.ensureUniqueHandle(baseHandle, undefined);
+      
+      const now = serverTimestamp();
+      const variants = product.variants?.map(v => ({ 
+        ...v, 
+        id: v.id || crypto.randomUUID(), 
+        createdAt: now, 
+        updatedAt: now 
+      })) || [];
 
-    const productData = {
-      ...product,
-      createdAt: now,
-      updatedAt: now,
-      variants,
-      // Production Hardening: Explicit index for variants to enable fast lookups by variantId
-      variantIds: variants.map(v => v.id),
-      options: product.options?.map(o => ({ ...o, id: o.id || crypto.randomUUID() })) || [],
-      media: product.media?.map(m => ({ ...m, id: m.id || crypto.randomUUID(), createdAt: now })) || [],
-      handle,
-    };
+      const productData = {
+        ...product,
+        createdAt: now,
+        updatedAt: now,
+        variants,
+        variantIds: variants.map(v => v.id),
+        options: product.options?.map(o => ({ ...o, id: o.id || crypto.randomUUID() })) || [],
+        media: product.media?.map(m => ({ ...m, id: m.id || crypto.randomUUID(), createdAt: now })) || [],
+        handle,
+      };
 
-    await setDoc(doc(getUnifiedDb(), this.collectionName, id), productData);
-    return (await this.getById(id))!;
+      transaction.set(doc(getUnifiedDb(), this.collectionName, id), productData);
+      return { ...productData, id, createdAt: new Date(), updatedAt: new Date() } as any as Product;
+    });
   }
 
   async update(id: string, updates: ProductUpdate): Promise<Product> {
@@ -240,24 +241,78 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[]): Promise<void> {
-    // Complex logic for batch update in Firestore
-    // For simplicity, we'll process them sequentially or in a transaction
-    await runTransaction(getUnifiedDb(), async (transaction: any) => {
+    await runTransaction(getUnifiedDb(), async (transaction: Transaction) => {
+      // Collect all unique product IDs we need to load
+      const productIds = new Set<string>();
+      const variantToProductMap = new Map<string, string>();
+
       for (const update of updates) {
         if (update.variantId) {
-          // This is tricky in Firestore transaction without knowing the productId
-          // For now, let's skip batch variant updates or implement a better way
-          console.warn('Batch variant stock update not fully optimized in Firestore implementation');
-        } else {
-          const docRef = doc(getUnifiedDb(), this.collectionName, update.id);
-          const docSnap = await transaction.get(docRef);
-          if (docSnap.exists()) {
-            const currentStock = (docSnap.data() as any).stock || 0;
-            transaction.update(docRef, { stock: currentStock + update.delta, updatedAt: serverTimestamp() });
+          // We need the productId for the variant. For hardening, we'll fetch it first if not known
+          // but inside a transaction we should ideally have them.
+          // Strategy: Batch fetch all docs containing these variantIds first
+          const q = query(collection(getUnifiedDb(), this.collectionName), where('variantIds', 'array-contains', update.variantId));
+          const snap = await getDocs(q);
+          if (!snap.empty) {
+            const pId = snap.docs[0].id;
+            productIds.add(pId);
+            variantToProductMap.set(update.variantId, pId);
           }
+        } else {
+          productIds.add(update.id);
         }
       }
+
+      // Load all relevant product documents
+      const docs = await Promise.all(Array.from(productIds).map(id => transaction.get(doc(getUnifiedDb(), this.collectionName, id))));
+      const docMap = new Map<string, any>();
+      docs.forEach(d => { if (d.exists()) docMap.set(d.id, d.data()); });
+
+      // Apply updates
+      for (const update of updates) {
+        const pId = update.variantId ? variantToProductMap.get(update.variantId) : update.id;
+        if (!pId) continue;
+
+        const data = docMap.get(pId);
+        if (!data) continue;
+
+        if (update.variantId) {
+          const variants = [...(data.variants || [])];
+          const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
+          if (vIdx !== -1) {
+            const current = variants[vIdx].stock || 0;
+            if (current + update.delta < 0) throw new InsufficientStockError(pId, Math.abs(update.delta), current);
+            variants[vIdx].stock = current + update.delta;
+            variants[vIdx].updatedAt = serverTimestamp();
+            data.variants = variants;
+            data.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
+          }
+        } else {
+          const current = data.stock || 0;
+          if (current + update.delta < 0) throw new InsufficientStockError(pId, Math.abs(update.delta), current);
+          data.stock = current + update.delta;
+        }
+        data.updatedAt = serverTimestamp();
+      }
+
+      // Commit all changes
+      for (const [id, data] of docMap.entries()) {
+        transaction.update(doc(getUnifiedDb(), this.collectionName, id), data);
+      }
     });
+  }
+
+  async batchUpdate(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {
+    const batch = writeBatch(getUnifiedDb());
+    const now = serverTimestamp();
+    
+    for (const update of updates) {
+      const docRef = doc(getUnifiedDb(), this.collectionName, update.id);
+      batch.update(docRef, { ...update.updates, updatedAt: now });
+    }
+    
+    await batch.commit();
+    return Promise.all(updates.map(u => this.getById(u.id))).then(results => results.filter(Boolean) as Product[]);
   }
 
   async batchSetInventory(updates: { id: string; variantId?: string; stock: number }[]): Promise<void> {

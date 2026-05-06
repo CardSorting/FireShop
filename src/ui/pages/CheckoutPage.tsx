@@ -143,20 +143,11 @@ export function CheckoutPage() {
       return;
     }
 
-    // Prepare product shipping classes map
-    const productClasses: Record<string, string | undefined> = {};
-    cartItems.forEach(item => {
-      // Note: item in cart might not have shippingClassId, we might need to fetch it or have it in the cart item snapshot
-      // For now we assume it's in the item if it was added to cart recently, or we fallback to default
-      productClasses[item.productId] = (item as any).shippingClassId;
-    });
-
     const result = calculateShipping(
       cartItems,
       address,
       shippingRates,
-      shippingZones,
-      productClasses
+      shippingZones
     );
     setShippingResult(result);
   }, [cartItems, address, shippingRates, shippingZones, isPurelyDigital]);

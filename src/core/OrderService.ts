@@ -28,6 +28,7 @@ import type {
   OrderItem
 } from '@domain/models';
 import { AuditService } from './AuditService';
+import { DiscountService } from './DiscountService';
 import { Sanitizer } from '@utils/sanitizer';
 import {
   assertValidOrderItems,
@@ -127,17 +128,15 @@ export class OrderService {
         // Calculate discount
         let discountAmount = 0;
         let validDiscountCode: string | undefined;
+        let isFreeShipping = false;
+
         if (discountCode) {
-          const discount = await this.discountRepo.getByCode(discountCode);
-          if (discount && discount.status === 'active') {
-            const now = new Date();
-            if (now >= discount.startsAt && (!discount.endsAt || now <= discount.endsAt)) {
-              const subtotal = calculateCartTotal(cart.items);
-              discountAmount = discount.type === 'percentage'
-                ? Math.floor(subtotal * (discount.value / 100))
-                : discount.value;
-              validDiscountCode = discount.code;
-            }
+          const subtotal = calculateCartTotal(cart.items);
+          const validation = await new DiscountService(this.discountRepo, this.audit).validateDiscount(discountCode, subtotal, userId);
+          if (validation.valid) {
+            discountAmount = validation.discountAmount || 0;
+            validDiscountCode = validation.discount?.code;
+            isFreeShipping = !!validation.isFreeShipping;
           }
         }
 
@@ -174,9 +173,9 @@ export class OrderService {
             unitPrice: price,
             imageUrl,
             digitalAssets: product.digitalAssets,
+            isDigital: product.isDigital,
+            shippingClassId: product.shippingClassId,
           });
-
-          productShippingClasses[item.productId] = product.shippingClassId;
         }
 
         // Final stock check & deduct (ATOMIC)
@@ -200,13 +199,13 @@ export class OrderService {
             this.shippingRepo.getAllZones()
           ]);
           const shippingResult = calculateShipping(
-            verifiedItems.map(i => ({ productId: i.productId, quantity: i.quantity, priceSnapshot: i.unitPrice })),
+            verifiedItems.map(i => ({ productId: i.productId, quantity: i.quantity, priceSnapshot: i.unitPrice, shippingClassId: i.shippingClassId })),
             shippingAddress,
             rates,
-            zones,
-            productShippingClasses
+            zones
           );
           shipping = shippingResult.amount;
+          if (isFreeShipping) shipping = 0; // Override for free shipping discount
           shippingClassId = shippingResult.shippingClassId;
         }
 
@@ -248,6 +247,12 @@ export class OrderService {
             fingerprint: crypto.createHash('sha256').update(`${userId}:${total}:${checkoutIdempotencyKey}`).digest('hex')
           }
         });
+
+        // Increment discount usage if applicable
+        if (validDiscountCode) {
+          const discount = await this.discountRepo.getByCode(validDiscountCode);
+          if (discount) await this.discountRepo.incrementUsage(discount.id);
+        }
 
         return order;
       }
@@ -365,17 +370,15 @@ export class OrderService {
       // Validate Discount
       let discountAmount = 0;
       let validDiscountCode: string | undefined;
+      let isFreeShipping = false;
+
       if (discountCode) {
-        const discount = await this.discountRepo.getByCode(discountCode);
-        if (discount && discount.status === 'active') {
-          const now = new Date();
-          if (now >= discount.startsAt && (!discount.endsAt || now <= discount.endsAt)) {
-            const subtotal = calculateCartTotal(cart.items);
-            discountAmount = discount.type === 'percentage' 
-              ? Math.floor(subtotal * (discount.value / 100))
-              : discount.value;
-            validDiscountCode = discount.code;
-          }
+        const subtotal = calculateCartTotal(cart.items);
+        const validation = await new DiscountService(this.discountRepo, this.audit).validateDiscount(discountCode, subtotal, userId);
+        if (validation.valid) {
+          discountAmount = validation.discountAmount || 0;
+          validDiscountCode = validation.discount?.code;
+          isFreeShipping = !!validation.isFreeShipping;
         }
       }
 
@@ -416,9 +419,10 @@ export class OrderService {
           unitPrice: price,
           imageUrl: imageUrl,
           digitalAssets: product.digitalAssets,
+          isDigital: product.isDigital,
+          shippingClassId: product.shippingClassId,
         });
 
-        productShippingClasses[item.productId] = product.shippingClassId;
       }
 
       // Final stock check
@@ -455,13 +459,13 @@ export class OrderService {
           this.shippingRepo.getAllZones()
         ]);
         const shippingResult = calculateShipping(
-          verifiedItems.map(i => ({ productId: i.productId, quantity: i.quantity, priceSnapshot: i.unitPrice })),
+          verifiedItems.map(i => ({ productId: i.productId, quantity: i.quantity, priceSnapshot: i.unitPrice, shippingClassId: i.shippingClassId })),
           shippingAddress,
           rates,
-          zones,
-          productShippingClasses
+          zones
         );
         shipping = shippingResult.amount;
+        if (isFreeShipping) shipping = 0;
         shippingClassId = shippingResult.shippingClassId;
       }
 
@@ -512,7 +516,6 @@ export class OrderService {
 
         await Promise.all([
           this.cartRepo.clear(userId),
-          validDiscountCode ? this.discountRepo.getByCode(validDiscountCode).then((d: Discount | null) => d && this.discountRepo.incrementUsage(d.id)) : Promise.resolve(),
           this.audit.record({
             userId,
             userEmail: 'system-checkout@dreambees.art',
@@ -521,6 +524,12 @@ export class OrderService {
             details: { total, items: verifiedItems.length, discount: validDiscountCode }
           })
         ]);
+
+        // Increment discount usage if applicable
+        if (validDiscountCode) {
+          const discount = await this.discountRepo.getByCode(validDiscountCode);
+          if (discount) await this.discountRepo.incrementUsage(discount.id);
+        }
 
         return order;
       } catch (err) {

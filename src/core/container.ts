@@ -94,6 +94,7 @@ let wishlistServiceInstance: WishlistService | null = null;
 let ticketRepoInstance: ITicketRepository | null = null;
 let kbRepoInstance: IKnowledgebaseRepository | null = null;
 let shippingServiceInstance: ShippingService | null = null;
+let digitalAccessRepoInstance: FirestoreDigitalAccessRepository | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -226,7 +227,10 @@ export function getInitialServices() {
       getAuditService(),
       lockProviderInstance!,
       checkoutGatewayInstance ?? undefined,
-      new FirestoreDigitalAccessRepository(),
+      (() => {
+        if (!digitalAccessRepoInstance) digitalAccessRepoInstance = new FirestoreDigitalAccessRepository();
+        return digitalAccessRepoInstance;
+      })(),
       shippingRepoInstance!
     ),
     discountService: new DiscountService(discountRepoInstance!, getAuditService()),

@@ -586,6 +586,7 @@ export function addCartItem(
     quantity,
     imageUrl,
     isDigital: product.isDigital,
+    shippingClassId: product.shippingClassId,
   };
 
   if (existingIndex >= 0) {
@@ -612,11 +613,10 @@ export function removeCartItem(items: CartItem[], productId: string, variantId?:
 import type { ShippingRate, ShippingZone } from './models';
 
 export function calculateShipping(
-  cartItems: { productId: string; quantity: number; priceSnapshot: number }[],
+  cartItems: (Pick<CartItem, 'productId' | 'quantity' | 'priceSnapshot' | 'shippingClassId'>)[],
   address: Address,
   allRates: ShippingRate[],
-  allZones: ShippingZone[],
-  productShippingClasses: Record<string, string | undefined> // productId -> shippingClassId
+  allZones: ShippingZone[]
 ): { amount: number; rateName: string; shippingClassId?: string } {
   const subtotal = cartItems.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0);
   
@@ -627,7 +627,7 @@ export function calculateShipping(
   // 2. Identify the predominant shipping class in the cart
   // For simplicity, we use the most restrictive (highest rate) or just the most common.
   // Here we'll group by class and pick the one with highest "priority" or highest rate.
-  const classesInCart = new Set(cartItems.map(item => productShippingClasses[item.productId]).filter(Boolean));
+  const classesInCart = new Set(cartItems.map(item => item.shippingClassId).filter(Boolean));
   
   // Find rates for the zone
   const zoneRates = allRates.filter(r => r.shippingZoneId === zone.id);
