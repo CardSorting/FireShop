@@ -82,9 +82,9 @@ export async function POST(req: Request) {
       }
     };
 
-    const preferredModel = 'gemini-3.1-pro-preview';
-    const fallbackModel = 'gemini-1.5-flash';
-    const imageModelName = 'gemini-3.1-flash-image-preview';
+    const preferredModel = 'gemini-2.5-flash';
+    const fallbackModel = 'gemini-2.5-flash';
+    const imageModelName = 'gemini-2.5-flash-image';
     const isVertex = !process.env.GEMINI_API_KEY;
 
     // 1. Generate Article Content
