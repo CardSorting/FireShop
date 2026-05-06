@@ -92,18 +92,24 @@ export function AdminSettings() {
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const loadProgress = useCallback(async (signal?: AbortSignal) => {
     try {
       const data = await services.settingsService.getSetupProgress(signal);
-      if (!signal?.aborted) {
+      if (isMounted.current && !signal?.aborted) {
         setProgress(data);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       services.logger.error('Failed to load setup progress', err);
     } finally {
-      if (!signal?.aborted) {
+      if (isMounted.current && !signal?.aborted) {
         setLoading(false);
       }
     }
@@ -115,7 +121,7 @@ export function AdminSettings() {
         services.settingsService.getSettings(signal),
         services.authService.getAllUsers(signal)
       ]);
-      if (!signal?.aborted) {
+      if (isMounted.current && !signal?.aborted) {
         setSettings(data);
         setUsers(staff);
       }
@@ -128,7 +134,7 @@ export function AdminSettings() {
   const loadAuditLogs = useCallback(async (signal?: AbortSignal) => {
     try {
       const logs = await services.auditService.getRecentLogs({ signal });
-      if (!signal?.aborted) {
+      if (isMounted.current && !signal?.aborted) {
         setAuditLogs(logs);
       }
     } catch (err: any) {
@@ -140,7 +146,7 @@ export function AdminSettings() {
   const loadUsers = useCallback(async (signal?: AbortSignal) => {
     try {
       const allUsers = await services.authService.getAllUsers(signal);
-      if (!signal?.aborted) {
+      if (isMounted.current && !signal?.aborted) {
         setUsers(allUsers);
       }
     } catch (err: any) {

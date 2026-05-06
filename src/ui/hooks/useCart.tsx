@@ -35,7 +35,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const isMounted = useRef(true);
   const controllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   // Helper to load guest cart from localStorage
   const getGuestCart = useCallback((): Cart | null => {
@@ -72,7 +78,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       if (user) {
         const remoteCart = await services.cartService.getCart(user.id, controller.signal);
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !isMounted.current) return;
 
         const guestCart = getGuestCart();
         if (guestCart && guestCart.items.length > 0) {
@@ -80,19 +86,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
           let currentCart = remoteCart;
           for (const item of guestCart.items) {
              currentCart = await services.cartService.addToCart(user.id, item.productId, item.quantity, item.variantId);
-             if (controller.signal.aborted) return;
+             if (controller.signal.aborted || !isMounted.current) return;
           }
-          if (!controller.signal.aborted) {
+          if (isMounted.current && !controller.signal.aborted) {
             setCart(currentCart);
             saveGuestCart(null);
           }
         } else {
-          if (!controller.signal.aborted) {
+          if (isMounted.current && !controller.signal.aborted) {
             setCart(remoteCart);
           }
         }
       } else {
-        if (!controller.signal.aborted) {
+        if (isMounted.current && !controller.signal.aborted) {
           setCart(getGuestCart());
         }
       }
@@ -100,7 +106,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (err.name === 'AbortError') return;
       logger.error('Failed to load cart', err);
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }
@@ -138,7 +144,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       if (user) {
         const updated = await services.cartService.addToCart(user.id, productId, quantity, variantId);
-        setCart(updated);
+        if (isMounted.current) {
+          setCart(updated);
+        }
       } else {
         // Load product details to mimic server logic
         let product;
@@ -149,6 +157,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
         
         if (!product) throw new Error('Product not found');
+        if (!isMounted.current) return;
 
         let price = product.price;
         let imageUrl = product.imageUrl;
@@ -180,10 +189,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           });
         }
         currentCart.updatedAt = new Date();
-        setCart({ ...currentCart });
-        saveGuestCart(currentCart);
+        if (isMounted.current) {
+          setCart({ ...currentCart });
+          saveGuestCart(currentCart);
+        }
       }
-      setIsOpen(true);
+      if (isMounted.current) {
+        setIsOpen(true);
+      }
     } catch (err) {
       logger.error('Failed to add to cart', err);
     }
@@ -203,19 +216,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       if (user) {
         const updated = await services.cartService.updateQuantity(user.id, productId, safeQuantity, variantId);
-        setCart(updated);
+        if (isMounted.current) {
+          setCart(updated);
+        }
       } else {
         const currentCart = getGuestCart();
         if (currentCart) {
           currentCart.items = currentCart.items.map(i => (i.productId === productId && i.variantId === variantId) ? { ...i, quantity: safeQuantity } : i);
           currentCart.updatedAt = new Date();
-          setCart({ ...currentCart });
-          saveGuestCart(currentCart);
+          if (isMounted.current) {
+            setCart({ ...currentCart });
+            saveGuestCart(currentCart);
+          }
         }
       }
     } catch (err) {
       logger.error('Failed to update quantity', err);
-      setCart(prevCart);
+      if (isMounted.current) {
+        setCart(prevCart);
+      }
     }
   };
 
@@ -231,19 +250,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       if (user) {
         const updated = await services.cartService.removeFromCart(user.id, productId, variantId);
-        setCart(updated);
+        if (isMounted.current) {
+          setCart(updated);
+        }
       } else {
         const currentCart = getGuestCart();
         if (currentCart) {
           currentCart.items = currentCart.items.filter(i => !(i.productId === productId && i.variantId === variantId));
           currentCart.updatedAt = new Date();
-          setCart({ ...currentCart });
-          saveGuestCart(currentCart);
+          if (isMounted.current) {
+            setCart({ ...currentCart });
+            saveGuestCart(currentCart);
+          }
         }
       }
     } catch (err) {
       logger.error('Failed to remove item', err);
-      setCart(prevCart);
+      if (isMounted.current) {
+        setCart(prevCart);
+      }
     }
   };
 
@@ -252,8 +277,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (user) {
         await services.cartService.clearCart(user.id);
       }
-      setCart(null);
-      saveGuestCart(null);
+      if (isMounted.current) {
+        setCart(null);
+        saveGuestCart(null);
+      }
     } catch (err) {
       logger.error('Failed to clear cart', err);
     }

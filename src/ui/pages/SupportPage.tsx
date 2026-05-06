@@ -73,45 +73,47 @@ export function SupportPage() {
 
     try {
       const cats = await services.knowledgebaseService.getCategories(controller.signal);
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setCategories(cats);
       }
       
       const articleSlug = searchParams?.get('article');
-      if (articleSlug && !controller.signal.aborted) {
+      if (articleSlug && isMounted.current && !controller.signal.aborted) {
         setLoading(true);
-        const article = await services.knowledgebaseService.getArticle(articleSlug); // Assuming getArticle doesn't need signal yet but good to add
-        if (!controller.signal.aborted && article) {
+        const article = await services.knowledgebaseService.getArticle(articleSlug);
+        if (isMounted.current && !controller.signal.aborted && article) {
           setSelectedArticle(article);
           setViewMode('article');
           const rel = await services.knowledgebaseService.getArticles({ categoryId: article.categoryId, signal: controller.signal });
-          if (!controller.signal.aborted) {
+          if (isMounted.current && !controller.signal.aborted) {
             setArticles(rel.articles.filter(a => a.id !== article.id).slice(0, 3));
           }
         }
-      } else if ((orderId || productId || forceContact) && !controller.signal.aborted) {
+      } else if ((orderId || productId || forceContact) && isMounted.current && !controller.signal.aborted) {
         setViewMode('contact');
-      } else if (searchParams?.get('tickets') === 'true' && user && !controller.signal.aborted) {
+      } else if (searchParams?.get('tickets') === 'true' && user && isMounted.current && !controller.signal.aborted) {
         setLoading(true);
         const tickets = await services.ticketService.getUserTickets(user.id, controller.signal);
-        if (!controller.signal.aborted) {
+        if (isMounted.current && !controller.signal.aborted) {
           setUserTickets(tickets);
           setViewMode('tickets');
         }
       }
 
       // Load popular articles for home
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         const popular = await services.knowledgebaseService.getArticles({ query: '', signal: controller.signal });
-        if (!controller.signal.aborted) {
+        if (isMounted.current && !controller.signal.aborted) {
           setSearchResults(popular.articles.slice(0, 4));
         }
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      console.error('Failed to load help categories or article', err);
+      if (isMounted.current) {
+        console.error('Failed to load help categories or article', err);
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }
@@ -148,12 +150,14 @@ export function SupportPage() {
       const timer = setTimeout(async () => {
         try {
           const results = await services.knowledgebaseService.getArticles({ query: activeSearch, signal: controller.signal });
-          if (!controller.signal.aborted) {
+          if (isMounted.current && !controller.signal.aborted) {
             setLiveResults(results.articles);
           }
         } catch (err: any) {
           if (err.name === 'AbortError') return;
-          console.error('Search failed', err);
+          if (isMounted.current) {
+            console.error('Search failed', err);
+          }
         }
       }, 300);
       return () => {
@@ -216,16 +220,18 @@ export function SupportPage() {
     setLoading(true);
     try {
       const catArticles = await services.knowledgebaseService.getArticles({ categoryId: category.id, signal: controller.signal });
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setArticles(catArticles.articles);
         setSelectedCategory(category);
         setViewMode('category');
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      console.error('Failed to load category articles', err);
+      if (isMounted.current) {
+        console.error('Failed to load category articles', err);
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }
@@ -238,20 +244,22 @@ export function SupportPage() {
 
     setLoading(true);
     try {
-      const art = await services.knowledgebaseService.getArticle(article.slug); // Assuming no signal yet
-      if (!controller.signal.aborted) {
+      const art = await services.knowledgebaseService.getArticle(article.slug);
+      if (isMounted.current && !controller.signal.aborted) {
         setSelectedArticle(art);
         setViewMode('article');
         const rel = await services.knowledgebaseService.getArticles({ categoryId: art.categoryId, signal: controller.signal });
-        if (!controller.signal.aborted) {
+        if (isMounted.current && !controller.signal.aborted) {
           setArticles(rel.articles.filter(a => a.id !== art.id).slice(0, 3));
         }
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      console.error('Failed to load article', err);
+      if (isMounted.current) {
+        console.error('Failed to load article', err);
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }
@@ -267,15 +275,17 @@ export function SupportPage() {
     setLoading(true);
     try {
       const t = await services.ticketService.getUserTicket(ticket.id, user.id, controller.signal);
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setSelectedTicket(t);
         setViewMode('ticket_detail');
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      console.error('Failed to load ticket', err);
+      if (isMounted.current) {
+        console.error('Failed to load ticket', err);
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }

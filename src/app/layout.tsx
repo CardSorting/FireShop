@@ -6,7 +6,7 @@ import { WishlistProvider } from '@ui/hooks/useWishlist';
 import { ErrorBoundary } from '@ui/components/ErrorBoundary';
 import { StorefrontShell } from '@ui/layouts/StorefrontShell';
 import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from '@utils/seo';
-import '../index.css';
+import '@/index.css';
 
 const inter = Inter({
     subsets: ['latin'],

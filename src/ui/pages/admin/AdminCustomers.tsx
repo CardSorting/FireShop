@@ -58,10 +58,12 @@ export function AdminCustomers() {
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
 
-  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
-
-  const [showAddModal, setShowAddModal] = useState(false);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   async function loadCustomers() {
     controllerRef.current?.abort();
@@ -72,14 +74,16 @@ export function AdminCustomers() {
     try {
       const users = await services.authService.getAllUsers(controller.signal);
       const summaries = await services.orderService.getCustomerSummaries(users);
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setCustomers(summaries);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      toast('error', 'Failed to load customers');
+      if (isMounted.current) {
+        toast('error', 'Failed to load customers');
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }

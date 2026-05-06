@@ -31,6 +31,12 @@ export default function BlogDashboard() {
   const [activeView, setActiveView] = useState<DashboardHubView>('editorial');
   const [showGuide, setShowGuide] = useState(false);
   const [showAudit, setShowAudit] = useState(false);
+  const isMounted = React.useRef(true);
+
+  React.useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -39,12 +45,18 @@ export default function BlogDashboard() {
           services.knowledgebaseService.getArticles({ status: 'all' }),
           services.knowledgebaseService.getAuthors()
         ]);
-        setPosts(postsData.articles);
-        setAuthors(authorsData);
+        if (isMounted.current) {
+          setPosts(postsData.articles);
+          setAuthors(authorsData);
+        }
       } catch (err) {
-        console.error('Failed to load admin blog data', err);
+        if (isMounted.current) {
+          console.error('Failed to load admin blog data', err);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted.current) {
+          setLoading(false);
+        }
       }
     }
     void loadData();
@@ -104,13 +116,19 @@ export default function BlogDashboard() {
       }
       
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-      setPosts(updatedPosts.articles);
-      setSelectedPosts([]);
+      if (isMounted.current) {
+        setPosts(updatedPosts.articles);
+        setSelectedPosts([]);
+      }
     } catch (err) {
-      console.error(`Bulk ${action} failed:`, err);
-      alert(`Failed to perform bulk ${action}.`);
+      if (isMounted.current) {
+        console.error(`Bulk ${action} failed:`, err);
+        alert(`Failed to perform bulk ${action}.`);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -120,11 +138,17 @@ export default function BlogDashboard() {
     try {
       await services.knowledgebaseService.batchDeleteArticles([id]);
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-      setPosts(updatedPosts.articles);
+      if (isMounted.current) {
+        setPosts(updatedPosts.articles);
+      }
     } catch (err) {
-      console.error('Delete failed:', err);
+      if (isMounted.current) {
+        console.error('Delete failed:', err);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
@@ -134,14 +158,22 @@ export default function BlogDashboard() {
       const res = await fetch('/api/admin/blog/sync-scheduling', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        alert(`Successfully published ${data.publishedCount} scheduled posts.`);
+        if (isMounted.current) {
+          alert(`Successfully published ${data.publishedCount} scheduled posts.`);
+        }
         const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-        setPosts(updatedPosts.articles);
+        if (isMounted.current) {
+          setPosts(updatedPosts.articles);
+        }
       }
     } catch (err) {
-      console.error('Sync failed:', err);
+      if (isMounted.current) {
+        console.error('Sync failed:', err);
+      }
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 

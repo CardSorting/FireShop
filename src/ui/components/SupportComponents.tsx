@@ -9,6 +9,7 @@ import type { KnowledgebaseArticle, KnowledgebaseCategory, SupportTicket } from 
 import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
+import { useEffect, useRef } from 'react';
 
 export function KnowledgebaseCategoryCard({ category, onClick }: { category: KnowledgebaseCategory, onClick: (c: KnowledgebaseCategory) => void }) {
   return (
@@ -92,12 +93,20 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
   const [negativeReason, setNegativeReason] = useState('');
   const services = useServices();
   const { user } = useAuth();
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const handleFeedback = async (isHelpful: boolean) => {
     if (isHelpful) {
       try {
         await services.knowledgebaseService.submitFeedback(article.id, true, user?.id);
-        setFeedbackStep('thanks');
+        if (isMounted.current) {
+          setFeedbackStep('thanks');
+        }
       } catch (err) {
         console.error('Failed to submit feedback', err);
       }
@@ -109,7 +118,9 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
   const submitNegativeFeedback = async () => {
     try {
       await services.knowledgebaseService.submitFeedback(article.id, false, user?.id, negativeReason);
-      setFeedbackStep('thanks');
+      if (isMounted.current) {
+        setFeedbackStep('thanks');
+      }
     } catch (err) {
       console.error('Failed to submit feedback', err);
     }
@@ -446,6 +457,12 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
 }) {
   const [reply, setReply] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -453,9 +470,13 @@ export function TicketDetailView({ ticket, onBack, onReply }: {
     setIsSending(true);
     try {
       await onReply(reply);
-      setReply('');
+      if (isMounted.current) {
+        setReply('');
+      }
     } finally {
-      setIsSending(false);
+      if (isMounted.current) {
+        setIsSending(false);
+      }
     }
   };
 

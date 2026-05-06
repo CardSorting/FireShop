@@ -111,6 +111,13 @@ export function AdminOrders() {
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedOrder]);
 
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   const loadOrders = useCallback(async () => {
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -126,16 +133,18 @@ export function AdminOrders() {
         signal: controller.signal,
       });
       
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setOrders(result.orders);
         setNextCursor(result.nextCursor);
         setSelectedIds(new Set());
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Failed to load orders');
+      if (isMounted.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load orders');
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (isMounted.current && !controller.signal.aborted) {
         setLoading(false);
       }
     }
@@ -191,15 +200,21 @@ export function AdminOrders() {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
       await services.orderService.updateOrderStatus(id, status, actor);
+      if (!isMounted.current) return;
+      
       toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
       if (selectedOrder?.id === id) {
         setSelectedOrder(prev => prev ? { ...prev, status } : null);
       }
       await loadOrders();
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to update order status');
+      if (isMounted.current) {
+        toast('error', err instanceof Error ? err.message : 'Failed to update order status');
+      }
     } finally {
-      setUpdating(null);
+      if (isMounted.current) {
+        setUpdating(null);
+      }
     }
   }
 
@@ -211,13 +226,19 @@ export function AdminOrders() {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
       await services.orderService.batchUpdateOrderStatus(Array.from(selectedIds), status, actor);
+      if (!isMounted.current) return;
+
       toast('success', `${selectedIds.size} order${selectedIds.size > 1 ? 's' : ''} updated to ${humanizeOrderStatus(status)}`);
       setSelectedIds(new Set());
       await loadOrders();
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to update multiple orders');
+      if (isMounted.current) {
+        toast('error', err instanceof Error ? err.message : 'Failed to update multiple orders');
+      }
     } finally {
-      setBatchUpdating(false);
+      if (isMounted.current) {
+        setBatchUpdating(false);
+      }
     }
   }
 
