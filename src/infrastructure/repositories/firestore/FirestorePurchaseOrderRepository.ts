@@ -15,29 +15,26 @@ import {
   orderBy,
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IPurchaseOrderRepository } from '@domain/repositories';
 import type { PurchaseOrder, PurchaseOrderStatus, ReceivingSession } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepository {
   private readonly poCollection = 'purchase_orders';
   private readonly sessionCollection = 'receiving_sessions';
 
   private mapDocToPO(id: string, data: DocumentData): PurchaseOrder {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-      expectedAt: data.expectedAt ? (data.expectedAt instanceof Timestamp ? data.expectedAt.toDate() : new Date(data.expectedAt)) : undefined,
-    } as PurchaseOrder;
+    return mapDoc<PurchaseOrder>(id, data);
   }
 
   async save(order: PurchaseOrder): Promise<PurchaseOrder> {
     const id = order.id || crypto.randomUUID();
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     const data = {
       ...order,
       id,
@@ -78,7 +75,10 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
   }
 
   async updateStatus(id: string, status: PurchaseOrderStatus): Promise<PurchaseOrder> {
-    await updateDoc(doc(getUnifiedDb(), this.poCollection, id), { status, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.poCollection, id), { 
+      status, 
+      updatedAt: serverTimestamp() 
+    });
     return (await this.findById(id))!;
   }
 
@@ -89,6 +89,7 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
       id,
       receivedAt: Timestamp.fromDate(new Date(session.receivedAt)),
       completedAt: session.completedAt ? Timestamp.fromDate(new Date(session.completedAt)) : null,
+      updatedAt: serverTimestamp(),
     };
     await setDoc(doc(getUnifiedDb(), this.sessionCollection, id), data);
     return session;

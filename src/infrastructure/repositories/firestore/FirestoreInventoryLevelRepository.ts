@@ -15,10 +15,13 @@ import {
   Timestamp,
   runTransaction,
   getUnifiedDb,
+  serverTimestamp,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IInventoryLevelRepository } from '@domain/repositories';
 import type { InventoryLevel } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestoreInventoryLevelRepository implements IInventoryLevelRepository {
   private readonly collectionName = 'inventory_levels';
@@ -49,7 +52,7 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
     const id = this.getDocId(level.productId, level.locationId);
     await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
       ...level,
-      updatedAt: Timestamp.now()
+      updatedAt: serverTimestamp()
     });
     return (await this.findByProductAndLocation(level.productId, level.locationId))!;
   }
@@ -69,12 +72,12 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
           incomingQty: 0,
           reorderPoint: 0,
           reorderQty: 0,
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         });
       } else {
         transaction.update(docRef, {
           availableQty: increment(delta),
-          updatedAt: Timestamp.now()
+          updatedAt: serverTimestamp()
         });
       }
     });
@@ -87,7 +90,7 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
     await updateDoc(doc(getUnifiedDb(), this.collectionName, id), {
       reorderPoint,
       reorderQty,
-      updatedAt: Timestamp.now()
+      updatedAt: serverTimestamp()
     });
     return (await this.findByProductAndLocation(productId, locationId))!;
   }

@@ -18,11 +18,14 @@ import {
   runTransaction,
   writeBatch,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
   type Transaction
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { SupportTicket, TicketMessage, TicketStatus, TicketPriority } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestoreTicketRepository {
   private readonly ticketCollection = 'support_tickets';
@@ -31,21 +34,11 @@ export class FirestoreTicketRepository {
   private readonly claimCollection = 'hive_claims';
 
   private mapDocToTicket(id: string, data: DocumentData): SupportTicket {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-      slaDeadline: data.slaDeadline instanceof Timestamp ? data.slaDeadline.toDate() : (data.slaDeadline ? new Date(data.slaDeadline) : undefined),
-    } as SupportTicket;
+    return mapDoc<SupportTicket>(id, data);
   }
 
   private mapDocToMessage(id: string, data: DocumentData): TicketMessage {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-    } as TicketMessage;
+    return mapDoc<TicketMessage>(id, data);
   }
 
   async getTickets(options?: { status?: string; userId?: string; assigneeId?: string; limit?: number }) {
@@ -88,7 +81,7 @@ export class FirestoreTicketRepository {
   }
 
   async createTicket(ticket: SupportTicket) {
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     const ticketData = {
       ...ticket,
       messages: [], // Don't store messages in the ticket doc
@@ -111,7 +104,7 @@ export class FirestoreTicketRepository {
   }
 
   async updateTicketProperties(id: string, updates: Partial<SupportTicket>) {
-    const firestoreUpdates: any = { ...updates, updatedAt: Timestamp.now() };
+    const firestoreUpdates: any = { ...updates, updatedAt: serverTimestamp() };
     if (updates.slaDeadline) firestoreUpdates.slaDeadline = Timestamp.fromDate(new Date(updates.slaDeadline));
     
     await updateDoc(doc(getUnifiedDb(), this.ticketCollection, id), firestoreUpdates);
@@ -143,7 +136,7 @@ export class FirestoreTicketRepository {
   }
 
   async addMessage(message: TicketMessage) {
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     await setDoc(doc(getUnifiedDb(), this.messageCollection, message.id), {
       ...message,
       createdAt: message.createdAt ? Timestamp.fromDate(new Date(message.createdAt)) : now
@@ -153,7 +146,7 @@ export class FirestoreTicketRepository {
 
   async batchUpdateTickets(ids: string[], updates: Partial<SupportTicket>) {
     const batch = writeBatch(getUnifiedDb());
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     const auditContent = `Bulk update performed on ${ids.length} tickets: ${Object.entries(updates).map(([k, v]) => `${k}=${v}`).join(', ')}`;
     
     for (const id of ids) {
@@ -176,7 +169,12 @@ export class FirestoreTicketRepository {
   }
 
   async getTicketHealthMetrics() {
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.ticketCollection));
+    // Production Hardening: Fetch only unresolved tickets for health metrics to avoid O(N) scan of history
+    const q = query(
+      collection(getUnifiedDb(), this.ticketCollection), 
+      where('status', 'in', ['new', 'open', 'pending', 'on_hold'])
+    );
+    const snapshot = await getDocs(q);
     const tickets = snapshot.docs.map((d: QueryDocumentSnapshot) => d.data() as any);
     const total = tickets.length;
     if (total === 0) return { slaCompliance: 100, unassignedRate: 0, totalActive: 0 };
@@ -244,7 +242,7 @@ export class FirestoreTicketRepository {
       id,
       owner: `${userId}:${userName}`,
       expiresAt,
-      createdAt: Timestamp.now()
+      createdAt: serverTimestamp()
     });
   }
 

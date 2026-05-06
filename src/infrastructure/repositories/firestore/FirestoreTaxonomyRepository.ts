@@ -14,8 +14,10 @@ import {
   limit, 
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { ITaxonomyRepository } from '@domain/repositories';
 import type { ProductCategory, ProductType } from '@domain/models';
 
@@ -49,8 +51,8 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
     const data = {
       ...category,
       id,
-      updatedAt: Timestamp.now(),
-      createdAt: category.createdAt ? Timestamp.fromDate(new Date(category.createdAt)) : Timestamp.now()
+      updatedAt: serverTimestamp(),
+      createdAt: category.createdAt ? Timestamp.fromDate(new Date(category.createdAt)) : serverTimestamp()
     };
     await setDoc(doc(getUnifiedDb(), this.categoriesCollection, id), data);
     return (await this.getCategoryById(id))!;
@@ -77,8 +79,8 @@ export class FirestoreTaxonomyRepository implements ITaxonomyRepository {
     const data = {
       ...type,
       id,
-      updatedAt: Timestamp.now(),
-      createdAt: type.createdAt ? Timestamp.fromDate(new Date(type.createdAt)) : Timestamp.now()
+      updatedAt: serverTimestamp(),
+      createdAt: type.createdAt ? Timestamp.fromDate(new Date(type.createdAt)) : serverTimestamp()
     };
     await setDoc(doc(getUnifiedDb(), this.typesCollection, id), data);
     return (await this.getTypeById(id))!;
