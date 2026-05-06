@@ -12,12 +12,13 @@ import {
   deleteDoc, 
   query, 
   where, 
-  limit, 
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { ICartRepository } from '@domain/repositories';
 import type { Cart } from '@domain/models';
 
@@ -31,35 +32,37 @@ export class FirestoreCartRepository implements ICartRepository {
   }
 
   async getByUserId(userId: string): Promise<Cart | null> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('userId', '==', userId), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    return this.mapDocToCart(snapshot.docs[0].id, snapshot.docs[0].data() as any);
+    try {
+      const docRef = doc(getUnifiedDb(), this.collectionName, userId);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return null;
+      return this.mapDocToCart(docSnap.id, docSnap.data());
+    } catch (err) {
+      logger.error('Failed to get cart', { userId, err });
+      return null;
+    }
   }
 
   async save(cart: Cart): Promise<void> {
-    const existing = await this.getByUserId(cart.userId);
-    const now = Timestamp.now();
-    
-    if (existing) {
-      await updateDoc(doc(getUnifiedDb(), this.collectionName, existing.id), {
-        items: cart.items,
-        updatedAt: now
-      });
-    } else {
-      const id = cart.id || crypto.randomUUID();
+    try {
+      const id = cart.userId; // Production Hardening: Use userId as ID for atomicity and speed
       await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
         ...cart,
         id,
-        updatedAt: now
-      });
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch (err) {
+      logger.error('Failed to save cart', { userId: cart.userId, err });
+      throw err;
     }
   }
 
   async clear(userId: string): Promise<void> {
-    const existing = await this.getByUserId(userId);
-    if (existing) {
-      await deleteDoc(doc(getUnifiedDb(), this.collectionName, existing.id));
+    try {
+      await deleteDoc(doc(getUnifiedDb(), this.collectionName, userId));
+    } catch (err) {
+      logger.error('Failed to clear cart', { userId, err });
+      throw err;
     }
   }
 }

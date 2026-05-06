@@ -11,15 +11,17 @@ import {
   updateDoc, 
   query, 
   where, 
-  orderBy, 
-  limit, 
+  orderBy,
+  limit,
   startAfter, 
   Timestamp,
   writeBatch,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IOrderRepository } from '@domain/repositories';
 import type { Address, Order, OrderItem, OrderStatus } from '@domain/models';
 
@@ -33,23 +35,33 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
-    if (order.idempotencyKey) {
-      const existing = await this.getByIdempotencyKey(order.idempotencyKey);
-      if (existing) return existing;
+    try {
+      if (order.idempotencyKey) {
+        const existing = await this.getByIdempotencyKey(order.idempotencyKey);
+        if (existing) {
+          logger.info('Duplicate order detected via idempotency key', { key: order.idempotencyKey });
+          return existing;
+        }
+      }
+
+      const id = crypto.randomUUID();
+      const now = serverTimestamp();
+
+      const orderData = {
+        ...order,
+        createdAt: now,
+        updatedAt: now,
+        riskScore: this.calculateRiskScore(order),
+      };
+
+      await setDoc(doc(getUnifiedDb(), this.collectionName, id), orderData);
+      const result = await this.getById(id);
+      if (!result) throw new Error(`Failed to retrieve newly created order: ${id}`);
+      return result;
+    } catch (err) {
+      logger.error('Order creation failed', { order, err });
+      throw err;
     }
-
-    const id = crypto.randomUUID();
-    const now = Timestamp.now();
-
-    const orderData = {
-      ...order,
-      createdAt: now,
-      updatedAt: now,
-      riskScore: this.calculateRiskScore(order),
-    };
-
-    await setDoc(doc(getUnifiedDb(), this.collectionName, id), orderData);
-    return (await this.getById(id))!;
   }
 
   async getById(id: string): Promise<Order | null> {
@@ -150,11 +162,17 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { status, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
+      status, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
   async updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { paymentTransactionId, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
+      paymentTransactionId, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
@@ -167,15 +185,24 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[]): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { notes, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
+      notes, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
   async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string }): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { ...data, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
+      ...data, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
   async updateRiskScore(orderId: string, score: number): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { riskScore: score, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
+      riskScore: score, 
+      updatedAt: serverTimestamp() 
+    });
   }
 
   async getDashboardStats(): Promise<{

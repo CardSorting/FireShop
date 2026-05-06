@@ -255,6 +255,16 @@ export function arrayRemove(...elements: any[]) {
   return client.arrayRemove(...elements);
 }
 
+/**
+ * Environment-aware 'serverTimestamp' helper
+ */
+export function serverTimestamp() {
+  if (isServer) {
+    return AdminFieldValue.serverTimestamp();
+  }
+  return client.serverTimestamp();
+}
+
 export const Timestamp = isServer 
   ? AdminTimestamp
   : client.Timestamp;

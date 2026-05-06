@@ -12,17 +12,19 @@ import {
   deleteDoc, 
   query, 
   where, 
-  orderBy, 
-  limit, 
-  startAfter, 
+  orderBy,
+  limit,
   runTransaction,
   Timestamp,
   writeBatch,
   getUnifiedDb,
+  startAfter,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot,
   type Transaction
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IProductRepository } from '@domain/repositories';
 import type { 
   Product, 
@@ -51,41 +53,53 @@ export class FirestoreProductRepository implements IProductRepository {
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }> {
-    let q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
+    try {
+      let q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
 
-    if (options.category) {
-      q = query(q, where('category', '==', options.category));
-    }
-    
-    if (options.collection) {
-      q = query(q, where('collections', 'array-contains', options.collection));
-    }
-
-    // Firestore doesn't support full-text search directly without 3rd party or simple prefix match
-    // For now, we'll implement simple filtering or just category/ordering
-    
-    if (options.limit) {
-      q = query(q, limit(options.limit + 1));
-    } else {
-      q = query(q, limit(21));
-    }
-
-    if (options.cursor) {
-      const cursorDoc = await getDoc(doc(getUnifiedDb(), this.collectionName, options.cursor));
-      if (cursorDoc.exists()) {
-        q = query(q, startAfter(cursorDoc));
+      if (options.category) {
+        q = query(q, where('category', '==', options.category));
       }
+      
+      if (options.collection) {
+        q = query(q, where('collections', 'array-contains', options.collection));
+      }
+
+      if (options.limit) {
+        q = query(q, limit(options.limit + 1));
+      } else {
+        q = query(q, limit(21));
+      }
+
+      if (options.cursor) {
+        const cursorDoc = await getDoc(doc(getUnifiedDb(), this.collectionName, options.cursor));
+        if (cursorDoc.exists()) {
+          q = query(q, startAfter(cursorDoc));
+        }
+      }
+
+      const snapshot = await getDocs(q);
+      let results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToProduct(d.id, d.data()));
+      
+      // Production Hardening: Simple in-memory search for small/medium datasets
+      if (options.query) {
+        const searchStr = options.query.toLowerCase();
+        results = results.filter((p: Product) => 
+          p.name.toLowerCase().includes(searchStr) || 
+          p.sku?.toLowerCase().includes(searchStr) ||
+          p.handle?.toLowerCase().includes(searchStr)
+        );
+      }
+
+      const limitVal = options.limit ?? 20;
+      const hasNextPage = results.length > limitVal;
+      const products = results.slice(0, limitVal);
+      const nextCursor = hasNextPage ? products[products.length - 1].id : undefined;
+
+      return { products, nextCursor };
+    } catch (err) {
+      logger.error('Product fetch failed', { options, err });
+      return { products: [], nextCursor: undefined };
     }
-
-    const snapshot = await getDocs(q);
-    const results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToProduct(d.id, d.data()));
-    
-    const limitVal = options.limit ?? 20;
-    const hasNextPage = results.length > limitVal;
-    const products = results.slice(0, limitVal);
-    const nextCursor = hasNextPage ? products[products.length - 1].id : undefined;
-
-    return { products, nextCursor };
   }
 
   async getById(id: string): Promise<Product | null> {
@@ -105,16 +119,25 @@ export class FirestoreProductRepository implements IProductRepository {
 
   async create(product: ProductDraft): Promise<Product> {
     const id = crypto.randomUUID();
-    const now = Timestamp.now();
+    const now = serverTimestamp();
 
     const baseHandle = product.handle || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const handle = await this.ensureUniqueHandle(baseHandle);
+    
+    const variants = product.variants?.map(v => ({ 
+      ...v, 
+      id: v.id || crypto.randomUUID(), 
+      createdAt: now, 
+      updatedAt: now 
+    })) || [];
 
     const productData = {
       ...product,
       createdAt: now,
       updatedAt: now,
-      variants: product.variants?.map(v => ({ ...v, id: v.id || crypto.randomUUID(), createdAt: now, updatedAt: now })) || [],
+      variants,
+      // Production Hardening: Explicit index for variants to enable fast lookups by variantId
+      variantIds: variants.map(v => v.id),
       options: product.options?.map(o => ({ ...o, id: o.id || crypto.randomUUID() })) || [],
       media: product.media?.map(m => ({ ...m, id: m.id || crypto.randomUUID(), createdAt: now })) || [],
       handle,
@@ -126,16 +149,14 @@ export class FirestoreProductRepository implements IProductRepository {
 
   async update(id: string, updates: ProductUpdate): Promise<Product> {
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     
     const firestoreUpdates: any = { ...updates, updatedAt: now };
 
-    // If handle is being updated, ensure it's unique
     if (updates.handle) {
       firestoreUpdates.handle = await this.ensureUniqueHandle(updates.handle, id);
     }
     
-    // Handle specific fields if needed (e.g., date conversion)
     if (updates.media) {
       firestoreUpdates.media = updates.media.map(m => ({
         ...m,
@@ -151,6 +172,8 @@ export class FirestoreProductRepository implements IProductRepository {
         createdAt: v.createdAt ? Timestamp.fromDate(new Date(v.createdAt)) : now,
         updatedAt: now
       }));
+      // Sync variant index
+      firestoreUpdates.variantIds = firestoreUpdates.variants.map((v: any) => v.id);
     }
 
     await updateDoc(docRef, firestoreUpdates);
@@ -173,52 +196,45 @@ export class FirestoreProductRepository implements IProductRepository {
 
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), currentStock);
 
-      transaction.update(docRef, { stock: nextStock, updatedAt: Timestamp.now() });
+      transaction.update(docRef, { stock: nextStock, updatedAt: serverTimestamp() });
     });
   }
 
   async updateVariantStock(variantId: string, delta: number): Promise<void> {
-    // In Firestore, if variants are embedded, we need to find the product containing the variant
-    // This is less efficient than SQLite. For now, we'll query for the product.
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('variants', 'array-contains-any', [{ id: variantId }]));
-    // Wait, array-contains-any works on whole objects. This won't work as expected if we don't know the whole object.
-    // Better: use a separate collection for variants OR iterate in transaction.
-    // Given the small number of variants, we'll use a collection query if we can't find it easily.
+    // Production Hardening: Optimized lookup using variantIds array index
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('variantIds', 'array-contains', variantId), limit(1));
+    const snapshot = await getDocs(q);
     
-    // Alternative: search all products (slow) or require productId.
-    // For now, let's assume we need to find the product.
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
-    let targetProductDoc: any = null;
-    for (const d of snapshot.docs as any[]) {
-      const variants = d.data().variants || [];
-      if (variants.some((v: any) => v.id === variantId)) {
-        targetProductDoc = d;
-        break;
-      }
+    if (snapshot.empty) {
+      // Fallback: This might be an old product without the index, or the variant doesn't exist
+      throw new Error(`Product containing variant ${variantId} not found`);
     }
 
-    if (!targetProductDoc) throw new Error(`Variant not found: ${variantId}`);
+    const productDoc = snapshot.docs[0];
+    const productId = productDoc.id;
 
     await runTransaction(getUnifiedDb(), async (transaction: any) => {
-      const docRef = doc(getUnifiedDb(), this.collectionName, targetProductDoc.id);
+      const docRef = doc(getUnifiedDb(), this.collectionName, productId);
       const docSnap = await transaction.get(docRef);
       const data = docSnap.data()!;
       const variants = [...(data.variants || [])];
       const variantIndex = variants.findIndex((v: any) => v.id === variantId);
       
+      if (variantIndex === -1) throw new Error(`Variant ${variantId} not found in product ${productId}`);
+      
       const currentStock = variants[variantIndex].stock || 0;
       const nextStock = currentStock + delta;
-      if (nextStock < 0) throw new Error(`Insufficient stock for variant: ${variantId}`);
+      if (nextStock < 0) throw new InsufficientStockError(productId, Math.abs(delta), currentStock);
 
       variants[variantIndex].stock = nextStock;
-      variants[variantIndex].updatedAt = Timestamp.now();
+      variants[variantIndex].updatedAt = serverTimestamp();
 
       const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
 
       transaction.update(docRef, { 
         variants, 
         stock: totalStock,
-        updatedAt: Timestamp.now() 
+        updatedAt: serverTimestamp() 
       });
     });
   }

@@ -20,9 +20,11 @@ import {
   writeBatch,
   getUnifiedDb,
   startAfter,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { KnowledgebaseCategory, KnowledgebaseArticle, Author, BlogComment, Subscriber, BlogSeries } from '@domain/models';
 
 
@@ -42,14 +44,21 @@ export class FirestoreKnowledgebaseRepository {
   private mapDocToCategory(id: string, data: DocumentData): KnowledgebaseCategory {
     return { ...data, id } as KnowledgebaseCategory;
   }
+  
+  private toDate(val: any): Date {
+    if (val instanceof Timestamp) return val.toDate();
+    if (val instanceof Date) return val;
+    if (typeof val === 'string' || typeof val === 'number') return new Date(val);
+    return new Date();
+  }
 
   private mapDocToArticle(id: string, data: DocumentData): KnowledgebaseArticle {
     return {
       ...data,
       id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-      publishedAt: data.publishedAt instanceof Timestamp ? data.publishedAt.toDate() : (data.publishedAt ? new Date(data.publishedAt) : undefined),
+      createdAt: this.toDate(data.createdAt),
+      updatedAt: this.toDate(data.updatedAt),
+      publishedAt: data.publishedAt ? this.toDate(data.publishedAt) : undefined,
     } as KnowledgebaseArticle;
   }
 
@@ -57,8 +66,8 @@ export class FirestoreKnowledgebaseRepository {
     return {
       ...data,
       id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      createdAt: this.toDate(data.createdAt),
+      updatedAt: this.toDate(data.updatedAt),
     } as Author;
   }
 
@@ -66,8 +75,8 @@ export class FirestoreKnowledgebaseRepository {
     return {
       ...data,
       id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      createdAt: this.toDate(data.createdAt),
+      updatedAt: this.toDate(data.updatedAt),
     } as BlogComment;
   }
 
@@ -75,7 +84,7 @@ export class FirestoreKnowledgebaseRepository {
     return {
       ...data,
       id,
-      subscribedAt: data.subscribedAt instanceof Timestamp ? data.subscribedAt.toDate() : new Date(data.subscribedAt),
+      subscribedAt: this.toDate(data.subscribedAt),
     } as Subscriber;
   }
 
@@ -83,8 +92,8 @@ export class FirestoreKnowledgebaseRepository {
     return {
       ...data,
       id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
+      createdAt: this.toDate(data.createdAt),
+      updatedAt: this.toDate(data.updatedAt),
     } as BlogSeries;
   }
 
@@ -176,16 +185,34 @@ export class FirestoreKnowledgebaseRepository {
     }
   }
 
-  async searchArticles(queryString: string): Promise<KnowledgebaseArticle[]> {
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.articleCollection));
-    const q = queryString.toLowerCase();
-    return snapshot.docs
-      .map((d: QueryDocumentSnapshot) => this.mapDocToArticle(d.id, d.data() as any))
-      .filter((a: KnowledgebaseArticle) => 
-        a.status === 'published' && 
-        (a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q) || a.tags?.some(t => t.toLowerCase().includes(q)))
-      )
-      .sort((a: KnowledgebaseArticle, b: KnowledgebaseArticle) => (b.viewCount || 0) - (a.viewCount || 0));
+  async searchArticles(queryString: string, limitVal: number = 20): Promise<KnowledgebaseArticle[]> {
+    try {
+      // Production Hardening: Instead of fetching all docs, we fetch only published ones
+      // and limit the initial fetch. Firestore doesn't support full-text search, so we
+      // still filter in-memory, but on a smaller, relevant set.
+      const q = query(
+        collection(getUnifiedDb(), this.articleCollection),
+        where('status', '==', 'published'),
+        limit(50) // Reasonable limit for client-side filtering
+      );
+      
+      const snapshot = await getDocs(q);
+      const searchTerms = queryString.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+      
+      if (searchTerms.length === 0) return [];
+
+      return snapshot.docs
+        .map((d: QueryDocumentSnapshot) => this.mapDocToArticle(d.id, d.data() as any))
+        .filter((a: KnowledgebaseArticle) => {
+          const content = `${a.title} ${a.content} ${a.tags?.join(' ')}`.toLowerCase();
+          return searchTerms.every(term => content.includes(term));
+        })
+        .sort((a: KnowledgebaseArticle, b: KnowledgebaseArticle) => (b.viewCount || 0) - (a.viewCount || 0))
+        .slice(0, limitVal);
+    } catch (err) {
+      logger.error('KB search failed', { queryString, err });
+      return [];
+    }
   }
 
   async getPopularArticles(limitVal: number = 5): Promise<KnowledgebaseArticle[]> {
@@ -234,11 +261,18 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async saveArticle(article: KnowledgebaseArticle): Promise<void> {
+    if (!article.id || !article.slug) {
+      throw new Error('Article ID and slug are required for persistence');
+    }
+    
     const data = {
       ...article,
-      createdAt: article.createdAt ? Timestamp.fromDate(new Date(article.createdAt)) : Timestamp.now(),
-      updatedAt: Timestamp.now(),
-      publishedAt: article.publishedAt ? Timestamp.fromDate(new Date(article.publishedAt)) : (article.status === 'published' ? Timestamp.now() : null),
+      slug: article.slug.toLowerCase().trim(),
+      createdAt: article.createdAt ? Timestamp.fromDate(new Date(article.createdAt)) : serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      publishedAt: article.status === 'published' 
+        ? (article.publishedAt ? Timestamp.fromDate(new Date(article.publishedAt)) : serverTimestamp()) 
+        : null,
     };
     await setDoc(doc(getUnifiedDb(), this.articleCollection, article.id), data);
   }
@@ -260,10 +294,12 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   async saveAuthor(author: Author): Promise<void> {
+    if (!author.id || !author.name) throw new Error('Author ID and name are required');
+    
     const data = {
       ...author,
-      createdAt: author.createdAt ? Timestamp.fromDate(new Date(author.createdAt)) : Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      createdAt: author.createdAt ? Timestamp.fromDate(new Date(author.createdAt)) : serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
     await setDoc(doc(getUnifiedDb(), this.authorCollection, author.id), data);
   }
@@ -306,10 +342,11 @@ export class FirestoreKnowledgebaseRepository {
     const data = {
       ...comment,
       id,
-      postTitle,
+      postTitle: postTitle || 'Untitled Post',
       likes: 0,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      status: comment.status || 'published',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
     await setDoc(doc(getUnifiedDb(), this.commentCollection, id), data);
     return this.mapDocToComment(id, data);
@@ -326,12 +363,14 @@ export class FirestoreKnowledgebaseRepository {
 
   // CRM & Analytics Implementation
   async subscribe(email: string, source: string): Promise<void> {
+    if (!email.includes('@')) throw new Error('Invalid email address');
+    
     const id = crypto.randomUUID();
     await setDoc(doc(getUnifiedDb(), this.subscriberCollection, id), {
       id,
-      email,
+      email: email.toLowerCase().trim(),
       source,
-      subscribedAt: Timestamp.now()
+      subscribedAt: serverTimestamp()
     });
   }
 
@@ -347,11 +386,12 @@ export class FirestoreKnowledgebaseRepository {
       postId,
       type,
       userId: userId || null,
-      createdAt: Timestamp.now()
+      createdAt: serverTimestamp()
     });
     
     if (type === 'view') {
-      await this.incrementViewCount(postId);
+      // Background increment (non-blocking for tracking)
+      void this.incrementViewCount(postId).catch(e => logger.warn('View count increment failed', { postId, e }));
     }
   }
 
@@ -365,7 +405,7 @@ export class FirestoreKnowledgebaseRepository {
     const batch = writeBatch(getUnifiedDb());
     const data = {
       ...updates,
-      updatedAt: Timestamp.now()
+      updatedAt: serverTimestamp()
     };
     
     ids.forEach(id => {
