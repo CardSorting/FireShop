@@ -113,7 +113,8 @@ export class OrderService {
   ): Promise<Order> {
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_lock:${userId}`;
-    const checkoutIdempotencyKey = idempotencyKey?.trim() || `checkout_init:${userId}:${crypto.randomUUID()}`;
+    const checkoutAttemptId = crypto.randomUUID();
+    const checkoutIdempotencyKey = idempotencyKey?.trim() || `checkout_init:${userId}:${checkoutAttemptId}`;
 
     // 1. Check for existing order by idempotency key before acquiring lock
     const existingOrder = await this.orderRepo.getByIdempotencyKey(checkoutIdempotencyKey);
@@ -184,6 +185,7 @@ export class OrderService {
             isDigital: product.isDigital,
             shippingClassId: product.shippingClassId,
             fulfilledQty: 0,
+            hsCode: (item.variantId ? product.variants?.find(v => v.id === item.variantId)?.hsCode : undefined) || product.hsCode,
           });
         }
 
@@ -194,6 +196,20 @@ export class OrderService {
           for (const update of stockDeductions) {
             if (update.variantId) await this.productRepo.updateVariantStock(update.variantId, update.delta);
             else await this.productRepo.updateStock(update.id, update.delta);
+          }
+        }
+
+        const fulfillmentLocationId = await this.assignFulfillmentLocation({ userId, shippingAddress, items: cart.items });
+
+        // Deduct from location-specific inventory if location is assigned
+        if (fulfillmentLocationId && this.inventoryLevelRepo) {
+          for (const item of cart.items) {
+            await this.inventoryLevelRepo.adjustQuantity(
+              item.productId, 
+              fulfillmentLocationId, 
+              -item.quantity, 
+              `Checkout initiated (Order: ${checkoutAttemptId})`
+            ).catch(err => logger.error('Failed to adjust location inventory during checkout', { productId: item.productId, fulfillmentLocationId, err }));
           }
         }
 
@@ -220,8 +236,6 @@ export class OrderService {
 
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
-
-        const fulfillmentLocationId = await this.assignFulfillmentLocation({ userId, shippingAddress });
 
         // Commit Order to Repository with Atomic Initial Events
         const order = await this.orderRepo.create({
@@ -538,9 +552,21 @@ export class OrderService {
   }
   /**
    * Internal helper to assign the optimal fulfillment location for an order.
-   * Production Hardening: In a real app, this would use geolocation or availability logic.
+   * Production Hardening: Real-world stock-aware routing.
    */
-  private async assignFulfillmentLocation(order: Partial<Order>): Promise<string> {
+  private async assignFulfillmentLocation(params: { userId: string, shippingAddress: Address, items?: any[] }): Promise<string> {
+    if (this.locationRepo && this.inventoryLevelRepo && params.items?.length) {
+      try {
+        // Find a location that has at least the first item in stock
+        const firstItem = params.items[0];
+        const levels = await this.inventoryLevelRepo.findByProduct(firstItem.productId);
+        const available = levels.find(l => l.availableQty >= firstItem.quantity);
+        if (available) return available.locationId;
+      } catch (err) {
+        logger.error('Failed to assign stock-aware location', err);
+      }
+    }
+
     if (this.locationRepo) {
       const defaultLoc = await this.locationRepo.findDefault();
       if (defaultLoc) return defaultLoc.id;
@@ -635,6 +661,7 @@ export class OrderService {
           isDigital: product.isDigital,
           shippingClassId: product.shippingClassId,
           fulfilledQty: 0,
+          hsCode: (item.variantId ? product.variants?.find(v => v.id === item.variantId)?.hsCode : undefined) || product.hsCode,
         });
       }
 
@@ -661,6 +688,20 @@ export class OrderService {
         }
       }
 
+      const fulfillmentLocationId = await this.assignFulfillmentLocation({ userId, shippingAddress, items: cart.items });
+
+      // Deduct from location-specific inventory if location is assigned
+      if (fulfillmentLocationId && this.inventoryLevelRepo) {
+        for (const item of cart.items) {
+          await this.inventoryLevelRepo.adjustQuantity(
+            item.productId, 
+            fulfillmentLocationId, 
+            -item.quantity, 
+            `Order placed (Order ID: ${checkoutAttemptId})`
+          ).catch(err => logger.error('Failed to adjust location inventory during order placement', { productId: item.productId, fulfillmentLocationId, err }));
+        }
+      }
+
       const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       
       let shipping = subtotal >= 10000 ? 0 : 599;
@@ -684,8 +725,6 @@ export class OrderService {
 
       const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
       const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
-
-      const fulfillmentLocationId = await this.assignFulfillmentLocation({ userId, shippingAddress });
 
       // Process payment
       const paymentResult = await this.payment.processPayment({

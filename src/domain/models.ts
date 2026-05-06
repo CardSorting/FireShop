@@ -38,6 +38,7 @@ export interface Product {
   isDigital?: boolean;
   digitalAssets?: DigitalAsset[];
   shippingClassId?: string;
+  hsCode?: string;
   
   // Variations
   hasVariants?: boolean;
@@ -71,6 +72,7 @@ export interface ProductVariant {
   option3?: string;
   imageUrl?: string;
   weightGrams?: number;
+  hsCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }
