@@ -213,7 +213,7 @@ export class OrderService {
 
         const total = Math.max(0, subtotal + shipping - discountAmount);
 
-        // Commit Order to Repository
+        // Commit Order to Repository with Atomic Initial Events
         const order = await this.orderRepo.create({
           userId,
           items: verifiedItems,
@@ -234,6 +234,7 @@ export class OrderService {
             createdAt: new Date(),
           }],
           riskScore: 0,
+          fulfillmentEvents: [this.createFulfillmentEvent('initial', 'order_placed')],
         });
 
         await this.audit.record({
@@ -514,6 +515,10 @@ export class OrderService {
           shippingClassId,
           notes: [],
           riskScore: 0,
+          fulfillmentEvents: [
+            this.createFulfillmentEvent('initial', 'order_placed'),
+            this.createFulfillmentEvent('initial', 'payment_confirmed')
+          ],
         });
 
         await Promise.all([
@@ -1001,7 +1006,7 @@ export class OrderService {
     return digitalAssets.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
   }
 
-  private async recordFulfillmentEvent(orderId: string, statusOrType: OrderStatus | OrderFulfillmentEventType): Promise<void> {
+  private createFulfillmentEvent(orderId: string, statusOrType: OrderStatus | OrderFulfillmentEventType): OrderFulfillmentEvent {
     const mapping: Record<string, OrderFulfillmentEventType> = {
       pending: 'order_placed',
       confirmed: 'payment_confirmed',
@@ -1032,17 +1037,19 @@ export class OrderService {
       cancelled: 'The order has been cancelled.',
     };
 
-    const event: OrderFulfillmentEvent = {
-      id: `${orderId}-${type}-${Date.now()}`,
+    return {
+      id: `${orderId === 'initial' ? crypto.randomUUID() : orderId}-${type}-${Date.now()}`,
       type,
       label: labels[type] || 'Status update',
       description: descriptions[type] || `Order status changed to ${type}`,
       at: new Date(),
     };
+  }
 
-    // Note: This requires an update to IOrderRepository to support appending events
-    if ((this.orderRepo as any).addFulfillmentEvent) {
-      await (this.orderRepo as any).addFulfillmentEvent(orderId, event);
+  private async recordFulfillmentEvent(orderId: string, statusOrType: OrderStatus | OrderFulfillmentEventType): Promise<void> {
+    const event = this.createFulfillmentEvent(orderId, statusOrType);
+    if (this.orderRepo.addFulfillmentEvent) {
+      await this.orderRepo.addFulfillmentEvent(orderId, event);
     }
   }
 }
