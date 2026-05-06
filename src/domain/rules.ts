@@ -56,10 +56,12 @@ export const MAX_ADDRESS_FIELD_LENGTH = 120;
 const PRODUCT_SALES_CHANNELS: ProductSalesChannel[] = ['online_store', 'pos', 'draft_order'];
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['shipped', 'cancelled'],
-  shipped: ['delivered'],
-  delivered: [],
+  confirmed: ['shipped', 'cancelled', 'refunded', 'partially_refunded'],
+  shipped: ['delivered', 'refunded', 'partially_refunded'],
+  delivered: ['refunded', 'partially_refunded'],
   cancelled: [],
+  refunded: [],
+  partially_refunded: ['refunded'],
 };
 
 function assertNonEmptyString(value: string | undefined, field: string, maxLength: number): void {

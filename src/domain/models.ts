@@ -312,6 +312,7 @@ export interface Order {
   shippingClassId?: string;
   shippingAmount: number; // cents
   taxAmount: number; // cents
+  fulfillmentLocationId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -375,7 +376,9 @@ export type OrderStatus =
   | 'confirmed'
   | 'shipped'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'refunded'
+  | 'partially_refunded';
 
 export interface Address {
   street: string;

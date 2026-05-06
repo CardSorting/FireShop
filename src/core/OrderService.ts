@@ -12,6 +12,8 @@ import type {
   ICheckoutGateway,
   ITaxonomyRepository,
   IShippingRepository,
+  IInventoryLocationRepository,
+  IInventoryLevelRepository,
 } from '@domain/repositories';
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
@@ -42,6 +44,7 @@ import {
   canPlaceOrder,
   deriveEstimatedDeliveryDate,
   deriveTrackingUrl,
+  formatCents,
 } from '@domain/rules';
 import { coalesceCartStockDeductions } from '@domain/rules';
 import {
@@ -67,7 +70,9 @@ export class OrderService {
     private locker: ILockProvider = new FirestoreLocker(),
     private checkoutGateway?: ICheckoutGateway,
     private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository(),
-    private shippingRepo?: IShippingRepository
+    private shippingRepo?: IShippingRepository,
+    private locationRepo?: IInventoryLocationRepository,
+    private inventoryLevelRepo?: IInventoryLevelRepository
   ) { }
 
   async finalizeTrustedCheckout(
@@ -214,6 +219,8 @@ export class OrderService {
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
+        const fulfillmentLocationId = await this.assignFulfillmentLocation({ userId, shippingAddress });
+
         // Commit Order to Repository with Atomic Initial Events
         const order = await this.orderRepo.create({
           userId,
@@ -227,6 +234,7 @@ export class OrderService {
           discountAmount,
           shippingAmount: shipping,
           taxAmount,
+          fulfillmentLocationId,
           shippingClassId,
           notes: [{
             id: crypto.randomUUID(),
@@ -349,6 +357,88 @@ export class OrderService {
         logger.error('Finalize order payment failed', { paymentIntentId, error });
         throw error;
     }
+  }
+
+  /**
+   * Processes a refund for an order.
+   * Production Hardening: Handles forensic status transitions and restocks inventory if requested.
+   */
+  async refundOrder(params: {
+    orderId: string;
+    amount: number;
+    reason: string;
+    restock: boolean;
+    actor: { id: string, email: string };
+  }): Promise<void> {
+    const order = await this.orderRepo.getById(params.orderId);
+    if (!order) throw new OrderNotFoundError(params.orderId);
+    if (!order.paymentTransactionId) throw new Error('Order has no payment transaction');
+    if (params.amount > order.total) throw new Error('Refund amount exceeds order total');
+
+    const result = await this.payment.refundPayment(order.paymentTransactionId, params.amount);
+    if (!result.success) throw new Error('Payment refund failed at gateway');
+
+    const isPartial = params.amount < order.total;
+    const newStatus: OrderStatus = isPartial ? 'partially_refunded' : 'refunded';
+
+    await this.orderRepo.updateStatus(order.id, newStatus);
+    
+    if (params.restock) {
+      const restockUpdates = order.items.map(item => ({
+        id: item.productId,
+        variantId: item.variantId,
+        delta: item.quantity
+      }));
+      if (this.productRepo.batchUpdateStock) {
+        await this.productRepo.batchUpdateStock(restockUpdates);
+      } else {
+        for (const update of restockUpdates) {
+          if (update.variantId) {
+            await this.productRepo.updateVariantStock(update.variantId, update.delta);
+          } else {
+            await this.productRepo.updateStock(update.id, update.delta);
+          }
+        }
+      }
+    }
+
+    const noteId = crypto.randomUUID();
+    await this.orderRepo.updateNotes(order.id, [
+      ...order.notes,
+      {
+        id: noteId,
+        authorId: params.actor.id,
+        authorEmail: params.actor.email,
+        text: `REFUND ISSUED: ${formatCents(params.amount)}. Reason: ${params.reason}. ${params.restock ? 'Inventory restocked.' : 'No restock.'}`,
+        createdAt: new Date(),
+      }
+    ]);
+
+    await this.audit.record({
+      userId: params.actor.id,
+      userEmail: params.actor.email,
+      action: 'order_refunded',
+      targetId: order.id,
+      details: { 
+        amount: params.amount, 
+        reason: params.reason, 
+        restock: params.restock, 
+        status: newStatus,
+        noteId
+      }
+    });
+  }
+
+  /**
+   * Internal helper to assign the optimal fulfillment location for an order.
+   * Production Hardening: In a real app, this would use geolocation or availability logic.
+   */
+  private async assignFulfillmentLocation(order: Partial<Order>): Promise<string> {
+    if (this.locationRepo) {
+      const defaultLoc = await this.locationRepo.findDefault();
+      if (defaultLoc) return defaultLoc.id;
+    }
+    return 'primary-warehouse';
   }
 
   async placeOrder(
@@ -488,6 +578,8 @@ export class OrderService {
       const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
       const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
+      const fulfillmentLocationId = await this.assignFulfillmentLocation({ userId, shippingAddress });
+
       // Process payment
       const paymentResult = await this.payment.processPayment({
         amount: total,
@@ -527,6 +619,7 @@ export class OrderService {
           discountAmount,
           shippingAmount: shipping,
           taxAmount,
+          fulfillmentLocationId,
           shippingClassId,
           notes: [],
           riskScore: 0,

@@ -82,7 +82,10 @@ export class AuditService {
         
         const correlationId = params.correlationId || crypto.randomUUID();
         const now = new Date();
-        const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${correlationId}|${now.toISOString()}`;
+        const ip = params.ip || '0.0.0.0';
+        const userAgent = params.userAgent || 'unknown';
+        
+        const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${correlationId}|${ip}|${userAgent}|${now.toISOString()}`;
         const hash = crypto.createHash('sha256').update(payload).digest('hex');
 
         const docRef = doc(getUnifiedDb(), this.collectionName, id);
@@ -96,6 +99,8 @@ export class AuditService {
           hash,
           previousHash,
           correlationId,
+          ip,
+          userAgent,
           createdAt: serverTimestamp(),
           clientCreatedAt: now.toISOString() // Store client date for hash verification later
         });
@@ -169,7 +174,9 @@ export class AuditService {
         const id = docSnap.id;
         
         const createdAtStr = log.clientCreatedAt || (log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString());
-        const payload = `${id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${log.correlationId || ''}|${createdAtStr}`;
+        const ip = log.ip || '0.0.0.0';
+        const userAgent = log.userAgent || 'unknown';
+        const payload = `${id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${log.correlationId || ''}|${ip}|${userAgent}|${createdAtStr}`;
         const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
 
         if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {

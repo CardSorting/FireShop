@@ -55,4 +55,22 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       throw new PaymentFailedError(message);
     }
   }
+
+  async refundPayment(transactionId: string, amount: number): Promise<{ success: boolean }> {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new PaymentFailedError('Stripe processor is not configured.');
+    }
+
+    try {
+      const refund = await this.stripe.refunds.create({
+        payment_intent: transactionId,
+        amount: Math.trunc(amount),
+      });
+
+      return { success: refund.status === 'succeeded' || refund.status === 'pending' };
+    } catch (error: any) {
+      const message = error.message || 'Stripe refund request failed.';
+      throw new PaymentFailedError(message);
+    }
+  }
 }
