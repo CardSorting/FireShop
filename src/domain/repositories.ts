@@ -1,7 +1,7 @@
 /**
  * [LAYER: DOMAIN]
  */
-import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User } from './models';
+import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User, ProductStatus } from './models';
 import type {
   Discount,
   DiscountDraft,
@@ -15,6 +15,9 @@ export interface IProductRepository {
     category?: string;
     collection?: string;
     query?: string;
+    status?: ProductStatus | 'all';
+    inventoryHealth?: 'out_of_stock' | 'low_stock' | 'healthy' | 'all';
+    setupStatus?: 'ready' | 'needs_attention' | 'all';
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }>;

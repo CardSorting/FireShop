@@ -47,6 +47,7 @@ export interface AuditEntry {
   details: string; // JSON string
   hash: string | null;
   previousHash: string | null;
+  correlationId: string | null;
   createdAt: Date;
   clientCreatedAt?: string; // ISO string used for hashing
 }
@@ -62,6 +63,7 @@ export class AuditService {
     details?: any;
     ip?: string;
     userAgent?: string;
+    correlationId?: string;
   }): Promise<void> {
     try {
       const id = crypto.randomUUID();
@@ -78,8 +80,9 @@ export class AuditService {
         const lastEntry = snapshot.empty ? null : snapshot.docs[0].data();
         const previousHash = lastEntry?.hash || '0'.repeat(64);
         
+        const correlationId = params.correlationId || crypto.randomUUID();
         const now = new Date();
-        const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${now.toISOString()}`;
+        const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${correlationId}|${now.toISOString()}`;
         const hash = crypto.createHash('sha256').update(payload).digest('hex');
 
         const docRef = doc(getUnifiedDb(), this.collectionName, id);
@@ -92,6 +95,7 @@ export class AuditService {
           details: detailsStr,
           hash,
           previousHash,
+          correlationId,
           createdAt: serverTimestamp(),
           clientCreatedAt: now.toISOString() // Store client date for hash verification later
         });
@@ -165,7 +169,7 @@ export class AuditService {
         const id = docSnap.id;
         
         const createdAtStr = log.clientCreatedAt || (log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString());
-        const payload = `${id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${createdAtStr}`;
+        const payload = `${id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${log.correlationId || ''}|${createdAtStr}`;
         const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
 
         if (actualHash !== log.hash || log.previousHash !== expectedPreviousHash) {

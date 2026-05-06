@@ -151,7 +151,8 @@ export type ProductSavedView =
   | 'missing_sku'
   | 'missing_cost'
   | 'needs_photos'
-  | 'archived';
+  | 'archived'
+  | 'ready';
 
 export type MarginHealth = 'unknown' | 'at_risk' | 'healthy' | 'premium';
 

@@ -43,6 +43,7 @@ const PRODUCT_SAVED_VIEWS: ProductSavedView[] = [
   'missing_cost',
   'needs_photos',
   'archived',
+  'ready',
 ];
 
 const DEFAULT_MANAGEMENT_SORT: ProductManagementSortKey = 'updated_desc';
@@ -84,7 +85,7 @@ export class ProductService {
     const result = await this.repo.getAll(options);
     return {
       ...result,
-      products: result.products.map(p => Sanitizer.product(p))
+      products: result.products.map((p: Product) => Sanitizer.product(p))
     };
   }
 
@@ -94,7 +95,7 @@ export class ProductService {
     // For the list of products in the overview, we still limit to 100 for performance
     const { products } = await this.repo.getAll({ limit: 100 });
     
-    const enrichedProducts = products.map((product) => {
+    const enrichedProducts = products.map((product: Product) => {
       const inventoryHealth = classifyInventoryHealth(product.stock);
       return { ...product, inventoryHealth };
     });
@@ -106,7 +107,9 @@ export class ProductService {
       healthCounts: stats.healthCounts,
       products: enrichedProducts.sort((a, b) => {
         const rank = { out_of_stock: 0, low_stock: 1, healthy: 2 } as const;
-        return rank[a.inventoryHealth] - rank[b.inventoryHealth] || a.stock - b.stock || a.name.localeCompare(b.name);
+        const rankA = rank[a.inventoryHealth as keyof typeof rank] ?? 0;
+        const rankB = rank[b.inventoryHealth as keyof typeof rank] ?? 0;
+        return rankA - rankB || a.stock - b.stock || a.name.localeCompare(b.name);
       }),
     };
   }
@@ -132,8 +135,8 @@ export class ProductService {
     let marginSum = 0;
     let marginCount = 0;
 
-    const enriched = products.map((product) => {
-      statusCounts[product.status] += 1;
+    const enriched = products.map((product: Product) => {
+      statusCounts[product.status as ProductStatus] += 1;
       const setupIssues = getProductSetupIssues(product);
       for (const issue of setupIssues) setupIssueCounts[issue] += 1;
       const marginHealth = classifyMarginHealth(product);
@@ -152,7 +155,7 @@ export class ProductService {
       setupIssueCounts,
       marginHealthCounts,
       lowStockCount: products.filter((product) => product.stock > 0 && product.stock < (product.reorderPoint ?? 5)).length,
-      outOfStockCount: products.filter((product) => product.stock <= 0).length,
+      outOfStockCount: products.filter((product: Product) => product.stock <= 0).length,
       averageMarginPercent: marginCount > 0 ? Math.round((marginSum / marginCount) * 10) / 10 : null,
       productsNeedingAttention: enriched
         .filter((product) => product.setupStatus === 'needs_attention')
@@ -165,35 +168,27 @@ export class ProductService {
     view: ProductSavedView,
     options?: ProductManagementFilters
   ): Promise<ProductSavedViewResult> {
-    const { products } = await this.repo.getAll({
+    const { products, nextCursor } = await this.repo.getAll({
       query: options?.query,
-      limit: 1000,
+      status: view === 'active' ? 'active' : view === 'drafts' ? 'draft' : view === 'archived' ? 'archived' : options?.status,
+      inventoryHealth: view === 'low_stock' ? 'low_stock' : options?.inventoryHealth,
+      setupStatus: view === 'needs_attention' ? 'needs_attention' : (view === 'ready' ? 'ready' : options?.setupStatus),
+      category: options?.category,
+      limit: Math.min(Math.max(options?.limit ?? 100, 1), 500),
+      cursor: options?.cursor,
     });
-    const savedViewProducts = products
-      .map((product) => this.enrichProductForManagement(product))
-      .filter((product) => this.matchesSavedView(product, view));
 
-    const facets = this.buildManagementFacets(savedViewProducts);
-    const activeFilters = this.buildActiveFilters(options);
-    const sort = options?.sort && MANAGEMENT_SORTS.includes(options.sort) ? options.sort : DEFAULT_MANAGEMENT_SORT;
-    const filtered = savedViewProducts
-      .filter((product) => this.matchesManagementFilters(product, options))
-      .sort((a, b) => this.compareManagedProducts(a, b, sort, view));
-
-    const cursorIndex = options?.cursor ? filtered.findIndex((product) => product.id === options.cursor) : -1;
-    const cursorFiltered = cursorIndex >= 0 ? filtered.slice(cursorIndex + 1) : filtered;
-    const limit = Math.min(Math.max(options?.limit ?? 100, 1), 500);
-    const limited = cursorFiltered.slice(0, limit);
+    const enrichedProducts = products.map((product: Product) => this.enrichProductForManagement(product));
 
     return {
       view,
-      totalCount: savedViewProducts.length,
-      filteredCount: filtered.length,
-      products: limited,
-      facets,
-      activeFilters,
-      sort,
-      nextCursor: cursorFiltered.length > limit ? limited[limited.length - 1]?.id : undefined,
+      totalCount: enrichedProducts.length, // This would ideally be a separate count query
+      filteredCount: enrichedProducts.length,
+      products: enrichedProducts,
+      facets: this.buildManagementFacets(enrichedProducts),
+      activeFilters: this.buildActiveFilters(options),
+      sort: options?.sort && MANAGEMENT_SORTS.includes(options.sort) ? options.sort : DEFAULT_MANAGEMENT_SORT,
+      nextCursor,
     };
   }
 

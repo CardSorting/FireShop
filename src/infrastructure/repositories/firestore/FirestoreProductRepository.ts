@@ -38,6 +38,7 @@ import type {
 import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
 
 import { mapDoc } from './utils';
+import { classifyInventoryHealth, classifyProductSetupStatus } from '@domain/rules';
 
 export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
@@ -50,16 +51,37 @@ export class FirestoreProductRepository implements IProductRepository {
     category?: string;
     collection?: string;
     query?: string;
+    status?: ProductStatus | 'all';
+    inventoryHealth?: 'out_of_stock' | 'low_stock' | 'healthy' | 'all';
+    setupStatus?: 'ready' | 'needs_attention' | 'all';
     limit?: number;
     cursor?: string;
-  }): Promise<{ products: Product[]; nextCursor?: string }> {
+  } = {}): Promise<{ products: Product[]; nextCursor?: string }> {
     try {
       let q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'));
 
       if (options.category) {
         q = query(q, where('category', '==', options.category));
       }
+
+      if (options.query) {
+        // Production Hardening: Use the pre-computed search keywords index for server-side search
+        const searchStr = options.query.toLowerCase().trim();
+        q = query(q, where('searchKeywords', 'array-contains', searchStr));
+      }
       
+      if (options.status && options.status !== 'all') {
+        q = query(q, where('status', '==', options.status));
+      }
+
+      if (options.inventoryHealth && options.inventoryHealth !== 'all') {
+        q = query(q, where('inventoryHealth', '==', options.inventoryHealth));
+      }
+
+      if (options.setupStatus && options.setupStatus !== 'all') {
+        q = query(q, where('setupStatus', '==', options.setupStatus));
+      }
+
       if (options.collection) {
         q = query(q, where('collections', 'array-contains', options.collection));
       }
@@ -80,15 +102,8 @@ export class FirestoreProductRepository implements IProductRepository {
       const snapshot = await getDocs(q);
       let results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToProduct(d.id, d.data()));
       
-      // Production Hardening: Simple in-memory search for small/medium datasets
-      if (options.query) {
-        const searchStr = options.query.toLowerCase();
-        results = results.filter((p: Product) => 
-          p.name.toLowerCase().includes(searchStr) || 
-          p.sku?.toLowerCase().includes(searchStr) ||
-          p.handle?.toLowerCase().includes(searchStr)
-        );
-      }
+      // Note: With searchKeywords, we no longer need the in-memory filtering here
+      // which was limited by the fetch limit. The query above handles it server-side.
 
       const limitVal = options.limit ?? 20;
       const hasNextPage = results.length > limitVal;
@@ -141,6 +156,9 @@ export class FirestoreProductRepository implements IProductRepository {
         options: product.options?.map(o => ({ ...o, id: o.id || crypto.randomUUID() })) || [],
         media: product.media?.map(m => ({ ...m, id: m.id || crypto.randomUUID(), createdAt: now })) || [],
         handle,
+        searchKeywords: this.generateSearchKeywords(product.name, handle, product.sku),
+        inventoryHealth: classifyInventoryHealth(product.stock),
+        setupStatus: classifyProductSetupStatus(product as Product),
       };
 
       transaction.set(doc(getUnifiedDb(), this.collectionName, id), productData);
@@ -153,6 +171,22 @@ export class FirestoreProductRepository implements IProductRepository {
     const now = serverTimestamp();
     
     const firestoreUpdates: any = { ...updates, updatedAt: now };
+    
+    if (updates.name || updates.sku || updates.handle || updates.status || updates.stock !== undefined) {
+      const current = await this.getById(id);
+      if (current) {
+        const merged = { ...current, ...updates } as Product;
+        if (updates.name || updates.sku || updates.handle) {
+          firestoreUpdates.searchKeywords = this.generateSearchKeywords(
+            merged.name,
+            merged.handle || '',
+            merged.sku
+          );
+        }
+        firestoreUpdates.inventoryHealth = classifyInventoryHealth(merged.stock);
+        firestoreUpdates.setupStatus = classifyProductSetupStatus(merged);
+      }
+    }
 
     if (updates.handle) {
       firestoreUpdates.handle = await this.ensureUniqueHandle(updates.handle, id);
@@ -416,5 +450,33 @@ export class FirestoreProductRepository implements IProductRepository {
 
     // If we still have a collision after 10 attempts, append a random string for ultimate safety
     return `${handle}-${crypto.randomUUID().slice(0, 4)}`;
+  }
+
+  private generateSearchKeywords(name: string, handle: string, sku?: string): string[] {
+    const keywords = new Set<string>();
+    
+    const tokenize = (str: string) => {
+      return str.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(t => t.length > 1);
+    };
+
+    tokenize(name).forEach(t => keywords.add(t));
+    tokenize(handle.replace(/-/g, ' ')).forEach(t => keywords.add(t));
+    if (sku) tokenize(sku).forEach(t => keywords.add(t));
+
+    // Add common prefixes for partial matching (Edge N-grams)
+    const addPrefixes = (str: string) => {
+      const clean = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (let i = 2; i <= Math.min(clean.length, 10); i++) {
+        keywords.add(clean.substring(0, i));
+      }
+    };
+
+    tokenize(name).forEach(addPrefixes);
+    if (sku) addPrefixes(sku);
+
+    return Array.from(keywords);
   }
 }

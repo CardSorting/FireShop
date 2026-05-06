@@ -51,7 +51,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
         ...order,
         createdAt: now,
         updatedAt: now,
-        riskScore: this.calculateRiskScore(order),
+        riskScore: await this.calculateRiskScore(order),
       };
 
       await setDoc(doc(getUnifiedDb(), this.collectionName, id), orderData);
@@ -266,8 +266,16 @@ export class FirestoreOrderRepository implements IOrderRepository {
       .slice(0, limitVal);
   }
 
-  private calculateRiskScore(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): number {
+  private async calculateRiskScore(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {
     let score = 5; // Base score
+
+    // Velocity Check: Rapid successive orders from same user
+    if (order.userId) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recent = await this.getByUserId(order.userId, { from: fiveMinutesAgo, limit: 10 });
+      if (recent.orders.length >= 3) score += 40; // High velocity
+      if (recent.orders.length >= 1) score += 5;
+    }
 
     // Threshold Checks
     if (order.total > 50000) score += 10; // >$500
