@@ -16,23 +16,20 @@ import {
   increment,
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IDiscountRepository } from '@domain/repositories';
 import type { Discount, DiscountDraft, DiscountUpdate } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestoreDiscountRepository implements IDiscountRepository {
   private readonly collectionName = 'discounts';
 
   private mapDocToDiscount(id: string, data: DocumentData): Discount {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      startsAt: data.startsAt instanceof Timestamp ? data.startsAt.toDate() : new Date(data.startsAt),
-      endsAt: data.endsAt ? (data.endsAt instanceof Timestamp ? data.endsAt.toDate() : new Date(data.endsAt)) : undefined,
-    } as Discount;
+    return mapDoc<Discount>(id, data);
   }
 
   async getAll(): Promise<Discount[]> {
@@ -55,7 +52,7 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
 
   async create(discount: DiscountDraft): Promise<Discount> {
     const id = crypto.randomUUID();
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     const data = {
       ...discount,
       code: discount.code.toUpperCase(),
@@ -69,7 +66,10 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
   }
 
   async update(id: string, updates: DiscountUpdate): Promise<Discount> {
-    const firestoreUpdates: any = { ...updates };
+    const firestoreUpdates: any = { 
+      ...updates,
+      updatedAt: serverTimestamp()
+    };
     if (updates.code) firestoreUpdates.code = updates.code.toUpperCase();
     if (updates.startsAt) firestoreUpdates.startsAt = Timestamp.fromDate(new Date(updates.startsAt));
     if (updates.endsAt) firestoreUpdates.endsAt = Timestamp.fromDate(new Date(updates.endsAt));

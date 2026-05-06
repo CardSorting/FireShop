@@ -13,9 +13,13 @@ import {
   limit, 
   Timestamp,
   type DocumentData,
-  deleteDoc
-} from 'firebase/firestore';
-import { getDb } from '@infrastructure/firebase/firebase';
+  type QueryDocumentSnapshot,
+  deleteDoc,
+  getUnifiedDb,
+  runTransaction,
+  serverTimestamp,
+  writeBatch
+} from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
 import crypto from 'crypto';
 
@@ -43,6 +47,7 @@ export interface AuditEntry {
   hash: string | null;
   previousHash: string | null;
   createdAt: Date;
+  clientCreatedAt?: string; // ISO string used for hashing
 }
 
 export class AuditService {
@@ -57,35 +62,45 @@ export class AuditService {
     ip?: string;
     userAgent?: string;
   }): Promise<void> {
-    const id = crypto.randomUUID();
-    const now = Timestamp.now();
-    const detailsStr = JSON.stringify(params.details || {});
+    try {
+      const id = crypto.randomUUID();
+      const detailsStr = JSON.stringify(params.details || {});
 
-    // Get the latest log to link the chain
-    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(1));
-    const snapshot = await getDocs(q);
-    const lastEntry = snapshot.empty ? null : snapshot.docs[0].data();
+      await runTransaction(getUnifiedDb(), async (transaction) => {
+        // Get the latest log to link the chain atomically
+        const q = query(
+          collection(getUnifiedDb(), this.collectionName), 
+          orderBy('createdAt', 'desc'), 
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+        const lastEntry = snapshot.empty ? null : snapshot.docs[0].data();
+        const previousHash = lastEntry?.hash || '0'.repeat(64);
+        
+        const now = new Date();
+        const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${now.toISOString()}`;
+        const hash = crypto.createHash('sha256').update(payload).digest('hex');
 
-    const previousHash = lastEntry?.hash || '0'.repeat(64);
-    
-    // Calculate current hash
-    const payload = `${id}|${params.action}|${params.targetId}|${detailsStr}|${previousHash}|${now.toDate().toISOString()}`;
-    const hash = crypto.createHash('sha256').update(payload).digest('hex');
+        const docRef = doc(getUnifiedDb(), this.collectionName, id);
+        transaction.set(docRef, {
+          id,
+          userId: params.userId,
+          userEmail: params.userEmail,
+          action: params.action,
+          targetId: params.targetId,
+          details: detailsStr,
+          hash,
+          previousHash,
+          createdAt: serverTimestamp(),
+          clientCreatedAt: now.toISOString() // Store client date for hash verification later
+        });
+      });
 
-    await setDoc(doc(getDb(), this.collectionName, id), {
-      id,
-      userId: params.userId,
-      userEmail: params.userEmail,
-      action: params.action,
-      targetId: params.targetId,
-      details: detailsStr,
-      hash,
-      previousHash,
-      createdAt: now,
-    });
-
-    if (params.ip || params.userAgent) {
-      logger.info(`[Forensic] Audit Event: ${params.action} by ${params.userEmail} (${params.ip || 'no-ip'})`);
+      if (params.ip || params.userAgent) {
+        logger.info(`[Forensic] Audit Event: ${params.action}`, { email: params.userEmail, targetId: params.targetId });
+      }
+    } catch (err) {
+      logger.error('Failed to record audit entry', { params, err });
     }
   }
 
@@ -98,36 +113,36 @@ export class AuditService {
     signal?: AbortSignal;
   }): Promise<AuditEntry[]> {
     if (options?.signal?.aborted) return [];
-    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
+    const q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'desc'), limit(options?.limit || 50));
     
     // Firestore limited filtering: multiple where + orderBy requires composite index
     // For now, we'll fetch and filter in memory if multiple options are present
     const snapshot = await getDocs(q);
     if (options?.signal?.aborted) return [];
-    let logs = snapshot.docs.map(d => {
-      const data = d.data();
+    let logs = snapshot.docs.map((d: QueryDocumentSnapshot) => {
+      const data = d.data() as any;
       return {
         ...data,
         createdAt: data.createdAt.toDate(),
       } as AuditEntry;
     });
 
-    if (options?.userId) logs = logs.filter(l => l.userId === options.userId);
-    if (options?.action) logs = logs.filter(l => l.action === options.action);
-    if (options?.targetId) logs = logs.filter(l => l.targetId === options.targetId);
+    if (options?.userId) logs = logs.filter((l: AuditEntry) => l.userId === options.userId);
+    if (options?.action) logs = logs.filter((l: AuditEntry) => l.action === options.action);
+    if (options?.targetId) logs = logs.filter((l: AuditEntry) => l.targetId === options.targetId);
 
     return logs;
   }
 
   async verifyChain(): Promise<{ valid: boolean; total: number; corruptedId?: string }> {
-    const q = query(collection(getDb(), this.collectionName), orderBy('createdAt', 'asc'));
+    const q = query(collection(getUnifiedDb(), this.collectionName), orderBy('createdAt', 'asc'));
     const snapshot = await getDocs(q);
-    const logs = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
+    const logs = snapshot.docs.map((d: QueryDocumentSnapshot) => ({ ...d.data() as any, id: d.id }));
 
     let expectedPreviousHash = '0'.repeat(64);
 
-    for (const log of logs as any) {
-      const createdAtStr = log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString();
+    for (const log of logs) {
+      const createdAtStr = log.clientCreatedAt || (log.createdAt instanceof Timestamp ? log.createdAt.toDate().toISOString() : new Date(log.createdAt).toISOString());
       const payload = `${log.id}|${log.action}|${log.targetId}|${log.details}|${log.previousHash}|${createdAtStr}`;
       const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
 
@@ -142,11 +157,12 @@ export class AuditService {
   }
 
   async clearAll(): Promise<void> {
-    const snapshot = await getDocs(collection(getDb(), this.collectionName));
-    const batchSize = 100;
-    // Simple deletion for small numbers, but for safety:
-    for (const d of snapshot.docs) {
-      await deleteDoc(d.ref);
-    }
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
+    if (snapshot.empty) return;
+
+    const batch = writeBatch(getUnifiedDb());
+    snapshot.docs.forEach((d: QueryDocumentSnapshot) => batch.delete(doc(getUnifiedDb(), this.collectionName, d.id)));
+    await batch.commit();
+    logger.warn('Audit logs cleared', { count: snapshot.size });
   }
 }

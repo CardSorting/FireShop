@@ -14,22 +14,20 @@ import {
   limit, 
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { ISupplierRepository } from '@domain/repositories';
 import type { Supplier } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestoreSupplierRepository implements ISupplierRepository {
   private readonly collectionName = 'suppliers';
 
   private mapDocToSupplier(id: string, data: DocumentData): Supplier {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-    } as Supplier;
+    return mapDoc<Supplier>(id, data);
   }
 
   async getAll(options?: { query?: string; limit?: number; offset?: number }): Promise<Supplier[]> {
@@ -47,7 +45,7 @@ export class FirestoreSupplierRepository implements ISupplierRepository {
 
   async save(supplier: Supplier): Promise<Supplier> {
     const id = supplier.id || crypto.randomUUID();
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     const data = {
       ...supplier,
       id,

@@ -12,22 +12,20 @@ import {
   orderBy, 
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { ITransferRepository } from '@domain/repositories';
 import type { Transfer } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestoreTransferRepository implements ITransferRepository {
   private readonly collectionName = 'transfers';
 
   private mapDocToTransfer(id: string, data: DocumentData): Transfer {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      expectedAt: data.expectedAt instanceof Timestamp ? data.expectedAt.toDate() : new Date(data.expectedAt),
-    } as Transfer;
+    return mapDoc<Transfer>(id, data);
   }
 
   async getAll(): Promise<Transfer[]> {
@@ -39,7 +37,7 @@ export class FirestoreTransferRepository implements ITransferRepository {
   async update(id: string, updates: Partial<Transfer>): Promise<void> {
     await updateDoc(doc(getUnifiedDb(), this.collectionName, id), {
       ...updates,
-      updatedAt: Timestamp.now()
+      updatedAt: serverTimestamp()
     });
   }
 
@@ -48,8 +46,8 @@ export class FirestoreTransferRepository implements ITransferRepository {
     await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
       ...transfer,
       id,
-      createdAt: Timestamp.now(),
-      expectedAt: transfer.expectedAt ? Timestamp.fromDate(new Date(transfer.expectedAt)) : Timestamp.now()
+      createdAt: serverTimestamp(),
+      expectedAt: transfer.expectedAt ? Timestamp.fromDate(new Date(transfer.expectedAt)) : serverTimestamp()
     });
   }
 }

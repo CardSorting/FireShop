@@ -14,10 +14,13 @@ import {
   limit, 
   Timestamp,
   getUnifiedDb,
+  serverTimestamp,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IInventoryLocationRepository } from '@domain/repositories';
 import type { InventoryLocation } from '@domain/models';
+import { mapDoc } from './utils';
 
 export class FirestoreInventoryLocationRepository implements IInventoryLocationRepository {
   private readonly collectionName = 'inventory_locations';
@@ -27,7 +30,7 @@ export class FirestoreInventoryLocationRepository implements IInventoryLocationR
     const data = {
       ...location,
       id,
-      createdAt: location.createdAt ? Timestamp.fromDate(new Date(location.createdAt)) : Timestamp.now()
+      createdAt: location.createdAt ? Timestamp.fromDate(new Date(location.createdAt)) : serverTimestamp()
     };
     await setDoc(doc(getUnifiedDb(), this.collectionName, id), data);
     return (await this.findById(id))!;
@@ -36,29 +39,32 @@ export class FirestoreInventoryLocationRepository implements IInventoryLocationR
   async findById(id: string): Promise<InventoryLocation | null> {
     const docSnap = await getDoc(doc(getUnifiedDb(), this.collectionName, id));
     if (!docSnap.exists()) return null;
-    return { ...docSnap.data(), id: docSnap.id } as InventoryLocation;
+    return mapDoc<InventoryLocation>(docSnap.id, docSnap.data());
   }
 
   async findAll(): Promise<InventoryLocation[]> {
     const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
-    return snapshot.docs.map((d: any) => ({ ...d.data() as any, id: d.id } as InventoryLocation));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<InventoryLocation>(d.id, d.data()));
   }
 
   async findDefault(): Promise<InventoryLocation | null> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('isDefault', '==', 1), limit(1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('isDefault', '==', true), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
-    return { ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as InventoryLocation;
+    return mapDoc<InventoryLocation>(snapshot.docs[0].id, snapshot.docs[0].data());
   }
 
   async findActive(): Promise<InventoryLocation[]> {
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('isActive', '==', 1));
+    const q = query(collection(getUnifiedDb(), this.collectionName), where('isActive', '==', true));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d: any) => ({ ...d.data() as any, id: d.id } as InventoryLocation));
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<InventoryLocation>(d.id, d.data()));
   }
 
   async update(id: string, location: Partial<InventoryLocation>): Promise<InventoryLocation> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), location);
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), {
+      ...location,
+      updatedAt: serverTimestamp()
+    });
     return (await this.findById(id))!;
   }
 }

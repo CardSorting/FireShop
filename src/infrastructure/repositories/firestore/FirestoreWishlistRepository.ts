@@ -17,11 +17,14 @@ import {
   arrayUnion,
   arrayRemove,
   getUnifiedDb,
+  serverTimestamp,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
+import { logger } from '@utils/logger';
 import type { IWishlistRepository } from '@domain/repositories';
 import type { Wishlist, Product } from '@domain/models';
+import { mapDoc } from './utils';
 import { FirestoreProductRepository } from './FirestoreProductRepository';
 
 export class FirestoreWishlistRepository implements IWishlistRepository {
@@ -29,12 +32,7 @@ export class FirestoreWishlistRepository implements IWishlistRepository {
   private productRepo = new FirestoreProductRepository();
 
   private mapDocToWishlist(id: string, data: DocumentData): Wishlist {
-    return {
-      ...data,
-      id,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date(data.createdAt),
-      updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : new Date(data.updatedAt),
-    } as Wishlist;
+    return mapDoc<Wishlist>(id, data);
   }
 
   async getByUserId(userId: string): Promise<Wishlist[]> {
@@ -51,7 +49,7 @@ export class FirestoreWishlistRepository implements IWishlistRepository {
 
   async create(wishlist: Omit<Wishlist, 'id' | 'createdAt' | 'updatedAt'>): Promise<Wishlist> {
     const id = crypto.randomUUID();
-    const now = Timestamp.now();
+    const now = serverTimestamp();
     const data = {
       ...wishlist,
       itemIds: [],
@@ -63,7 +61,10 @@ export class FirestoreWishlistRepository implements IWishlistRepository {
   }
 
   async update(id: string, name: string): Promise<Wishlist> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { name, updatedAt: Timestamp.now() });
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
+      name, 
+      updatedAt: serverTimestamp() 
+    });
     return (await this.getById(id))!;
   }
 
@@ -74,14 +75,14 @@ export class FirestoreWishlistRepository implements IWishlistRepository {
   async addItem(wishlistId: string, productId: string): Promise<void> {
     await updateDoc(doc(getUnifiedDb(), this.collectionName, wishlistId), {
       itemIds: arrayUnion(productId),
-      updatedAt: Timestamp.now()
+      updatedAt: serverTimestamp()
     });
   }
 
   async removeItem(wishlistId: string, productId: string): Promise<void> {
     await updateDoc(doc(getUnifiedDb(), this.collectionName, wishlistId), {
       itemIds: arrayRemove(productId),
-      updatedAt: Timestamp.now()
+      updatedAt: serverTimestamp()
     });
   }
 
