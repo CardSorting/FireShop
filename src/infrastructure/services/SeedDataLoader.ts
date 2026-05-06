@@ -455,8 +455,6 @@ export async function seedBlog(): Promise<number> {
     
     await adminDb.collection('knowledgebase_articles').doc(post.id).set({
       ...post,
-      seriesId: post.id === 'blog-3' ? 'ser-1' : (post.id === 'blog-8' ? 'ser-1' : (post.id === 'blog-4' ? 'ser-2' : undefined)),
-      seriesPosition: post.id === 'blog-3' ? 1 : (post.id === 'blog-8' ? 2 : (post.id === 'blog-4' ? 1 : undefined)),
       relatedProductIds: prodIds,
       createdAt: Timestamp.fromDate(post.createdAt),
       updatedAt: Timestamp.fromDate(post.updatedAt),
