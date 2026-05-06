@@ -32,6 +32,8 @@ export function useSearchDiscovery() {
   const { addItem } = useCart();
   const { recentlyViewed } = useWishlist();
   const inputRef = useRef<HTMLInputElement>(null);
+  const categoriesControllerRef = useRef<AbortController | null>(null);
+  const searchControllerRef = useRef<AbortController | null>(null);
 
   // Toggle palette with ⌘+K
   useEffect(() => {
@@ -72,14 +74,22 @@ export function useSearchDiscovery() {
     }
 
     const loadCategories = async () => {
+      categoriesControllerRef.current?.abort();
+      const controller = new AbortController();
+      categoriesControllerRef.current = controller;
+
       try {
-        const data = await services.taxonomyService.getCategories();
-        setCategories(data);
-      } catch (err) {
+        const data = await services.taxonomyService.getCategories(controller.signal);
+        if (!controller.signal.aborted) {
+          setCategories(data);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         console.error('Failed to load categories', err);
       }
     };
     void loadCategories();
+    return () => categoriesControllerRef.current?.abort();
   }, [services.taxonomyService]);
 
   // Search Logic
@@ -91,6 +101,10 @@ export function useSearchDiscovery() {
       setQuickActions([]);
       return;
     }
+
+    searchControllerRef.current?.abort();
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
 
     const timer = setTimeout(async () => {
       setLoading(true);
@@ -104,45 +118,58 @@ export function useSearchDiscovery() {
         if ('support'.includes(trimmedQuery) || 'help'.includes(trimmedQuery)) actions.push({ id: 'action-support', label: 'Contact Support', href: '/support', icon: ShieldCheck });
         if ('wishlist'.includes(trimmedQuery)) actions.push({ id: 'action-wishlist', label: 'My Favorites', href: '/wishlist', icon: Heart });
         if ('journal'.includes(trimmedQuery) || 'blog'.includes(trimmedQuery)) actions.push({ id: 'action-blog', label: 'Browse Hive Journal', href: '/blog', icon: NotebookPen });
-        setQuickActions(actions);
+        
+        if (!controller.signal.aborted) {
+          setQuickActions(actions);
+        }
 
         // 2. Fetch Products & Articles
         const [productResult, articleResult] = await Promise.all([
           services.productService.getProducts({ 
             query: query.trim(),
-            limit: 5 
+            limit: 5,
+            signal: controller.signal
           }),
           services.knowledgebaseService.getArticles({
             status: 'published',
-            type: 'blog'
+            type: 'blog',
+            signal: controller.signal
           })
         ]);
 
-        setResults(productResult.products);
-        
-        // Manual filter for articles (assuming search is small for now or repository supports it)
-        const matchedArticles = articleResult.filter(a => 
-          a.title.toLowerCase().includes(trimmedQuery) || 
-          a.excerpt.toLowerCase().includes(trimmedQuery)
-        ).slice(0, 3);
-        setBlogResults(matchedArticles);
+        if (!controller.signal.aborted) {
+          setResults(productResult.products);
+          
+          // Manual filter for articles (assuming search is small for now or repository supports it)
+          const matchedArticles = articleResult.articles.filter(a => 
+            a.title.toLowerCase().includes(trimmedQuery) || 
+            a.excerpt.toLowerCase().includes(trimmedQuery)
+          ).slice(0, 3);
+          setBlogResults(matchedArticles);
 
-        // 3. Filter Categories
-        const matchedCats = categories.filter(c => 
-          c.name.toLowerCase().includes(trimmedQuery) || 
-          c.slug.toLowerCase().includes(trimmedQuery)
-        ).slice(0, 3);
-        setMatchingCategories(matchedCats);
+          // 3. Filter Categories
+          const matchedCats = categories.filter(c => 
+            c.name.toLowerCase().includes(trimmedQuery) || 
+            c.slug.toLowerCase().includes(trimmedQuery)
+          ).slice(0, 3);
+          setMatchingCategories(matchedCats);
 
-        setSelectedIndex(0);
-      } catch (err) {
+          setSelectedIndex(0);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         console.error('Search failed', err);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }, 150);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query, categories, services.productService, services.knowledgebaseService]);
 
   const saveSearch = (term: string) => {

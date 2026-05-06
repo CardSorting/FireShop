@@ -7,7 +7,7 @@
  * Admin order management — High-velocity fulfillment console.
  * Patterns modeled after Shopify Admin with optimized information density.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
@@ -91,6 +91,7 @@ export function AdminOrders() {
   const [noteInput, setNoteInput] = useState('');
   const [trackingNumbers, setTrackingNumbers] = useState<Record<string, string>>({});
   const [trackingInput, setTrackingInput] = useState('');
+  const controllerRef = useRef<AbortController | null>(null);
 
   // Status counts for tabs
   const counts = useMemo(() => {
@@ -111,6 +112,10 @@ export function AdminOrders() {
   }, [selectedOrder]);
 
   const loadOrders = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -118,19 +123,27 @@ export function AdminOrders() {
         limit: 25,
         cursor,
         status: statusFilter === 'all' ? undefined : statusFilter,
+        signal: controller.signal,
       });
-      setOrders(result.orders);
-      setNextCursor(result.nextCursor);
-      setSelectedIds(new Set());
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setOrders(result.orders);
+        setNextCursor(result.nextCursor);
+        setSelectedIds(new Set());
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [cursor, services.orderService, statusFilter]);
 
   useEffect(() => {
     void loadOrders();
+    return () => controllerRef.current?.abort();
   }, [loadOrders]);
 
   useEffect(() => {

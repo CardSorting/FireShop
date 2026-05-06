@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../../../hooks/useServices';
 import { useToast } from '../../../../components/admin/AdminComponents';
@@ -27,78 +27,101 @@ export function useProductForm(id?: string) {
   const [loadingProduct, setLoadingProduct] = useState(!!id);
   const [error, setError] = useState<string | null>(null);
   const [unsaved, setUnsaved] = useState(false);
+  const taxonomyControllerRef = useRef<AbortController | null>(null);
+  const productControllerRef = useRef<AbortController | null>(null);
 
   const loadTaxonomy = useCallback(async () => {
+    taxonomyControllerRef.current?.abort();
+    const controller = new AbortController();
+    taxonomyControllerRef.current = controller;
+
     try {
       const [cats, types] = await Promise.all([
-        services.taxonomyService.getCategories(),
+        services.taxonomyService.getCategories(controller.signal),
         services.taxonomyService.getTypes(),
       ]);
-      setCategories(cats);
-      setProductTypes(types);
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setCategories(cats);
+        setProductTypes(types);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load taxonomy:', err);
     }
   }, [services.taxonomyService]);
 
   useEffect(() => {
     void loadTaxonomy();
+    return () => taxonomyControllerRef.current?.abort();
   }, [loadTaxonomy]);
 
   const loadProduct = useCallback(async () => {
     if (!id) return;
+    
+    productControllerRef.current?.abort();
+    const controller = new AbortController();
+    productControllerRef.current = controller;
+
     setLoadingProduct(true);
     try {
-      const product: Product = await services.productService.getProduct(id);
-      setForm({
-        name: product.name,
-        description: product.description,
-        imageUrl: product.imageUrl,
-        media: product.media || [],
-        price: (product.price / 100).toFixed(2),
-        compareAtPrice: product.compareAtPrice !== undefined ? (product.compareAtPrice / 100).toFixed(2) : '',
-        cost: product.cost !== undefined ? (product.cost / 100).toFixed(2) : '',
-        stock: String(product.stock),
-        sku: product.sku ?? '',
-        barcode: product.barcode ?? '',
-        trackQuantity: product.trackQuantity ?? true,
-        continueSellingWhenOutOfStock: product.continueSellingWhenOutOfStock ?? false,
-        reorderPoint: product.reorderPoint !== undefined ? String(product.reorderPoint) : '',
-        reorderQuantity: product.reorderQuantity !== undefined ? String(product.reorderQuantity) : '',
-        physicalItem: product.physicalItem ?? true,
-        weightGrams: product.weightGrams !== undefined ? String(product.weightGrams) : '',
-        status: product.status,
-        salesChannels: product.salesChannels ?? ['online_store'],
-        category: product.category,
-        productType: product.productType ?? '',
-        vendor: product.vendor ?? '',
-        collections: listToCsv(product.collections),
-        tags: listToCsv(product.tags),
-        handle: product.handle ?? '',
-        seoTitle: product.seoTitle ?? '',
-        seoDescription: product.seoDescription ?? '',
-        manufacturer: product.manufacturer ?? '',
-        supplier: product.supplier ?? '',
-        manufacturerSku: product.manufacturerSku ?? '',
-        set: product.set ?? '',
-        rarity: product.rarity ?? '',
-        adminNotes: '',
-        isDigital: product.isDigital ?? false,
-        digitalAssets: product.digitalAssets ?? [],
-        hasVariants: product.hasVariants ?? false,
-        options: product.options ?? [],
-        variants: product.variants ?? [],
-      });
-      setUnsaved(false);
-    } catch {
+      const product: Product = await services.productService.getProduct(id, controller.signal);
+      
+      if (!controller.signal.aborted) {
+        setForm({
+          name: product.name,
+          description: product.description,
+          imageUrl: product.imageUrl,
+          media: product.media || [],
+          price: (product.price / 100).toFixed(2),
+          compareAtPrice: product.compareAtPrice !== undefined ? (product.compareAtPrice / 100).toFixed(2) : '',
+          cost: product.cost !== undefined ? (product.cost / 100).toFixed(2) : '',
+          stock: String(product.stock),
+          sku: product.sku ?? '',
+          barcode: product.barcode ?? '',
+          trackQuantity: product.trackQuantity ?? true,
+          continueSellingWhenOutOfStock: product.continueSellingWhenOutOfStock ?? false,
+          reorderPoint: product.reorderPoint !== undefined ? String(product.reorderPoint) : '',
+          reorderQuantity: product.reorderQuantity !== undefined ? String(product.reorderQuantity) : '',
+          physicalItem: product.physicalItem ?? true,
+          weightGrams: product.weightGrams !== undefined ? String(product.weightGrams) : '',
+          status: product.status,
+          salesChannels: product.salesChannels ?? ['online_store'],
+          category: product.category,
+          productType: product.productType ?? '',
+          vendor: product.vendor ?? '',
+          collections: listToCsv(product.collections),
+          tags: listToCsv(product.tags),
+          handle: product.handle ?? '',
+          seoTitle: product.seoTitle ?? '',
+          seoDescription: product.seoDescription ?? '',
+          manufacturer: product.manufacturer ?? '',
+          supplier: product.supplier ?? '',
+          manufacturerSku: product.manufacturerSku ?? '',
+          set: product.set ?? '',
+          rarity: product.rarity ?? '',
+          adminNotes: '',
+          isDigital: product.isDigital ?? false,
+          digitalAssets: product.digitalAssets ?? [],
+          hasVariants: product.hasVariants ?? false,
+          options: product.options ?? [],
+          variants: product.variants ?? [],
+        });
+        setUnsaved(false);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError('Failed to load product for editing.');
     } finally {
-      setLoadingProduct(false);
+      if (!controller.signal.aborted) {
+        setLoadingProduct(false);
+      }
     }
   }, [id, services.productService]);
 
   useEffect(() => {
     void loadProduct();
+    return () => productControllerRef.current?.abort();
   }, [loadProduct]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {

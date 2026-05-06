@@ -5,7 +5,7 @@
  * Custom hook: encapsulates ALL state management and data fetching
  * for the Product Detail Page. Keeps the view layer clean.
  */
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { useCart } from '../../hooks/useCart';
@@ -69,6 +69,8 @@ export function useProductDetail(initialProduct?: Product | null) {
   const [showWishlistDropdown, setShowWishlistDropdown] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [creatingCollection, setCreatingCollection] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const relatedControllerRef = useRef<AbortController | null>(null);
 
   const isFavorite = product?.id ? isInWishlist(product.id) : false;
 
@@ -95,6 +97,11 @@ export function useProductDetail(initialProduct?: Product | null) {
   // --- Data Loading ---
   const loadProduct = useCallback(async () => {
     if (!handle || initialProduct) return;
+    
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -102,17 +109,19 @@ export function useProductDetail(initialProduct?: Product | null) {
       
       // 1. Try to find by handle first (Canonical)
       try {
-        loaded = await services.productService.getProductByHandle(handle);
-      } catch (err) {
+        loaded = await services.productService.getProductByHandle(handle, controller.signal);
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         // 2. If not found by handle, try finding by ID (Legacy fallback)
         try {
-          loaded = await services.productService.getProduct(handle);
-        } catch (idErr) {
+          loaded = await services.productService.getProduct(handle, controller.signal);
+        } catch (idErr: any) {
+          if (idErr.name === 'AbortError') return;
           throw err; // Throw the original handle error if ID also fails
         }
       }
 
-      if (loaded) {
+      if (!controller.signal.aborted && loaded) {
         // 3. CANONICAL REDIRECT: If the current URL handle is actually an ID, 
         // or if it's an old handle, redirect to the official handle.
         if (loaded.handle && handle !== loaded.handle) {
@@ -124,34 +133,63 @@ export function useProductDetail(initialProduct?: Product | null) {
         setProduct(loaded);
         setSelectedImageIndex(0);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       logger.error('Failed to load product', err);
       setError('Product not found.');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [handle, initialProduct, services.productService, router]);
 
   const loadRelated = useCallback(async () => {
     if (!product) return;
+    
+    relatedControllerRef.current?.abort();
+    const controller = new AbortController();
+    relatedControllerRef.current = controller;
+
     setLoadingRelated(true);
     try {
       let related;
       try {
-        related = await services.productService.getProducts({ category: product.category, limit: 5 });
-      } catch {
-        related = await services.productService.getProducts({ limit: 5 });
+        related = await services.productService.getProducts({ 
+          category: product.category, 
+          limit: 5,
+          signal: controller.signal
+        });
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        related = await services.productService.getProducts({ 
+          limit: 5,
+          signal: controller.signal
+        });
       }
-      setRelatedProducts(related.products.filter(p => p.id !== product.id).slice(0, 4));
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setRelatedProducts(related.products.filter(p => p.id !== product.id).slice(0, 4));
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       logger.error('Failed to load related products', err);
     } finally {
-      setLoadingRelated(false);
+      if (!controller.signal.aborted) {
+        setLoadingRelated(false);
+      }
     }
   }, [product, services.productService]);
 
-  useEffect(() => { void loadProduct(); }, [loadProduct]);
-  useEffect(() => { void loadRelated(); }, [loadRelated]);
+  useEffect(() => { 
+    void loadProduct(); 
+    return () => controllerRef.current?.abort();
+  }, [loadProduct]);
+
+  useEffect(() => { 
+    void loadRelated(); 
+    return () => relatedControllerRef.current?.abort();
+  }, [loadRelated]);
 
   // --- Variant Matching ---
   const selectedVariant = useMemo(() => {

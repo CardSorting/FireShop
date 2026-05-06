@@ -3,7 +3,7 @@
 /**
  * [LAYER: UI]
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useServices } from '../hooks/useServices';
 import type { Product, KnowledgebaseArticle } from '@domain/models';
@@ -24,6 +24,7 @@ export function HomePage() {
   const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadMoreControllerRef = useRef<AbortController | null>(null);
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -35,54 +36,81 @@ export function HomePage() {
     
     const loadInitial = async () => {
       try {
-        const result = await services.productService.getProducts({ limit: 8 });
-        setFeatured(result.products);
-        setNextCursor(result.nextCursor);
-        setHasMore(!!result.nextCursor);
-        setError(null);
+        const result = await services.productService.getProducts({ limit: 8, signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setFeatured(result.products);
+          setNextCursor(result.nextCursor);
+          setHasMore(!!result.nextCursor);
+          setError(null);
+        }
       } catch (err: any) {
         if (err.name === 'AbortError') return;
-        setError(err instanceof Error ? err.message : 'Failed to load featured products');
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : 'Failed to load featured products');
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     const loadBlog = async () => {
       try {
-        const posts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'published' });
-        setLatestPosts(posts.slice(0, 3));
-      } catch (err) {
+        const posts = await services.knowledgebaseService.getArticles({ 
+          type: 'blog', 
+          status: 'published',
+          signal: controller.signal
+        });
+        if (!controller.signal.aborted) {
+          setLatestPosts(posts.articles.slice(0, 3));
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         console.error('Failed to load blog posts for home', err);
       }
     };
 
     void loadInitial();
     void loadBlog();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      loadMoreControllerRef.current?.abort();
+    };
   }, [services]);
 
   const handleLoadMore = async () => {
     if (loadingMore || !hasMore || !nextCursor) return;
+    
+    loadMoreControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreControllerRef.current = controller;
+    
     setLoadingMore(true);
     try {
       const result = await services.productService.getProducts({ 
         limit: 8,
-        cursor: nextCursor
+        cursor: nextCursor,
+        signal: controller.signal
       });
       
-      setFeatured(prev => {
-        const existingIds = new Set(prev.map(p => p.id));
-        const newProducts = result.products.filter(p => !existingIds.has(p.id));
-        return [...prev, ...newProducts];
-      });
-      
-      setNextCursor(result.nextCursor);
-      setHasMore(!!result.nextCursor);
-    } catch (err) {
+      if (!controller.signal.aborted) {
+        setFeatured(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newProducts = result.products.filter(p => !existingIds.has(p.id));
+          return [...prev, ...newProducts];
+        });
+        
+        setNextCursor(result.nextCursor);
+        setHasMore(!!result.nextCursor);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Load more failed', err);
     } finally {
-      setLoadingMore(false);
+      if (!controller.signal.aborted) {
+        setLoadingMore(false);
+      }
     }
   };
 

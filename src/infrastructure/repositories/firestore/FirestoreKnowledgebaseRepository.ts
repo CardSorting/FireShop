@@ -19,6 +19,7 @@ import {
   runTransaction,
   writeBatch,
   getUnifiedDb,
+  startAfter,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
@@ -92,7 +93,14 @@ export class FirestoreKnowledgebaseRepository {
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToCategory(d.id, d.data() as any));
   }
 
-  async getArticles(options?: { categoryId?: string; seriesId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all' }): Promise<KnowledgebaseArticle[]> {
+  async getArticles(options?: { 
+    categoryId?: string; 
+    seriesId?: string; 
+    type?: 'article' | 'blog'; 
+    status?: 'published' | 'draft' | 'all';
+    limit?: number;
+    cursor?: string;
+  }): Promise<{ articles: KnowledgebaseArticle[]; nextCursor?: string }> {
     let q = query(collection(getUnifiedDb(), this.articleCollection), orderBy('createdAt', 'desc'));
     
     if (options?.categoryId) {
@@ -114,8 +122,26 @@ export class FirestoreKnowledgebaseRepository {
       q = query(q, where('status', '==', 'published'));
     }
 
+    if (options?.limit) {
+      q = query(q, limit(options.limit));
+    }
+
+    if (options?.cursor) {
+      const cursorDoc = await getDoc(doc(getUnifiedDb(), this.articleCollection, options.cursor));
+      if (cursorDoc.exists()) {
+        q = query(q, startAfter(cursorDoc));
+      }
+    }
+
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToArticle(d.id, d.data() as any));
+    const articles = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToArticle(d.id, d.data() as any));
+    
+    return {
+      articles,
+      nextCursor: snapshot.docs.length > 0 && options?.limit && snapshot.docs.length === options.limit 
+        ? snapshot.docs[snapshot.docs.length - 1].id 
+        : undefined
+    };
   }
 
   async getArticleById(id: string): Promise<KnowledgebaseArticle | null> {

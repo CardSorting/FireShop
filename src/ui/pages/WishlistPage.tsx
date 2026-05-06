@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useWishlist } from '../hooks/useWishlist';
 import { Heart, Trash2, ShoppingBag, Plus, MoreVertical, Edit2, ChevronRight, PackageSearch } from 'lucide-react';
 import Link from 'next/link';
@@ -19,26 +19,37 @@ export function WishlistPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [shareSuccess, setShareSuccess] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const selectedList = wishlists.find(w => w.id === selectedListId) || wishlists.find(w => w.isDefault);
 
   async function loadItems(id: string) {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoadingItems(true);
     try {
-      const detail = await services.wishlistService.getWishlist(id);
-      setItems(detail.items);
-    } catch (err) {
+      const detail = await services.wishlistService.getWishlist(id, controller.signal);
+      if (!controller.signal.aborted) {
+        setItems(detail.items);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load wishlist items', err);
     } finally {
-      setLoadingItems(false);
+      if (!controller.signal.aborted) {
+        setLoadingItems(false);
+      }
     }
   }
 
   useEffect(() => {
     if (selectedList) {
       setSelectedListId(selectedList.id);
-      loadItems(selectedList.id);
+      void loadItems(selectedList.id);
     }
+    return () => controllerRef.current?.abort();
   }, [selectedList?.id]);
 
   async function handleCreateList() {

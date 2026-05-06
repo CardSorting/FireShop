@@ -6,7 +6,7 @@
  * Admin inventory — Stock management with health indicators, visual distribution
  * bar, and high-velocity bulk stock editing with Variant support.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { 
   AlertTriangle, 
   Boxes, 
@@ -55,26 +55,38 @@ export function AdminInventory() {
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
 
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const loadInventory = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
       const [inv, trans] = await Promise.all([
-        services.productService.getInventoryOverview(),
-        services.transferService.getAllTransfers()
+        services.productService.getInventoryOverview(controller.signal),
+        services.transferService.getAllTransfers(controller.signal)
       ]);
-      setOverview(inv);
-      setTransfers(trans);
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setOverview(inv);
+        setTransfers(trans);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load inventory');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [services]);
 
   useEffect(() => {
     void loadInventory();
+    return () => controllerRef.current?.abort();
   }, [loadInventory]);
 
   const toggleExpand = (productId: string) => {

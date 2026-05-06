@@ -60,7 +60,7 @@ export function createApiClientServices() {
             warn: (...args: any[]) => console.warn('[UI]', ...args),
         },
         authService: {
-            getCurrentUser: () => request<User | null>('/api/auth/me'),
+            getCurrentUser: (signal?: AbortSignal) => request<User | null>('/api/auth/me', { signal }),
             signIn: (email: string, password: string) => request<User>('/api/auth/sign-in', { method: 'POST', body: JSON.stringify({ email, password }) }),
             signInWithGoogle: async () => {
                 const provider = new GoogleAuthProvider();
@@ -77,24 +77,24 @@ export function createApiClientServices() {
                 void request<User | null>('/api/auth/me').then(callback).catch(() => callback(null));
                 return () => { };
             },
-            getAllUsers: () => request<User[]>('/api/auth/users'),
+            getAllUsers: (signal?: AbortSignal) => request<User[]>('/api/auth/users', { signal }),
             updateUser: (id: string, updates: Partial<User>) => request<User>(`/api/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         productService: {
-            getProducts: (options?: { category?: string; collection?: string; limit?: number; cursor?: string; query?: string }) => {
+            getProducts: (options?: { category?: string; collection?: string; limit?: number; cursor?: string; query?: string; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.category) qs.set('category', options.category);
                 if (options?.collection) qs.set('collection', options.collection);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);
                 if (options?.query) qs.set('query', options.query);
-                return request<{ products: Product[]; nextCursor?: string }>(`/api/products?${qs}`);
+                return request<{ products: Product[]; nextCursor?: string }>(`/api/products?${qs}`, { signal: options?.signal });
             },
-            getProduct: (id: string) => request<Product>(`/api/products/${id}`),
-            getProductByHandle: (handle: string) => request<Product>(`/api/products/handle/${handle}`),
-            getInventoryOverview: () => request<InventoryOverview>('/api/admin/inventory'),
-            getProductManagementOverview: () => request<ProductManagementOverview>('/api/admin/products/overview'),
-            getProductSavedView: (view: ProductSavedView, options?: ProductManagementFilters) => {
+            getProduct: (id: string, signal?: AbortSignal) => request<Product>(`/api/products/${id}`, { signal }),
+            getProductByHandle: (handle: string, signal?: AbortSignal) => request<Product>(`/api/products/handle/${handle}`, { signal }),
+            getInventoryOverview: (signal?: AbortSignal) => request<InventoryOverview>('/api/admin/inventory', { signal }),
+            getProductManagementOverview: (signal?: AbortSignal) => request<ProductManagementOverview>('/api/admin/products/overview', { signal }),
+            getProductSavedView: (view: ProductSavedView, options?: ProductManagementFilters & { signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.query) qs.set('query', options.query);
                 if (options?.limit) qs.set('limit', String(options.limit));
@@ -112,7 +112,7 @@ export function createApiClientServices() {
                 if (options?.hasImage !== undefined) qs.set('hasImage', String(options.hasImage));
                 if (options?.hasCost !== undefined) qs.set('hasCost', String(options.hasCost));
                 if (options?.sort) qs.set('sort', options.sort);
-                return request<ProductSavedViewResult>(`/api/admin/products/views/${view}?${qs}`);
+                return request<ProductSavedViewResult>(`/api/admin/products/views/${view}?${qs}`, { signal: options?.signal });
             },
             createProduct: (data: ProductDraft, _actor: { id: string; email: string }) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
             updateProduct: (id: string, data: ProductUpdate, _actor: { id: string; email: string }) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
@@ -122,7 +122,7 @@ export function createApiClientServices() {
             batchDeleteProducts: (ids: string[], _actor: { id: string; email: string }) => request<void>('/api/admin/products/batch', { method: 'DELETE', body: JSON.stringify({ ids }) }),
         },
         cartService: {
-            getCart: (userId: string) => (sessionScoped(userId), request<Cart | null>('/api/cart')),
+            getCart: (userId: string, signal?: AbortSignal) => (sessionScoped(userId), request<Cart | null>('/api/cart', { signal })),
             addToCart: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId }) })),
             removeFromCart: (userId: string, productId: string, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'DELETE', body: JSON.stringify({ productId, variantId }) })),
             updateQuantity: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId }) })),
@@ -130,7 +130,7 @@ export function createApiClientServices() {
             getCartTotal: (items: { priceSnapshot: number; quantity: number }[]) => items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0),
         },
         orderService: {
-            getAdminDashboardSummary: () => request<AdminDashboardSummary>('/api/admin/dashboard'),
+            getAdminDashboardSummary: (signal?: AbortSignal) => request<AdminDashboardSummary>('/api/admin/dashboard', { signal }),
             finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             getOrders: (userId: string, options?: {
@@ -139,6 +139,7 @@ export function createApiClientServices() {
                 from?: string;
                 to?: string;
                 sort?: 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
+                signal?: AbortSignal;
             }) => {
                 sessionScoped(userId);
                 const qs = new URLSearchParams();
@@ -147,38 +148,38 @@ export function createApiClientServices() {
                 if (options?.from) qs.set('from', options.from);
                 if (options?.to) qs.set('to', options.to);
                 if (options?.sort) qs.set('sort', options.sort);
-                return request<Order[]>(`/api/orders?${qs}`);
+                return request<Order[]>(`/api/orders?${qs}`, { signal: options?.signal });
             },
-            getOrder: (id: string) => request<Order>(`/api/orders/${id}`),
-            getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string; query?: string }) => {
+            getOrder: (id: string, signal?: AbortSignal) => request<Order>(`/api/orders/${id}`, { signal }),
+            getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string; query?: string; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.status) qs.set('status', options.status);
                 if (options?.limit) qs.set('limit', String(options.limit));
                 if (options?.cursor) qs.set('cursor', options.cursor);
                 if (options?.query) qs.set('query', options.query);
-                return request<{ orders: Order[]; nextCursor?: string }>(`/api/admin/orders?${qs}`);
+                return request<{ orders: Order[]; nextCursor?: string }>(`/api/admin/orders?${qs}`, { signal: options?.signal });
             },
             addOrderNote: (id: string, text: string, actor: any) => request<OrderNote>(`/api/admin/orders/${id}/notes`, { method: 'POST', body: JSON.stringify({ text }) }),
             updateOrderFulfillment: (id: string, data: any, actor: any) => request<void>(`/api/admin/orders/${id}/fulfillment`, { method: 'PATCH', body: JSON.stringify(data) }),
-            getAdminOrder: (id: string) => request<Order>(`/api/admin/orders/${id}`),
+            getAdminOrder: (id: string, signal?: AbortSignal) => request<Order>(`/api/admin/orders/${id}`, { signal }),
             updateOrderStatus: (id: string, status: OrderStatus, _actor: { id: string; email: string }) => request<void>(`/api/admin/orders/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
             batchUpdateOrderStatus: (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => request<void>('/api/admin/orders/batch', { method: 'PATCH', body: JSON.stringify({ ids, status }) }),
             getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
             getDigitalAssets: (userId: string) => (sessionScoped(userId), request<any[]>(`/api/account/vault?userId=${userId}`)),
         },
         discountService: {
-            getAllDiscounts: () => request<any[]>('/api/admin/discounts'),
+            getAllDiscounts: (signal?: AbortSignal) => request<any[]>('/api/admin/discounts', { signal }),
             createDiscount: (data: any, _actor: { id: string; email: string }) => request<any>('/api/admin/discounts', { method: 'POST', body: JSON.stringify(data) }),
             updateDiscount: (id: string, updates: any, _actor: { id: string; email: string }) => request<any>(`/api/admin/discounts/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
             deleteDiscount: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/discounts/${id}`, { method: 'DELETE' }),
         },
         settingsService: {
-            getSetupProgress: () => request<import('./pages/admin/AdminSettings').SetupGuideProgress>('/api/admin/setup-guide'),
-            getSettings: () => request<Record<string, any>>('/api/admin/settings'),
+            getSetupProgress: (signal?: AbortSignal) => request<import('./pages/admin/AdminSettings').SetupGuideProgress>('/api/admin/setup-guide', { signal }),
+            getSettings: (signal?: AbortSignal) => request<Record<string, any>>('/api/admin/settings', { signal }),
             updateSetting: (key: string, value: any, _actor?: { id: string; email: string }) => request<void>('/api/admin/settings', { method: 'POST', body: JSON.stringify({ key, value }) }),
         },
         transferService: {
-            getAllTransfers: () => request<import('@domain/models').Transfer[]>('/api/admin/inventory/transfers'),
+            getAllTransfers: (signal?: AbortSignal) => request<import('@domain/models').Transfer[]>('/api/admin/inventory/transfers', { signal }),
             receiveTransfer: (id: string) => request<void>('/api/admin/inventory/transfers', { method: 'POST', body: JSON.stringify({ id, action: 'receive' }) }),
         },
         purchaseOrderService: {
@@ -235,7 +236,7 @@ export function createApiClientServices() {
                 return request<Collection[]>(`/api/admin/collections?${qs}`);
             },
             get: (id: string) => request<Collection>(`/api/admin/collections/${id}`),
-            getCollectionByHandle: (handle: string) => request<Collection>(`/api/collections/${handle}`),
+            getCollectionByHandle: (handle: string, signal?: AbortSignal) => request<Collection>(`/api/collections/${handle}`, { signal }),
             create: (data: Partial<Collection>) => request<Collection>('/api/admin/collections', { method: 'POST', body: JSON.stringify(data) }),
             update: (id: string, updates: Partial<Collection>) => request<Collection>(`/api/admin/collections/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
             delete: (id: string) => request<void>(`/api/admin/collections/${id}`, { method: 'DELETE' }),
@@ -246,7 +247,7 @@ export function createApiClientServices() {
             updateLocation: (id: string, updates: any) => request<InventoryLocation>(`/api/admin/locations/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         taxonomyService: {
-            getCategories: () => request<ProductCategory[]>('/api/taxonomy/categories'),
+            getCategories: (signal?: AbortSignal) => request<ProductCategory[]>('/api/taxonomy/categories', { signal }),
             saveCategory: (category: Partial<ProductCategory>, _actor: { id: string; email: string }) => request<ProductCategory>('/api/admin/taxonomy/categories', { method: 'POST', body: JSON.stringify(category) }),
             deleteCategory: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/taxonomy/categories/${id}`, { method: 'DELETE' }),
             getTypes: () => request<ProductType[]>('/api/taxonomy/types'),
@@ -254,8 +255,8 @@ export function createApiClientServices() {
             deleteType: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/taxonomy/types/${id}`, { method: 'DELETE' }),
         },
         wishlistService: {
-            getWishlists: () => request<import('@domain/models').Wishlist[]>('/api/wishlists'),
-            getWishlist: (id: string) => request<import('@domain/models').Wishlist & { items: Product[] }>(`/api/wishlists/${id}`),
+            getWishlists: (signal?: AbortSignal) => request<import('@domain/models').Wishlist[]>('/api/wishlists', { signal }),
+            getWishlist: (id: string, signal?: AbortSignal) => request<import('@domain/models').Wishlist & { items: Product[] }>(`/api/wishlists/${id}`, { signal }),
             createWishlist: (name: string) => request<import('@domain/models').Wishlist>('/api/wishlists', { method: 'POST', body: JSON.stringify({ name }) }),
             updateWishlist: (id: string, name: string) => request<import('@domain/models').Wishlist>(`/api/wishlists/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) }),
             deleteWishlist: (id: string) => request<void>(`/api/wishlists/${id}`, { method: 'DELETE' }),
@@ -264,16 +265,16 @@ export function createApiClientServices() {
             checkStatus: (productId: string) => request<{ isInWishlist: boolean }>(`/api/wishlists/status?productId=${productId}`),
         },
         ticketService: {
-            listTickets: (options?: { status?: string; query?: string; limit?: number }) => {
+            listTickets: (options?: { status?: string; query?: string; limit?: number; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.status) qs.set('status', options.status);
                 if (options?.query) qs.set('query', options.query);
                 if (options?.limit) qs.set('limit', String(options.limit));
-                return request<SupportTicket[]>(`/api/admin/tickets?${qs}`);
+                return request<SupportTicket[]>(`/api/admin/tickets?${qs}`, { signal: options?.signal });
             },
-            getTicket: (id: string) => request<SupportTicket>(`/api/admin/tickets/${id}`),
-            getUserTickets: (userId: string) => request<SupportTicket[]>(`/api/tickets?userId=${userId}`),
-            getUserTicket: (id: string, userId: string) => request<SupportTicket>(`/api/tickets/${id}?userId=${userId}`),
+            getTicket: (id: string, signal?: AbortSignal) => request<SupportTicket>(`/api/admin/tickets/${id}`, { signal }),
+            getUserTickets: (userId: string, signal?: AbortSignal) => request<SupportTicket[]>(`/api/tickets?userId=${userId}`, { signal }),
+            getUserTicket: (id: string, userId: string, signal?: AbortSignal) => request<SupportTicket>(`/api/tickets/${id}?userId=${userId}`, { signal }),
             createTicket: (data: Partial<SupportTicket>) => request<SupportTicket>('/api/tickets', { method: 'POST', body: JSON.stringify(data) }),
             updateTicketStatus: (id: string, status: string) => request<SupportTicket>(`/api/admin/tickets/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
             updateTicketPriority: (id: string, priority: string) => request<SupportTicket>(`/api/admin/tickets/${id}/priority`, { method: 'PATCH', body: JSON.stringify({ priority }) }),
@@ -289,21 +290,23 @@ export function createApiClientServices() {
             sendHeartbeat: (ticketId: string, userId: string, userName: string) => request<{ viewers: { id: string; name: string }[] }>(`/api/admin/support/tickets/${ticketId}/heartbeat`, { method: 'POST', body: JSON.stringify({ userId, userName }) }),
         },
         knowledgebaseService: {
-            getCategories: () => request<KnowledgebaseCategory[]>('/api/support/categories'),
-            getArticles: (options?: { categoryId?: string; seriesId?: string; query?: string; type?: 'article' | 'blog'; status?: string }) => {
+            getCategories: (signal?: AbortSignal) => request<KnowledgebaseCategory[]>('/api/support/categories', { signal }),
+            getArticles: (options?: { categoryId?: string; seriesId?: string; query?: string; type?: 'article' | 'blog'; status?: string; limit?: number; cursor?: string; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.categoryId) qs.set('categoryId', options.categoryId);
                 if (options?.seriesId) qs.set('seriesId', options.seriesId);
                 if (options?.query) qs.set('query', options.query);
                 if (options?.type) qs.set('type', options.type);
                 if (options?.status) qs.set('status', options.status);
-                return request<KnowledgebaseArticle[]>(`/api/support/articles?${qs}`);
+                if (options?.limit) qs.set('limit', String(options.limit));
+                if (options?.cursor) qs.set('cursor', options.cursor);
+                return request<{ articles: KnowledgebaseArticle[]; nextCursor?: string }>(`/api/support/articles?${qs}`, { signal: options?.signal });
             },
-            getArticle: (slug: string) => request<KnowledgebaseArticle>(`/api/support/articles/${slug}`),
+            getArticle: (slug: string, signal?: AbortSignal) => request<KnowledgebaseArticle>(`/api/support/articles/${slug}`, { signal }),
             submitFeedback: (articleId: string, isHelpful: boolean, userId?: string) => request<void>('/api/support/feedback', { method: 'POST', body: JSON.stringify({ articleId, isHelpful, userId }) }),
             
             // New Blogging Methods
-            getSeries: () => request<BlogSeries[]>('/api/blog/series'),
+            getSeries: (signal?: AbortSignal) => request<BlogSeries[]>('/api/blog/series', { signal }),
             getSeriesBySlug: (slug: string) => request<BlogSeries>(`/api/blog/series/${slug}`),
             getAuthors: () => request<import('@domain/models').Author[]>('/api/blog/authors'),
             getAuthor: (id: string) => request<import('@domain/models').Author>(`/api/blog/authors/${id}`),

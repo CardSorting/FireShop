@@ -22,6 +22,10 @@ export default function BlogPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'new' | 'popular'>('new');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | undefined>(undefined);
+  const ARTICLES_PER_PAGE = 9;
+  const loadMoreControllerRef = React.useRef<AbortController | null>(null);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -35,24 +39,74 @@ export default function BlogPage() {
   };
 
   useEffect(() => {
-    async function loadData() {
+    const controller = new AbortController();
+    
+    async function loadInitialData() {
       try {
-        const [postsData, categoriesData, seriesData] = await Promise.all([
-          services.knowledgebaseService.getArticles({ type: 'blog', status: 'published' }),
-          services.knowledgebaseService.getCategories(),
-          services.knowledgebaseService.getSeries()
+        setLoading(true);
+        const [postsRes, categoriesData, seriesData] = await Promise.all([
+          services.knowledgebaseService.getArticles({ 
+            type: 'blog', 
+            status: 'published',
+            limit: ARTICLES_PER_PAGE,
+            signal: controller.signal
+          }),
+          services.knowledgebaseService.getCategories(controller.signal),
+          services.knowledgebaseService.getSeries(controller.signal)
         ]);
-        setPosts(postsData);
-        setCategories(categoriesData);
-        setSeries(seriesData);
+        
+        if (!controller.signal.aborted) {
+          setPosts(postsRes.articles);
+          setNextCursor(postsRes.nextCursor);
+          setCategories(categoriesData);
+          setSeries(seriesData);
+        }
       } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         console.error('Failed to load blog data', err);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
-    void loadData();
+    
+    void loadInitialData();
+    return () => {
+      controller.abort();
+      loadMoreControllerRef.current?.abort();
+    };
   }, [services.knowledgebaseService]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    
+    // Abort any existing loadMore request before starting a new one
+    loadMoreControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadMoreControllerRef.current = controller;
+    
+    try {
+      setLoadingMore(true);
+      const postsRes = await services.knowledgebaseService.getArticles({
+        type: 'blog',
+        status: 'published',
+        limit: ARTICLES_PER_PAGE,
+        cursor: nextCursor,
+        signal: controller.signal
+      });
+      
+      if (!controller.signal.aborted) {
+        setPosts(prev => [...prev, ...postsRes.articles]);
+        setNextCursor(postsRes.nextCursor);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
+      console.error('Failed to load more posts', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const featuredPost = useMemo(() => {
     return posts.find(p => p.isFeatured) || posts[0];
@@ -257,12 +311,25 @@ export default function BlogPage() {
               </AnimatePresence>
             </div>
 
-            {/* Pagination Placeholder */}
-            {filteredPosts.length > 0 && (
+            {/* Load More Button */}
+            {nextCursor && (
               <div className="pt-24 flex justify-center">
-                <button className="px-12 py-6 rounded-4xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-gray-200 flex items-center gap-4">
-                  Load Older Stories
-                  <ArrowRight className="h-4 w-4" />
+                <button 
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="px-12 py-6 rounded-4xl bg-gray-900 text-white font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition-all shadow-2xl shadow-gray-200 flex items-center gap-4"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Waking the Hive...
+                    </>
+                  ) : (
+                    <>
+                      Load Older Stories
+                      <ArrowRight className="h-4 w-4" />
+                    </>
+                  )}
                 </button>
               </div>
             )}

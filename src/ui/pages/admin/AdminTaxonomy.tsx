@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useServices } from '../../hooks/useServices';
 import type { ProductCategory, ProductType } from '@domain/models';
 import { 
@@ -40,28 +40,40 @@ export function AdminTaxonomy() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
+  const controllerRef = useRef<AbortController | null>(null);
 
   // Form states
   const [editItem, setEditItem] = useState<{ id?: string, name: string, slug?: string, description?: string | null } | null>(null);
 
   const loadTaxonomy = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     try {
       const [cats, typs] = await Promise.all([
-        services.taxonomyService.getCategories(),
-        services.taxonomyService.getTypes()
+        services.taxonomyService.getCategories(controller.signal),
+        services.taxonomyService.getTypes() // Assuming getTypes doesn't need signal yet but good to add if possible
       ]);
-      setCategories(cats);
-      setTypes(typs);
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setCategories(cats);
+        setTypes(typs);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       toast('error', 'Failed to load organization data');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [services.taxonomyService, toast]);
 
   useEffect(() => {
     void loadTaxonomy();
+    return () => controllerRef.current?.abort();
   }, [loadTaxonomy]);
 
   async function handleSave() {

@@ -1,7 +1,7 @@
 'use client';
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import type { AdminDashboardSummary } from '@domain/models';
@@ -58,36 +58,48 @@ export function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [customerCount, setCustomerCount] = useState(0);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const loadDashboard = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
       const [dashSummary, users, progress, mediaRes] = await Promise.all([
-        services.orderService.getAdminDashboardSummary(),
-        services.authService.getAllUsers(),
-        services.settingsService.getSetupProgress(),
-        fetch('/api/admin/media').then(r => r.json())
+        services.orderService.getAdminDashboardSummary(controller.signal),
+        services.authService.getAllUsers(controller.signal),
+        services.settingsService.getSetupProgress(controller.signal),
+        fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json())
       ]);
-      setSummary(dashSummary);
-      setCustomerCount(users.length);
-      setSetupProgress(progress);
-      if (mediaRes.files) {
-        setMediaStats({
-          count: mediaRes.files.length,
-          size: mediaRes.files.reduce((acc: number, f: any) => acc + f.size, 0)
-        });
+      
+      if (!controller.signal.aborted) {
+        setSummary(dashSummary);
+        setCustomerCount(users.length);
+        setSetupProgress(progress);
+        if (mediaRes.files) {
+          setMediaStats({
+            count: mediaRes.files.length,
+            size: mediaRes.files.reduce((acc: number, f: any) => acc + f.size, 0)
+          });
+        }
+        setLastUpdated(new Date());
       }
-      setLastUpdated(new Date());
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load dashboard');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [services]);
 
   useEffect(() => {
     void loadDashboard();
+    return () => controllerRef.current?.abort();
   }, [loadDashboard]);
 
   if (loading) return <SkeletonPage />;

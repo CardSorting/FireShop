@@ -3,7 +3,7 @@
 /**
  * [LAYER: UI]
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useServices } from '../hooks/useServices';
 import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
@@ -46,6 +46,8 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const [gridCols, setGridCols] = useState(3);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [collectionInfo, setCollectionInfo] = useState<{ name: string; description: string; imageUrl?: string } | null>(null);
+  const loadProductsControllerRef = useRef<AbortController | null>(null);
+  const initialLoadControllerRef = useRef<AbortController | null>(null);
 
   const conditions = ['New', 'Like New', 'Gently Used', 'Vintage'];
   const availabilityOptions = [
@@ -121,6 +123,8 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
 
 
   useEffect(() => {
+    const controller = new AbortController();
+    
     const loadMetadata = async () => {
       if (!collectionSlug || collectionSlug === 'all') {
         setCollectionInfo(null);
@@ -128,35 +132,49 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       }
       try {
         if (resolvedType === 'category') {
-          const cats = await services.taxonomyService.getCategories();
+          const cats = await services.taxonomyService.getCategories(controller.signal);
           const cat = cats.find((c: any) => c.slug === collectionSlug);
-          if (cat) setCollectionInfo({ name: cat.name, description: cat.description || '' });
+          if (!controller.signal.aborted && cat) {
+            setCollectionInfo({ name: cat.name, description: cat.description || '' });
+          }
         } else if (resolvedType === 'collection') {
-          const col = await services.collectionService.getCollectionByHandle(collectionSlug);
-          if (col) setCollectionInfo({ name: col.name, description: col.description || '', imageUrl: col.imageUrl });
+          const col = await services.collectionService.getCollectionByHandle(collectionSlug, controller.signal);
+          if (!controller.signal.aborted && col) {
+            setCollectionInfo({ name: col.name, description: col.description || '', imageUrl: col.imageUrl });
+          }
         }
-      } catch (err) {
-        // Silently handle 404s for metadata lookups to prevent UI crashes in dev/prod
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         logger.warn(`Metadata lookup failed for ${resolvedType}:${collectionSlug}`, err);
       }
     };
     void loadMetadata();
+    return () => controller.abort();
   }, [collectionSlug, resolvedType, services]);
 
   useEffect(() => {
+    const controller = new AbortController();
+    
     const loadCategories = async () => {
       try {
-        const data = await services.taxonomyService.getCategories();
-        setCategories(data);
-      } catch (err) {
+        const data = await services.taxonomyService.getCategories(controller.signal);
+        if (!controller.signal.aborted) {
+          setCategories(data);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         console.error('Failed to load categories', err);
       }
     };
     void loadCategories();
+    return () => controller.abort();
   }, [services.taxonomyService]);
 
   const loadProducts = useCallback(async (cursor?: string) => {
+    loadProductsControllerRef.current?.abort();
     const controller = new AbortController();
+    loadProductsControllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -166,39 +184,45 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         collection: isCollectionType && collectionSlug ? collectionSlug : undefined,
         limit: 20,
         cursor,
+        signal: controller.signal
       });
       
-      let filtered = result.products;
-      
-      // Client-side filtering simulation (Industrial Robustness)
-      if (selectedConditions.length > 0) {
-        filtered = filtered.filter(p => selectedConditions.includes(String(p.metafields?.condition || 'New')));
-      }
-      
-      if (selectedAvailability.length > 0) {
-        filtered = filtered.filter(p => {
-          if (selectedAvailability.includes('in_stock') && p.stock > 0) return true;
-          if (selectedAvailability.includes('out_of_stock') && p.stock === 0) return true;
-          return false;
-        });
-      }
-      
-      filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
+      if (!controller.signal.aborted) {
+        let filtered = result.products;
+        
+        // Client-side filtering simulation (Industrial Robustness)
+        if (selectedConditions.length > 0) {
+          filtered = filtered.filter(p => selectedConditions.includes(String(p.metafields?.condition || 'New')));
+        }
+        
+        if (selectedAvailability.length > 0) {
+          filtered = filtered.filter(p => {
+            if (selectedAvailability.includes('in_stock') && p.stock > 0) return true;
+            if (selectedAvailability.includes('out_of_stock') && p.stock === 0) return true;
+            return false;
+          });
+        }
+        
+        filtered = filtered.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
-      // Sorting
-      if (sortBy === 'price_asc') filtered.sort((a, b) => a.price - b.price);
-      if (sortBy === 'price_desc') filtered.sort((a, b) => b.price - a.price);
-      if (sortBy === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
+        // Sorting
+        if (sortBy === 'price_asc') filtered.sort((a, b) => a.price - b.price);
+        if (sortBy === 'price_desc') filtered.sort((a, b) => b.price - a.price);
+        if (sortBy === 'name') filtered.sort((a, b) => a.name.localeCompare(b.name));
 
-      setProducts(prev => cursor ? [...prev, ...filtered] : filtered);
-      setNextCursor(result.nextCursor ?? null);
+        setProducts(prev => cursor ? [...prev, ...filtered] : filtered);
+        setNextCursor(result.nextCursor ?? null);
+      }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Failed to load products');
+      if (!controller.signal.aborted) {
+        setError(err instanceof Error ? err.message : 'Failed to load products');
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
-    return () => controller.abort();
   }, [selectedCategories, selectedConditions, selectedAvailability, priceRange, sortBy, services.productService, resolvedType, collectionSlug]);
 
   const handleSearch = useCallback(async (value: string) => {
@@ -217,8 +241,10 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   };
 
   useEffect(() => {
-    // Initial load handled by URL state initialization
     void loadProducts();
+    return () => {
+      loadProductsControllerRef.current?.abort();
+    };
   }, [loadProducts]);
 
   const handleQuickAdd = async (productId: string) => {

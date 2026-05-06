@@ -14,13 +14,18 @@ export async function GET(req: Request) {
       return NextResponse.json(results);
     }
 
-    const articles = await knowledgebaseRepository.getArticles({
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+    const cursor = searchParams.get('cursor') || undefined;
+
+    const result = await knowledgebaseRepository.getArticles({
       categoryId: categoryId || undefined,
       type: type || undefined,
-      status: status || undefined
+      status: status || undefined,
+      limit,
+      cursor
     });
 
-    return NextResponse.json(articles);
+    return NextResponse.json(result);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -224,8 +224,13 @@ export function AdminProducts() {
   const [deleting, setDeleting] = useState(false);
   const [savingBulk, setSavingBulk] = useState(false);
   const [bulkPatch, setBulkPatch] = useState<BulkPatch>(EMPTY_BULK_PATCH);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const loadProducts = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -263,23 +268,31 @@ export function AdminProducts() {
         hasCost: booleanFilterValue(costFilter),
         sort,
       };
+      
       const [nextOverview, savedView] = await Promise.all([
-        services.productService.getProductManagementOverview(),
-        services.productService.getProductSavedView(activeView, filters),
+        services.productService.getProductManagementOverview(controller.signal),
+        services.productService.getProductSavedView(activeView, { ...filters, signal: controller.signal }),
       ]);
-      setOverview(nextOverview);
-      setSavedViewResult(savedView);
-      setProducts(savedView.products);
-      setSelectedIds(new Set());
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setOverview(nextOverview);
+        setSavedViewResult(savedView);
+        setProducts(savedView.products);
+        setSelectedIds(new Set());
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load products');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [activeView, category, costFilter, imageFilter, inventoryFilter, marginFilter, productTypeFilter, query, services.productService, setupFilter, skuFilter, sort, statusFilter, vendorFilter]);
 
   useEffect(() => {
     void loadProducts();
+    return () => controllerRef.current?.abort();
   }, [loadProducts]);
 
   const vendorOptions = useMemo(() => {

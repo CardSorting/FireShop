@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Send, AlertCircle, ArrowLeft, HelpCircle, Package, Receipt,
@@ -51,46 +51,75 @@ export function SupportPage() {
   const [userTickets, setUserTickets] = useState<SupportTicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
   const [reason, setReason] = useState('question');
+  const initialLoadControllerRef = useRef<AbortController | null>(null);
+  const searchControllerRef = useRef<AbortController | null>(null);
+  const categoryControllerRef = useRef<AbortController | null>(null);
+  const articleControllerRef = useRef<AbortController | null>(null);
+  const ticketControllerRef = useRef<AbortController | null>(null);
   
   const services = useServices();
   const { user } = useAuth();
 
   const loadInitialData = useCallback(async () => {
+    initialLoadControllerRef.current?.abort();
+    const controller = new AbortController();
+    initialLoadControllerRef.current = controller;
+
     try {
-      const cats = await services.knowledgebaseService.getCategories();
-      setCategories(cats);
+      const cats = await services.knowledgebaseService.getCategories(controller.signal);
+      if (!controller.signal.aborted) {
+        setCategories(cats);
+      }
       
       const articleSlug = searchParams?.get('article');
-      if (articleSlug) {
+      if (articleSlug && !controller.signal.aborted) {
         setLoading(true);
-        const article = await services.knowledgebaseService.getArticle(articleSlug);
-        if (article) {
+        const article = await services.knowledgebaseService.getArticle(articleSlug); // Assuming getArticle doesn't need signal yet but good to add
+        if (!controller.signal.aborted && article) {
           setSelectedArticle(article);
           setViewMode('article');
-          const rel = await services.knowledgebaseService.getArticles({ categoryId: article.categoryId });
-          setArticles(rel.filter(a => a.id !== article.id).slice(0, 3));
+          const rel = await services.knowledgebaseService.getArticles({ categoryId: article.categoryId, signal: controller.signal });
+          if (!controller.signal.aborted) {
+            setArticles(rel.articles.filter(a => a.id !== article.id).slice(0, 3));
+          }
         }
-      } else if (orderId || productId || forceContact) {
+      } else if ((orderId || productId || forceContact) && !controller.signal.aborted) {
         setViewMode('contact');
-      } else if (searchParams?.get('tickets') === 'true' && user) {
+      } else if (searchParams?.get('tickets') === 'true' && user && !controller.signal.aborted) {
         setLoading(true);
-        const tickets = await services.ticketService.getUserTickets(user.id);
-        setUserTickets(tickets);
-        setViewMode('tickets');
+        const tickets = await services.ticketService.getUserTickets(user.id, controller.signal);
+        if (!controller.signal.aborted) {
+          setUserTickets(tickets);
+          setViewMode('tickets');
+        }
       }
 
       // Load popular articles for home
-      const popular = await services.knowledgebaseService.getArticles({ query: '' }); // Get all, we'll slice
-      setSearchResults(popular.slice(0, 4));
-    } catch (err) {
+      if (!controller.signal.aborted) {
+        const popular = await services.knowledgebaseService.getArticles({ query: '', signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setSearchResults(popular.articles.slice(0, 4));
+        }
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load help categories or article', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [services.knowledgebaseService, services.ticketService, searchParams, orderId, productId, forceContact, user]);
 
   useEffect(() => {
     void loadInitialData();
+    return () => {
+      initialLoadControllerRef.current?.abort();
+      searchControllerRef.current?.abort();
+      categoryControllerRef.current?.abort();
+      articleControllerRef.current?.abort();
+      ticketControllerRef.current?.abort();
+    };
   }, [loadInitialData]);
 
   useEffect(() => {
@@ -105,12 +134,26 @@ export function SupportPage() {
   const [liveResults, setLiveResults] = useState<KnowledgebaseArticle[]>([]);
 
   useEffect(() => {
+    searchControllerRef.current?.abort();
     if (activeSearch.length > 2) {
+      const controller = new AbortController();
+      searchControllerRef.current = controller;
+
       const timer = setTimeout(async () => {
-        const results = await services.knowledgebaseService.getArticles({ query: activeSearch });
-        setLiveResults(results);
+        try {
+          const results = await services.knowledgebaseService.getArticles({ query: activeSearch, signal: controller.signal });
+          if (!controller.signal.aborted) {
+            setLiveResults(results.articles);
+          }
+        } catch (err: any) {
+          if (err.name === 'AbortError') return;
+          console.error('Search failed', err);
+        }
       }, 300);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        controller.abort();
+      };
     } else {
       setLiveResults([]);
     }
@@ -156,45 +199,75 @@ export function SupportPage() {
   };
 
   const handleCategoryClick = async (category: KnowledgebaseCategory) => {
+    categoryControllerRef.current?.abort();
+    const controller = new AbortController();
+    categoryControllerRef.current = controller;
+
     setLoading(true);
     try {
-      const catArticles = await services.knowledgebaseService.getArticles({ categoryId: category.id });
-      setArticles(catArticles);
-      setSelectedCategory(category);
-      setViewMode('category');
-    } catch (err) {
+      const catArticles = await services.knowledgebaseService.getArticles({ categoryId: category.id, signal: controller.signal });
+      if (!controller.signal.aborted) {
+        setArticles(catArticles.articles);
+        setSelectedCategory(category);
+        setViewMode('category');
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load category articles', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
   const handleArticleClick = async (article: KnowledgebaseArticle) => {
+    articleControllerRef.current?.abort();
+    const controller = new AbortController();
+    articleControllerRef.current = controller;
+
     setLoading(true);
     try {
-      const art = await services.knowledgebaseService.getArticle(article.slug);
-      setSelectedArticle(art);
-      setViewMode('article');
-      const rel = await services.knowledgebaseService.getArticles({ categoryId: art.categoryId });
-      setArticles(rel.filter(a => a.id !== art.id).slice(0, 3));
-    } catch (err) {
+      const art = await services.knowledgebaseService.getArticle(article.slug); // Assuming no signal yet
+      if (!controller.signal.aborted) {
+        setSelectedArticle(art);
+        setViewMode('article');
+        const rel = await services.knowledgebaseService.getArticles({ categoryId: art.categoryId, signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setArticles(rel.articles.filter(a => a.id !== art.id).slice(0, 3));
+        }
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load article', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
   const handleTicketClick = async (ticket: SupportTicket) => {
     if (!user) return;
+    
+    ticketControllerRef.current?.abort();
+    const controller = new AbortController();
+    ticketControllerRef.current = controller;
+
     setLoading(true);
     try {
-      const t = await services.ticketService.getUserTicket(ticket.id, user.id);
-      setSelectedTicket(t);
-      setViewMode('ticket_detail');
-    } catch (err) {
+      const t = await services.ticketService.getUserTicket(ticket.id, user.id, controller.signal);
+      if (!controller.signal.aborted) {
+        setSelectedTicket(t);
+        setViewMode('ticket_detail');
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load ticket', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 
