@@ -7,7 +7,7 @@
  * Admin settings — Store configuration and setup checklist.
  * Patterns modeled after Stripe and Shopify Settings.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { 
@@ -91,55 +91,76 @@ export function AdminSettings() {
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [users, setUsers] = useState<User[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const controllerRef = useRef<AbortController | null>(null);
 
-  const loadProgress = useCallback(async () => {
+  const loadProgress = useCallback(async (signal?: AbortSignal) => {
     try {
-      const data = await services.settingsService.getSetupProgress();
-      setProgress(data);
-    } catch (err) {
+      const data = await services.settingsService.getSetupProgress(signal);
+      if (!signal?.aborted) {
+        setProgress(data);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       services.logger.error('Failed to load setup progress', err);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }, [services.settingsService]);
 
-  const loadSettings = useCallback(async () => {
+  const loadSettings = useCallback(async (signal?: AbortSignal) => {
     try {
       const [data, staff] = await Promise.all([
-        services.settingsService.getSettings(),
-        services.authService.getAllUsers()
+        services.settingsService.getSettings(signal),
+        services.authService.getAllUsers(signal)
       ]);
-      setSettings(data);
-      setUsers(staff);
-    } catch (err) {
+      if (!signal?.aborted) {
+        setSettings(data);
+        setUsers(staff);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       services.logger.error('Failed to load settings', err);
     }
   }, [services]);
 
-  const loadAuditLogs = useCallback(async () => {
+  const loadAuditLogs = useCallback(async (signal?: AbortSignal) => {
     try {
-      const logs = await services.auditService.getRecentLogs();
-      setAuditLogs(logs);
-    } catch (err) {
+      const logs = await services.auditService.getRecentLogs({ signal });
+      if (!signal?.aborted) {
+        setAuditLogs(logs);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       services.logger.error('Failed to load audit logs', err);
     }
   }, [services.auditService]);
 
-  const loadUsers = useCallback(async () => {
+  const loadUsers = useCallback(async (signal?: AbortSignal) => {
     try {
-      const allUsers = await services.authService.getAllUsers();
-      setUsers(allUsers);
-    } catch (err) {
+      const allUsers = await services.authService.getAllUsers(signal);
+      if (!signal?.aborted) {
+        setUsers(allUsers);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       services.logger.error('Failed to load users', err);
     }
   }, [services.authService]);
 
 
   useEffect(() => {
-    void loadProgress();
-    void loadSettings();
-    void loadUsers();
-    void loadAuditLogs();
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    void loadProgress(controller.signal);
+    void loadSettings(controller.signal);
+    void loadUsers(controller.signal);
+    void loadAuditLogs(controller.signal);
+
+    return () => controller.abort();
   }, [loadProgress, loadSettings, loadUsers, loadAuditLogs]);
 
   const saveSetting = async (key: string, value: any) => {

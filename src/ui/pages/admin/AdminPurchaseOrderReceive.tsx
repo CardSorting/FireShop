@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -73,6 +73,13 @@ export function AdminPurchaseOrderReceive() {
   const [scanInput, setScanInput] = useState('');
   const [scanFlash, setScanFlash] = useState<'success' | 'error' | null>(null);
   const [lastScanned, setLastScanned] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const receivingNow = items.reduce((sum, item) => sum + item.toReceive, 0);
   const exceptionLines = items.filter((item) => item.toReceive > 0 && (item.condition !== 'new' || item.damagedQty > 0 || item.disposition !== 'add_to_stock'));
@@ -82,35 +89,47 @@ export function AdminPurchaseOrderReceive() {
   }, 0);
 
   const loadOrder = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    if (isMounted.current) setLoading(true);
     try {
       const detail = await services.purchaseOrderService.getGuided(id);
-      setOrder(detail.order);
-      setSummary(detail.summary);
-      
-      // Initialize receiving lines
-      const initialItems = detail.order.items.map((item: any) => ({
-        purchaseOrderItemId: item.id,
-        productId: item.productId,
-        productName: item.productName,
-        sku: item.sku || '',
-        orderedQty: item.orderedQty,
-        alreadyReceived: item.receivedQty,
-        toReceive: 0,
-        condition: 'new' as ReceiveCondition,
-        damagedQty: 0,
-        disposition: 'add_to_stock' as ReceivingLineDisposition,
-        notes: ''
-      }));
-      setItems(initialItems);
+      if (!controller.signal.aborted && isMounted.current) {
+        setOrder(detail.order);
+        setSummary(detail.summary);
+        
+        // Initialize receiving lines
+        const initialItems = detail.order.items.map((item: any) => ({
+          purchaseOrderItemId: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          sku: item.sku || '',
+          orderedQty: item.orderedQty,
+          alreadyReceived: item.receivedQty,
+          toReceive: 0,
+          condition: 'new' as ReceiveCondition,
+          damagedQty: 0,
+          disposition: 'add_to_stock' as ReceivingLineDisposition,
+          notes: ''
+        }));
+        setItems(initialItems);
+      }
     } catch (err) {
-      toast('error', 'Failed to load purchase order');
+      if (!controller.signal.aborted && isMounted.current) {
+        toast('error', 'Failed to load purchase order');
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [id, services, toast]);
 
   useEffect(() => {
     if (id) void loadOrder();
+    return () => controllerRef.current?.abort();
   }, [id, loadOrder]);
 
   const handleScan = (e: React.FormEvent) => {
@@ -131,7 +150,9 @@ export function AdminPurchaseOrderReceive() {
       toast('error', `SKU ${needle} not found on this PO`);
       setScanInput('');
     }
-    setTimeout(() => setScanFlash(null), 1000);
+    setTimeout(() => {
+      if (isMounted.current) setScanFlash(null);
+    }, 1000);
   };
 
   const handleReceive = async () => {
@@ -156,13 +177,19 @@ export function AdminPurchaseOrderReceive() {
           notes: i.notes || undefined
         }))
       });
-      toast('success', `Successfully received ${totalToReceive} units`);
-      router.push('/admin/purchase-orders');
-      router.refresh();
+      if (isMounted.current) {
+        toast('success', `Successfully received ${totalToReceive} units`);
+        router.push('/admin/purchase-orders');
+        router.refresh();
+      }
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Receiving session failed');
+      if (isMounted.current) {
+        toast('error', err instanceof Error ? err.message : 'Receiving session failed');
+      }
     } finally {
-      setIsSubmitting(false);
+      if (isMounted.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 

@@ -7,7 +7,7 @@
  * Admin customer management — CRM-style list with segments and LTV.
  * Patterns modeled after Shopify Customers for high-velocity management.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import { 
@@ -57,21 +57,31 @@ export function AdminCustomers() {
   const [segment, setSegment] = useState('all');
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<any[]>([]);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
 
   async function loadCustomers() {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     try {
-      const users = await services.authService.getAllUsers();
+      const users = await services.authService.getAllUsers(controller.signal);
       const summaries = await services.orderService.getCustomerSummaries(users);
-      setCustomers(summaries);
-    } catch (err) {
+      if (!controller.signal.aborted) {
+        setCustomers(summaries);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       toast('error', 'Failed to load customers');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }
 
@@ -94,6 +104,7 @@ export function AdminCustomers() {
 
   useEffect(() => {
     void loadCustomers();
+    return () => controllerRef.current?.abort();
   }, [services]);
 
   const filtered = useMemo(() => {

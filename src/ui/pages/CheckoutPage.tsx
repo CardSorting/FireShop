@@ -137,8 +137,15 @@ export function CheckoutPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  const discountControllerRef = useRef<AbortController | null>(null);
+
   const handleApplyDiscount = async () => {
     if (!discountCode.trim()) return;
+
+    discountControllerRef.current?.abort();
+    const controller = new AbortController();
+    discountControllerRef.current = controller;
+
     setIsApplying(true);
     setDiscountMessage(null);
     
@@ -149,15 +156,13 @@ export function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, cartTotal: subtotal }),
+        signal: controller.signal
       });
       
-      if (res.ok) {
+      if (!controller.signal.aborted && res.ok) {
         const result = await res.json();
         if (result.valid) {
-          // result.discountAmount is returned from service
           let amount = result.discountAmount;
-          
-          // Handle free shipping separately if needed
           if (result.discount.type === 'free_shipping') {
             amount = shipping;
           }
@@ -167,17 +172,26 @@ export function CheckoutPage() {
         } else {
           setDiscountMessage(result.message || 'That code is not available.');
         }
-      } else {
+      } else if (!controller.signal.aborted) {
         setDiscountMessage('Unable to validate discount code. Please try again.');
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       logger.error('Failed to validate discount code', err);
-      setDiscountMessage('Unable to validate discount code. Please try again.');
+      if (!controller.signal.aborted) {
+        setDiscountMessage('Unable to validate discount code. Please try again.');
+      }
     } finally {
-      setIsApplying(false);
-      setDiscountCode('');
+      if (!controller.signal.aborted) {
+        setIsApplying(false);
+        setDiscountCode('');
+      }
     }
   };
+
+  useEffect(() => {
+    return () => discountControllerRef.current?.abort();
+  }, []);
 
   async function handleSuccess(paymentMethodId: string) {
     if (!user) {

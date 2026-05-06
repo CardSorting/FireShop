@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Review, ReviewDraft } from '@domain/models';
 import { logger } from '@utils/logger';
 
@@ -15,25 +15,36 @@ export function useProductReviews(productId: string) {
   const [sort, setSort] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const popularTags = ['Quality', 'Shipping', 'Colors', 'Paper', 'Artist'];
 
   // Load reviews from API
   const loadReviews = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/products/${productId}/reviews`);
+      const res = await fetch(`/api/products/${productId}/reviews`, { signal: controller.signal });
       if (!res.ok) {
-        // If the endpoint doesn't exist yet, gracefully fall back to empty state
         if (res.status === 404) {
-          setReviews([]);
+          if (!controller.signal.aborted) {
+            setReviews([]);
+          }
           return;
         }
         throw new Error(`Failed to load reviews: ${res.status}`);
       }
       const data = await res.json();
-      // Normalize date strings back to Date objects
       const normalized = (data.reviews ?? data ?? []).map((r: any) => ({
         ...r,
         createdAt: new Date(r.createdAt),
@@ -43,18 +54,27 @@ export function useProductReviews(productId: string) {
           createdAt: new Date(reply.createdAt),
         })),
       }));
-      setReviews(normalized);
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setReviews(normalized);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       logger.error('Failed to load reviews', err);
-      setError('Unable to load reviews at this time.');
-      setReviews([]);
+      if (!controller.signal.aborted) {
+        setError('Unable to load reviews at this time.');
+        setReviews([]);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [productId]);
 
   useEffect(() => {
     void loadReviews();
+    return () => controllerRef.current?.abort();
   }, [loadReviews]);
 
   // Dynamic stats calculation from real data
@@ -91,7 +111,6 @@ export function useProductReviews(productId: string) {
       });
 
       if (!res.ok) {
-        // Fallback: optimistically add to local state if API not available
         if (res.status === 404) {
           const newReview: Review = {
             ...draft,
@@ -101,28 +120,36 @@ export function useProductReviews(productId: string) {
             createdAt: new Date(),
             updatedAt: new Date(),
           };
-          setReviews(prev => [newReview, ...prev]);
-          setIsFormOpen(false);
+          if (isMounted.current) {
+            setReviews(prev => [newReview, ...prev]);
+            setIsFormOpen(false);
+          }
           return true;
         }
         throw new Error('Failed to submit review');
       }
 
       const newReview = await res.json();
-      newReview.createdAt = new Date(newReview.createdAt);
-      newReview.updatedAt = new Date(newReview.updatedAt);
-      setReviews(prev => [newReview, ...prev]);
-      setIsFormOpen(false);
+      if (isMounted.current) {
+        newReview.createdAt = new Date(newReview.createdAt);
+        newReview.updatedAt = new Date(newReview.updatedAt);
+        setReviews(prev => [newReview, ...prev]);
+        setIsFormOpen(false);
+      }
       return true;
     } catch (err) {
       logger.error('Failed to submit review', err);
       return false;
     } finally {
-      setSubmitting(false);
+      if (isMounted.current) {
+        setSubmitting(false);
+      }
     }
   };
 
   const voteHelpful = useCallback(async (reviewId: string) => {
+    if (!isMounted.current) return;
+    
     // Optimistic update
     setReviews(prev => prev.map(r => 
       r.id === reviewId ? { ...r, helpfulCount: r.helpfulCount + 1 } : r
@@ -135,10 +162,12 @@ export function useProductReviews(productId: string) {
         body: JSON.stringify({ reviewId, action: 'vote_helpful' }),
       });
     } catch (err) {
-      // Revert on failure
-      setReviews(prev => prev.map(r => 
-        r.id === reviewId ? { ...r, helpfulCount: r.helpfulCount - 1 } : r
-      ));
+      if (isMounted.current) {
+        // Revert on failure
+        setReviews(prev => prev.map(r => 
+          r.id === reviewId ? { ...r, helpfulCount: r.helpfulCount - 1 } : r
+        ));
+      }
       logger.error('Failed to vote helpful', err);
     }
   }, [productId]);

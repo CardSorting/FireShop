@@ -56,6 +56,12 @@ export function AdminInventory() {
 
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const loadInventory = useCallback(async () => {
     controllerRef.current?.abort();
@@ -127,9 +133,13 @@ export function AdminInventory() {
       setBulkChanges({});
       await loadInventory();
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Bulk update failed');
+      if (isMounted.current) {
+        toast('error', err instanceof Error ? err.message : 'Bulk update failed');
+      }
     } finally {
-      setSavingBulk(false);
+      if (isMounted.current) {
+        setSavingBulk(false);
+      }
     }
   }
 
@@ -465,10 +475,14 @@ export function AdminInventory() {
                          onClick={async () => {
                            try {
                              await services.transferService.receiveTransfer(transfer.id);
-                             toast('success', 'Transfer received successfully');
-                             await loadInventory();
+                             if (isMounted.current) {
+                               toast('success', 'Transfer received successfully');
+                               await loadInventory();
+                             }
                            } catch (err) {
-                             toast('error', 'Failed to receive transfer');
+                             if (isMounted.current) {
+                               toast('error', 'Failed to receive transfer');
+                             }
                            }
                          }}
                          className="rounded-lg bg-gray-900 px-6 py-2 text-xs font-bold text-white shadow-sm hover:bg-gray-800 transition"

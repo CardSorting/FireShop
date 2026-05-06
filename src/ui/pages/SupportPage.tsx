@@ -56,6 +56,12 @@ export function SupportPage() {
   const categoryControllerRef = useRef<AbortController | null>(null);
   const articleControllerRef = useRef<AbortController | null>(null);
   const ticketControllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
   
   const services = useServices();
   const { user } = useAuth();
@@ -191,10 +197,14 @@ export function SupportPage() {
         createdAt: new Date(),
         updatedAt: new Date()
       });
-      setSuccess(true);
+      if (isMounted.current) {
+        setSuccess(true);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit support request');
-      setIsSubmitting(false);
+      if (isMounted.current) {
+        setError(err instanceof Error ? err.message : 'Failed to submit support request');
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -276,7 +286,9 @@ export function SupportPage() {
     try {
       await services.ticketService.addMessage(selectedTicket.id, content, user.id, 'customer');
       const t = await services.ticketService.getUserTicket(selectedTicket.id, user.id);
-      setSelectedTicket(t);
+      if (isMounted.current) {
+        setSelectedTicket(t);
+      }
     } catch (err) {
       console.error('Failed to send reply', err);
     }

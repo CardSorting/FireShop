@@ -46,9 +46,12 @@ export class AuthService {
     return this.provider.onAuthStateChanged(callback);
   }
 
-  async getAllUsers(): Promise<User[]> {
+  async getAllUsers(signal?: AbortSignal): Promise<User[]> {
+    if (signal?.aborted) return [];
     if (!this.provider.getAllUsers) return [];
-    return this.provider.getAllUsers();
+    const users = await this.provider.getAllUsers();
+    if (signal?.aborted) return [];
+    return users;
   }
  
   async updateUser(id: string, updates: Partial<User>): Promise<User> {

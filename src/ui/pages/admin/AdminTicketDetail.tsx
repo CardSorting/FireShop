@@ -45,48 +45,67 @@ export function AdminTicketDetail() {
   const [customerStats, setCustomerStats] = useState<{ total: number; resolved: number; spend: number } | null>(null);
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [viewers, setViewers] = useState<{ id: string; name: string }[]>([]);
+  const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
   
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadTicketData = useCallback(async () => {
-    setLoading(true);
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    if (isMounted.current) setLoading(true);
     try {
       const result = await services.ticketService.getTicket(id);
-      if (!result) throw new Error('Ticket not found');
-      
-      setTicket(result);
-      setLocalProps({
-        status: result.status,
-        priority: result.priority,
-        type: result.type,
-        assigneeId: result.assigneeId,
-        assigneeName: result.assigneeName,
-        tags: result.tags || []
-      });
+      if (!controller.signal.aborted && isMounted.current) {
+        if (!result) throw new Error('Ticket not found');
+        
+        setTicket(result);
+        setLocalProps({
+          status: result.status,
+          priority: result.priority,
+          type: result.type,
+          assigneeId: result.assigneeId,
+          assigneeName: result.assigneeName,
+          tags: result.tags || []
+        });
 
-      // PRODUCTION HARDENING: Real context fetching
-      const [m, summary] = await Promise.all([
-        services.ticketService.getMacros(),
-        services.ticketService.getCustomerSummary(result.userId)
-      ]);
-      
-      setMacros(m);
-      setRecentOrders(summary.recentOrders);
-      setCustomerStats({
-        total: summary.totalTickets,
-        resolved: summary.resolvedCount,
-        spend: summary.totalSpend
-      });
-
+        // PRODUCTION HARDENING: Real context fetching
+        const [m, summary] = await Promise.all([
+          services.ticketService.getMacros(),
+          services.ticketService.getCustomerSummary(result.userId)
+        ]);
+        
+        if (isMounted.current) {
+          setMacros(m);
+          setRecentOrders(summary.recentOrders);
+          setCustomerStats({
+            total: summary.totalTickets,
+            resolved: summary.resolvedCount,
+            spend: summary.totalSpend
+          });
+        }
+      }
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to load ticket');
+      if (isMounted.current && !controller.signal.aborted) {
+        toast('error', err instanceof Error ? err.message : 'Failed to load ticket');
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [id, services, toast]);
 
   useEffect(() => {
     void loadTicketData();
+    return () => controllerRef.current?.abort();
   }, [loadTicketData]);
 
   useEffect(() => {
@@ -101,13 +120,19 @@ export function AdminTicketDetail() {
     try {
       const visibility = isInternal ? 'internal' : 'public';
       await services.ticketService.addMessage(id, reply, currentUser?.id, 'agent', visibility);
-      setReply('');
-      toast('success', isInternal ? 'Internal note added' : 'Reply sent');
-      await loadTicketData();
+      if (isMounted.current) {
+        setReply('');
+        toast('success', isInternal ? 'Internal note added' : 'Reply sent');
+        await loadTicketData();
+      }
     } catch (err) {
-      toast('error', 'Failed to send message');
+      if (isMounted.current) {
+        toast('error', 'Failed to send message');
+      }
     } finally {
-      setIsSending(false);
+      if (isMounted.current) {
+        setIsSending(false);
+      }
     }
   };
 
@@ -142,7 +167,9 @@ export function AdminTicketDetail() {
     const performHeartbeat = async () => {
       try {
         const res = await services.ticketService.sendHeartbeat(ticket.id, currentUser.id, currentUser.displayName);
-        setViewers(res.viewers);
+        if (isMounted.current) {
+          setViewers(res.viewers);
+        }
       } catch (e) { /* silent */ }
     };
 
@@ -156,12 +183,18 @@ export function AdminTicketDetail() {
     setIsSavingProps(true);
     try {
       await services.ticketService.updateTicketProperties(id, localProps);
-      toast('success', 'Properties updated');
-      await loadTicketData();
+      if (isMounted.current) {
+        toast('success', 'Properties updated');
+        await loadTicketData();
+      }
     } catch (err) {
-      toast('error', 'Failed to update properties');
+      if (isMounted.current) {
+        toast('error', 'Failed to update properties');
+      }
     } finally {
-      setIsSavingProps(false);
+      if (isMounted.current) {
+        setIsSavingProps(false);
+      }
     }
   };
 

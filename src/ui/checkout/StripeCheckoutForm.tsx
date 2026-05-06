@@ -4,7 +4,7 @@
  * [LAYER: UI]
  * Lazy Stripe Elements payment form for checkout presentation only.
  */
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { stripePromise } from './stripeClient';
 import { AlertCircle, CreditCard, LockKeyhole, ShieldCheck } from 'lucide-react';
@@ -23,6 +23,11 @@ function StripeCheckoutFields({ address, onSuccess, onPlaceOrder, isPlacing }: S
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    return () => { isMounted.current = false; };
+  }, []);
 
   const categorizeStripeError = (message: string) => {
     if (message.includes('card_declined')) return 'Your card was declined. Please try a different card or contact your bank.';
@@ -61,14 +66,18 @@ function StripeCheckoutFields({ address, onSuccess, onPlaceOrder, isPlacing }: S
       });
 
       if (error) {
-        setError(categorizeStripeError(error.message || 'Payment failed'));
-        onPlaceOrder(false);
+        if (isMounted.current) {
+          setError(categorizeStripeError(error.message || 'Payment failed'));
+          onPlaceOrder(false);
+        }
       } else {
         await onSuccess(paymentMethod.id);
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? categorizeStripeError(err.message) : 'An unexpected error occurred');
-      onPlaceOrder(false);
+      if (isMounted.current) {
+        setError(err instanceof Error ? categorizeStripeError(err.message) : 'An unexpected error occurred');
+        onPlaceOrder(false);
+      }
     }
   };
 

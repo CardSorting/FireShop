@@ -74,8 +74,15 @@ export function createApiClientServices() {
             signUp: (email: string, password: string, displayName: string) => request<User>('/api/auth/sign-up', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
             signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),
             onAuthStateChanged(callback: (user: User | null) => void) {
-                void request<User | null>('/api/auth/me').then(callback).catch(() => callback(null));
-                return () => { };
+                const controller = new AbortController();
+                void request<User | null>('/api/auth/me', { signal: controller.signal })
+                    .then(u => {
+                        if (!controller.signal.aborted) callback(u);
+                    })
+                    .catch(() => {
+                        if (!controller.signal.aborted) callback(null);
+                    });
+                return () => controller.abort();
             },
             getAllUsers: (signal?: AbortSignal) => request<User[]>('/api/auth/users', { signal }),
             updateUser: (id: string, updates: Partial<User>) => request<User>(`/api/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
@@ -206,13 +213,13 @@ export function createApiClientServices() {
             createLocation: (data: any) => request<InventoryLocation>('/api/admin/locations', { method: 'POST', body: JSON.stringify(data) }),
         },
         auditService: {
-            getRecentLogs: (options?: { query?: string; action?: string; targetId?: string; userId?: string }) => {
+            getRecentLogs: (options?: { query?: string; action?: string; targetId?: string; userId?: string; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.query) qs.set('query', options.query);
                 if (options?.action) qs.set('action', options.action);
                 if (options?.targetId) qs.set('targetId', options.targetId);
                 if (options?.userId) qs.set('userId', options.userId);
-                return request<any[]>(`/api/admin/audit?${qs}`);
+                return request<any[]>(`/api/admin/audit?${qs}`, { signal: options?.signal });
             },
             verifyChain: () => request<{ valid: boolean; total: number; corruptedId?: string }>('/api/admin/audit/verify'),
         },

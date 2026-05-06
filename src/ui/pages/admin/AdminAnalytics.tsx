@@ -7,7 +7,7 @@
  * Admin analytics — High-fidelity store insights.
  * Patterns modeled after Stripe and Shopify Analytics.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -41,24 +41,35 @@ export function AdminAnalytics() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
   const loadAnalytics = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/admin/analytics');
+      const response = await fetch('/api/admin/analytics', { signal: controller.signal });
       if (!response.ok) throw new Error('Failed to fetch analytics');
       const result = await response.json();
-      setData(result);
-    } catch (err) {
+      if (!controller.signal.aborted) {
+        setData(result);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void loadAnalytics();
+    return () => controllerRef.current?.abort();
   }, [loadAnalytics]);
 
   if (loading) return <SkeletonPage />;

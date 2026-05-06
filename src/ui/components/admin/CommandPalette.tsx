@@ -104,54 +104,63 @@ export function CommandPalette() {
       return;
     }
 
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
         const [prodRes, orderRes] = await Promise.all([
-          services.productService.getProducts({ limit: 10, query: needle }),
-          services.orderService.getAllOrders({ limit: 20, query: needle })
+          services.productService.getProducts({ limit: 10, query: needle, signal: controller.signal }),
+          services.orderService.getAllOrders({ limit: 20, query: needle, signal: controller.signal })
         ]);
 
-        const products = prodRes.products;
-        const orders = orderRes.orders;
+        if (!controller.signal.aborted) {
+          const products = prodRes.products;
+          const orders = orderRes.orders;
 
-        const results: PaletteItem[] = [
-          ...products.map(p => ({
-            id: `prod-${p.id}`,
-            label: p.name,
-            description: `${p.category} · ${formatCurrency(p.price)}`,
-            icon: Package,
-            href: `/admin/products/${p.id}/edit`,
-            group: 'Products'
-          })),
-          ...orders.map(o => ({
-            id: `order-${o.id}`,
-            label: `Order #${o.id.slice(0, 8).toUpperCase()}`,
-            description: `${o.status} · ${formatCurrency(o.total)}`,
-            icon: ClipboardList,
-            href: `/admin/orders/${o.id}`,
-            group: 'Orders'
-          })),
+          const results: PaletteItem[] = [
+            ...products.map(p => ({
+              id: `prod-${p.id}`,
+              label: p.name,
+              description: `${p.category} · ${formatCurrency(p.price)}`,
+              icon: Package,
+              href: `/admin/products/${p.id}/edit`,
+              group: 'Products'
+            })),
+            ...orders.map(o => ({
+              id: `order-${o.id}`,
+              label: `Order #${o.id.slice(0, 8).toUpperCase()}`,
+              description: `${o.status} · ${formatCurrency(o.total)}`,
+              icon: ClipboardList,
+              href: `/admin/orders/${o.id}`,
+              group: 'Orders'
+            })),
 
-          {
-            id: 'search-cust',
-            label: `Search customers for "${needle}"`,
-            description: 'Jump to customer records',
-            icon: User,
-            href: `/admin/customers?q=${needle}`,
-            group: 'Customers'
-          }
-        ];
+            {
+              id: 'search-cust',
+              label: `Search customers for "${needle}"`,
+              description: 'Jump to customer records',
+              icon: User,
+              href: `/admin/customers?q=${needle}`,
+              group: 'Customers'
+            }
+          ];
 
-        setDynamicResults(results);
-      } catch (err) {
+          setDynamicResults(results);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
         services.logger.error('Search failed', err);
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) {
+          setSearching(false);
+        }
       }
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [needle, services]);
 
   const filtered = STATIC_ITEMS.filter(

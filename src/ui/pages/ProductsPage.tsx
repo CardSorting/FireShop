@@ -250,7 +250,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
   const handleQuickAdd = async (productId: string) => {
     try {
       await addItem(productId, 1);
-      window.dispatchEvent(new CustomEvent('open-cart'));
+      window.dispatchEvent(new CustomEvent('cart:open'));
     } catch (err) {
       console.error('Quick add failed', err);
     }

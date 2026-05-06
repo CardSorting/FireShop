@@ -3,7 +3,7 @@
 /**
  * [LAYER: UI]
  */
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { Cart, CartItem } from '@domain/models';
 import { useAuth } from './useAuth';
@@ -35,6 +35,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart, setCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
 
   // Helper to load guest cart from localStorage
   const getGuestCart = useCallback((): Cart | null => {
@@ -63,34 +64,51 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadCart = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     try {
       if (user) {
-        const remoteCart = await services.cartService.getCart(user.id);
+        const remoteCart = await services.cartService.getCart(user.id, controller.signal);
+        if (controller.signal.aborted) return;
+
         const guestCart = getGuestCart();
         if (guestCart && guestCart.items.length > 0) {
           logger.info('Syncing guest cart with user cart');
           let currentCart = remoteCart;
           for (const item of guestCart.items) {
              currentCart = await services.cartService.addToCart(user.id, item.productId, item.quantity, item.variantId);
+             if (controller.signal.aborted) return;
           }
-          setCart(currentCart);
-          saveGuestCart(null);
+          if (!controller.signal.aborted) {
+            setCart(currentCart);
+            saveGuestCart(null);
+          }
         } else {
-          setCart(remoteCart);
+          if (!controller.signal.aborted) {
+            setCart(remoteCart);
+          }
         }
       } else {
-        setCart(getGuestCart());
+        if (!controller.signal.aborted) {
+          setCart(getGuestCart());
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       logger.error('Failed to load cart', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [user, services.cartService, getGuestCart, saveGuestCart]);
 
   useEffect(() => {
     void loadCart();
+    return () => controllerRef.current?.abort();
   }, [loadCart]);
 
   useEffect(() => {

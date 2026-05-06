@@ -24,7 +24,8 @@ export class SettingsService {
     private audit: AuditService
   ) {}
 
-  async getSetupProgress(): Promise<SetupGuideProgress> {
+  async getSetupProgress(signal?: AbortSignal): Promise<SetupGuideProgress> {
+    if (signal?.aborted) return {} as SetupGuideProgress;
     const [
       { products }, 
       storeName, 
@@ -61,7 +62,8 @@ export class SettingsService {
     };
   }
 
-  async getSettings(): Promise<Record<string, JsonValue>> {
+  async getSettings(signal?: AbortSignal): Promise<Record<string, JsonValue>> {
+    if (signal?.aborted) return {};
     return this.settingsRepo.getAll();
   }
 

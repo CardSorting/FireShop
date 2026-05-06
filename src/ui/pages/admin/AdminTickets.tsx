@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Search, Filter, Plus, MoreVertical, 
@@ -46,6 +46,13 @@ export function AdminTickets() {
   const [activeView, setActiveView] = useState<SupportViewId>('all-unresolved');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [health, setHealth] = useState({ slaCompliance: 0, unassignedRate: 0, totalActive: 0 });
+  const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const VIEWS: SupportView[] = [
     { id: 'my-open', label: 'My open tickets', icon: User, color: 'text-blue-500', count: tickets.filter(t => t.assigneeId === currentUser?.id && t.status !== 'solved' && t.status !== 'closed').length },
@@ -60,28 +67,42 @@ export function AdminTickets() {
   ];
 
   const loadTickets = useCallback(async (showRefresh = false) => {
-    if (showRefresh) setIsRefreshing(true);
-    setLoading(true);
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    if (showRefresh && isMounted.current) setIsRefreshing(true);
+    if (isMounted.current) setLoading(true);
+    
     try {
       const [ticketResult, healthResult] = await Promise.all([
         services.ticketService.listTickets(),
         services.ticketService.getHealthMetrics()
       ]);
-      setTickets(ticketResult || []);
-      setHealth(healthResult);
+      
+      if (!controller.signal.aborted && isMounted.current) {
+        setTickets(ticketResult || []);
+        setHealth(healthResult);
+      }
     } catch (err) {
-      toast('error', 'Failed to load support queue');
+      if (isMounted.current) {
+        toast('error', 'Failed to load support queue');
+      }
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      if (!controller.signal.aborted && isMounted.current) {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, [services.ticketService, toast]);
 
   useEffect(() => {
     void loadTickets();
-    // Simulate real-time updates every 30s
     const interval = setInterval(() => void loadTickets(true), 30000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      controllerRef.current?.abort();
+    };
   }, [loadTickets]);
 
   const filteredTickets = useMemo(() => {
@@ -114,11 +135,15 @@ export function AdminTickets() {
     if (selectedIds.length === 0) return;
     try {
       await services.ticketService.batchUpdateTickets(selectedIds, updates);
-      toast('success', `Updated ${selectedIds.length} tickets`);
-      setSelectedIds([]);
-      await loadTickets();
+      if (isMounted.current) {
+        toast('success', `Updated ${selectedIds.length} tickets`);
+        setSelectedIds([]);
+        await loadTickets();
+      }
     } catch (err) {
-      toast('error', 'Batch update failed');
+      if (isMounted.current) {
+        toast('error', 'Batch update failed');
+      }
     }
   };
 
@@ -134,10 +159,14 @@ export function AdminTickets() {
         assigneeName: currentUser?.displayName,
         status: 'open'
       });
-      toast('success', 'Ticket assigned to you');
-      router.push(`/admin/tickets/${nextUnassigned.id}`);
+      if (isMounted.current) {
+        toast('success', 'Ticket assigned to you');
+        router.push(`/admin/tickets/${nextUnassigned.id}`);
+      }
     } catch (err) {
-      toast('error', 'Failed to assign ticket');
+      if (isMounted.current) {
+        toast('error', 'Failed to assign ticket');
+      }
     }
   };
 

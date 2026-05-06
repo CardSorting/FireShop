@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { useServices } from './useServices';
 import type { Wishlist, Product } from '@domain/models';
@@ -31,6 +31,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const [itemMap, setItemMap] = useState<Record<string, Set<string>>>({}); // wishlistId -> Set<productId>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
   // Load recently viewed from localStorage on mount
   useEffect(() => {
@@ -59,27 +60,41 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     setLoading(true);
     try {
-      const lists = await services.wishlistService.getWishlists();
+      const lists = await services.wishlistService.getWishlists(controller.signal);
+      if (controller.signal.aborted) return;
+      
       setWishlists(lists);
       
       const map: Record<string, Set<string>> = {};
       for (const list of lists) {
-        const detail = await services.wishlistService.getWishlist(list.id);
+        const detail = await services.wishlistService.getWishlist(list.id, controller.signal);
+        if (controller.signal.aborted) return;
         map[list.id] = new Set(detail.items.map(p => p.id));
       }
-      setItemMap(map);
-    } catch (err) {
+      
+      if (!controller.signal.aborted) {
+        setItemMap(map);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load wishlists', err);
       setError('Failed to load wishlists');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [user, services.wishlistService]);
 
   useEffect(() => {
     void refreshWishlists();
+    return () => controllerRef.current?.abort();
   }, [refreshWishlists]);
 
   const addToWishlist = async (productId: string, wishlistId?: string) => {

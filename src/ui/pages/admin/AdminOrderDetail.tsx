@@ -6,7 +6,7 @@
  * [LAYER: UI]
  * Admin order detail page — Full-width fulfillment console.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../hooks/useServices';
 import type { Order, OrderStatus, OrderNote, OrderItem, Address } from '@domain/models';
@@ -56,27 +56,44 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [noteInput, setNoteInput] = useState('');
+  const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const loadOrder = useCallback(async () => {
-    setLoading(true);
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    if (isMounted.current) setLoading(true);
     try {
       const found = await services.orderService.getAdminOrder(id);
-      if (found) {
-        setOrder(found);
-      } else {
-        toast('error', 'Order not found');
-        router.push('/admin/orders');
+      if (!controller.signal.aborted && isMounted.current) {
+        if (found) {
+          setOrder(found);
+        } else {
+          toast('error', 'Order not found');
+          router.push('/admin/orders');
+        }
       }
     } catch (err) {
-      toast('error', 'Failed to load order details');
+      if (!controller.signal.aborted && isMounted.current) {
+        toast('error', 'Failed to load order details');
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && isMounted.current) {
+        setLoading(false);
+      }
     }
   }, [id, services.orderService, router, toast]);
 
-
   useEffect(() => {
     void loadOrder();
+    return () => controllerRef.current?.abort();
   }, [loadOrder]);
 
   async function handleStatusChange(status: OrderStatus) {
@@ -86,12 +103,18 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
       await services.orderService.updateOrderStatus(order.id, status, actor);
-      toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
-      setOrder(prev => prev ? { ...prev, status } : null);
+      if (isMounted.current) {
+        toast('success', `Order updated to ${humanizeOrderStatus(status)}`);
+        setOrder((prev: Order | null) => prev ? { ...prev, status } : null);
+      }
     } catch (err) {
-      toast('error', err instanceof Error ? err.message : 'Failed to update order status');
+      if (isMounted.current) {
+        toast('error', err instanceof Error ? err.message : 'Failed to update order status');
+      }
     } finally {
-      setUpdating(false);
+      if (isMounted.current) {
+        setUpdating(false);
+      }
     }
   }
 
@@ -101,11 +124,15 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
       const newNote = await services.orderService.addOrderNote(order.id, noteInput, actor);
-      setOrder(prev => prev ? { ...prev, notes: [...prev.notes, newNote] } : null);
-      setNoteInput('');
-      toast('success', 'Note added to timeline');
+      if (isMounted.current) {
+        setOrder((prev: Order | null) => prev ? { ...prev, notes: [...prev.notes, newNote] } : null);
+        setNoteInput('');
+        toast('success', 'Note added to timeline');
+      }
     } catch (err) {
-      toast('error', 'Failed to save note');
+      if (isMounted.current) {
+        toast('error', 'Failed to save note');
+      }
     }
   }
 
@@ -121,10 +148,14 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
       const user = await services.authService.getCurrentUser();
       const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
       await services.orderService.updateOrderFulfillment(order.id, data, actor);
-      setOrder(prev => prev ? { ...prev, ...data } : null);
-      toast('success', 'Fulfillment updated');
+      if (isMounted.current) {
+        setOrder((prev: Order | null) => prev ? { ...prev, ...data } : null);
+        toast('success', 'Fulfillment updated');
+      }
     } catch (err) {
-      toast('error', 'Failed to update fulfillment');
+      if (isMounted.current) {
+        toast('error', 'Failed to update fulfillment');
+      }
     }
   }
 
@@ -173,7 +204,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
               </span>
             </div>
             <div className="divide-y divide-gray-100">
-              {order.items.map((item) => (
+              {order.items.map((item: OrderItem) => (
                 <div key={item.productId} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition">
                   <div className="h-12 w-12 rounded-lg border bg-gray-50 shrink-0" />
                   <div className="flex-1 min-w-0">
@@ -251,7 +282,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                   </div>
                 </div>
 
-                {order.notes.map((note) => (
+                {order.notes.map((note: OrderNote) => (
                   <div key={note.id} className="relative animate-in slide-in-from-left-2 duration-300">
                     <div className="absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-gray-400 shadow-sm" />
                     <div className="flex items-center justify-between">
@@ -299,7 +330,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                   disabled={updating}
                   className="w-full rounded-xl bg-primary-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95 disabled:opacity-50"
                   onClick={() => {
-                    const next = NEXT_STATUSES[order.status].find(s => s !== order.status);
+                    const next = NEXT_STATUSES[order.status].find((s: OrderStatus) => s !== order.status);
                     if (next) handleStatusChange(next);
                   }}
                 >
@@ -312,7 +343,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                     onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
                     className="w-full appearance-none rounded-xl border bg-white px-4 py-3 pr-10 text-sm font-bold text-gray-700 shadow-sm outline-none focus:ring-2 focus:ring-primary-500 transition"
                   >
-                    {NEXT_STATUSES[order.status].map((status) => (
+                    {NEXT_STATUSES[order.status].map((status: OrderStatus) => (
                       <option key={status} value={status}>{humanizeOrderStatus(status)}</option>
                     ))}
                   </select>
@@ -336,7 +367,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
               <Truck className="h-4 w-4 text-primary-500" />
               <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900">Logistics & Tracking</h3>
             </div>
-            {order.items.every(i => i.digitalAssets && i.digitalAssets.length > 0) ? (
+            {order.items.every((i: OrderItem) => i.digitalAssets && i.digitalAssets.length > 0) ? (
               <div className="rounded-xl bg-primary-50 border border-primary-100 p-4">
                 <p className="text-xs font-bold text-primary-800 flex items-center gap-2">
                   <Shield className="h-3 w-3" />
@@ -414,7 +445,7 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
             <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">Customer</h3>
             <div className="flex items-center gap-4">
               <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary-100 text-primary-600 font-bold text-sm uppercase">
-                {(order.customerName || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
+                {(order.customerName || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{order.customerName || 'Anonymous User'}</p>
