@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "./scripts/dev.sh",
+    "predev": "./scripts/cleanup-ports.sh",
+    "cleanup": "./scripts/cleanup-ports.sh",
     "build": "next build",
     "lint": "eslint .",
     "start": "next start",
