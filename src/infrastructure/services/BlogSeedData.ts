@@ -1,0 +1,255 @@
+/**
+ * [LAYER: INFRASTRUCTURE]
+ * Specialized Seed Data for the DreamBeesArt Blog.
+ * 
+ * This file contains high-fidelity, pillar-style blog content for the Journal.
+ */
+import { Timestamp } from 'firebase-admin/firestore';
+
+export const BLOG_AUTHORS = [
+  {
+    id: 'auth-1',
+    name: 'Leonardo DaBee',
+    bio: 'Master of the canvas and the hive. 15 years experience in digital-physical hybrid art.',
+    role: 'Master Artist',
+    avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
+    socialLinks: { twitter: '#', instagram: '#' },
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'auth-2',
+    name: 'Sarah Strategist',
+    bio: 'Growth lead for top editorial platforms. Expert in content velocity and community building.',
+    role: 'Editorial Director',
+    avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400',
+    socialLinks: { twitter: '#', instagram: '#' },
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'auth-3',
+    name: 'Professor Oak',
+    bio: 'Renowned researcher and competitive TCG judge with over 25 years of tournament experience.',
+    role: 'TCG Research Director',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400',
+    socialLinks: { twitter: '#', instagram: '#' },
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+export const BLOG_SERIES = [
+  {
+    id: 'ser-1',
+    title: 'The Monetization Blueprint',
+    slug: 'monetization-blueprint',
+    description: 'A step-by-step guide to building a $100k/year creator business from scratch.',
+    categoryIds: ['creator-strategies'],
+    articleCount: 3,
+    difficulty: 'intermediate',
+    featuredImageUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'ser-2',
+    title: 'SEO Supremacy 2026',
+    slug: 'seo-supremacy-2026',
+    description: 'Master the technical and semantic aspects of search in the age of generative AI.',
+    categoryIds: ['creator-strategies'],
+    articleCount: 2,
+    difficulty: 'advanced',
+    featuredImageUrl: 'https://images.unsplash.com/photo-1432888622747-4eb9a8f2c20a?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
+
+export const BLOG_POSTS = [
+  // --- EXISTING POSTS (Migrated for continuity) ---
+  {
+    id: 'blog-1',
+    categoryId: 'creator-strategies',
+    title: 'The 7 Pillars of a Viral Blog Strategy',
+    slug: 'pillars-viral-blog-strategy',
+    excerpt: 'Mastering the art of content velocity and emotional resonance to break through the noise of the modern web.',
+    content: '## Beyond the Noise\n\nTo build a blog that resonates, you must move beyond mere information sharing. You need a strategy that balances value, personality, and platform dynamics.',
+    authorName: 'Sarah Strategist',
+    authorId: 'auth-2',
+    viewCount: 12450,
+    helpfulCount: 890,
+    tags: ['strategy', 'growth', 'viral'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: true,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  
+  // --- FLAGSHIP TCG STRATEGY GUIDES (Forensic Pillar Style) ---
+  {
+    id: 'blog-9',
+    categoryId: 'tcg-strategy',
+    title: 'Blue-Eyes White Dragon: The Ultimate 2026 Competitive Decklist',
+    slug: 'blue-eyes-ultimate-decklist-2026',
+    excerpt: 'The legend returns with new support. Here is the full 55-card breakdown for the modern Yu-Gi-Oh! meta.',
+    content: '## Historical Context & Meta Evolution (2002-2026)\n\nThe journey of the Blue-Eyes archetype is a microcosm of Yu-Gi-Oh! history. From its inception as the powerhouse vanilla in Legend of Blue Eyes White Dragon (2002) to its surprising World Championship win in 2016.\n\n## Full Card-by-Card Technical Breakdown\n\n### The Core Dragons\n* 3x Blue-Eyes White Dragon\n* 3x Blue-Eyes Alternative White Dragon\n* 3x Blue-Eyes Abyss Dragon\n\n## Advanced Play Patterns & Micro-Decisions\nA common mistake for new Blue-Eyes pilots is over-extending into Neo Blue-Eyes Ultimate Dragon. While flashy, the current 2026 meta is dominated by Hand Trap density.\n\n## Probability & Consistency Metrics\n* Chance to open a Level 8 Dragon + Support: 82.4%\n* Chance to resolve a Turn 1 Synchro Summon: 68.1%\n\n## Economic Landscape & Investment Liquidity\nFrom an investment perspective, Blue-Eyes is the S&P 500 of TCGs.',
+    authorName: 'Professor Oak',
+    authorId: 'auth-3',
+    viewCount: 32000,
+    helpfulCount: 2100,
+    tags: ['yugioh', 'decklist', 'blue-eyes'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: true,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=1200',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  
+  // --- NEW UNIQUE ARTICLES ---
+  {
+    id: 'blog-16',
+    categoryId: 'collecting-101',
+    title: 'The Archival Vault: How to Store a $1M Card Collection',
+    slug: 'archival-storage-guide',
+    excerpt: 'Temperature, humidity, and UV: The technical science of preserving museum-grade TCG assets.',
+    content: '## The Silent Killers: UV and Humidity\n\nMost collectors store their high-value cards in standard plastic sleeves, unaware that long-term outgassing can damage the card surface. For a million-dollar portfolio, "standard" is a recipe for disaster.\n\n### Humidity Control (RH 45-55%)\nMaintaining a constant Relative Humidity (RH) is critical. We analyze why desiccant packs are often misused and how to choose a dedicated climate-controlled vault.\n\n### UV Protection: Beyond the Slab\nEven graded slabs from PSA or BGS offer limited UV protection. We discuss the forensic impact of ambient light on holographic foils and why museum-grade display cases are non-negotiable.',
+    authorName: 'Leonardo DaBee',
+    authorId: 'auth-1',
+    viewCount: 8900,
+    helpfulCount: 710,
+    tags: ['preservation', 'safety', 'storage'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  {
+    id: 'blog-17',
+    categoryId: 'tcg-strategy',
+    title: 'One Piece TCG: The Rise of the Revolutionary Army Archetype',
+    slug: 'one-piece-revolutionary-army-guide',
+    excerpt: 'Analysis of the OP-07 meta shift and the competitive viability of Belo Betty in 2026.',
+    content: '## Shaking the Foundations\n\nThe One Piece TCG has seen unprecedented growth in 2025, and the OP-07 expansion has finally brought the Revolutionary Army into the top-tier spotlight.\n\n### Leader Analysis: Belo Betty\nBelo Betty is a glass-cannon leader that requires precise resource management. We provide the full 50-card list and the mathematical "Kill-Turn" probability for Turn 3 vs Turn 4.\n\n### Matchup Breakdown\n*   **Vs. Saka-Blue:** Highly favorable due to multi-body pressure.\n*   **Vs. Enel:** 50/50. Requires holding your 2k counters for their late-game triggers.',
+    authorName: 'Professor Oak',
+    authorId: 'auth-3',
+    viewCount: 15600,
+    helpfulCount: 1200,
+    tags: ['one-piece', 'decklist', 'anime'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  {
+    id: 'blog-18',
+    categoryId: 'creator-strategies',
+    title: 'The AI Editor: Scaling a TCG Publication to 1M Visitors',
+    slug: 'scaling-tcg-publication-ai',
+    excerpt: 'How to use generative AI for SEO research without losing the enthusiast soul of your brand.',
+    content: '## Efficiency vs. Authenticity\n\nIn 2026, the web is flooded with low-quality AI content. To stand out, you must use AI as a researcher, not a writer. We break down the DreamBees workflow for scaling pillar content.\n\n### Semantic Research Workflows\nUse AI to identify "Curiosity Gaps" in current meta coverage. If every blog is talking about "How to play," you should be talking about "The mathematical brick rate of X archetype."',
+    authorName: 'Sarah Strategist',
+    authorId: 'auth-2',
+    viewCount: 22000,
+    helpfulCount: 1800,
+    tags: ['ai', 'publishing', 'growth'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  {
+    id: 'blog-19',
+    categoryId: 'tcg-strategy',
+    title: 'Disney Lorcana: The Ruby/Amethyst Bounce Meta (Set 5 Update)',
+    slug: 'disney-lorcana-bounce-meta-set-5',
+    excerpt: 'A deep dive into the most enduring archetype in Lorcana history and its Set 5 evolutions.',
+    content: '## The Power of the Bounce\n\nRuby/Amethyst continues to be the gatekeeper of the Lorcana meta. Set 5 has introduced new "Challenger" mechanics that force the deck to adapt its defensive posture.\n\n### Card-by-Card Technical Breakdown\nWe analyze why **Minnie Mouse - Always Classy** has become a required 4-of and how to time your **Be Prepared** against the new aggressive Amber decks.',
+    authorName: 'Professor Oak',
+    authorId: 'auth-3',
+    viewCount: 12400,
+    helpfulCount: 980,
+    tags: ['lorcana', 'disney', 'decklist'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1620336655174-3268cb1b7470?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  {
+    id: 'blog-20',
+    categoryId: 'tcg-strategy',
+    title: 'Lugia VSTAR: The Aerodynamic Engine of 2026',
+    slug: 'lugia-vstar-strategy-2026',
+    excerpt: 'How to pilot the most consistent acceleration engine in Pokémon TCG history.',
+    content: '## The Return of the King\n\nLugia VSTAR has seen a resurgence in 2026 due to the new "Aero-Shift" special energy cards. This deck is no longer just a "high-roll" deck; it is a clinical exercise in resource management.\n\n### The Summoning Loop\nWe analyze the optimal timing for **Summoning Star** and why you should almost always hold your second Archeops in hand until Turn 3.',
+    authorName: 'Professor Oak',
+    authorId: 'auth-3',
+    viewCount: 18500,
+    helpfulCount: 1450,
+    tags: ['pokemon', 'decklist', 'lugia'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  {
+    id: 'blog-21',
+    categoryId: 'collecting-101',
+    title: 'Artist Spotlight: The Hive-Sovereign Aesthetics',
+    slug: 'hive-sovereign-artist-spotlight',
+    excerpt: 'A masterclass in the digital-physical hybrid art style of the 2026 expansion.',
+    content: '## The Soul of the Card\n\nWhat makes a card "museum-grade"? It starts with the line work. We sit down with the lead illustrators of the Hive-Sovereign set to discuss how they balanced nostalgia with futuristic aesthetics.',
+    authorName: 'Leonardo DaBee',
+    authorId: 'auth-1',
+    viewCount: 11200,
+    helpfulCount: 890,
+    tags: ['art', 'interview', 'design'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1513364238172-c8a4866258d4?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  },
+  {
+    id: 'blog-22',
+    categoryId: 'collecting-101',
+    title: 'Cleaning Cloudy Slabs: The Forensic Guide to Case Restoration',
+    slug: 'cleaning-cloudy-slabs-guide',
+    excerpt: 'How to remove scratches and haze from PSA and BGS cases without damaging the certificate.',
+    content: '## The Clarity Crisis\n\nScratched cases can lower the perceived value of a card by 10-15%. We test three industry-standard polishing compounds and provide a step-by-step restoration guide.',
+    authorName: 'Leonardo DaBee',
+    authorId: 'auth-1',
+    viewCount: 31000,
+    helpfulCount: 2800,
+    tags: ['maintenance', 'grading', 'restoration'],
+    type: 'blog',
+    status: 'published',
+    isFeatured: false,
+    featuredImageUrl: 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    publishedAt: new Date()
+  }
+];
