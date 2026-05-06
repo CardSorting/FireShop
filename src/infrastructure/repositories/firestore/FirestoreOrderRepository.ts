@@ -18,6 +18,7 @@ import {
   writeBatch,
   getUnifiedDb,
   serverTimestamp,
+  arrayUnion,
   type DocumentData,
   type QueryDocumentSnapshot
 } from '../../firebase/bridge';
@@ -202,6 +203,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
     await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
       riskScore: score, 
       updatedAt: serverTimestamp() 
+    });
+  }
+
+  async addFulfillmentEvent(orderId: string, event: import('@domain/models').OrderFulfillmentEvent): Promise<void> {
+    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), {
+      fulfillmentEvents: arrayUnion(event),
+      updatedAt: serverTimestamp()
     });
   }
 

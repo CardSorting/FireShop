@@ -25,7 +25,9 @@ import type {
   User,
   Discount,
   CartItem,
-  OrderItem
+  OrderItem,
+  OrderFulfillmentEvent,
+  OrderFulfillmentEventType
 } from '@domain/models';
 import { AuditService } from './AuditService';
 import { DiscountService } from './DiscountService';
@@ -706,6 +708,8 @@ export class OrderService {
     assertValidOrderStatusTransition(order.status, status);
 
     await this.orderRepo.updateStatus(id, status);
+    await this.recordFulfillmentEvent(id, status);
+
     await this.audit.record({
       userId: actor.id,
       userEmail: actor.email,
@@ -779,6 +783,9 @@ export class OrderService {
     } else {
       await Promise.all(ids.map((id) => this.orderRepo.updateStatus(id, status)));
     }
+
+    // Industrial Fulfillment: Record events for the entire batch
+    await Promise.all(ids.map(id => this.recordFulfillmentEvent(id, status)));
 
     await Promise.all(ids.map(id =>
       this.audit.record({
@@ -992,5 +999,50 @@ export class OrderService {
     }
 
     return digitalAssets.sort((a, b) => b.orderDate.getTime() - a.orderDate.getTime());
+  }
+
+  private async recordFulfillmentEvent(orderId: string, statusOrType: OrderStatus | OrderFulfillmentEventType): Promise<void> {
+    const mapping: Record<string, OrderFulfillmentEventType> = {
+      pending: 'order_placed',
+      confirmed: 'payment_confirmed',
+      shipped: 'in_transit',
+      delivered: 'delivered',
+      cancelled: 'cancelled',
+      processing: 'processing',
+    };
+
+    const type = (mapping[statusOrType] || statusOrType) as OrderFulfillmentEventType;
+    const labels: Record<OrderFulfillmentEventType, string> = {
+      order_placed: 'Order placed',
+      payment_confirmed: 'Payment confirmed',
+      processing: 'Preparing shipment',
+      label_created: 'Shipping label created',
+      in_transit: 'In transit',
+      delivered: 'Delivered',
+      cancelled: 'Order cancelled',
+    };
+
+    const descriptions: Record<OrderFulfillmentEventType, string> = {
+      order_placed: 'We have received your order request.',
+      payment_confirmed: 'Your payment was authorized and captured.',
+      processing: 'Your items are being picked and packed.',
+      label_created: 'A shipping label has been generated.',
+      in_transit: 'Your package is on its way.',
+      delivered: 'Your package has been delivered.',
+      cancelled: 'The order has been cancelled.',
+    };
+
+    const event: OrderFulfillmentEvent = {
+      id: `${orderId}-${type}-${Date.now()}`,
+      type,
+      label: labels[type] || 'Status update',
+      description: descriptions[type] || `Order status changed to ${type}`,
+      at: new Date(),
+    };
+
+    // Note: This requires an update to IOrderRepository to support appending events
+    if ((this.orderRepo as any).addFulfillmentEvent) {
+      await (this.orderRepo as any).addFulfillmentEvent(orderId, event);
+    }
   }
 }
