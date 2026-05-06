@@ -28,6 +28,7 @@ import type {
   Discount,
   CartItem,
   OrderItem,
+  Fulfillment,
   OrderFulfillmentEvent,
   OrderFulfillmentEventType
 } from '@domain/models';
@@ -182,6 +183,7 @@ export class OrderService {
             digitalAssets: product.digitalAssets,
             isDigital: product.isDigital,
             shippingClassId: product.shippingClassId,
+            fulfilledQty: 0,
           });
         }
 
@@ -236,6 +238,7 @@ export class OrderService {
           taxAmount,
           fulfillmentLocationId,
           shippingClassId,
+          fulfillments: [],
           notes: [{
             id: crypto.randomUUID(),
             authorId: 'system',
@@ -430,6 +433,110 @@ export class OrderService {
   }
 
   /**
+   * Approves an order that was held for manual review (e.g. high risk).
+   */
+  async approveHeldOrder(orderId: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+    if (order.status !== 'pending') throw new Error('Only pending orders can be approved');
+
+    await this.orderRepo.updateStatus(orderId, 'confirmed');
+    await this.recordFulfillmentEvent(orderId, 'payment_confirmed');
+
+    const noteId = crypto.randomUUID();
+    await this.orderRepo.updateNotes(orderId, [
+      ...order.notes,
+      {
+        id: noteId,
+        authorId: actor.id,
+        authorEmail: actor.email,
+        text: 'Order approved after manual review.',
+        createdAt: new Date(),
+      }
+    ]);
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { from: 'pending', to: 'confirmed', type: 'manual_approval', noteId }
+    });
+  }
+
+  /**
+   * Creates a partial or full fulfillment for an order.
+   * Production Hardening: Atomically updates order item fulfilledQty and fulfillment records.
+   */
+  async createFulfillment(params: {
+    orderId: string;
+    items: Array<{ productId: string; variantId?: string; quantity: number }>;
+    trackingNumber: string;
+    shippingCarrier: string;
+    actor: { id: string, email: string };
+  }): Promise<Fulfillment> {
+    const order = await this.orderRepo.getById(params.orderId);
+    if (!order) throw new OrderNotFoundError(params.orderId);
+
+    // 1. Validate quantities
+    const updatedOrderItems = [...order.items];
+    for (const fItem of params.items) {
+      const idx = updatedOrderItems.findIndex(i => i.productId === fItem.productId && i.variantId === fItem.variantId);
+      if (idx === -1) throw new Error(`Product ${fItem.productId} not found in order`);
+      
+      const item = updatedOrderItems[idx];
+      const remaining = item.quantity - item.fulfilledQty;
+      if (fItem.quantity > remaining) {
+        throw new Error(`Cannot fulfill ${fItem.quantity} of ${item.name} (only ${remaining} remaining)`);
+      }
+      
+      updatedOrderItems[idx] = { ...item, fulfilledQty: item.fulfilledQty + fItem.quantity };
+    }
+
+    // 2. Create Fulfillment Record
+    const fulfillment: Fulfillment = {
+      id: crypto.randomUUID(),
+      orderId: params.orderId,
+      items: params.items,
+      trackingNumber: params.trackingNumber,
+      trackingCarrier: params.shippingCarrier,
+      trackingUrl: deriveTrackingUrl({ trackingNumber: params.trackingNumber, shippingCarrier: params.shippingCarrier } as any),
+      status: 'shipped',
+      shippedAt: new Date(),
+      deliveredAt: null,
+      createdAt: new Date(),
+    };
+
+    // 3. Update Order Atomically
+    const allFulfilled = updatedOrderItems.every(i => i.fulfilledQty >= i.quantity);
+    const newStatus: OrderStatus = allFulfilled ? 'shipped' : order.status;
+
+    await this.orderRepo.save({
+      ...order,
+      items: updatedOrderItems,
+      status: newStatus,
+      fulfillments: [...(order.fulfillments || []), fulfillment],
+      updatedAt: new Date(),
+    });
+
+    await this.recordFulfillmentEvent(params.orderId, 'shipped');
+
+    await this.audit.record({
+      userId: params.actor.id,
+      userEmail: params.actor.email,
+      action: 'order_status_changed',
+      targetId: params.orderId,
+      details: { 
+          type: 'fulfillment_created', 
+          fulfillmentId: fulfillment.id, 
+          allFulfilled,
+          tracking: params.trackingNumber 
+      }
+    });
+
+    return fulfillment;
+  }
+  /**
    * Internal helper to assign the optimal fulfillment location for an order.
    * Production Hardening: In a real app, this would use geolocation or availability logic.
    */
@@ -527,8 +634,8 @@ export class OrderService {
           digitalAssets: product.digitalAssets,
           isDigital: product.isDigital,
           shippingClassId: product.shippingClassId,
+          fulfilledQty: 0,
         });
-
       }
 
       // Final stock check
@@ -621,6 +728,7 @@ export class OrderService {
           taxAmount,
           fulfillmentLocationId,
           shippingClassId,
+          fulfillments: [],
           notes: [],
           riskScore: 0,
           estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date(), status: 'confirmed' } as any),

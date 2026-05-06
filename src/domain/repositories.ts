@@ -71,6 +71,7 @@ export interface IOrderRepository {
     from?: Date;
     to?: Date;
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
+  save(order: Order): Promise<void>;
   updateStatus(id: string, status: OrderStatus): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;

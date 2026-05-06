@@ -72,6 +72,14 @@ export class FirestoreOrderRepository implements IOrderRepository {
     return this.mapDocToOrder(docSnap.id, docSnap.data());
   }
 
+  async save(order: Order): Promise<void> {
+    const { id, ...data } = order;
+    await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
   async getByIdempotencyKey(key: string): Promise<Order | null> {
     const q = query(collection(getUnifiedDb(), this.collectionName), where('idempotencyKey', '==', key), limit(1));
     const snapshot = await getDocs(q);

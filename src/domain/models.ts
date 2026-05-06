@@ -313,8 +313,22 @@ export interface Order {
   shippingAmount: number; // cents
   taxAmount: number; // cents
   fulfillmentLocationId: string | null;
+  fulfillments: Fulfillment[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface Fulfillment {
+  id: string;
+  orderId: string;
+  items: Array<{ productId: string; variantId?: string; quantity: number }>;
+  trackingNumber: string;
+  trackingCarrier: string;
+  trackingUrl: string | null;
+  status: 'pending' | 'shipped' | 'delivered' | 'cancelled';
+  shippedAt: Date | null;
+  deliveredAt: Date | null;
+  createdAt: Date;
 }
 
 export type OrderFulfillmentEventType =
@@ -369,6 +383,8 @@ export interface OrderItem {
   digitalAssets?: DigitalAsset[];
   isDigital?: boolean;
   shippingClassId?: string;
+  fulfilledQty: number;
+  hsCode?: string;
 }
 
 export type OrderStatus =
