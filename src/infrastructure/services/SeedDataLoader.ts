@@ -20,6 +20,7 @@ import { adminAuth, adminDb } from '../firebase/admin';
 import { Timestamp, QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import crypto from 'crypto';
 import { BLOG_AUTHORS, BLOG_SERIES, BLOG_POSTS } from './BlogSeedData';
+import { EXTENDED_SERIES, EXTENDED_POSTS } from './ExtendedBlogSeedData';
 
 // ─────────────────────────────────────────────
 // COMPREHENSIVE MOCK DATA
@@ -128,6 +129,9 @@ const KB_DATA = {
     { id: 'returns-refunds', name: 'Returns & Refunds', slug: 'returns-refunds', description: 'Everything you need to know about our return policy.', icon: 'rotate-ccw', articleCount: 1 },
     { id: 'collecting-101', name: 'Collecting 101', slug: 'collecting-101', description: 'Beginner guides for aspiring art collectors.', icon: 'sparkles', articleCount: 3 },
     { id: 'tcg-strategy', name: 'TCG Strategy', slug: 'tcg-strategy', description: 'Deep-dive competitive decklists and meta analysis.', icon: 'swords', articleCount: 3 },
+    { id: 'digital-art', name: 'Digital Art', slug: 'digital-art', description: 'Mastering the tools and theory of digital creation.', icon: 'palette', articleCount: 3 },
+    { id: 'market-analysis', name: 'Market Analysis', slug: 'market-analysis', description: 'Data-driven insights into collectible markets.', icon: 'trending-up', articleCount: 3 },
+    { id: 'fgc-strategy', name: 'FGC Strategy', slug: 'fgc-strategy', description: 'Frame-perfect tactics for fighting game champions.', icon: 'gamepad-2', articleCount: 2 },
   ],
   articles: [
     {
@@ -429,7 +433,10 @@ export async function seedBlog(): Promise<number> {
   assertSeedingAllowed();
   let created = 0;
   
-  for (const s of BLOG_DATA.series) {
+  const allSeries = [...BLOG_DATA.series, ...EXTENDED_SERIES];
+  const allPosts = [...BLOG_DATA.posts, ...EXTENDED_POSTS];
+
+  for (const s of allSeries) {
     await adminDb.collection('blog_series').doc(s.id).set({
       ...s,
       createdAt: Timestamp.fromDate(s.createdAt),
@@ -447,7 +454,7 @@ export async function seedBlog(): Promise<number> {
     created++;
   }
   
-  for (const post of BLOG_DATA.posts) {
+  for (const post of allPosts) {
     // Get actual product IDs for relations if possible
     const productsSnap = await adminDb.collection('products').limit(2).get();
     const prodIds = productsSnap.docs.map((d: any) => d.id);

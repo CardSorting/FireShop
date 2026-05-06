@@ -343,7 +343,7 @@ export const BLOG_POSTS = [
     type: 'blog',
     status: 'published',
     isFeatured: false,
-    featuredImageUrl: 'https://images.unsplash.com/photo-1551288049-bbbda5366d7a?w=800',
+    featuredImageUrl: 'https://images.unsplash.com/photo-1543286386-713bdd548da4?w=800',
     createdAt: new Date(),
     updatedAt: new Date(),
     publishedAt: new Date(),
