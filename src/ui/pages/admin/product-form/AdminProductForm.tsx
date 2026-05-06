@@ -44,6 +44,7 @@ export function AdminProductForm() {
     form,
     categories,
     productTypes,
+    shippingClasses,
     newTypeName,
     setNewTypeName,
     showAddType,
@@ -412,6 +413,21 @@ export function AdminProductForm() {
                 <select name="rarity" value={form.rarity} onChange={handleChange} className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary-500">
                   <option value="">None</option>
                   {CLASSIFICATIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Shipping Class</label>
+                <select 
+                  name="shippingClassId" 
+                  value={form.shippingClassId} 
+                  onChange={handleChange}
+                  className="w-full rounded-lg border bg-gray-50 px-4 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Default (Flat Rate)</option>
+                  {shippingClasses.map(sc => (
+                    <option key={sc.id} value={sc.id}>{sc.name}</option>
+                  ))}
                 </select>
               </div>
             </div>

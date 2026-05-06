@@ -157,6 +157,287 @@ function SecuritySection({ auditLogs, setAuditLogs, services, toast }: SecurityS
   );
 }
 
+// ─────────────────────────────────────────────
+// Shipping Manager
+// ─────────────────────────────────────────────
+
+import { Plus, Trash2, Edit3, Map as MapIcon, Layers, DollarSign } from 'lucide-react';
+import type { ShippingClass, ShippingZone, ShippingRate } from '@domain/models';
+import { formatCurrency } from '@utils/formatters';
+
+interface ShippingManagerProps {
+  services: ReturnType<typeof useServices>;
+  toast: (type: 'success' | 'error' | 'info', message: string) => void;
+}
+
+function ShippingManager({ services, toast }: ShippingManagerProps) {
+  const [classes, setClasses] = useState<ShippingClass[]>([]);
+  const [zones, setZones] = useState<ShippingZone[]>([]);
+  const [rates, setRates] = useState<ShippingRate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'zones' | 'classes'>('zones');
+
+  const loadShippingData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [c, z, r] = await Promise.all([
+        services.shippingService.getAllClasses(),
+        services.shippingService.getAllZones(),
+        services.shippingService.getAllRates(),
+      ]);
+      setClasses(c);
+      setZones(z);
+      setRates(r);
+    } catch (err) {
+      services.logger.error('Failed to load shipping data', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [services]);
+
+  useEffect(() => {
+    void loadShippingData();
+  }, [loadShippingData]);
+
+  const handleAddZone = async () => {
+    try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.shippingService.saveZone({
+        name: 'New Zone',
+        countries: ['US'],
+      }, actor);
+      toast('success', 'Shipping zone added');
+      void loadShippingData();
+    } catch (err) {
+      toast('error', 'Failed to add zone');
+    }
+  };
+
+  const handleAddClass = async () => {
+    try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.shippingService.saveClass({
+        name: 'New Shipping Class',
+        isDefault: false,
+      }, actor);
+      toast('success', 'Shipping class added');
+      void loadShippingData();
+    } catch (err) {
+      toast('error', 'Failed to add class');
+    }
+  };
+
+  const handleDeleteZone = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this zone?')) return;
+    try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.shippingService.deleteZone(id, actor);
+      toast('success', 'Zone deleted');
+      void loadShippingData();
+    } catch (err) {
+      toast('error', 'Failed to delete zone');
+    }
+  };
+
+  const handleDeleteClass = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this shipping class?')) return;
+    try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.shippingService.deleteClass(id, actor);
+      toast('success', 'Shipping class deleted');
+      void loadShippingData();
+    } catch (err) {
+      toast('error', 'Failed to delete class');
+    }
+  };
+
+  const handleAddRate = async (zoneId: string, classId: string) => {
+    try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      await services.shippingService.saveRate({
+        shippingZoneId: zoneId,
+        shippingClassId: classId,
+        name: 'Standard Rate',
+        type: 'flat',
+        amount: 599,
+      }, actor);
+      toast('success', 'Shipping rate added');
+      void loadShippingData();
+    } catch (err) {
+      toast('error', 'Failed to add rate');
+    }
+  };
+
+  if (loading) return <div className="h-48 flex items-center justify-center animate-pulse text-gray-400">Syncing logistics engine...</div>;
+
+  return (
+    <div className="space-y-8">
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-6 border-b">
+        <button 
+          onClick={() => setActiveTab('zones')}
+          className={`pb-4 text-xs font-black uppercase tracking-widest transition ${activeTab === 'zones' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          Shipping Zones & Rates
+        </button>
+        <button 
+          onClick={() => setActiveTab('classes')}
+          className={`pb-4 text-xs font-black uppercase tracking-widest transition ${activeTab === 'classes' ? 'text-primary-600 border-b-2 border-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
+        >
+          Shipping Classes
+        </button>
+      </div>
+
+      {activeTab === 'zones' ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Zones & Rates</h3>
+              <p className="text-xs text-gray-500 mt-1">Configure rates based on where the order is being shipped.</p>
+            </div>
+            <button 
+              onClick={handleAddZone}
+              className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-gray-800 transition active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Zone
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {zones.map(zone => (
+              <div key={zone.id} className="rounded-2xl border bg-white overflow-hidden shadow-sm">
+                <div className="bg-gray-50 px-6 py-4 flex items-center justify-between border-b">
+                  <div className="flex items-center gap-3">
+                    <MapIcon className="h-4 w-4 text-primary-500" />
+                    <div>
+                      <p className="text-sm font-bold text-gray-900">{zone.name}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{zone.countries.join(', ')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="p-2 text-gray-400 hover:text-primary-600 transition">
+                      <Edit3 className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteZone(zone.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 transition"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="grid gap-4">
+                    {classes.map(shippingClass => {
+                      const classRates = rates.filter(r => r.shippingZoneId === zone.id && r.shippingClassId === shippingClass.id);
+                      return (
+                        <div key={shippingClass.id} className="space-y-3">
+                          <div className="flex items-center justify-between border-b pb-2">
+                            <span className="text-xs font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                              <Layers className="h-3 w-3" />
+                              {shippingClass.name}
+                            </span>
+                            <button 
+                              onClick={() => handleAddRate(zone.id, shippingClass.id)}
+                              className="text-[10px] font-black uppercase tracking-widest text-primary-600 hover:underline"
+                            >
+                              Add Rate
+                            </button>
+                          </div>
+                          <div className="grid gap-2">
+                            {classRates.length > 0 ? classRates.map(rate => (
+                              <div key={rate.id} className="flex items-center justify-between p-3 rounded-xl border bg-gray-50/50 hover:bg-white transition group">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-8 w-8 rounded-lg bg-white border flex items-center justify-center text-primary-600">
+                                    <DollarSign className="h-4 w-4" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900">{rate.name}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                      {rate.type.replace('_', ' ')} {rate.minLimit ? `(over ${formatCurrency(rate.minLimit)})` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <span className="text-sm font-black text-gray-900">{formatCurrency(rate.amount)}</span>
+                                  <button className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 transition">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            )) : (
+                              <p className="text-xs text-gray-400 italic">No rates defined for this class in this zone.</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Shipping Classes</h3>
+              <p className="text-xs text-gray-500 mt-1">Group products that have similar shipping requirements (e.g. Heavy, Fragile).</p>
+            </div>
+            <button 
+              onClick={handleAddClass}
+              className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-gray-800 transition active:scale-95"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add Class
+            </button>
+          </div>
+
+          <div className="grid gap-4">
+            {classes.map(shippingClass => (
+              <div key={shippingClass.id} className="flex items-center justify-between p-5 rounded-2xl border bg-white shadow-sm hover:shadow-md transition">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center border border-primary-100">
+                    <Layers className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-gray-900">{shippingClass.name}</p>
+                      {shippingClass.isDefault && (
+                        <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase text-green-600 border border-green-100">Default</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 font-medium">{shippingClass.description || 'No description provided.'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button className="p-2 text-gray-400 hover:text-primary-600 transition">
+                    <Edit3 className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteClass(shippingClass.id)}
+                    className="p-2 text-gray-400 hover:text-red-600 transition"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 interface AdminSettingsSectionProps {
   sectionId: string;
 }
@@ -441,53 +722,8 @@ export function AdminSettingsSection({ sectionId }: AdminSettingsSectionProps) {
                 </div>
               </div>
              ) : sectionId === 'shipping' ? (
-               <div className="space-y-8">
-                 <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Domestic Shipping</h3>
-                    <div className="grid gap-6 sm:grid-cols-2">
-                       <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-700">Standard Flat Rate</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                            <input 
-                              type="number" 
-                              defaultValue={settings.shipping_flat_rate || 5.00} 
-                              onBlur={(e) => saveSetting('shipping_flat_rate', parseFloat(e.target.value))}
-                              className="w-full rounded-xl border bg-gray-50 pl-8 pr-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
-                            />
-                          </div>
-                       </div>
-                       <div className="space-y-2">
-                          <label className="text-xs font-bold text-gray-700">Free Shipping Threshold</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                            <input 
-                              type="number" 
-                              defaultValue={settings.shipping_free_threshold || 50.00} 
-                              onBlur={(e) => saveSetting('shipping_free_threshold', parseFloat(e.target.value))}
-                              className="w-full rounded-xl border bg-gray-50 pl-8 pr-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-primary-500 outline-none transition"
-                            />
-                          </div>
-                       </div>
-                    </div>
-                 </div>
+               <ShippingManager services={services} toast={toast} />
 
-                 <div className="space-y-4 pt-4">
-                    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b pb-2">Carrier Integration</h3>
-                    <div className="rounded-2xl border border-dashed p-10 text-center space-y-4">
-                       <div className="mx-auto h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center text-gray-300">
-                          <Truck className="h-6 w-6" />
-                       </div>
-                       <div>
-                          <p className="text-sm font-bold text-gray-900">Live Carrier Rates</p>
-                          <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto font-medium">Connect USPS, UPS, or FedEx to calculate real-time rates at checkout based on weight and dimensions.</p>
-                       </div>
-                       <button className="rounded-xl border bg-white px-6 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50">
-                          Configure Carriers
-                       </button>
-                    </div>
-                 </div>
-               </div>
              ) : sectionId === 'security' ? (
                <SecuritySection
                  auditLogs={auditLogs}

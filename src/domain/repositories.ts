@@ -266,7 +266,7 @@ export interface IKnowledgebaseRepository {
   getAllComments(): Promise<import('./models').BlogComment[]>;
   addComment(comment: Omit<import('./models').BlogComment, 'id' | 'createdAt' | 'updatedAt' | 'likes'>): Promise<import('./models').BlogComment>;
 
-  updateCommentStatus(commentId: string, status: 'published' | 'spam'): Promise<void>;
+  updateCommentStatus(commentId: string, status: 'pending' | 'spam' | 'approved'): Promise<void>;
   deleteComment(commentId: string): Promise<void>;
 
   // CRM & Analytics
@@ -281,3 +281,24 @@ export interface IKnowledgebaseRepository {
 }
 
 
+
+export interface IShippingRepository {
+  // Classes
+  getAllClasses(): Promise<import('./models').ShippingClass[]>;
+  getClassById(id: string): Promise<import('./models').ShippingClass | null>;
+  saveClass(shippingClass: import('./models').ShippingClass): Promise<import('./models').ShippingClass>;
+  deleteClass(id: string): Promise<void>;
+
+  // Zones
+  getAllZones(): Promise<import('./models').ShippingZone[]>;
+  getZoneById(id: string): Promise<import('./models').ShippingZone | null>;
+  saveZone(zone: import('./models').ShippingZone): Promise<import('./models').ShippingZone>;
+  deleteZone(id: string): Promise<void>;
+
+  // Rates
+  getRatesByZone(zoneId: string): Promise<import('./models').ShippingRate[]>;
+  getRatesByClass(classId: string): Promise<import('./models').ShippingRate[]>;
+  saveRate(rate: import('./models').ShippingRate): Promise<import('./models').ShippingRate>;
+  deleteRate(id: string): Promise<void>;
+  getAllRates(): Promise<import('./models').ShippingRate[]>;
+}

@@ -11,6 +11,7 @@ import type {
   ILockProvider,
   ICheckoutGateway,
   ITaxonomyRepository,
+  IShippingRepository,
 } from '@domain/repositories';
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
@@ -33,6 +34,7 @@ import {
   assertValidOrderStatusTransition,
   assertValidShippingAddress,
   calculateCartTotal,
+  calculateShipping,
   canPlaceOrder,
   deriveEstimatedDeliveryDate,
   deriveOrderFulfillmentEvents,
@@ -61,7 +63,8 @@ export class OrderService {
     private audit: AuditService,
     private locker: ILockProvider = new FirestoreLocker(),
     private checkoutGateway?: ICheckoutGateway,
-    private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository()
+    private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository(),
+    private shippingRepo?: IShippingRepository
   ) { }
 
   async finalizeTrustedCheckout(
@@ -140,6 +143,7 @@ export class OrderService {
 
         const verifiedItems: OrderItem[] = [];
         const stockDeductions: { id: string; variantId?: string; delta: number }[] = [];
+        const productShippingClasses: Record<string, string | undefined> = {};
 
         for (const item of cart.items) {
           const product = await this.productRepo.getById(item.productId);
@@ -171,6 +175,8 @@ export class OrderService {
             imageUrl,
             digitalAssets: product.digitalAssets,
           });
+
+          productShippingClasses[item.productId] = product.shippingClassId;
         }
 
         // Final stock check & deduct (ATOMIC)
@@ -184,7 +190,26 @@ export class OrderService {
         }
 
         const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-        const shipping = subtotal >= 10000 ? 0 : 599;
+        
+        let shipping = subtotal >= 10000 ? 0 : 599;
+        let shippingClassId = undefined;
+
+        if (this.shippingRepo) {
+          const [rates, zones] = await Promise.all([
+            this.shippingRepo.getAllRates(),
+            this.shippingRepo.getAllZones()
+          ]);
+          const shippingResult = calculateShipping(
+            verifiedItems.map(i => ({ productId: i.productId, quantity: i.quantity, priceSnapshot: i.unitPrice })),
+            shippingAddress,
+            rates,
+            zones,
+            productShippingClasses
+          );
+          shipping = shippingResult.amount;
+          shippingClassId = shippingResult.shippingClassId;
+        }
+
         const total = Math.max(0, subtotal + shipping - discountAmount);
 
         // Commit Order to Repository
@@ -198,6 +223,8 @@ export class OrderService {
           idempotencyKey: checkoutIdempotencyKey,
           discountCode: validDiscountCode,
           discountAmount,
+          shippingAmount: shipping,
+          shippingClassId,
           notes: [{
             id: crypto.randomUUID(),
             authorId: 'system',
@@ -355,6 +382,7 @@ export class OrderService {
       // Build source of truth map (Variant Aware)
       const verifiedItems: OrderItem[] = [];
       const stockMap = new Map<string, number>();
+      const productShippingClasses: Record<string, string | undefined> = {};
 
       for (const item of cart.items) {
         const product = await this.productRepo.getById(item.productId);
@@ -389,6 +417,8 @@ export class OrderService {
           imageUrl: imageUrl,
           digitalAssets: product.digitalAssets,
         });
+
+        productShippingClasses[item.productId] = product.shippingClassId;
       }
 
       // Final stock check
@@ -415,7 +445,26 @@ export class OrderService {
       }
 
       const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-      const shipping = subtotal >= 10000 ? 0 : 599;
+      
+      let shipping = subtotal >= 10000 ? 0 : 599;
+      let shippingClassId = undefined;
+
+      if (this.shippingRepo) {
+        const [rates, zones] = await Promise.all([
+          this.shippingRepo.getAllRates(),
+          this.shippingRepo.getAllZones()
+        ]);
+        const shippingResult = calculateShipping(
+          verifiedItems.map(i => ({ productId: i.productId, quantity: i.quantity, priceSnapshot: i.unitPrice })),
+          shippingAddress,
+          rates,
+          zones,
+          productShippingClasses
+        );
+        shipping = shippingResult.amount;
+        shippingClassId = shippingResult.shippingClassId;
+      }
+
       const total = Math.max(0, subtotal + shipping - discountAmount);
 
       // Process payment
@@ -455,6 +504,8 @@ export class OrderService {
           idempotencyKey: checkoutIdempotencyKey,
           discountCode: validDiscountCode,
           discountAmount,
+          shippingAmount: shipping,
+          shippingClassId,
           notes: [],
           riskScore: 0,
         });

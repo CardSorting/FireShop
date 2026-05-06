@@ -245,8 +245,8 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                   <span>{formatCurrency(order.total)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm text-gray-500">
-                  <span>Shipping</span>
-                  <span>Calculated at checkout</span>
+                  <span>Shipping ({order.shippingClassId ? 'Class Applied' : 'Standard'})</span>
+                  <span>{formatCurrency(order.shippingAmount || 0)}</span>
                 </div>
                 <div className="flex items-center justify-between text-lg font-bold text-gray-900 border-t pt-3 mt-3">
                   <span>Total Paid</span>

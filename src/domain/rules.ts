@@ -600,9 +600,69 @@ export function addCartItem(
   return [...items, newItem];
 }
 
+
 export function removeCartItem(items: CartItem[], productId: string, variantId?: string): CartItem[] {
   return items.filter((i) => !(i.productId === productId && i.variantId === variantId));
 }
+
+// ─────────────────────────────────────────────
+// Shipping Rules
+// ─────────────────────────────────────────────
+
+import type { ShippingRate, ShippingZone } from './models';
+
+export function calculateShipping(
+  cartItems: { productId: string; quantity: number; priceSnapshot: number }[],
+  address: Address,
+  allRates: ShippingRate[],
+  allZones: ShippingZone[],
+  productShippingClasses: Record<string, string | undefined> // productId -> shippingClassId
+): { amount: number; rateName: string; shippingClassId?: string } {
+  const subtotal = cartItems.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0);
+  
+  // 1. Find matching zone
+  const zone = allZones.find(z => z.countries.includes(address.country)) || allZones.find(z => z.name.toLowerCase() === 'rest of world');
+  if (!zone) return { amount: subtotal >= 10000 ? 0 : 599, rateName: 'Standard Shipping' }; // Fallback to legacy logic
+
+  // 2. Identify the predominant shipping class in the cart
+  // For simplicity, we use the most restrictive (highest rate) or just the most common.
+  // Here we'll group by class and pick the one with highest "priority" or highest rate.
+  const classesInCart = new Set(cartItems.map(item => productShippingClasses[item.productId]).filter(Boolean));
+  
+  // Find rates for the zone
+  const zoneRates = allRates.filter(r => r.shippingZoneId === zone.id);
+  
+  // Filter rates that match the classes in cart (if none, look for default/null class)
+  let applicableRates = zoneRates.filter(r => classesInCart.has(r.shippingClassId));
+  if (applicableRates.length === 0) {
+    applicableRates = zoneRates.filter(r => !r.shippingClassId || r.shippingClassId === 'default');
+  }
+
+  // 3. Match rate based on type (price or weight)
+  // For now we only implement price_based for subtotal
+  const matchedRate = applicableRates
+    .filter(r => {
+      if (r.type === 'price_based') {
+        const min = r.minLimit ?? 0;
+        const max = r.maxLimit ?? Infinity;
+        return subtotal >= min && subtotal <= max;
+      }
+      return r.type === 'flat';
+    })
+    .sort((a, b) => b.amount - a.amount)[0]; // Pick the highest matching rate for safety
+
+  if (matchedRate) {
+    return { 
+      amount: matchedRate.amount, 
+      rateName: matchedRate.name, 
+      shippingClassId: matchedRate.shippingClassId 
+    };
+  }
+
+  // Final fallback
+  return { amount: subtotal >= 10000 ? 0 : 599, rateName: 'Standard Shipping' };
+}
+
 
 // ─────────────────────────────────────────────
 // Purchase Order Rules

@@ -37,6 +37,7 @@ export interface Product {
   metafields?: Record<string, string | number | boolean | null>;
   isDigital?: boolean;
   digitalAssets?: DigitalAsset[];
+  shippingClassId?: string;
   
   // Variations
   hasVariants?: boolean;
@@ -306,6 +307,8 @@ export interface Order {
   fulfillmentEvents?: OrderFulfillmentEvent[];
   notes: OrderNote[];
   riskScore: number; // 0-100
+  shippingClassId?: string;
+  shippingAmount: number; // cents
   createdAt: Date;
   updatedAt: Date;
 }
@@ -917,3 +920,40 @@ export interface IReviewRepository {
     ratingCounts: Record<number, number>;
   }>;
 }
+
+// ─────────────────────────────────────────────
+// Shipping & Logistics
+// ─────────────────────────────────────────────
+
+export interface ShippingClass {
+  id: string;
+  name: string;
+  description?: string;
+  isDefault: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ShippingZone {
+  id: string;
+  name: string;
+  countries: string[]; // ISO 2-letter codes
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type ShippingRateType = 'flat' | 'weight_based' | 'price_based';
+
+export interface ShippingRate {
+  id: string;
+  shippingZoneId: string;
+  shippingClassId: string;
+  name: string;
+  type: ShippingRateType;
+  minLimit?: number; // grams or cents
+  maxLimit?: number; // grams or cents
+  amount: number; // cents
+  createdAt: Date;
+  updatedAt: Date;
+}
+

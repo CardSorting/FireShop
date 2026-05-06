@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useServices } from '../../../../hooks/useServices';
 import { useToast } from '../../../../components/admin/AdminComponents';
-import type { Product, ProductCategory, ProductSalesChannel, ProductType } from '@domain/models';
+import type { Product, ProductCategory, ProductSalesChannel, ProductType, ShippingClass } from '@domain/models';
 import { INITIAL_FORM_STATE, ProductFormState } from '../types';
 import { centsFromInput, integerFromInput, listToCsv, csvToList } from '../utils';
 import { validatePriceCents, validateStock } from '@utils/validators';
@@ -19,6 +19,7 @@ export function useProductForm(id?: string) {
   const [form, setForm] = useState<ProductFormState>(INITIAL_FORM_STATE);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [shippingClasses, setShippingClasses] = useState<ShippingClass[]>([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newTypeName, setNewTypeName] = useState('');
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -36,14 +37,16 @@ export function useProductForm(id?: string) {
     taxonomyControllerRef.current = controller;
 
     try {
-      const [cats, types] = await Promise.all([
+      const [cats, types, sClasses] = await Promise.all([
         services.taxonomyService.getCategories(controller.signal),
         services.taxonomyService.getTypes(),
+        services.shippingService.getAllClasses(),
       ]);
       
       if (!controller.signal.aborted) {
         setCategories(cats);
         setProductTypes(types);
+        setShippingClasses(sClasses);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -103,6 +106,7 @@ export function useProductForm(id?: string) {
           adminNotes: '',
           isDigital: product.isDigital ?? false,
           digitalAssets: product.digitalAssets ?? [],
+          shippingClassId: product.shippingClassId ?? '',
           hasVariants: product.hasVariants ?? false,
           options: product.options ?? [],
           variants: product.variants ?? [],
@@ -204,6 +208,7 @@ export function useProductForm(id?: string) {
       rarity: form.rarity || undefined,
       isDigital: form.isDigital,
       digitalAssets: form.digitalAssets,
+      shippingClassId: form.shippingClassId || undefined,
       hasVariants: form.hasVariants,
       options: form.options,
       variants: form.variants,
@@ -311,6 +316,7 @@ export function useProductForm(id?: string) {
         rarity: copyData.rarity || undefined,
         isDigital: copyData.isDigital,
         digitalAssets: copyData.digitalAssets,
+        shippingClassId: copyData.shippingClassId || undefined,
         hasVariants: copyData.hasVariants,
         options: copyData.options,
         variants: copyData.variants,
@@ -337,6 +343,7 @@ export function useProductForm(id?: string) {
     setForm,
     categories,
     productTypes,
+    shippingClasses,
     newCategoryName,
     setNewCategoryName,
     newTypeName,

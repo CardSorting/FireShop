@@ -9,7 +9,8 @@ import type {
     KnowledgebaseCategory, KnowledgebaseArticle, SupportMacro, AdminDashboardSummary, 
     OrderStatus, ProductDraft, ProductManagementFilters, ProductManagementOverview, 
     ProductSavedView, ProductSavedViewResult, ProductUpdate, Order, OrderNote, Supplier,
-    InventoryOverview, ProductCategory, ProductType, BlogSeries
+    InventoryOverview, ProductCategory, ProductType, BlogSeries,
+    ShippingClass, ShippingZone, ShippingRate
 } from '@domain/models';
 import { getAuth } from '@infrastructure/firebase/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
@@ -351,6 +352,19 @@ export function createApiClientServices() {
                     method: 'DELETE', 
                     body: JSON.stringify({ ids }) 
                 }),
+        },
+        shippingService: {
+            getAllClasses: (signal?: AbortSignal) => request<ShippingClass[]>('/api/admin/shipping/classes', { signal }),
+            saveClass: (data: Partial<ShippingClass>, _actor: { id: string; email: string }) => request<ShippingClass>('/api/admin/shipping/classes', { method: 'POST', body: JSON.stringify(data) }),
+            deleteClass: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/shipping/classes/${id}`, { method: 'DELETE' }),
+            
+            getAllZones: (signal?: AbortSignal) => request<ShippingZone[]>('/api/admin/shipping/zones', { signal }),
+            saveZone: (data: Partial<ShippingZone>, _actor: { id: string; email: string }) => request<ShippingZone>('/api/admin/shipping/zones', { method: 'POST', body: JSON.stringify(data) }),
+            deleteZone: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/shipping/zones/${id}`, { method: 'DELETE' }),
+            
+            getAllRates: (signal?: AbortSignal) => request<ShippingRate[]>('/api/admin/shipping/rates', { signal }),
+            saveRate: (data: Partial<ShippingRate>, _actor: { id: string; email: string }) => request<ShippingRate>('/api/admin/shipping/rates', { method: 'POST', body: JSON.stringify(data) }),
+            deleteRate: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/shipping/rates/${id}`, { method: 'DELETE' }),
         },
 
 

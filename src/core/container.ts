@@ -23,10 +23,13 @@ import { FirestoreTaxonomyRepository } from '@infrastructure/repositories/firest
 import { FirestoreWishlistRepository } from '@infrastructure/repositories/firestore/FirestoreWishlistRepository';
 import { FirestoreTicketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { FirestoreKnowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
+import { FirestoreShippingRepository } from '@infrastructure/repositories/firestore/FirestoreShippingRepository';
+import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
+import { ShippingService } from './ShippingService';
 import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
 import { SettingsService } from './SettingsService';
@@ -57,6 +60,7 @@ import type {
   IPaymentProcessor,
   ILockProvider,
   ICheckoutGateway,
+  IShippingRepository,
 } from '@domain/repositories';
 
 // Singleton caches for production (Pattern 2 - getInitialServices)
@@ -72,6 +76,7 @@ let paymentProcessorInstance: IPaymentProcessor | null = null;
 let lockProviderInstance: ILockProvider | null = null;
 let checkoutGatewayInstance: ICheckoutGateway | null = null;
 let settingsRepoInstance: ISettingsRepository | null = null;
+let shippingRepoInstance: IShippingRepository | null = null;
 let transferRepoInstance: ITransferRepository | null = null;
 let transferServiceInstance: TransferService | null = null;
 let auditServiceInstance: AuditService | null = null;
@@ -88,6 +93,7 @@ let wishlistRepoInstance: IWishlistRepository | null = null;
 let wishlistServiceInstance: WishlistService | null = null;
 let ticketRepoInstance: ITicketRepository | null = null;
 let kbRepoInstance: IKnowledgebaseRepository | null = null;
+let shippingServiceInstance: ShippingService | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -110,6 +116,7 @@ function createRepositories() {
     wishlistRepo: new FirestoreWishlistRepository(),
     ticketRepo: new FirestoreTicketRepository(),
     kbRepo: new FirestoreKnowledgebaseRepository(),
+    shippingRepo: new FirestoreShippingRepository(),
   };
 }
 
@@ -135,10 +142,13 @@ export function getServiceContainer() {
       new StripePaymentProcessor(),
       new AuditService(),
       new FirestoreLocker(), // Replaced Mock locker for Firestore
-      createCheckoutGateway()
+      createCheckoutGateway(),
+      new FirestoreDigitalAccessRepository(),
+      repos.shippingRepo
     ),
     discountService: new DiscountService(repos.discountRepo, new AuditService()),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
+    shippingService: new ShippingService(repos.shippingRepo, new AuditService()),
     transferService: new TransferService(repos.transferRepo, repos.productRepo),
     purchaseOrderService: new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
     supplierService: new SupplierService(repos.supplierRepo, new AuditService()),
@@ -174,6 +184,7 @@ export function getInitialServices() {
     wishlistRepoInstance = repos.wishlistRepo;
     ticketRepoInstance = repos.ticketRepo;
     kbRepoInstance = repos.kbRepo;
+    shippingRepoInstance = repos.shippingRepo;
   }
 
   if (!authProviderInstance) {
@@ -214,10 +225,16 @@ export function getInitialServices() {
       paymentProcessorInstance!,
       getAuditService(),
       lockProviderInstance!,
-      checkoutGatewayInstance ?? undefined
+      checkoutGatewayInstance ?? undefined,
+      new FirestoreDigitalAccessRepository(),
+      shippingRepoInstance!
     ),
     discountService: new DiscountService(discountRepoInstance!, getAuditService()),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
+    shippingService: (() => {
+      if (!shippingServiceInstance) shippingServiceInstance = new ShippingService(shippingRepoInstance!, getAuditService());
+      return shippingServiceInstance;
+    })(),
     transferService: (() => {
       if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!);
       return transferServiceInstance;

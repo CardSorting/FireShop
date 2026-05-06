@@ -35,6 +35,7 @@ export interface ProductFormState {
   adminNotes: string;
   isDigital: boolean;
   digitalAssets: DigitalAsset[];
+  shippingClassId: string;
   
   // Variations
   hasVariants: boolean;
@@ -77,6 +78,7 @@ export const INITIAL_FORM_STATE: ProductFormState = {
   adminNotes: '',
   isDigital: false,
   digitalAssets: [],
+  shippingClassId: '',
   hasVariants: false,
   options: [],
   variants: [],

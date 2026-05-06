@@ -33,6 +33,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
 import { formatMoney } from '@utils/formatters';
+import { calculateShipping } from '@domain/rules';
+import type { ShippingRate, ShippingZone } from '@domain/models';
+
 
 const StripeCheckoutForm = lazy(() => import('../checkout/StripeCheckoutForm').then((module) => ({ default: module.StripeCheckoutForm })));
 
@@ -86,6 +89,10 @@ export function CheckoutPage() {
   const [isApplying, setIsApplying] = useState(false);
   const [appliedDiscount, setAppliedDiscount] = useState<{ code: string; amount: number } | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
+  const [shippingZones, setShippingZones] = useState<ShippingZone[]>([]);
+  const [shippingResult, setShippingResult] = useState<{ amount: number; rateName: string; shippingClassId?: string } | null>(null);
+  const [loadingShipping, setLoadingShipping] = useState(false);
   const checkoutAttemptKey = useRef("");
 
   useEffect(() => {
@@ -101,7 +108,24 @@ export function CheckoutPage() {
         logger.error('Failed to parse saved address', e);
       }
     }
-  }, [user]);
+
+    const loadShippingConfig = async () => {
+      setLoadingShipping(true);
+      try {
+        const [rates, zones] = await Promise.all([
+          services.shippingService.getAllRates(),
+          services.shippingService.getAllZones(),
+        ]);
+        setShippingRates(rates);
+        setShippingZones(zones);
+      } catch (err) {
+        logger.error('Failed to load shipping config', err);
+      } finally {
+        setLoadingShipping(false);
+      }
+    };
+    void loadShippingConfig();
+  }, [user, services.shippingService]);
   
   const cartItems = cart?.items ?? [];
 
@@ -113,7 +137,33 @@ export function CheckoutPage() {
     return cartItems.length > 0 && cartItems.every(item => item.isDigital);
   }, [cartItems]);
 
-  const shipping = isPurelyDigital || subtotal >= 10000 ? 0 : 599;
+  useEffect(() => {
+    if (isPurelyDigital) {
+      setShippingResult({ amount: 0, rateName: 'Digital Delivery' });
+      return;
+    }
+
+    // Prepare product shipping classes map
+    const productClasses: Record<string, string | undefined> = {};
+    cartItems.forEach(item => {
+      // Note: item in cart might not have shippingClassId, we might need to fetch it or have it in the cart item snapshot
+      // For now we assume it's in the item if it was added to cart recently, or we fallback to default
+      productClasses[item.productId] = (item as any).shippingClassId;
+    });
+
+    const result = calculateShipping(
+      cartItems,
+      address,
+      shippingRates,
+      shippingZones,
+      productClasses
+    );
+    setShippingResult(result);
+  }, [cartItems, address, shippingRates, shippingZones, isPurelyDigital]);
+
+  const shipping = shippingResult?.amount ?? 0;
+  const shippingName = shippingResult?.rateName ?? 'Shipping';
+
   const discountAmount = appliedDiscount?.amount ?? 0;
   const total = Math.max(0, subtotal + shipping - discountAmount);
   const freeShippingRemaining = Math.max(0, 10000 - subtotal);
@@ -410,7 +460,7 @@ export function CheckoutPage() {
 
             {step === 'shipping' && (
               <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                <ReviewCard email={email} address={address} shipping={shipping} onChange={setStep} />
+                <ReviewCard email={email} address={address} shipping={shipping} shippingName={shippingName} onChange={setStep} />
                 
                 <section>
                   <h1 className="mb-8 text-3xl font-black tracking-tight text-gray-900">Delivery Speed</h1>
@@ -422,14 +472,17 @@ export function CheckoutPage() {
                           <Truck className="h-6 w-6" />
                         </div>
                         <div>
-                          <p className="text-lg font-black text-gray-900">Standard Insured Shipping</p>
-                          <p className="mt-1 text-sm font-medium text-gray-500">Tracked & packed in protective sleeves • 3–5 business days</p>
+                          <p className="text-lg font-black text-gray-900">{shippingName}</p>
+                          <p className="mt-1 text-sm font-medium text-gray-500">
+                            {shipping === 0 ? 'Complimentary shipping for your order' : 'Tracked & packed in protective sleeves'} • 3–5 business days
+                          </p>
                         </div>
                       </div>
                       <span className="text-lg font-black text-primary-700">{shipping === 0 ? 'FREE' : formatMoney(shipping)}</span>
                     </div>
                   </div>
                 </section>
+
 
                 <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-6 text-sm text-blue-800">
                   <div className="flex gap-4">
@@ -456,7 +509,7 @@ export function CheckoutPage() {
 
             {step === 'payment' && (
               <div className="space-y-10 animate-in fade-in slide-in-from-right-4 duration-500">
-                <ReviewCard email={email} address={address} shipping={shipping} onChange={setStep} />
+                <ReviewCard email={email} address={address} shipping={shipping} shippingName={shippingName} onChange={setStep} />
                 
                 <section>
                   <div className="mb-8 flex items-center justify-between">
@@ -604,7 +657,7 @@ export function CheckoutPage() {
               <div className="mt-12 space-y-4 border-t border-gray-100 pt-10">
                 <SummaryRow label="Subtotal" value={formatMoney(subtotal)} />
                 {!isPurelyDigital && (
-                  <SummaryRow label="Standard Shipping" value={shipping === 0 ? 'Free' : formatMoney(shipping)} />
+                  <SummaryRow label={shippingName} value={shipping === 0 ? 'Free' : formatMoney(shipping)} />
                 )}
                 <SummaryRow label="Estimated Tax" value="Calculated at next step" />
                 {appliedDiscount && <SummaryRow label="Promotional Discount" value={`-${formatMoney(appliedDiscount.amount)}`} isDiscount />}
@@ -692,12 +745,12 @@ function FormField({ label, id, value, onChange, placeholder, error, type = 'tex
   );
 }
 
-function ReviewCard({ email, address, shipping, onChange }: { email: string; address: Address; shipping: number; onChange: (step: CheckoutStep) => void }) {
+function ReviewCard({ email, address, shipping, shippingName, onChange }: { email: string; address: Address; shipping: number; shippingName: string; onChange: (step: CheckoutStep) => void }) {
   return (
     <div className="overflow-hidden rounded-4xl border border-gray-100 bg-white shadow-lg shadow-gray-100/50 divide-y divide-gray-50">
       <ReviewRow label="Identity" value={email} onChange={() => onChange('information')} />
       <ReviewRow label="Ship to" value={`${address.street}, ${address.city}, ${address.state} ${address.zip}`} onChange={() => onChange('information')} />
-      <ReviewRow label="Method" value={`Standard Insured • ${shipping === 0 ? 'Free' : formatMoney(shipping)}`} onChange={() => onChange('shipping')} isLast />
+      <ReviewRow label="Method" value={`${shippingName} • ${shipping === 0 ? 'Free' : formatMoney(shipping)}`} onChange={() => onChange('shipping')} isLast />
     </div>
   );
 }
