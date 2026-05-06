@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { 
   ArrowLeft, ChevronRight, FileText, ThumbsUp, ThumbsDown, 
   MessageSquare, ExternalLink, Calendar, User, Search, CheckCircle2,
-  Send, Clock
+  Send, Clock, AlignLeft, Sparkles
 } from 'lucide-react';
 import type { KnowledgebaseArticle, KnowledgebaseCategory, SupportTicket } from '@domain/models';
 import Link from 'next/link';

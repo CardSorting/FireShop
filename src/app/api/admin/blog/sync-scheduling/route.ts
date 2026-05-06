@@ -11,10 +11,11 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     
     // Find all scheduled articles that should be published by now
-    const articles = await services.knowledgebaseRepository.getArticles({ 
+    const data = await services.knowledgebaseRepository.getArticles({ 
       type: 'blog', 
       status: 'all' 
     });
+    const articles = data.articles;
     
     const toPublish = articles.filter(a => 
       a.status === 'scheduled' && 

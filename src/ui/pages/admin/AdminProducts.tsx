@@ -225,6 +225,12 @@ export function AdminProducts() {
   const [savingBulk, setSavingBulk] = useState(false);
   const [bulkPatch, setBulkPatch] = useState<BulkPatch>(EMPTY_BULK_PATCH);
   const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const loadProducts = useCallback(async () => {
     controllerRef.current?.abort();
@@ -274,7 +280,7 @@ export function AdminProducts() {
         services.productService.getProductSavedView(activeView, { ...filters, signal: controller.signal }),
       ]);
       
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setOverview(nextOverview);
         setSavedViewResult(savedView);
         setProducts(savedView.products);
@@ -284,7 +290,7 @@ export function AdminProducts() {
       if (err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Failed to load products');
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setLoading(false);
       }
     }
@@ -373,7 +379,9 @@ export function AdminProducts() {
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Failed to delete product');
     } finally {
-      setDeleting(false);
+      if (isMounted.current) {
+        setDeleting(false);
+      }
     }
   }
 
@@ -413,7 +421,9 @@ export function AdminProducts() {
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Bulk update failed');
     } finally {
-      setSavingBulk(false);
+      if (isMounted.current) {
+        setSavingBulk(false);
+      }
     }
   }
 
@@ -428,7 +438,9 @@ export function AdminProducts() {
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Failed to delete products');
     } finally {
-      setDeleting(false);
+      if (isMounted.current) {
+        setDeleting(false);
+      }
     }
   }
 

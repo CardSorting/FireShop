@@ -71,6 +71,12 @@ export function useProductDetail(initialProduct?: Product | null) {
   const [creatingCollection, setCreatingCollection] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const relatedControllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   const isFavorite = product?.id ? isInWishlist(product.id) : false;
 
@@ -138,7 +144,7 @@ export function useProductDetail(initialProduct?: Product | null) {
       logger.error('Failed to load product', err);
       setError('Product not found.');
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setLoading(false);
       }
     }
@@ -175,7 +181,7 @@ export function useProductDetail(initialProduct?: Product | null) {
       if (err.name === 'AbortError') return;
       logger.error('Failed to load related products', err);
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setLoadingRelated(false);
       }
     }
@@ -237,12 +243,20 @@ export function useProductDetail(initialProduct?: Product | null) {
     setCartError(null);
     try {
       await addItem(product.id, Math.min(quantity, maxSelectableQuantity), selectedVariant?.id);
-      setAdded(true);
-      setTimeout(() => setAdded(false), 2500);
+      if (isMounted.current) {
+        setAdded(true);
+        setTimeout(() => {
+          if (isMounted.current) setAdded(false);
+        }, 2500);
+      }
     } catch (err) {
-      setCartError(toFriendlyError(err));
+      if (isMounted.current) {
+        setCartError(toFriendlyError(err));
+      }
     } finally {
-      setAdding(false);
+      if (isMounted.current) {
+        setAdding(false);
+      }
     }
   }
 
@@ -257,11 +271,15 @@ export function useProductDetail(initialProduct?: Product | null) {
     setCreatingCollection(true);
     try {
       const newList = await createCollection(newCollectionName.trim());
-      if (product?.id) await addToWishlist(product.id, newList.id);
-      setNewCollectionName('');
-      setShowWishlistDropdown(false);
+      if (isMounted.current) {
+        if (product?.id) await addToWishlist(product.id, newList.id);
+        setNewCollectionName('');
+        setShowWishlistDropdown(false);
+      }
     } finally {
-      setCreatingCollection(false);
+      if (isMounted.current) {
+        setCreatingCollection(false);
+      }
     }
   }
 

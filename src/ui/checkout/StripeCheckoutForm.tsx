@@ -71,7 +71,11 @@ function StripeCheckoutFields({ address, onSuccess, onPlaceOrder, isPlacing }: S
           onPlaceOrder(false);
         }
       } else {
+        // onSuccess usually navigates away, but we should still check if we can
         await onSuccess(paymentMethod.id);
+        if (isMounted.current) {
+           onPlaceOrder(false); // Just in case navigation is delayed
+        }
       }
     } catch (err: unknown) {
       if (isMounted.current) {

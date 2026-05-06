@@ -36,7 +36,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { formatDate, formatRelativeTime } from '@utils/formatters';
 import { logger } from '@utils/logger';
 
@@ -51,20 +51,40 @@ export function DigitalLibraryPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     if (!user) return;
+    
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
     const loadAssets = async () => {
+      if (isMounted.current) setLoading(true);
       try {
         const result = await services.orderService.getDigitalAssets(user.id);
-        setItems(result);
+        if (!controller.signal.aborted && isMounted.current) {
+          setItems(result);
+        }
       } catch (err) {
-        logger.error('Failed to load digital assets', err);
+        if (!controller.signal.aborted && isMounted.current) {
+          logger.error('Failed to load digital assets', err);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted && isMounted.current) {
+          setLoading(false);
+        }
       }
     };
     void loadAssets();
+    return () => controller.abort();
   }, [user, services]);
 
   const categories = useMemo(() => {

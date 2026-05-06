@@ -22,8 +22,8 @@ export default function CategoryPage() {
         const cat = cats.find((c: KnowledgebaseCategory) => c.slug === slug || c.id === slug);
         if (cat) {
           setCategory(cat);
-          const data = await services.knowledgebaseService.getArticles({ categoryId: cat.id });
-          setArticles(data);
+           const data = await services.knowledgebaseService.getArticles({ categoryId: cat.id });
+           setArticles(data.articles);
         }
       } catch (err) {
         console.error(err);

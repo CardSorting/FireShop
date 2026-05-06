@@ -39,7 +39,7 @@ export default function BlogDashboard() {
           services.knowledgebaseService.getArticles({ status: 'all' }),
           services.knowledgebaseService.getAuthors()
         ]);
-        setPosts(postsData);
+        setPosts(postsData.articles);
         setAuthors(authorsData);
       } catch (err) {
         console.error('Failed to load admin blog data', err);
@@ -104,7 +104,7 @@ export default function BlogDashboard() {
       }
       
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-      setPosts(updatedPosts);
+      setPosts(updatedPosts.articles);
       setSelectedPosts([]);
     } catch (err) {
       console.error(`Bulk ${action} failed:`, err);
@@ -120,7 +120,7 @@ export default function BlogDashboard() {
     try {
       await services.knowledgebaseService.batchDeleteArticles([id]);
       const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-      setPosts(updatedPosts);
+      setPosts(updatedPosts.articles);
     } catch (err) {
       console.error('Delete failed:', err);
     } finally {
@@ -136,7 +136,7 @@ export default function BlogDashboard() {
       if (data.success) {
         alert(`Successfully published ${data.publishedCount} scheduled posts.`);
         const updatedPosts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-        setPosts(updatedPosts);
+        setPosts(updatedPosts.articles);
       }
     } catch (err) {
       console.error('Sync failed:', err);

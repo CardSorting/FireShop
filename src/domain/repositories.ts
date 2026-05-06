@@ -244,13 +244,13 @@ export interface ITicketRepository {
 
 export interface IKnowledgebaseRepository {
   getCategories(): Promise<import('./models').KnowledgebaseCategory[]>;
-  getArticles(options?: { categoryId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all' }): Promise<import('./models').KnowledgebaseArticle[]>;
+  getArticles(options?: { categoryId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all'; limit?: number; cursor?: string }): Promise<{ articles: import('./models').KnowledgebaseArticle[]; nextCursor?: string }>;
   getArticleById(id: string): Promise<import('./models').KnowledgebaseArticle | null>;
   getArticleBySlug(slug: string): Promise<import('./models').KnowledgebaseArticle | null>;
 
   searchArticles(queryString: string): Promise<import('./models').KnowledgebaseArticle[]>;
   getPopularArticles(limitVal?: number): Promise<import('./models').KnowledgebaseArticle[]>;
-  addFeedback(articleId: string, isHelpful: boolean, userId?: string): Promise<void>;
+  addFeedback(articleId: string, isHelpful: boolean, userId?: string, reason?: string): Promise<void>;
   saveCategory(category: import('./models').KnowledgebaseCategory): Promise<void>;
   saveArticle(article: import('./models').KnowledgebaseArticle): Promise<void>;
   deleteArticle(id: string): Promise<void>;

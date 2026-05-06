@@ -42,8 +42,8 @@ export default function AdminBlogForm({ initialData }: AdminBlogFormProps) {
   useEffect(() => {
     async function loadLibrary() {
       try {
-        const posts = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
-        const images = Array.from(new Set(posts.map(p => p.featuredImageUrl).filter(Boolean))) as string[];
+        const data = await services.knowledgebaseService.getArticles({ type: 'blog', status: 'all' });
+        const images = Array.from(new Set(data.articles.map(p => p.featuredImageUrl).filter(Boolean))) as string[];
         setLibraryImages(images.slice(0, 8));
       } catch (err) {
         console.error('Failed to load media library', err);

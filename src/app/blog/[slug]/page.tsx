@@ -71,7 +71,7 @@ export default async function BlogPostPage({ params }: Props) {
     comments = commentsData;
     author = authorData;
     relatedProducts = relatedProductsData;
-    filteredLatest = latestPosts.filter((p: any) => p.id !== post.id).slice(0, 3);
+    filteredLatest = latestPosts.articles.filter((p: any) => p.id !== post.id).slice(0, 3);
   } catch (err) {
     console.error('Error loading blog post metadata:', err);
     // Even if comments or related products fail, we might still want to show the post

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Star, ShoppingCart, Eye, Sparkles, TrendingUp, Heart, Check } from 'lucide-react';
 import { HiveCell } from '../Logo';
@@ -20,6 +20,12 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
   
   const favorited = isInWishlist(product.id);
   const isNew = product.tags?.includes('new') || (product.createdAt instanceof Date && product.createdAt > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
@@ -49,12 +55,18 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
     setIsAdding(true);
     try {
       await onAddToCart?.(product.id);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
+      if (isMounted.current) {
+        setShowSuccess(true);
+        setTimeout(() => {
+          if (isMounted.current) setShowSuccess(false);
+        }, 2000);
+      }
     } catch (err) {
       console.error('Add to cart failed', err);
     } finally {
-      setIsAdding(false);
+      if (isMounted.current) {
+        setIsAdding(false);
+      }
     }
   };
 

@@ -310,7 +310,11 @@ export function createApiClientServices() {
                 return request<{ articles: KnowledgebaseArticle[]; nextCursor?: string }>(`/api/support/articles?${qs}`, { signal: options?.signal });
             },
             getArticle: (slug: string, signal?: AbortSignal) => request<KnowledgebaseArticle>(`/api/support/articles/${slug}`, { signal }),
-            submitFeedback: (articleId: string, isHelpful: boolean, userId?: string) => request<void>('/api/support/feedback', { method: 'POST', body: JSON.stringify({ articleId, isHelpful, userId }) }),
+            submitFeedback: (articleId: string, isHelpful: boolean, userId?: string, reason?: string) => 
+                request<void>('/api/support/feedback', { 
+                    method: 'POST', 
+                    body: JSON.stringify({ articleId, isHelpful, userId, reason }) 
+                }),
             
             // New Blogging Methods
             getSeries: (signal?: AbortSignal) => request<BlogSeries[]>('/api/blog/series', { signal }),

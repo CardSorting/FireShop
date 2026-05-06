@@ -22,8 +22,8 @@ export default function ArticlePage() {
         const data = await services.knowledgebaseService.getArticle(slug);
         if (data) {
           setArticle(data);
-          const rel = await services.knowledgebaseService.getArticles({ categoryId: data.categoryId });
-          setRelated(rel.filter((a: KnowledgebaseArticle) => a.id !== data.id).slice(0, 3));
+          const data_articles = await services.knowledgebaseService.getArticles({ categoryId: data.categoryId });
+          setRelated(data_articles.articles.filter((a: KnowledgebaseArticle) => a.id !== data.id).slice(0, 3));
         }
       } catch (err) {
         console.error(err);

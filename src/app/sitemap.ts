@@ -53,8 +53,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // 4. Fetch all blog posts
-  const blogPosts = await services.knowledgebaseRepository.getArticles({ type: 'blog', status: 'published' });
-  const blogRoutes = blogPosts.map((post) => ({
+  const blogData = await services.knowledgebaseRepository.getArticles({ type: 'blog', status: 'published' });
+  const blogRoutes = blogData.articles.map((post) => ({
     url: `${SITE_URL}/blog/${post.slug}`,
     lastModified: post.updatedAt || post.publishedAt || new Date(),
     changeFrequency: 'monthly' as const,

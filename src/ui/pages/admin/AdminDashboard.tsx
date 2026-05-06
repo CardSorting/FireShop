@@ -65,7 +65,7 @@ export function AdminDashboard() {
     const controller = new AbortController();
     controllerRef.current = controller;
 
-    setLoading(true);
+    if (isMounted.current) setLoading(true);
     setError(null);
     try {
       const [dashSummary, users, progress, mediaRes] = await Promise.all([
@@ -75,7 +75,7 @@ export function AdminDashboard() {
         fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json())
       ]);
       
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setSummary(dashSummary);
         setCustomerCount(users.length);
         setSetupProgress(progress);
@@ -89,13 +89,21 @@ export function AdminDashboard() {
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+      if (isMounted.current) {
+        setError(err instanceof Error ? err.message : 'Failed to load dashboard');
+      }
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setLoading(false);
       }
     }
   }, [services]);
+
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     void loadDashboard();
