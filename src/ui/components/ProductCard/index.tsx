@@ -21,10 +21,16 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   const [isAdding, setIsAdding] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const isMounted = useRef(true);
+  const successTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+      if (successTimerRef.current !== null) {
+        window.clearTimeout(successTimerRef.current);
+      }
+    };
   }, []);
   
   const favorited = isInWishlist(product.id);
@@ -57,8 +63,12 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
       await onAddToCart?.(product.id);
       if (isMounted.current) {
         setShowSuccess(true);
-        setTimeout(() => {
+        if (successTimerRef.current !== null) {
+          window.clearTimeout(successTimerRef.current);
+        }
+        successTimerRef.current = window.setTimeout(() => {
           if (isMounted.current) setShowSuccess(false);
+          successTimerRef.current = null;
         }, 2000);
       }
     } catch (err) {

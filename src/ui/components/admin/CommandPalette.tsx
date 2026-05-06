@@ -82,13 +82,24 @@ export function CommandPalette() {
 
   // Load recent
   useEffect(() => {
+    let focusTimer: number | null = null;
     if (open) {
       const stored = localStorage.getItem(RECENT_KEY);
-      if (stored) setRecentIds(JSON.parse(stored));
+      if (stored) {
+        try {
+          setRecentIds(JSON.parse(stored));
+        } catch {
+          localStorage.removeItem(RECENT_KEY);
+          setRecentIds([]);
+        }
+      }
       setQuery('');
       setActiveIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      focusTimer = window.setTimeout(() => inputRef.current?.focus(), 50);
     }
+    return () => {
+      if (focusTimer !== null) window.clearTimeout(focusTimer);
+    };
   }, [open]);
 
   const needle = query.trim().toLowerCase();

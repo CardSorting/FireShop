@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   ArrowLeft, 
@@ -69,13 +69,7 @@ export function AdminDiscountForm() {
   const [endsAt, setEndsAt] = useState<string | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);
 
-  useEffect(() => {
-    if (isEditing) {
-      void loadDiscount();
-    }
-  }, [id]);
-
-  async function loadDiscount() {
+  const loadDiscount = useCallback(async () => {
     try {
       const discount = await services.discountService.getAllDiscounts().then(list => list.find(d => d.id === id));
       if (!discount) {
@@ -104,7 +98,13 @@ export function AdminDiscountForm() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id, router, services.discountService, toast]);
+
+  useEffect(() => {
+    if (isEditing) {
+      void loadDiscount();
+    }
+  }, [isEditing, loadDiscount]);
 
   const summary = useMemo(() => {
     let text = '';

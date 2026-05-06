@@ -32,6 +32,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const chordRef = useRef<string | null>(null);
+  const chordTimeoutRef = useRef<number | null>(null);
 
   // Persist sidebar state
   useEffect(() => {
@@ -60,10 +61,20 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       // Navigation chords (G + ...)
       if (e.key.toLowerCase() === 'g') {
         chordRef.current = 'g';
-        setTimeout(() => { chordRef.current = null; }, 1000); // 1s window
+        if (chordTimeoutRef.current !== null) {
+          window.clearTimeout(chordTimeoutRef.current);
+        }
+        chordTimeoutRef.current = window.setTimeout(() => {
+          chordRef.current = null;
+          chordTimeoutRef.current = null;
+        }, 1000);
       } else if (chordRef.current === 'g') {
         const key = e.key.toLowerCase();
         chordRef.current = null;
+        if (chordTimeoutRef.current !== null) {
+          window.clearTimeout(chordTimeoutRef.current);
+          chordTimeoutRef.current = null;
+        }
         if (key === 'h') router.push('/admin');
         if (key === 'o') router.push('/admin/orders');
         if (key === 'p') router.push('/admin/products');
@@ -71,7 +82,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       }
     }
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      if (chordTimeoutRef.current !== null) {
+        window.clearTimeout(chordTimeoutRef.current);
+        chordTimeoutRef.current = null;
+      }
+    };
   }, [router]);
 
   const isActive = useCallback((href: string) => {

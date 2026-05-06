@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     SEO & STYLE REQUIREMENTS (MANDATORY):
     1. LENGTH: The content must be EXHAUSTIVE and a minimum of 2500+ words of Markdown.
     2. PILLAR CONTENT STRUCTURE: Use the following required H2 sections:
-       - "Historical Context & Meta Evolution" (The deck\'s journey over time).
+       - "Historical Context & Meta Evolution" (The deck's journey over time).
        - "Full Card-by-Card Technical Breakdown" (Analyze EVERY card in the decklist individually).
        - "Advanced Play Patterns & Micro-Decisions" (Decision trees for complex board states).
        - "The Economic Landscape" (Price trends, print variants, and investment liquidity).

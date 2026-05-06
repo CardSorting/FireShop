@@ -20,6 +20,8 @@ export function WishlistPage() {
   const [newListName, setNewListName] = useState('');
   const [shareSuccess, setShareSuccess] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
+  const shareTimerRef = useRef<number | null>(null);
 
   const selectedList = wishlists.find(w => w.id === selectedListId) || wishlists.find(w => w.isDefault);
 
@@ -31,25 +33,32 @@ export function WishlistPage() {
     setLoadingItems(true);
     try {
       const detail = await services.wishlistService.getWishlist(id, controller.signal);
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setItems(detail.items);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
       console.error('Failed to load wishlist items', err);
     } finally {
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && isMounted.current) {
         setLoadingItems(false);
       }
     }
   }
 
   useEffect(() => {
+    isMounted.current = true;
     if (selectedList) {
       setSelectedListId(selectedList.id);
       void loadItems(selectedList.id);
     }
-    return () => controllerRef.current?.abort();
+    return () => {
+      isMounted.current = false;
+      controllerRef.current?.abort();
+      if (shareTimerRef.current !== null) {
+        window.clearTimeout(shareTimerRef.current);
+      }
+    };
   }, [selectedList?.id]);
 
   async function handleCreateList() {
@@ -73,7 +82,13 @@ export function WishlistPage() {
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     setShareSuccess(true);
-    setTimeout(() => setShareSuccess(false), 2000);
+    if (shareTimerRef.current !== null) {
+      window.clearTimeout(shareTimerRef.current);
+    }
+    shareTimerRef.current = window.setTimeout(() => {
+      if (isMounted.current) setShareSuccess(false);
+      shareTimerRef.current = null;
+    }, 2000);
   };
 
   if (loading && wishlists.length === 0) {

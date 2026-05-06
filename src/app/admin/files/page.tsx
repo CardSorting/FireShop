@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
   FileImageIcon, 
   Trash2, 
@@ -37,21 +37,39 @@ export default function AdminFilesPage() {
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const { toast } = useToast();
+  const isMounted = useRef(true);
+  const loadControllerRef = useRef<AbortController | null>(null);
+  const copiedTimerRef = useRef<number | null>(null);
 
-  const loadFiles = async () => {
+  const loadFiles = useCallback(async () => {
+    loadControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadControllerRef.current = controller;
+
     setLoading(true);
     try {
-      const response = await fetch('/api/admin/media');
+      const response = await fetch('/api/admin/media', { signal: controller.signal });
       const data = await response.json();
-      if (response.ok) setFiles(data.files);
-    } catch (err) {
+      if (response.ok && !controller.signal.aborted && isMounted.current) setFiles(data.files);
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       console.error('Failed to load files:', err);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted && isMounted.current) setLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { loadFiles(); }, []);
+  useEffect(() => {
+    isMounted.current = true;
+    void loadFiles();
+    return () => {
+      isMounted.current = false;
+      loadControllerRef.current?.abort();
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, [loadFiles]);
 
   const deleteFiles = async (urls: string[]) => {
     if (!confirm(`Permanently delete ${urls.length} file(s)? This cannot be undone.`)) return;
@@ -75,7 +93,13 @@ export default function AdminFilesPage() {
     const fullUrl = window.location.origin + url;
     navigator.clipboard.writeText(fullUrl);
     setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    if (copiedTimerRef.current !== null) {
+      window.clearTimeout(copiedTimerRef.current);
+    }
+    copiedTimerRef.current = window.setTimeout(() => {
+      if (isMounted.current) setCopiedId(null);
+      copiedTimerRef.current = null;
+    }, 2000);
     toast('success', 'URL copied');
   };
 

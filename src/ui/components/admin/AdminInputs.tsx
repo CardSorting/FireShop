@@ -20,6 +20,15 @@ export function TagInput({ label, tags, onChange, suggestions = [], placeholder 
   const [isFocused, setIsFocused] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const blurTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current !== null) {
+        window.clearTimeout(blurTimerRef.current);
+      }
+    };
+  }, []);
 
   const addTag = (tag: string) => {
     const trimmed = tag.trim();
@@ -78,8 +87,21 @@ export function TagInput({ label, tags, onChange, suggestions = [], placeholder 
           value={inputValue}
           onChange={(e) => { setInputValue(e.target.value); setShowSuggestions(true); }}
           onKeyDown={handleKeyDown}
-          onFocus={() => { setIsFocused(true); setShowSuggestions(true); }}
-          onBlur={() => { setTimeout(() => { setIsFocused(false); setShowSuggestions(false); }, 200); }}
+          onFocus={() => {
+            if (blurTimerRef.current !== null) {
+              window.clearTimeout(blurTimerRef.current);
+              blurTimerRef.current = null;
+            }
+            setIsFocused(true);
+            setShowSuggestions(true);
+          }}
+          onBlur={() => {
+            blurTimerRef.current = window.setTimeout(() => {
+              setIsFocused(false);
+              setShowSuggestions(false);
+              blurTimerRef.current = null;
+            }, 200);
+          }}
           placeholder={tags.length === 0 ? placeholder : ''}
           className="flex-1 min-w-[80px] bg-transparent text-sm outline-none placeholder:text-gray-400"
         />

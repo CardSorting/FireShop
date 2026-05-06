@@ -59,6 +59,7 @@ export function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [customerCount, setCustomerCount] = useState(0);
   const controllerRef = useRef<AbortController | null>(null);
+  const isMounted = useRef(true);
 
   const loadDashboard = useCallback(async () => {
     controllerRef.current?.abort();
@@ -99,7 +100,6 @@ export function AdminDashboard() {
     }
   }, [services]);
 
-  const isMounted = useRef(true);
   useEffect(() => {
     isMounted.current = true;
     return () => { isMounted.current = false; };

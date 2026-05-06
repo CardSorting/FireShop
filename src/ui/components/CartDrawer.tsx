@@ -25,20 +25,36 @@ export function CartDrawer() {
   } = useCart();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const bodyOverflowRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let focusTimer: number | null = null;
     if (isOpen && closeButtonRef.current) {
-      setTimeout(() => closeButtonRef.current?.focus(), 300);
+      focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 300);
     }
+    return () => {
+      if (focusTimer !== null) window.clearTimeout(focusTimer);
+    };
   }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
+      if (bodyOverflowRef.current === null) {
+        bodyOverflowRef.current = document.body.style.overflow;
+      }
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = 'unset';
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
     }
-    return () => { document.body.style.overflow = 'unset'; };
+    return () => {
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
+    };
   }, [isOpen]);
 
   const items = cart?.items ?? [];

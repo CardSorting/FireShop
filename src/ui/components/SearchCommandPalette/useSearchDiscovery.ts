@@ -34,6 +34,7 @@ export function useSearchDiscovery() {
   const inputRef = useRef<HTMLInputElement>(null);
   const categoriesControllerRef = useRef<AbortController | null>(null);
   const searchControllerRef = useRef<AbortController | null>(null);
+  const bodyOverflowRef = useRef<string | null>(null);
 
   // Toggle palette with ⌘+K
   useEffect(() => {
@@ -51,15 +52,30 @@ export function useSearchDiscovery() {
 
   // Focus input when opened
   useEffect(() => {
+    let focusTimer: number | null = null;
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 10);
+      focusTimer = window.setTimeout(() => inputRef.current?.focus(), 10);
+      if (bodyOverflowRef.current === null) {
+        bodyOverflowRef.current = document.body.style.overflow;
+      }
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = '';
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
       setQuery('');
       setResults([]);
       setBlogResults([]);
     }
+
+    return () => {
+      if (focusTimer !== null) window.clearTimeout(focusTimer);
+      if (bodyOverflowRef.current !== null) {
+        document.body.style.overflow = bodyOverflowRef.current;
+        bodyOverflowRef.current = null;
+      }
+    };
   }, [isOpen]);
 
   // Load recent searches and categories

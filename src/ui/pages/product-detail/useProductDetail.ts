@@ -72,10 +72,16 @@ export function useProductDetail(initialProduct?: Product | null) {
   const controllerRef = useRef<AbortController | null>(null);
   const relatedControllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
+  const addedTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+      if (addedTimerRef.current !== null) {
+        window.clearTimeout(addedTimerRef.current);
+      }
+    };
   }, []);
 
   const isFavorite = product?.id ? isInWishlist(product.id) : false;
@@ -245,8 +251,12 @@ export function useProductDetail(initialProduct?: Product | null) {
       await addItem(product.id, Math.min(quantity, maxSelectableQuantity), selectedVariant?.id);
       if (isMounted.current) {
         setAdded(true);
-        setTimeout(() => {
+        if (addedTimerRef.current !== null) {
+          window.clearTimeout(addedTimerRef.current);
+        }
+        addedTimerRef.current = window.setTimeout(() => {
           if (isMounted.current) setAdded(false);
+          addedTimerRef.current = null;
         }, 2500);
       }
     } catch (err) {

@@ -62,7 +62,7 @@ export function AdminTicketDetail() {
 
     if (isMounted.current) setLoading(true);
     try {
-      const result = await services.ticketService.getTicket(id);
+      const result = await services.ticketService.getTicket(id, controller.signal);
       if (!controller.signal.aborted && isMounted.current) {
         if (!result) throw new Error('Ticket not found');
         
@@ -78,11 +78,11 @@ export function AdminTicketDetail() {
 
         // PRODUCTION HARDENING: Real context fetching
         const [m, summary] = await Promise.all([
-          services.ticketService.getMacros(),
-          services.ticketService.getCustomerSummary(result.userId)
+          services.ticketService.getMacros(controller.signal),
+          services.ticketService.getCustomerSummary(result.userId, controller.signal)
         ]);
         
-        if (isMounted.current) {
+        if (isMounted.current && !controller.signal.aborted) {
           setMacros(m);
           setRecentOrders(summary.recentOrders);
           setCustomerStats({

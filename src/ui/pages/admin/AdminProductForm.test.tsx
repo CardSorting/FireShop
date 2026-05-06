@@ -34,6 +34,7 @@ vi.mock('../../hooks/useServices', () => ({
 // Mock toast
 vi.mock('../../components/admin/AdminComponents', () => ({
   SkeletonPage: () => <div data-testid="skeleton">Loading...</div>,
+  AdminConfirmDialog: ({ open, title }: { open: boolean; title: string }) => open ? <div>{title}</div> : null,
   useToast: () => ({
     toast: vi.fn(),
   }),
@@ -64,8 +65,8 @@ describe('AdminProductForm', () => {
     // Fill in required fields with invalid price
     await user.type(screen.getByPlaceholderText(/Product title/i), 'New Card');
     await user.type(screen.getByPlaceholderText(/Describe condition/i), 'Mint condition');
-    await user.type(screen.getByTestId('price'), '-10');
-    await user.type(screen.getByTestId('quantity-available'), '5');
+    await user.type(screen.getByTestId('product-price'), '-10');
+    await user.type(screen.getByTestId('product-stock'), '5');
     
     // Submit
     const saveBtn = screen.getByRole('button', { name: /save product/i });
@@ -83,8 +84,8 @@ describe('AdminProductForm', () => {
     
     await user.type(screen.getByPlaceholderText(/Product title/i), 'New Card');
     await user.type(screen.getByPlaceholderText(/Describe condition/i), 'Mint condition');
-    await user.type(screen.getByTestId('price'), '10.50');
-    await user.type(screen.getByTestId('quantity-available'), '5');
+    await user.type(screen.getByTestId('product-price'), '10.50');
+    await user.type(screen.getByTestId('product-stock'), '5');
     
     const saveBtn = screen.getByRole('button', { name: /save product/i });
     await user.click(saveBtn);

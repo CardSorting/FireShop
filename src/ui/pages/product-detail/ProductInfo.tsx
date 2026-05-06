@@ -6,7 +6,7 @@
  */
 import { Star, Share2 } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ProductInfoProps {
   name: string;
@@ -18,6 +18,15 @@ interface ProductInfoProps {
 
 export function ProductInfo({ name, vendor, category, currentPrice, compareAtPrice }: ProductInfoProps) {
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+    };
+  }, []);
 
   function handleShare() {
     if (navigator.share) {
@@ -25,7 +34,13 @@ export function ProductInfo({ name, vendor, category, currentPrice, compareAtPri
     } else {
       navigator.clipboard.writeText(window.location.href);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current !== null) {
+        window.clearTimeout(copiedTimerRef.current);
+      }
+      copiedTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+        copiedTimerRef.current = null;
+      }, 2000);
     }
   }
 

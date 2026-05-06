@@ -550,6 +550,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     timersRef.current.set(id, timer);
   }, [dismiss]);
 
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((timer) => clearTimeout(timer));
+      timersRef.current.clear();
+    };
+  }, []);
+
   const TOAST_STYLES: Record<ToastType, { bg: string; icon: typeof Check }> = {
     success: { bg: 'bg-green-600', icon: Check },
     error: { bg: 'bg-red-600', icon: AlertCircle },
@@ -923,6 +930,7 @@ export function exportToCSV(filename: string, data: any[]) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 /**

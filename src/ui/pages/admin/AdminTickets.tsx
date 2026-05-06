@@ -76,15 +76,16 @@ export function AdminTickets() {
     
     try {
       const [ticketResult, healthResult] = await Promise.all([
-        services.ticketService.listTickets(),
-        services.ticketService.getHealthMetrics()
+        services.ticketService.listTickets({ signal: controller.signal }),
+        services.ticketService.getHealthMetrics(controller.signal)
       ]);
       
       if (!controller.signal.aborted && isMounted.current) {
         setTickets(ticketResult || []);
         setHealth(healthResult);
       }
-    } catch (err) {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       if (isMounted.current) {
         toast('error', 'Failed to load support queue');
       }

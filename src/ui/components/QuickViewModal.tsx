@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { X, ShoppingBag, Heart, Star, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
@@ -23,6 +23,18 @@ export function QuickViewModal({
 }: QuickViewModalProps) {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const isMounted = useRef(true);
+  const addedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+      if (addedTimerRef.current !== null) {
+        window.clearTimeout(addedTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!product) return null;
 
@@ -30,10 +42,18 @@ export function QuickViewModal({
     setAdding(true);
     try {
       await onAddToCart(product.id);
-      setAdded(true);
-      setTimeout(() => setAdded(false), 2000);
+      if (isMounted.current) {
+        setAdded(true);
+        if (addedTimerRef.current !== null) {
+          window.clearTimeout(addedTimerRef.current);
+        }
+        addedTimerRef.current = window.setTimeout(() => {
+          if (isMounted.current) setAdded(false);
+          addedTimerRef.current = null;
+        }, 2000);
+      }
     } finally {
-      setAdding(false);
+      if (isMounted.current) setAdding(false);
     }
   };
 

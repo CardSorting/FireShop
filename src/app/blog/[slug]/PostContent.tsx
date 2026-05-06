@@ -61,24 +61,27 @@ export default function PostContent({ post, initialComments, initialAuthor, init
     );
 
     // Wait for content to render then observe
-    setTimeout(() => {
+    const observeTimer = window.setTimeout(() => {
       matches.forEach(m => {
         const el = document.getElementById(m.id);
         if (el) observer.observe(el);
       });
     }, 100);
 
-    return () => observer.disconnect();
+    return () => {
+      window.clearTimeout(observeTimer);
+      observer.disconnect();
+    };
   }, [post.content]);
 
   useEffect(() => {
     const handleScroll = () => {
       const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const currentProgress = (window.scrollY / totalScroll) * 100;
+      const currentProgress = totalScroll > 0 ? (window.scrollY / totalScroll) * 100 : 0;
       setScrollProgress(currentProgress);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 

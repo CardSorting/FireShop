@@ -7,7 +7,7 @@
  * Provides a high-velocity, secure interface for merchants to manage digital fulfillment assets.
  * Features: Multi-file orchestration, metadata editing, secure allocation previews, and LARGE FILE progress tracking.
  */
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { 
   FileUp, 
   X, 
@@ -52,22 +52,39 @@ export function DigitalAssetManager({ assets, onChange }: DigitalAssetManagerPro
   const [dragActive, setDragActive] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMountedRef = useRef(true);
+  const activeUploadsRef = useRef<Set<XMLHttpRequest>>(new Set());
 
-  const uploadFileWithProgress = (file: File): Promise<DigitalAsset> => {
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      activeUploadsRef.current.forEach((xhr) => xhr.abort());
+      activeUploadsRef.current.clear();
+    };
+  }, []);
+
+  const uploadFileWithProgress = useCallback((file: File): Promise<DigitalAsset> => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', 'digital-assets');
+      activeUploadsRef.current.add(xhr);
+
+      const cleanup = () => {
+        activeUploadsRef.current.delete(xhr);
+      };
 
       xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
+        if (e.lengthComputable && isMountedRef.current) {
           const progress = Math.round((e.loaded * 100) / e.total);
           setCurrentUpload({ fileName: file.name, progress });
         }
       });
 
       xhr.addEventListener('load', () => {
+        cleanup();
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             resolve(JSON.parse(xhr.responseText));
@@ -84,11 +101,18 @@ export function DigitalAssetManager({ assets, onChange }: DigitalAssetManagerPro
         }
       });
 
-      xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+      xhr.addEventListener('error', () => {
+        cleanup();
+        reject(new Error('Network error during upload'));
+      });
+      xhr.addEventListener('abort', () => {
+        cleanup();
+        reject(new DOMException('Upload aborted', 'AbortError'));
+      });
       xhr.open('POST', '/api/admin/upload');
       xhr.send(formData);
     });
-  };
+  }, []);
 
   const handleUpload = async (files: FileList | File[]) => {
     setIsUploading(true);
@@ -100,18 +124,23 @@ export function DigitalAssetManager({ assets, onChange }: DigitalAssetManagerPro
         setCurrentUpload({ fileName: file.name, progress: 0 });
         const result = await uploadFileWithProgress(file);
         
+        if (!isMountedRef.current) return;
         newAssets.push({
           ...result,
           id: crypto.randomUUID(), // Local ID for UI management if needed
           createdAt: new Date()
         });
       }
-      onChange(newAssets);
+      if (isMountedRef.current) onChange(newAssets);
     } catch (err: any) {
-      setError(err.message);
+      if (err.name !== 'AbortError' && isMountedRef.current) {
+        setError(err.message);
+      }
     } finally {
-      setIsUploading(false);
-      setCurrentUpload(null);
+      if (isMountedRef.current) {
+        setIsUploading(false);
+        setCurrentUpload(null);
+      }
     }
   };
 

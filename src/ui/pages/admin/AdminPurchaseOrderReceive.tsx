@@ -75,10 +75,16 @@ export function AdminPurchaseOrderReceive() {
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
+  const scanFlashTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
-    return () => { isMounted.current = false; };
+    return () => {
+      isMounted.current = false;
+      if (scanFlashTimerRef.current !== null) {
+        window.clearTimeout(scanFlashTimerRef.current);
+      }
+    };
   }, []);
 
   const receivingNow = items.reduce((sum, item) => sum + item.toReceive, 0);
@@ -150,8 +156,12 @@ export function AdminPurchaseOrderReceive() {
       toast('error', `SKU ${needle} not found on this PO`);
       setScanInput('');
     }
-    setTimeout(() => {
+    if (scanFlashTimerRef.current !== null) {
+      window.clearTimeout(scanFlashTimerRef.current);
+    }
+    scanFlashTimerRef.current = window.setTimeout(() => {
       if (isMounted.current) setScanFlash(null);
+      scanFlashTimerRef.current = null;
     }, 1000);
   };
 

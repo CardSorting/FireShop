@@ -40,12 +40,16 @@ export function Navbar() {
   const [navMenu, setNavMenu] = useState<NavigationMenu | null>(null);
 
   useEffect(() => {
-    fetch('/api/navigation?id=main-nav')
+    const controller = new AbortController();
+    fetch('/api/navigation?id=main-nav', { signal: controller.signal })
       .then(res => res.json())
       .then(data => {
-        if (!data.error) setNavMenu(data);
+        if (!controller.signal.aborted && !data.error) setNavMenu(data);
       })
-      .catch(console.error);
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error(err);
+      });
+    return () => controller.abort();
   }, []);
 
   // Handle scroll and progress
@@ -58,7 +62,7 @@ export function Navbar() {
       const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
       setScrollProgress(scrolled);
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
