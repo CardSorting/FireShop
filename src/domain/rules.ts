@@ -627,6 +627,32 @@ export function calculateShipping(
   return { amount: 0, rateName: 'Shipping calculation failed: No matching rate' };
 }
 
+/**
+ * Calculates deterministic sales tax for an order.
+ * Production Hardening: In a real-world multi-jurisdiction app, this would call 
+ * a tax engine (Avalara/TaxJar) or look up tables based on zip code.
+ * For this industrialized implementation, we use a deterministic base rate (7.5%)
+ * but calculate it on the total of (subtotal + shipping - discount).
+ */
+export function calculateTax(params: {
+    subtotal: number;
+    shipping: number;
+    discount: number;
+    address: Address;
+}): number {
+    const taxableAmount = Math.max(0, params.subtotal + params.shipping - params.discount);
+    
+    // Hardening: Different rates per country (demonstrative of real logic)
+    const country = params.address.country.toUpperCase();
+    let rate = 0.075; // Default 7.5%
+
+    if (country === 'GB') rate = 0.20; // 20% VAT
+    if (country === 'CA') rate = 0.13; // 13% HST average
+    if (country === 'DE') rate = 0.19; // 19% MwSt
+
+    return Math.round(taxableAmount * rate);
+}
+
 
 // ─────────────────────────────────────────────
 // Purchase Order Rules

@@ -311,6 +311,7 @@ export interface Order {
   riskScore: number; // 0-100
   shippingClassId?: string;
   shippingAmount: number; // cents
+  taxAmount: number; // cents
   createdAt: Date;
   updatedAt: Date;
 }

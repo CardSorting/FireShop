@@ -38,6 +38,7 @@ import {
   assertValidShippingAddress,
   calculateCartTotal,
   calculateShipping,
+  calculateTax,
   canPlaceOrder,
   deriveEstimatedDeliveryDate,
   deriveTrackingUrl,
@@ -210,7 +211,8 @@ export class OrderService {
           shippingClassId = shippingResult.shippingClassId;
         }
 
-        const total = Math.max(0, subtotal + shipping - discountAmount);
+        const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
+        const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
         // Commit Order to Repository with Atomic Initial Events
         const order = await this.orderRepo.create({
@@ -224,6 +226,7 @@ export class OrderService {
           discountCode: validDiscountCode,
           discountAmount,
           shippingAmount: shipping,
+          taxAmount,
           shippingClassId,
           notes: [{
             id: crypto.randomUUID(),
@@ -482,7 +485,8 @@ export class OrderService {
         shippingClassId = shippingResult.shippingClassId;
       }
 
-      const total = Math.max(0, subtotal + shipping - discountAmount);
+      const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
+      const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
       // Process payment
       const paymentResult = await this.payment.processPayment({
@@ -522,6 +526,7 @@ export class OrderService {
           discountCode: validDiscountCode,
           discountAmount,
           shippingAmount: shipping,
+          taxAmount,
           shippingClassId,
           notes: [],
           riskScore: 0,
