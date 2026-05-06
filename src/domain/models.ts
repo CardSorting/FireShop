@@ -315,6 +315,7 @@ export interface Order {
   shippingAmount: number; // cents
   taxAmount: number; // cents
   fulfillmentLocationId: string | null;
+  fulfillmentMethod: 'shipping' | 'pickup' | 'delivery';
   fulfillments: Fulfillment[];
   createdAt: Date;
   updatedAt: Date;
@@ -404,6 +405,9 @@ export interface Address {
   state: string;
   zip: string;
   country: string;
+  zipCode?: string; // Normalized
+  phone?: string;
+  coordinates?: { lat: number, lng: number };
 }
 
 export interface NavigationLink {
@@ -715,6 +719,11 @@ export interface InventoryLocation {
   code?: string;
   isDefault: boolean;
   isActive: boolean;
+  isPickupLocation: boolean;
+  pickupInstructions?: string;
+  deliveryRadiusMiles?: number;
+  deliveryFee?: number; // cents
+  coordinates?: { lat: number, lng: number };
   createdAt: Date;
 }
 

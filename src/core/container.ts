@@ -28,7 +28,7 @@ import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/f
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
-import { OrderService } from './OrderService';
+import { OrderService } from './order';
 import { ShippingService } from './ShippingService';
 import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
