@@ -1,7 +1,7 @@
 /**
  * [LAYER: DOMAIN]
  */
-import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User, ProductStatus } from './models';
+import type { Product, ProductDraft, ProductUpdate, Cart, Order, OrderStatus, User, ProductStatus, Address } from './models';
 import type {
   Discount,
   DiscountDraft,
@@ -123,6 +123,10 @@ export interface ICheckoutGateway {
     idempotencyKey: string;
     discountCode?: string;
   }): Promise<Order>;
+}
+
+export interface IGeocodingService {
+  geocode(address: string | Address): Promise<{ lat: number; lng: number } | null>;
 }
 
 export interface ILockProvider {

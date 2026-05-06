@@ -121,6 +121,8 @@ export function AdminLocations() {
                   <div className="mt-0.5 flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                     <span className="flex items-center gap-1"><Package className="h-3 w-3" /> {location.code || location.id.slice(0, 4).toUpperCase()}</span>
                     <span>{location.type}</span>
+                    {location.isPickupLocation && <span className="text-emerald-600">● Pickup Enabled</span>}
+                    {location.deliveryRadiusMiles && <span className="text-blue-600">● Delivery Zone ({location.deliveryRadiusMiles}mi)</span>}
                   </div>
                 </div>
               </div>

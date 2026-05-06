@@ -253,6 +253,7 @@ export function createApiClientServices() {
             getLocations: () => request<InventoryLocation[]>('/api/admin/locations'),
             createLocation: (data: any) => request<InventoryLocation>('/api/admin/locations', { method: 'POST', body: JSON.stringify(data) }),
             updateLocation: (id: string, updates: any) => request<InventoryLocation>(`/api/admin/locations/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
+            geocodeAddress: (address: string) => request<{ lat: number; lng: number }>('/api/admin/locations/geocode', { method: 'POST', body: JSON.stringify({ address }) }),
         },
         taxonomyService: {
             getCategories: (signal?: AbortSignal) => request<ProductCategory[]>('/api/taxonomy/categories', { signal }),

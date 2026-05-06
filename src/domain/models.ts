@@ -341,7 +341,10 @@ export type OrderFulfillmentEventType =
   | 'label_created'
   | 'in_transit'
   | 'delivered'
-  | 'cancelled';
+  | 'cancelled'
+  | 'ready_for_pickup'
+  | 'picked_up'
+  | 'delivery_started';
 
 export interface OrderFulfillmentEvent {
   id: string;

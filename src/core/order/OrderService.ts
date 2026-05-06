@@ -15,6 +15,7 @@ import type {
   IShippingRepository,
   IInventoryLocationRepository,
   IInventoryLevelRepository,
+  IGeocodingService,
 } from '@domain/repositories';
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
@@ -60,7 +61,8 @@ export class OrderService {
     private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository(),
     private shippingRepo?: IShippingRepository,
     private locationRepo?: IInventoryLocationRepository,
-    private inventoryLevelRepo?: IInventoryLevelRepository
+    private inventoryLevelRepo?: IInventoryLevelRepository,
+    private geocodingService?: IGeocodingService
   ) {
     this.fulfillment = new FulfillmentService(
       orderRepo, 
@@ -80,7 +82,9 @@ export class OrderService {
       this.fulfillment,
       checkoutGateway,
       shippingRepo,
-      inventoryLevelRepo
+      inventoryLevelRepo,
+      locationRepo,
+      geocodingService
     );
 
     this.management = new OrderManagementService(

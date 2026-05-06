@@ -14,7 +14,7 @@ import type {
   Address 
 } from '@domain/models';
 import { OrderNotFoundError } from '@domain/errors';
-import { deriveTrackingUrl } from '@domain/rules';
+import { deriveTrackingUrl, isWithinDeliveryRange } from '@domain/rules';
 import { AuditService } from '../AuditService';
 import { logger } from '@utils/logger';
 
@@ -121,12 +121,29 @@ export class FulfillmentService {
     });
   }
 
-  async assignFulfillmentLocation(params: { userId: string, shippingAddress: Address, items?: any[] }): Promise<string> {
+  async assignFulfillmentLocation(params: { 
+    userId: string, 
+    shippingAddress: Address, 
+    items?: any[],
+    method?: 'shipping' | 'pickup' | 'delivery'
+  }): Promise<string> {
     if (this.locationRepo && this.inventoryLevelRepo && params.items?.length) {
       try {
         const firstItem = params.items[0];
         const levels = await this.inventoryLevelRepo.findByProduct(firstItem.productId);
-        const available = levels.find(l => l.availableQty >= firstItem.quantity);
+        const locations = await this.locationRepo.findAll();
+
+        const validLocationIds = locations
+          .filter((loc: any) => {
+            if (params.method === 'pickup') return loc.isPickupLocation;
+            if (params.method === 'delivery' && loc.deliveryRadiusMiles && loc.coordinates && params.shippingAddress.coordinates) {
+              return isWithinDeliveryRange(params.shippingAddress.coordinates, loc.coordinates, loc.deliveryRadiusMiles);
+            }
+            return params.method === 'shipping' || !params.method;
+          })
+          .map((l: any) => l.id);
+
+        const available = levels.find(l => validLocationIds.includes(l.locationId) && l.availableQty >= firstItem.quantity);
         if (available) return available.locationId;
       } catch (err) {
         logger.error('Failed to assign stock-aware location', err);
@@ -148,6 +165,9 @@ export class FulfillmentService {
       delivered: 'delivered',
       cancelled: 'cancelled',
       processing: 'processing',
+      ready_for_pickup: 'ready_for_pickup',
+      picked_up: 'picked_up',
+      delivery_started: 'delivery_started',
     };
 
     const type = (mapping[statusOrType] || statusOrType) as OrderFulfillmentEventType;
@@ -159,6 +179,9 @@ export class FulfillmentService {
       in_transit: 'In transit',
       delivered: 'Delivered',
       cancelled: 'Order cancelled',
+      ready_for_pickup: 'Ready for pickup',
+      picked_up: 'Picked up',
+      delivery_started: 'Out for delivery',
     };
 
     const descriptions: Record<OrderFulfillmentEventType, string> = {
@@ -169,6 +192,9 @@ export class FulfillmentService {
       in_transit: 'Your package is on its way.',
       delivered: 'Your package has been delivered.',
       cancelled: 'The order has been cancelled.',
+      ready_for_pickup: 'Your order is ready for pickup at the selected location.',
+      picked_up: 'The order has been picked up by the customer.',
+      delivery_started: 'The delivery driver has started the route to your address.',
     };
 
     return {

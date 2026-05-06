@@ -12,6 +12,7 @@ import { FirebaseAuthAdapter } from '@infrastructure/services/FirebaseAuthAdapte
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
+import { GoogleGeocodingService } from '@infrastructure/services/GoogleGeocodingService';
 import { FirestoreSettingsRepository } from '@infrastructure/repositories/firestore/FirestoreSettingsRepository';
 import { FirestoreTransferRepository } from '@infrastructure/repositories/firestore/FirestoreTransferRepository';
 import { FirestorePurchaseOrderRepository } from '@infrastructure/repositories/firestore/FirestorePurchaseOrderRepository';
@@ -145,7 +146,10 @@ export function getServiceContainer() {
       new FirestoreLocker(), // Replaced Mock locker for Firestore
       createCheckoutGateway(),
       new FirestoreDigitalAccessRepository(),
-      repos.shippingRepo
+      repos.shippingRepo,
+      repos.inventoryLocationRepo,
+      repos.inventoryLevelRepo,
+      new GoogleGeocodingService()
     ),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),

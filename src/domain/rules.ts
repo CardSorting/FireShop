@@ -98,9 +98,37 @@ function assertValidCategory(category: string | undefined): void {
 }
 
 function assertValidClassification(rarity: string | undefined): void {
-  if (rarity && rarity.trim().length > 64) {
-    throw new InvalidProductError('Classification is too long');
+  if (rarity && rarity.trim().length > 60) {
+    throw new InvalidProductError('Rarity/Classification name is too long');
   }
+}
+
+/**
+ * Calculates the Haversine distance between two sets of coordinates in miles.
+ */
+export function calculateDistanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3958.8; // Radius of the Earth in miles
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Verifies if a coordinate is within a specified radius of a location.
+ */
+export function isWithinDeliveryRange(
+  dest: { lat: number, lng: number },
+  origin: { lat: number, lng: number },
+  radiusMiles: number
+): boolean {
+  if (radiusMiles <= 0) return false;
+  const distance = calculateDistanceMiles(origin.lat, origin.lng, dest.lat, dest.lng);
+  return distance <= radiusMiles;
 }
 
 function assertOptionalStringLength(value: string | undefined, field: string, maxLength: number): void {
@@ -384,8 +412,11 @@ export function coalesceStockUpdates(updates: { id: string; variantId?: string; 
 export function assertValidShippingAddress(address: Address): void {
   const required: Array<keyof Address> = ['street', 'city', 'state', 'zip', 'country'];
   for (const field of required) {
-    const value = address[field]?.trim();
-    if (!value) {
+    const value = address[field];
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new InvalidAddressError(`Shipping address field is required and must be a string: ${field}`);
+    }
+    if (value.trim().length > MAX_ADDRESS_FIELD_LENGTH) {
       throw new InvalidAddressError(`Shipping address field is required: ${field}`);
     }
     if (value.length > MAX_ADDRESS_FIELD_LENGTH) {

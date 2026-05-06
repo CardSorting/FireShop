@@ -8,7 +8,9 @@ import type {
   ILockProvider, 
   ICheckoutGateway,
   IShippingRepository,
-  IInventoryLevelRepository
+  IInventoryLevelRepository,
+  IInventoryLocationRepository,
+  IGeocodingService
 } from '@domain/repositories';
 import type { Order, Address, OrderItem, OrderStatus } from '@domain/models';
 import { 
@@ -43,7 +45,9 @@ export class CheckoutService {
     private fulfillmentService: FulfillmentService,
     private checkoutGateway?: ICheckoutGateway,
     private shippingRepo?: IShippingRepository,
-    private inventoryLevelRepo?: IInventoryLevelRepository
+    private inventoryLevelRepo?: IInventoryLevelRepository,
+    private inventoryLocationRepo?: IInventoryLocationRepository,
+    private geocodingService?: IGeocodingService
   ) {}
 
   async finalizeTrustedCheckout(
@@ -82,6 +86,16 @@ export class CheckoutService {
     paymentIntentId?: string,
     fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'
   ): Promise<Order> {
+    // Deep Audit: Geospatial address resolution for delivery verification
+    if (fulfillmentMethod === 'delivery' && !shippingAddress.coordinates && this.geocodingService) {
+      try {
+        const coords = await this.geocodingService.geocode(shippingAddress);
+        if (coords) shippingAddress.coordinates = coords;
+      } catch (err) {
+        logger.error('Geocoding failure during checkout', err);
+      }
+    }
+
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_lock:${userId}`;
     const checkoutAttemptId = crypto.randomUUID();
@@ -165,7 +179,12 @@ export class CheckoutService {
         }
       }
 
-      const fulfillmentLocationId = await this.fulfillmentService.assignFulfillmentLocation({ userId, shippingAddress, items: cart.items });
+      const fulfillmentLocationId = await this.fulfillmentService.assignFulfillmentLocation({ 
+        userId, 
+        shippingAddress, 
+        items: cart.items,
+        method: fulfillmentMethod
+      });
 
       if (fulfillmentLocationId && this.inventoryLevelRepo) {
         for (const item of cart.items) {
@@ -196,6 +215,19 @@ export class CheckoutService {
         shipping = shippingResult.amount;
         if (isFreeShipping) shipping = 0;
         shippingClassId = shippingResult.shippingClassId;
+      }
+
+      // Override shipping cost based on fulfillment strategy
+      if (fulfillmentMethod === 'pickup') {
+        shipping = 0;
+      } else if (fulfillmentMethod === 'delivery' && fulfillmentLocationId) {
+        // Find delivery fee for specific location
+        const loc = await this.inventoryLocationRepo?.findById(fulfillmentLocationId);
+        if (loc?.deliveryFee !== undefined) {
+          shipping = loc.deliveryFee;
+        } else {
+          shipping = 499; // Default local delivery fee
+        }
       }
 
       const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
