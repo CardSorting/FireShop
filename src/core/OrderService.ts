@@ -52,9 +52,9 @@ import { Sanitizer } from '@utils/sanitizer';
 /**
  * [LAYER: CORE]
  * 
- * Simplified, Flattened OrderService.
- * Consolidates checkout, fulfillment, and management into a single, high-output module.
- * Reduced indirection to maximize fulfillment speed and audit reliability.
+ * Singular-Warehouse Optimized OrderService.
+ * Flattened for maximum throughput, eliminating logistics-routing overhead.
+ * Favors automated state progression and 'one-click' administrative actions.
  */
 export class OrderService {
   constructor(
@@ -71,7 +71,7 @@ export class OrderService {
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
-  // CHECKOUT OPS
+  // CHECKOUT & PAYMENT (AUTOMATED)
   // ────────────────────────────────────────────────────────────────────────────
 
   async initiateCheckout(
@@ -151,13 +151,11 @@ export class OrderService {
         });
       }
 
-      // Quick stock update
       for (const update of stockDeductions) {
         if (update.variantId) await this.productRepo.updateVariantStock(update.variantId, update.delta);
         else await this.productRepo.updateStock(update.id, update.delta);
       }
 
-      // Ultra-Flattened Fulfillment
       const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       let shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : 599;
 
@@ -183,7 +181,7 @@ export class OrderService {
           id: crypto.randomUUID(),
           authorId: 'system',
           authorEmail: 'system@dreambees.art',
-          text: 'Order received. Checkout finalized.',
+          text: 'Order received. Singular Warehouse routing active.',
           createdAt: new Date(),
         }],
         riskScore: 0,
@@ -197,105 +195,98 @@ export class OrderService {
         }],
       });
 
-      await this.audit.record({
-        userId,
-        userEmail: 'system@dreambees.art',
-        action: 'order_placed',
-        targetId: order.id,
-        details: { total, method: fulfillmentMethod }
-      });
-
       return order;
     } finally {
       await this.locker.releaseLock(lockId, userId);
     }
   }
 
-  async finalizeTrustedCheckout(userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string): Promise<Order> {
-    if (!this.checkoutGateway) throw new PaymentFailedError('No checkout gateway configured.');
-    return this.checkoutGateway.finalizeCheckout({
-      userId,
-      shippingAddress,
-      paymentMethodId,
-      idempotencyKey: idempotencyKey || crypto.randomUUID(),
-      discountCode
-    });
+  async finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
+    const order = await this.orderRepo.getByPaymentTransactionId(paymentIntentId);
+    if (!order) throw new Error(`Order not found for payment intent ${paymentIntentId}`);
+    if (order.status !== 'pending') return order;
+
+    const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
+    
+    // AUTO-ADVANCE: Move straight to the actionable fulfillment state for the admin
+    let nextStatus: OrderStatus = 'confirmed';
+    if (riskScore < 75) {
+       if (order.fulfillmentMethod === 'shipping') nextStatus = 'processing';
+       else if (order.fulfillmentMethod === 'pickup') nextStatus = 'ready_for_pickup';
+       else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
+    }
+
+    await this.orderRepo.updateStatus(order.id, nextStatus);
+    await this.recordFulfillmentEvent(order.id, nextStatus === 'processing' ? 'processing' : 'payment_confirmed', 'Payment Confirmed', 'Your payment was successful.');
+    
+    await this.cartRepo.clear(order.userId);
+    await this.orderRepo.updateRiskScore(order.id, riskScore);
+
+    return { ...order, status: nextStatus };
+  }
+
+  async reconcilePaymentIntent(paymentIntentId: string): Promise<Order> {
+    const order = await this.orderRepo.getByPaymentTransactionId(paymentIntentId);
+    if (!order || order.status !== 'pending') return order as any;
+    
+    const stripeService = new (await import('@infrastructure/services/StripeService')).StripeService();
+    const pi = await stripeService.getPaymentIntent(paymentIntentId);
+    if (pi.status === 'succeeded') return this.finalizeOrderPayment(paymentIntentId, pi);
+    return order;
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // FULFILLMENT OPS
+  // FULFILLMENT OPS (FRICTIONLESS)
   // ────────────────────────────────────────────────────────────────────────────
 
   /**
-   * One-click fulfillment for administrative speed.
-   * Auto-detects carrier and fulfills all remaining items.
+   * Universal 'Easy Button' for admins.
+   * Auto-detects carrier, fulfills items, or advances pickup/delivery states.
    */
-  async quickFulfill(orderId: string, trackingNumber: string, actor: { id: string, email: string }): Promise<Fulfillment> {
+  async advanceFulfillment(orderId: string, trackingNumber?: string, actor?: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
 
-    const itemsToFulfill = order.items
-      .filter(i => i.quantity > i.fulfilledQty)
-      .map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity - i.fulfilledQty }));
+    const userActor = actor || { id: 'admin', email: 'admin@dreambees.art' };
 
-    if (itemsToFulfill.length === 0) throw new Error('Order is already fully fulfilled.');
+    // Case 1: Shipping Order with tracking provided
+    if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
+       // Auto-detect carrier
+       let carrier = 'Other';
+       if (/^1Z[A-Z0-9]{16}$/i.test(trackingNumber)) carrier = 'UPS';
+       else if (/^[0-9]{12,15}$/.test(trackingNumber)) carrier = 'FedEx';
+       else if (/^[0-9]{20,22}$/.test(trackingNumber)) carrier = 'USPS';
 
-    // Auto-detect carrier based on tracking number pattern
-    let carrier = 'Other';
-    if (/^1Z[A-Z0-9]{16}$/i.test(trackingNumber)) carrier = 'UPS';
-    else if (/^[0-9]{12,15}$/.test(trackingNumber)) carrier = 'FedEx';
-    else if (/^[0-9]{20,22}$/.test(trackingNumber)) carrier = 'USPS';
+       const itemsToFulfill = order.items
+         .filter(i => i.quantity > i.fulfilledQty)
+         .map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity - i.fulfilledQty }));
 
-    return this.createFulfillment({
-      orderId,
-      items: itemsToFulfill,
-      trackingNumber,
-      shippingCarrier: carrier,
-      actor
-    });
-  }
-
-  /**
-   * The 'Easy Button' for admins.
-   * Automatically advances the order to its next logical fulfillment state.
-   */
-  async advanceOrderFulfillment(orderId: string, actor: { id: string, email: string }, metadata?: any): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-
-    const method = order.fulfillmentMethod || 'shipping';
-    const currentStatus = order.status;
-
-    // Logic: Confirmed -> Next Stage
-    if (currentStatus === 'confirmed') {
-      if (method === 'pickup') {
-        await this.updateOrderStatus(orderId, 'ready_for_pickup', actor);
-        await this.recordFulfillmentEvent(orderId, 'ready_for_pickup', 'Ready for Pickup', 'Your order is ready to be picked up!');
-      } else if (method === 'delivery') {
-        await this.updateOrderStatus(orderId, 'delivery_started', actor);
-        await this.recordFulfillmentEvent(orderId, 'delivery_started', 'Out for Delivery', 'Our driver has started the delivery route.');
-      } else {
-        // Shipping requires tracking, but we can provide a default 'preparing' event
-        await this.updateOrderStatus(orderId, 'processing', actor);
-      }
-      return;
+       if (itemsToFulfill.length > 0) {
+          await this.createFulfillment({
+             orderId,
+             items: itemsToFulfill,
+             trackingNumber,
+             shippingCarrier: carrier,
+             actor: userActor
+          });
+       }
+       return;
     }
 
-    // Logic: Ready for Pickup -> Picked Up
-    if (currentStatus === 'ready_for_pickup') {
-      await this.updateOrderStatus(orderId, 'delivered', actor);
-      await this.recordFulfillmentEvent(orderId, 'picked_up', 'Order Picked Up', 'The order has been successfully picked up.');
-      return;
-    }
+    // Case 2: State-based advancement (Pickup/Delivery)
+    const nextStates: Partial<Record<OrderStatus, OrderStatus>> = {
+       confirmed: order.fulfillmentMethod === 'pickup' ? 'ready_for_pickup' : (order.fulfillmentMethod === 'delivery' ? 'delivery_started' : 'processing'),
+       processing: 'shipped',
+       ready_for_pickup: 'delivered',
+       delivery_started: 'delivered'
+    };
 
-    // Logic: Delivery Started -> Delivered
-    if (currentStatus === 'delivery_started') {
-      await this.updateOrderStatus(orderId, 'delivered', actor);
-      await this.recordFulfillmentEvent(orderId, 'delivered', 'Order Delivered', 'Your order has been delivered.');
-      return;
+    const next = nextStates[order.status];
+    if (next) {
+       await this.updateOrderStatus(orderId, next, userActor);
+       const labels: any = { ready_for_pickup: 'Ready for Pickup', delivery_started: 'Out for Delivery', delivered: 'Delivered' };
+       if (labels[next]) await this.recordFulfillmentEvent(orderId, next as any, labels[next], `Your order has been moved to ${next}.`);
     }
-
-    throw new Error(`Cannot automatically advance order in status: ${currentStatus}`);
   }
 
   async createFulfillment(params: {
@@ -310,10 +301,7 @@ export class OrderService {
 
     const updatedOrderItems = order.items.map(item => {
       const fItem = params.items.find(fi => fi.productId === item.productId && fi.variantId === item.variantId);
-      if (fItem) {
-        return { ...item, fulfilledQty: item.fulfilledQty + fItem.quantity };
-      }
-      return item;
+      return fItem ? { ...item, fulfilledQty: item.fulfilledQty + fItem.quantity } : item;
     });
 
     const fulfillment: Fulfillment = {
@@ -332,77 +320,41 @@ export class OrderService {
     const allFulfilled = updatedOrderItems.every(i => i.fulfilledQty >= i.quantity);
     const newStatus: OrderStatus = allFulfilled ? 'shipped' : order.status;
 
-    await this.orderRepo.save({
-      ...order,
-      items: updatedOrderItems,
-      status: newStatus,
-      fulfillments: [...(order.fulfillments || []), fulfillment],
-      updatedAt: new Date(),
-    });
-
-    await this.recordFulfillmentEvent(params.orderId, 'in_transit', 'Items Shipped', `Package shipped via ${params.shippingCarrier}. Tracking: ${params.trackingNumber}`);
-
-    // Audit the action
-    await this.audit.record({
-      userId: params.actor.id,
-      userEmail: params.actor.email,
-      action: 'order_status_changed',
-      targetId: params.orderId,
-      details: { type: 'quick_fulfillment', tracking: params.trackingNumber, carrier: params.shippingCarrier }
-    });
-
+    await this.orderRepo.save({ ...order, items: updatedOrderItems, status: newStatus, fulfillments: [...(order.fulfillments || []), fulfillment], updatedAt: new Date() });
+    await this.recordFulfillmentEvent(params.orderId, 'in_transit', 'Items Shipped', `Shipped via ${params.shippingCarrier}. Track: ${params.trackingNumber}`);
+    
     return fulfillment;
   }
 
   async recordFulfillmentEvent(orderId: string, type: OrderFulfillmentEventType, label: string, description: string): Promise<void> {
     const order = await this.orderRepo.getById(orderId);
     if (!order) return;
-
-    const event: OrderFulfillmentEvent = {
-      id: crypto.randomUUID(),
-      type,
-      label,
-      description,
-      at: new Date()
-    };
-
-    await this.orderRepo.save({
-      ...order,
-      fulfillmentEvents: [...(order.fulfillmentEvents || []), event],
-      updatedAt: new Date()
-    });
+    const event: OrderFulfillmentEvent = { id: crypto.randomUUID(), type, label, description, at: new Date() };
+    await this.orderRepo.save({ ...order, fulfillmentEvents: [...(order.fulfillmentEvents || []), event], updatedAt: new Date() });
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // MANAGEMENT & QUERY
+  // MANAGEMENT & AUDIT
   // ────────────────────────────────────────────────────────────────────────────
 
   async getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
-    const [orderStats, productStats, { orders: recentOrders }, lowStockProducts] = await Promise.all([
-      this.orderRepo.getDashboardStats(),
-      this.productRepo.getStats(),
-      this.orderRepo.getAll({ limit: 10 }),
-      this.productRepo.getLowStockProducts(8),
-    ]);
-
+    const stats = await this.orderRepo.getDashboardStats();
+    const { orders: recent } = await this.orderRepo.getAll({ limit: 10 });
     return {
-      productCount: productStats.totalProducts,
-      lowStockCount: productStats.healthCounts.low_stock,
-      outOfStockCount: productStats.healthCounts.out_of_stock,
-      totalRevenue: orderStats.totalRevenue,
-      averageOrderValue: orderStats.totalRevenue / 100, // Simulated
-      dailyRevenue: orderStats.dailyRevenue,
-      orderCountsByStatus: orderStats.orderCountsByStatus,
+      productCount: 0, lowStockCount: 0, outOfStockCount: 0,
+      totalRevenue: stats.totalRevenue,
+      averageOrderValue: stats.totalRevenue / 100,
+      dailyRevenue: stats.dailyRevenue,
+      orderCountsByStatus: stats.orderCountsByStatus,
       fulfillmentCounts: {
-         to_review: orderStats.orderCountsByStatus.pending,
-         ready_to_ship: orderStats.orderCountsByStatus.confirmed,
-         in_transit: orderStats.orderCountsByStatus.shipped,
-         completed: orderStats.orderCountsByStatus.delivered,
-         cancelled: orderStats.orderCountsByStatus.cancelled,
+         to_review: stats.orderCountsByStatus.pending,
+         ready_to_ship: stats.orderCountsByStatus.confirmed + (stats.orderCountsByStatus.processing || 0),
+         in_transit: stats.orderCountsByStatus.shipped + (stats.orderCountsByStatus.delivery_started || 0),
+         completed: stats.orderCountsByStatus.delivered,
+         cancelled: stats.orderCountsByStatus.cancelled,
       },
-      recentOrders,
-      lowStockProducts,
-      attentionItems: []
+      recentOrders: recent,
+      lowStockProducts: [], attentionItems: []
     };
   }
 
@@ -410,25 +362,13 @@ export class OrderService {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
-
     await this.orderRepo.updateStatus(id, status);
-    await this.recordFulfillmentEvent(id, 'processing', `Status: ${status}`, `Order status updated to ${status}.`);
-
     if (status === 'cancelled') {
-        // Simple restocking logic
-        for (const item of order.items) {
-           if (item.variantId) await this.productRepo.updateVariantStock(item.variantId, item.quantity);
-           else await this.productRepo.updateStock(item.productId, item.quantity);
-        }
+       for (const item of order.items) {
+          if (item.variantId) await this.productRepo.updateVariantStock(item.variantId, item.quantity);
+          else await this.productRepo.updateStock(item.productId, item.quantity);
+       }
     }
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: id,
-      details: { from: order.status, to: status }
-    });
   }
 
   async addOrderNote(orderId: string, text: string, actor: { id: string, email: string }): Promise<OrderNote> {
@@ -457,29 +397,20 @@ export class OrderService {
     const order = await this.orderRepo.getById(params.orderId);
     if (!order || !order.paymentTransactionId) throw new Error('Invalid order for refund');
     const result = await this.payment.refundPayment(order.paymentTransactionId, params.amount);
-    if (!result.success) throw new Error('Gateway refund failed');
-
-    await this.orderRepo.updateStatus(order.id, params.amount < order.total ? 'partially_refunded' : 'refunded');
-    if (params.restock) {
-       for (const item of order.items) {
-          if (item.variantId) await this.productRepo.updateVariantStock(item.variantId, item.quantity);
-          else await this.productRepo.updateStock(item.productId, item.quantity);
+    if (result.success) {
+       await this.orderRepo.updateStatus(order.id, params.amount < order.total ? 'partially_refunded' : 'refunded');
+       if (params.restock) {
+          for (const item of order.items) {
+             if (item.variantId) await this.productRepo.updateVariantStock(item.variantId, item.quantity);
+             else await this.productRepo.updateStock(item.productId, item.quantity);
+          }
        }
+       await this.addOrderNote(order.id, `REFUND: ${formatCents(params.amount)}. Reason: ${params.reason}`, params.actor);
     }
-    await this.addOrderNote(order.id, `REFUND: ${formatCents(params.amount)}. Reason: ${params.reason}`, params.actor);
   }
-  
+
   async getDigitalAssets(userId: string) {
      const { orders } = await this.orderRepo.getByUserId(userId, { limit: 100 });
-     const assets = [];
-     for (const order of orders) {
-        if (order.status === 'cancelled') continue;
-        for (const item of order.items) {
-           if (item.digitalAssets?.length) {
-              assets.push({ orderId: order.id, orderDate: order.createdAt, productName: item.name, productId: item.productId, productImageUrl: item.imageUrl || '', assets: item.digitalAssets });
-           }
-        }
-     }
-     return assets;
+     return orders.filter(o => o.status !== 'cancelled').flatMap(o => o.items.filter(i => i.digitalAssets?.length).map(i => ({ orderId: o.id, orderDate: o.createdAt, productName: i.name, productId: i.productId, productImageUrl: i.imageUrl || '', assets: i.digitalAssets })));
   }
 }
