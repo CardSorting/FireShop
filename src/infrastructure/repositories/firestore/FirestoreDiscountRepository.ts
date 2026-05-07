@@ -43,11 +43,22 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
     return this.mapDocToDiscount(docSnap.id, docSnap.data() as any);
   }
 
-  async getByCode(code: string): Promise<Discount | null> {
+  async getByCode(code: string, transaction?: any): Promise<Discount | null> {
     const q = query(collection(getUnifiedDb(), this.collectionName), where('code', '==', code.toUpperCase()), limit(1));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    return this.mapDocToDiscount(snapshot.docs[0].id, snapshot.docs[0].data() as any);
+    const db = getUnifiedDb();
+    
+    if (transaction) {
+      const snapshot = await getDocs(q); // getDocs still works for query building, but we want the doc from the transaction for consistency
+      if (snapshot.empty) return null;
+      const docRef = doc(db, this.collectionName, snapshot.docs[0].id);
+      const docSnap = await transaction.get(docRef);
+      if (!docSnap.exists()) return null;
+      return this.mapDocToDiscount(docSnap.id, docSnap.data() as any);
+    } else {
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+      return this.mapDocToDiscount(snapshot.docs[0].id, snapshot.docs[0].data() as any);
+    }
   }
 
   async create(discount: DiscountDraft): Promise<Discount> {
@@ -82,7 +93,12 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
     await deleteDoc(doc(getUnifiedDb(), this.collectionName, id));
   }
 
-  async incrementUsage(id: string): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { usageCount: increment(1) });
+  async incrementUsage(id: string, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    if (transaction) {
+      transaction.update(docRef, { usageCount: increment(1) });
+    } else {
+      await updateDoc(docRef, { usageCount: increment(1) });
+    }
   }
 }

@@ -394,4 +394,32 @@ export class FirestoreOrderRepository implements IOrderRepository {
     const snapshot = await getDocs(q);
     return !snapshot.empty;
   }
+  async markHeartbeat(orderId: string, userId: string, email: string): Promise<void> {
+    const claimId = `${orderId}_${userId}`;
+    const docRef = doc(getUnifiedDb(), 'order_claims', claimId);
+    await setDoc(docRef, {
+      orderId,
+      userId,
+      email,
+      lastActive: serverTimestamp()
+    }, { merge: true });
+  }
+
+  async getActiveViewers(orderId: string): Promise<Array<{ userId: string, email: string, lastActive: Date }>> {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const q = query(
+      collection(getUnifiedDb(), 'order_claims'),
+      where('orderId', '==', orderId),
+      where('lastActive', '>=', Timestamp.fromDate(fiveMinutesAgo))
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((d: QueryDocumentSnapshot) => {
+      const data = d.data();
+      return {
+        userId: data.userId,
+        email: data.email,
+        lastActive: (data.lastActive as any).toDate()
+      };
+    });
+  }
 }

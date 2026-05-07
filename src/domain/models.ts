@@ -317,6 +317,7 @@ export interface Order {
   fulfillmentLocationId: string | null;
   fulfillmentMethod: 'shipping' | 'pickup' | 'delivery';
   fulfillments: Fulfillment[];
+  metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
 }

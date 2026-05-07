@@ -183,28 +183,90 @@ export class OrderService {
     if (!acquired) throw new CheckoutInProgressError();
 
     try {
-      const cart = await this.cartRepo.getByUserId(userId);
-      if (!cart || cart.items.length === 0) throw new CartEmptyError();
-      const subtotal = calculateCartTotal(cart.items);
-      let discountAmount = 0, validDiscountCode: string | undefined, isFreeShipping = false;
+      return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+        // 1. Fetch Cart (Atomic)
+        const cart = await this.cartRepo.getByUserId(userId, transaction);
+        if (!cart || cart.items.length === 0) throw new CartEmptyError();
+        
+        const subtotal = calculateCartTotal(cart.items);
+        let discountAmount = 0, validDiscountCode: string | undefined, isFreeShipping = false;
 
-      if (discountCode) {
-        const val = await new DiscountService(this.discountRepo, this.audit, this.orderRepo).validateDiscount(discountCode, subtotal, userId);
-        if (val.valid) { discountAmount = val.discountAmount || 0; validDiscountCode = val.discount?.code; isFreeShipping = !!val.isFreeShipping; }
-      }
+        // 2. Validate & Increment Discount (Atomic)
+        if (discountCode) {
+          const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
+          const val = await discountService.validateDiscount(discountCode, subtotal, userId);
+          if (val.valid && val.discount) { 
+            discountAmount = val.discountAmount || 0; 
+            validDiscountCode = val.discount.code; 
+            isFreeShipping = !!val.isFreeShipping;
+            
+            // Critical: Increment usage within the same transaction
+            await this.discountRepo.incrementUsage(val.discount.id, transaction);
+          } else if (discountCode && !val.valid) {
+             logger.warn('Checkout attempted with invalid discount code', { userId, discountCode, reason: val.message });
+          }
+        }
 
-      const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : 599;
-      const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
-      const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
+        // 3. Calculate Final Logistics
+        const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : 599;
+        const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
+        const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
-      return this.orderRepo.create({
-        userId, items: cart.items.map(i => ({ ...i, fulfilledQty: 0, at: new Date() })) as any, total, status: 'pending', shippingAddress,
-        paymentTransactionId: paymentIntentId || null, idempotencyKey: idempotencyKey || crypto.randomUUID(),
-        discountCode: validDiscountCode, discountAmount, shippingAmount: shipping, taxAmount,
-        fulfillmentLocationId: 'primary', fulfillmentMethod, fulfillments: [], notes: [], riskScore: 0,
-        estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
-        fulfillmentEvents: [{ id: crypto.randomUUID(), type: 'order_placed', label: 'Order Received', description: 'Payment verified, preparing for fulfillment.', at: new Date() }],
+        // 4. Create Order (Atomic)
+        const orderId = crypto.randomUUID();
+        const order: Order = {
+          id: orderId,
+          userId,
+          items: cart.items.map(i => ({ ...i, fulfilledQty: 0, at: new Date() })) as any,
+          shippingAmount: shipping,
+          taxAmount: taxAmount,
+          discountAmount: discountAmount,
+          discountCode: validDiscountCode,
+          total,
+          status: 'pending',
+          shippingAddress,
+          paymentTransactionId: paymentIntentId || null,
+          idempotencyKey: idempotencyKey || crypto.randomUUID(),
+          fulfillmentMethod,
+          fulfillmentLocationId: 'primary',
+          fulfillments: [],
+          notes: [],
+          riskScore: 0,
+          estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
+          fulfillmentEvents: [{ 
+            id: crypto.randomUUID(), 
+            type: 'order_placed', 
+            label: 'Order Received', 
+            description: 'Payment verified, preparing for fulfillment.', 
+            at: new Date() 
+          }],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          metadata: {
+            nodeVersion: process.version,
+            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server'
+          }
+        };
+
+        await this.orderRepo.save(order, transaction);
+
+        // 5. Clear Cart (Atomic)
+        await this.cartRepo.clear(userId);
+
+        // 6. Record Audit (Transactional)
+        await this.audit.recordWithTransaction(transaction, {
+          userId,
+          userEmail: 'user@example.com',
+          action: 'order_placed',
+          targetId: orderId,
+          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode }
+        });
+
+        return order;
       });
+    } catch (err) {
+      logger.error('Failed to initiate checkout', { userId, err });
+      throw err;
     } finally {
       await this.locker.releaseLock(lockId, userId);
     }
@@ -323,5 +385,13 @@ export class OrderService {
   async getDigitalAssets(userId: string) {
      const { orders } = await this.orderRepo.getByUserId(userId, { limit: 100 });
      return orders.filter(o => o.status !== 'cancelled').flatMap(o => o.items.filter(i => i.digitalAssets?.length).map(i => ({ orderId: o.id, orderDate: o.createdAt, productName: i.name, productId: i.productId, productImageUrl: i.imageUrl || '', assets: i.digitalAssets })));
+  }
+
+  async markHeartbeat(orderId: string, userId: string, email: string): Promise<void> {
+    return this.orderRepo.markHeartbeat(orderId, userId, email);
+  }
+
+  async getActiveViewers(orderId: string): Promise<Array<{ userId: string, email: string, lastActive: Date }>> {
+    return this.orderRepo.getActiveViewers(orderId);
   }
 }

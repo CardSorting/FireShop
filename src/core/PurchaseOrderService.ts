@@ -31,6 +31,8 @@ import {
 } from '@domain/errors';
 import { purchaseOrderRules } from '@domain/rules';
 import { AuditService } from './AuditService';
+import { runTransaction, getUnifiedDb, doc } from '@infrastructure/firebase/bridge';
+import { logger } from '@utils/logger';
 
 export interface CreatePurchaseOrderInput {
   supplier: string;
@@ -449,81 +451,94 @@ export class PurchaseOrderService {
     // Determine new status
     const newStatus = purchaseOrderRules.calculateReceivedStatus(updatedItems);
 
-    // Update product cost if first time receiving
-    for (const receivedItem of receivedItems) {
-      if (receivedItem.condition === 'new' && receivedItem.receivedQty > 0) {
-        const product = await this.productRepo.getById(receivedItem.productId);
-        if (product && (product.cost === undefined || product.cost === 0)) {
-          await this.productRepo.update(receivedItem.productId, { cost: receivedItem.unitCost });
+    try {
+      return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+        // 1. Update Product Costs (Atomic)
+        for (const receivedItem of receivedItems) {
+          if (receivedItem.condition === 'new' && receivedItem.receivedQty > 0) {
+            const docRef = doc(getUnifiedDb(), 'products', receivedItem.productId);
+            const docSnap = await transaction.get(docRef);
+            if (docSnap.exists()) {
+              const product = docSnap.data();
+              if (product && (product.cost === undefined || product.cost === 0)) {
+                await this.productRepo.update(receivedItem.productId, { cost: receivedItem.unitCost }, transaction);
+              }
+            }
+          }
         }
-      }
+
+        // 2. Update Inventory Levels (Atomic)
+        const inventoryUpdates: InventoryLevel[] = [];
+        const locationId = input.locationId || 'default';
+
+        for (const receivedItem of receivedItems) {
+          const stockableQty = (receivedItem.disposition ?? 'add_to_stock') === 'add_to_stock'
+            ? Math.max(0, receivedItem.receivedQty - (receivedItem.damagedQty ?? 0))
+            : 0;
+          if (stockableQty > 0) {
+            const level = await this.inventoryLevelRepo.adjustQuantity(
+              receivedItem.productId,
+              locationId,
+              stockableQty,
+              `Received from PO ${input.purchaseOrderId}`,
+              transaction
+            );
+            inventoryUpdates.push(level);
+          }
+        }
+
+        // 3. Update Purchase Order Status & Items (Atomic)
+        const updatedOrder: PurchaseOrder = {
+          ...order,
+          items: updatedItems,
+          status: newStatus,
+          totalCost: purchaseOrderRules.calculateTotalCost(updatedItems),
+          updatedAt: new Date(),
+        };
+
+        const savedOrder = await this.purchaseOrderRepo.save(updatedOrder, transaction);
+
+        // 4. Create Receiving Session Record (Atomic)
+        const session: ReceivingSession = {
+          id: crypto.randomUUID(),
+          purchaseOrderId: input.purchaseOrderId,
+          status: 'completed',
+          receivedItems,
+          notes: input.notes,
+          idempotencyKey: input.idempotencyKey,
+          locationId: input.locationId,
+          receivedAt: new Date(),
+          completedAt: new Date(),
+          receivedBy: input.receivedBy,
+        };
+
+        const savedSession = this.purchaseOrderRepo.saveReceivingSession
+          ? await this.purchaseOrderRepo.saveReceivingSession(session, transaction)
+          : session;
+
+        // 5. Record Audit (Transactional)
+        await this.auditService.recordWithTransaction(transaction, {
+          userId: input.receivedBy,
+          userEmail: 'admin@dreambees.art',
+          action: 'purchase_order.items_received',
+          targetId: input.purchaseOrderId,
+          details: { 
+            sessionId: session.id,
+            itemCount: input.items.length,
+            totalQty: input.items.reduce((s, i) => s + i.receivedQty, 0)
+          }
+        });
+
+        return {
+          purchaseOrder: savedOrder,
+          session: savedSession,
+          inventoryUpdates,
+        };
+      });
+    } catch (err) {
+      logger.error('Failed to receive items for purchase order', { id: input.purchaseOrderId, err });
+      throw err;
     }
-
-    // Update inventory levels
-    const inventoryUpdates: InventoryLevel[] = [];
-    const locationId = input.locationId; // Could be passed or use default
-
-    for (const receivedItem of receivedItems) {
-      const stockableQty = (receivedItem.disposition ?? 'add_to_stock') === 'add_to_stock'
-        ? Math.max(0, receivedItem.receivedQty - (receivedItem.damagedQty ?? 0))
-        : 0;
-      if (stockableQty > 0) {
-        const level = await this.inventoryLevelRepo.adjustQuantity(
-          receivedItem.productId,
-          locationId || 'default',
-          stockableQty,
-          `Received from PO ${input.purchaseOrderId}`
-        );
-        inventoryUpdates.push(level);
-      }
-    }
-
-    // Update purchase order with new status
-    const updatedOrder: PurchaseOrder = {
-      ...order,
-      items: updatedItems,
-      status: newStatus,
-      totalCost: purchaseOrderRules.calculateTotalCost(updatedItems),
-      updatedAt: new Date(),
-    };
-
-    const savedOrder = await this.purchaseOrderRepo.save(updatedOrder);
-
-    // Create receiving session record
-    const session: ReceivingSession = {
-      id: crypto.randomUUID(),
-      purchaseOrderId: input.purchaseOrderId,
-      status: 'completed',
-      receivedItems,
-      notes: input.notes,
-      idempotencyKey: input.idempotencyKey,
-      locationId: input.locationId,
-      receivedAt: new Date(),
-      completedAt: new Date(),
-      receivedBy: input.receivedBy,
-    };
-
-    const savedSession = this.purchaseOrderRepo.saveReceivingSession
-      ? await this.purchaseOrderRepo.saveReceivingSession(session)
-      : session;
-
-    await this.auditService.record({
-      userId: input.receivedBy,
-      userEmail: 'admin@dreambees.art',
-      action: 'purchase_order.items_received',
-      targetId: input.purchaseOrderId,
-      details: { 
-        sessionId: session.id,
-        itemCount: input.items.length,
-        totalQty: input.items.reduce((s, i) => s + i.receivedQty, 0)
-      }
-    });
-
-    return {
-      purchaseOrder: savedOrder,
-      session: savedSession,
-      inventoryUpdates,
-    };
   }
 
 

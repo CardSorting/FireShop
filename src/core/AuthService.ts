@@ -6,8 +6,13 @@ import type { User } from '@domain/models';
 import { AuthError, UnauthorizedError } from '@domain/errors';
 import { validateDisplayName, validateEmail, validatePassword } from '@utils/validators';
 
+import { AuditService } from './AuditService';
+
 export class AuthService {
-  constructor(private provider: IAuthProvider) {}
+  constructor(
+    private provider: IAuthProvider,
+    private audit: AuditService
+  ) {}
 
   async getCurrentUser(): Promise<User | null> {
     return this.provider.getCurrentUser();
@@ -17,11 +22,28 @@ export class AuthService {
     const emailValidation = validateEmail(email);
     if (!emailValidation.valid) throw new AuthError(emailValidation.message);
     if (!password) throw new AuthError('Password is required');
-    return this.provider.signIn(email.trim().toLowerCase(), password);
+    const user = await this.provider.signIn(email.trim().toLowerCase(), password);
+    
+    await this.audit.record({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'auth_signin',
+      targetId: user.id
+    });
+    
+    return user;
   }
 
   async signInWithGoogle(): Promise<User> {
-    return this.provider.signInWithGoogle();
+    const user = await this.provider.signInWithGoogle();
+    await this.audit.record({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'auth_signin',
+      targetId: user.id,
+      details: { provider: 'google' }
+    });
+    return user;
   }
 
   async signUp(
@@ -35,10 +57,27 @@ export class AuthService {
     if (!passwordValidation.valid) throw new AuthError(passwordValidation.message);
     const nameValidation = validateDisplayName(displayName);
     if (!nameValidation.valid) throw new AuthError(nameValidation.message);
-    return this.provider.signUp(email.trim().toLowerCase(), password, displayName.trim());
+    
+    const user = await this.provider.signUp(email.trim().toLowerCase(), password, displayName.trim());
+    await this.audit.record({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'auth_signup',
+      targetId: user.id
+    });
+    return user;
   }
 
   async signOut(): Promise<void> {
+    const user = await this.getCurrentUser();
+    if (user) {
+      await this.audit.record({
+        userId: user.id,
+        userEmail: user.email,
+        action: 'auth_signout',
+        targetId: user.id
+      });
+    }
     return this.provider.signOut();
   }
 
@@ -54,9 +93,21 @@ export class AuthService {
     return users;
   }
  
-  async updateUser(id: string, updates: Partial<User>): Promise<User> {
+  async updateUser(id: string, updates: Partial<User>, actor: { id: string, email: string }): Promise<User> {
     if (!this.provider.updateUser) throw new Error('User updates not supported by this provider');
-    return this.provider.updateUser(id, updates);
+    const user = await this.provider.updateUser(id, updates);
+    
+    if (updates.role) {
+      await this.audit.record({
+        userId: actor.id,
+        userEmail: actor.email,
+        action: 'staff_role_updated',
+        targetId: id,
+        details: { newRole: updates.role }
+      });
+    }
+    
+    return user;
   }
 
 

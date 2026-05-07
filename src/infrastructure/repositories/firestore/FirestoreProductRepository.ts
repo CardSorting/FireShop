@@ -166,52 +166,63 @@ export class FirestoreProductRepository implements IProductRepository {
     });
   }
 
-  async update(id: string, updates: ProductUpdate): Promise<Product> {
+  async update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product> {
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    const db = getUnifiedDb();
     const now = serverTimestamp();
-    
     const firestoreUpdates: any = { ...updates, updatedAt: now };
-    
-    if (updates.name || updates.sku || updates.handle || updates.status || updates.stock !== undefined) {
-      const current = await this.getById(id);
-      if (current) {
-        const merged = { ...current, ...updates } as Product;
-        if (updates.name || updates.sku || updates.handle) {
-          firestoreUpdates.searchKeywords = this.generateSearchKeywords(
-            merged.name,
-            merged.handle || '',
-            merged.sku
-          );
+
+    const operation = async (t: any) => {
+      let current: Product | null = null;
+      if (updates.name || updates.sku || updates.handle || updates.status || updates.stock !== undefined) {
+        const docSnap = await t.get(docRef);
+        if (docSnap.exists()) {
+          current = this.mapDocToProduct(docSnap.id, docSnap.data());
+          const merged = { ...current, ...updates } as Product;
+          
+          if (updates.name || updates.sku || updates.handle) {
+            firestoreUpdates.searchKeywords = this.generateSearchKeywords(
+              merged.name,
+              merged.handle || '',
+              merged.sku
+            );
+          }
+          firestoreUpdates.inventoryHealth = classifyInventoryHealth(merged.stock);
+          firestoreUpdates.setupStatus = classifyProductSetupStatus(merged);
         }
-        firestoreUpdates.inventoryHealth = classifyInventoryHealth(merged.stock);
-        firestoreUpdates.setupStatus = classifyProductSetupStatus(merged);
       }
+
+      if (updates.handle) {
+        firestoreUpdates.handle = await this.ensureUniqueHandle(updates.handle, id);
+      }
+      
+      if (updates.media) {
+        firestoreUpdates.media = updates.media.map(m => ({
+          ...m,
+          id: m.id || crypto.randomUUID(),
+          createdAt: m.createdAt ? Timestamp.fromDate(new Date(m.createdAt)) : now
+        }));
+      }
+
+      if (updates.variants) {
+        firestoreUpdates.variants = updates.variants.map(v => ({
+          ...v,
+          id: v.id || crypto.randomUUID(),
+          createdAt: v.createdAt ? Timestamp.fromDate(new Date(v.createdAt)) : now,
+          updatedAt: now
+        }));
+        firestoreUpdates.variantIds = firestoreUpdates.variants.map((v: any) => v.id);
+      }
+
+      t.update(docRef, firestoreUpdates);
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(db, operation);
     }
 
-    if (updates.handle) {
-      firestoreUpdates.handle = await this.ensureUniqueHandle(updates.handle, id);
-    }
-    
-    if (updates.media) {
-      firestoreUpdates.media = updates.media.map(m => ({
-        ...m,
-        id: m.id || crypto.randomUUID(),
-        createdAt: m.createdAt ? Timestamp.fromDate(new Date(m.createdAt)) : now
-      }));
-    }
-
-    if (updates.variants) {
-      firestoreUpdates.variants = updates.variants.map(v => ({
-        ...v,
-        id: v.id || crypto.randomUUID(),
-        createdAt: v.createdAt ? Timestamp.fromDate(new Date(v.createdAt)) : now,
-        updatedAt: now
-      }));
-      // Sync variant index
-      firestoreUpdates.variantIds = firestoreUpdates.variants.map((v: any) => v.id);
-    }
-
-    await updateDoc(docRef, firestoreUpdates);
     return (await this.getById(id))!;
   }
 

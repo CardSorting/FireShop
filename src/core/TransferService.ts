@@ -1,5 +1,6 @@
 import type { Transfer } from '@domain/models';
 import type { ITransferRepository, IProductRepository } from '@domain/repositories';
+import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 
 export class TransferService {
   constructor(
@@ -43,21 +44,23 @@ export class TransferService {
     if (!transfer) throw new Error('Transfer not found');
     if (transfer.status === 'received') return;
 
-    // Hardened Logic: Atomic Inventory Restocking
-    const restockingUpdates = transfer.items.map(item => ({
-      id: item.productId,
-      delta: item.quantity
-    }));
+    await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      // Hardened Logic: Atomic Inventory Restocking
+      const restockingUpdates = transfer.items.map(item => ({
+        id: item.productId,
+        delta: item.quantity
+      }));
 
-    if (this.productRepo.batchUpdateStock) {
-      await this.productRepo.batchUpdateStock(restockingUpdates);
-    } else {
-      await Promise.all(restockingUpdates.map(u => this.productRepo.updateStock(u.id, u.delta)));
-    }
+      // Update each product's stock within the transaction
+      for (const update of restockingUpdates) {
+        await this.productRepo.updateStock(update.id, update.delta, transaction);
+      }
 
-    await this.transferRepo.update(id, { 
-      status: 'received', 
-      receivedCount: transfer.itemsCount 
+      // Update transfer status within the same transaction
+      await this.transferRepo.update(id, { 
+        status: 'received', 
+        receivedCount: transfer.itemsCount 
+      }, transaction);
     });
   }
 }

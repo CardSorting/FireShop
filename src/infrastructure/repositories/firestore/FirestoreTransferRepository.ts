@@ -34,20 +34,34 @@ export class FirestoreTransferRepository implements ITransferRepository {
     return snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToTransfer(d.id, d.data() as any));
   }
 
-  async update(id: string, updates: Partial<Transfer>): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), {
+  async update(id: string, updates: Partial<Transfer>, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    const firestoreUpdates = {
       ...updates,
       updatedAt: serverTimestamp()
-    });
+    };
+
+    if (transaction) {
+      transaction.update(docRef, firestoreUpdates);
+    } else {
+      await updateDoc(docRef, firestoreUpdates);
+    }
   }
 
-  async create(transfer: Transfer): Promise<void> {
+  async create(transfer: Transfer, transaction?: any): Promise<void> {
     const id = transfer.id || crypto.randomUUID();
-    await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    const data = {
       ...transfer,
       id,
       createdAt: serverTimestamp(),
       expectedAt: transfer.expectedAt ? Timestamp.fromDate(new Date(transfer.expectedAt)) : serverTimestamp()
-    });
+    };
+
+    if (transaction) {
+      transaction.set(docRef, data);
+    } else {
+      await setDoc(docRef, data);
+    }
   }
 }

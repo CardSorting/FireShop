@@ -17,7 +17,8 @@ import {
   getUnifiedDb,
   serverTimestamp,
   type DocumentData,
-  type QueryDocumentSnapshot
+  type QueryDocumentSnapshot,
+  type Transaction
 } from '../../firebase/bridge';
 import { logger } from '@utils/logger';
 import type { IPurchaseOrderRepository } from '@domain/repositories';
@@ -32,17 +33,22 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
     return mapDoc<PurchaseOrder>(id, data);
   }
 
-  async save(order: PurchaseOrder): Promise<PurchaseOrder> {
+  async save(order: PurchaseOrder, transaction?: any): Promise<PurchaseOrder> {
     const id = order.id || crypto.randomUUID();
-    const now = serverTimestamp();
+    const docRef = doc(getUnifiedDb(), this.poCollection, id);
     const data = {
       ...order,
       id,
-      updatedAt: now,
-      createdAt: order.createdAt ? Timestamp.fromDate(new Date(order.createdAt)) : now,
+      updatedAt: serverTimestamp(),
+      createdAt: order.createdAt ? Timestamp.fromDate(new Date(order.createdAt)) : serverTimestamp(),
       expectedAt: order.expectedAt ? Timestamp.fromDate(new Date(order.expectedAt)) : null,
     };
-    await setDoc(doc(getUnifiedDb(), this.poCollection, id), data);
+
+    if (transaction) {
+      transaction.set(docRef, data);
+    } else {
+      await setDoc(docRef, data);
+    }
     return (await this.findById(id))!;
   }
 
@@ -74,16 +80,24 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
     return snapshot.size;
   }
 
-  async updateStatus(id: string, status: PurchaseOrderStatus): Promise<PurchaseOrder> {
-    await updateDoc(doc(getUnifiedDb(), this.poCollection, id), { 
+  async updateStatus(id: string, status: PurchaseOrderStatus, transaction?: Transaction): Promise<PurchaseOrder> {
+    const docRef = doc(getUnifiedDb(), this.poCollection, id);
+    const updates = { 
       status, 
       updatedAt: serverTimestamp() 
-    });
+    };
+
+    if (transaction) {
+      transaction.update(docRef, updates);
+    } else {
+      await updateDoc(docRef, updates);
+    }
     return (await this.findById(id))!;
   }
 
-  async saveReceivingSession(session: ReceivingSession): Promise<ReceivingSession> {
+  async saveReceivingSession(session: ReceivingSession, transaction?: Transaction): Promise<ReceivingSession> {
     const id = session.id || crypto.randomUUID();
+    const docRef = doc(getUnifiedDb(), this.sessionCollection, id);
     const data = {
       ...session,
       id,
@@ -91,7 +105,12 @@ export class FirestorePurchaseOrderRepository implements IPurchaseOrderRepositor
       completedAt: session.completedAt ? Timestamp.fromDate(new Date(session.completedAt)) : null,
       updatedAt: serverTimestamp(),
     };
-    await setDoc(doc(getUnifiedDb(), this.sessionCollection, id), data);
+
+    if (transaction) {
+      transaction.set(docRef, data);
+    } else {
+      await setDoc(docRef, data);
+    }
     return session;
   }
 

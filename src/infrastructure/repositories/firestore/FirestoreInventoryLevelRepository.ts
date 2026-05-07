@@ -57,15 +57,15 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
     return (await this.findByProductAndLocation(level.productId, level.locationId))!;
   }
 
-  async adjustQuantity(productId: string, locationId: string, delta: number, reason: string): Promise<InventoryLevel> {
+  async adjustQuantity(productId: string, locationId: string, delta: number, reason: string, transaction?: any): Promise<InventoryLevel> {
     const id = this.getDocId(productId, locationId);
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
     
-    await runTransaction(getUnifiedDb(), async (transaction) => {
-      const docSnap = await transaction.get(docRef);
+    const operation = async (t: any) => {
+      const docSnap = await t.get(docRef);
       if (!docSnap.exists()) {
         if (delta < 0) throw new Error(`Cannot initialize inventory with negative quantity for ${productId}`);
-        transaction.set(docRef, {
+        t.set(docRef, {
           productId,
           locationId,
           availableQty: delta,
@@ -84,12 +84,18 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
           throw new Error(`Insufficient inventory: ${productId} at ${locationId}. Requested: ${Math.abs(delta)}, Available: ${currentQty}`);
         }
 
-        transaction.update(docRef, {
+        t.update(docRef, {
           availableQty: nextQty,
           updatedAt: serverTimestamp()
         });
       }
-    });
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(getUnifiedDb(), operation);
+    }
     
     return (await this.findByProductAndLocation(productId, locationId))!;
   }
