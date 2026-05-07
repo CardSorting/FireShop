@@ -28,7 +28,7 @@ import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/f
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
-import { OrderService } from './order';
+import { OrderService } from './OrderService';
 import { ShippingService } from './ShippingService';
 import { AuthService } from './AuthService';
 import { DiscountService } from './DiscountService';
@@ -142,12 +142,12 @@ export function getServiceContainer() {
       repos.discountRepo,
       new StripePaymentProcessor(),
       new AuditService(),
-      new FirestoreLocker(), // Replaced Mock locker for Firestore
+      new FirestoreLocker(),
       createCheckoutGateway(),
-      new FirestoreDigitalAccessRepository(),
       repos.shippingRepo,
       repos.inventoryLocationRepo,
-      repos.inventoryLevelRepo
+      repos.inventoryLevelRepo,
+      new FirestoreDigitalAccessRepository()
     ),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
@@ -229,11 +229,13 @@ export function getInitialServices() {
       getAuditService(),
       lockProviderInstance!,
       checkoutGatewayInstance ?? undefined,
+      shippingRepoInstance!,
+      inventoryLocationRepoInstance!,
+      inventoryLevelRepoInstance!,
       (() => {
         if (!digitalAccessRepoInstance) digitalAccessRepoInstance = new FirestoreDigitalAccessRepository();
         return digitalAccessRepoInstance;
-      })(),
-      shippingRepoInstance!
+      })()
     ),
     discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
