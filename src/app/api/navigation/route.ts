@@ -29,7 +29,7 @@ function getDefaultMenu(menuId: string): NavigationMenu {
       ]
     },
     featuredPromotion: {
-      imageUrl: '/assets/generated/generic_tcg_strategy_1778177431609.png,
+      imageUrl: '/assets/generated/generic_tcg_strategy_1778177431609.png',
       title: 'Latest Artist Drop',
       subtitle: 'Fan Favorites',
       linkText: 'Shop Now',
