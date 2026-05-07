@@ -219,10 +219,11 @@ export class FirestoreProductRepository implements IProductRepository {
     await deleteDoc(doc(getUnifiedDb(), this.collectionName, id));
   }
 
-  async updateStock(id: string, delta: number): Promise<void> {
-    await runTransaction(getUnifiedDb(), async (transaction: any) => {
-      const docRef = doc(getUnifiedDb(), this.collectionName, id);
-      const docSnap = await transaction.get(docRef);
+  async updateStock(id: string, delta: number, transaction?: any): Promise<void> {
+    const db = getUnifiedDb();
+    const operation = async (t: any) => {
+      const docRef = doc(db, this.collectionName, id);
+      const docSnap = await t.get(docRef);
       if (!docSnap.exists()) throw new ProductNotFoundError(id);
 
       const data = docSnap.data() as any;
@@ -231,26 +232,31 @@ export class FirestoreProductRepository implements IProductRepository {
 
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), currentStock);
 
-      transaction.update(docRef, { stock: nextStock, updatedAt: serverTimestamp() });
-    });
+      t.update(docRef, { stock: nextStock, updatedAt: serverTimestamp() });
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(db, operation);
+    }
   }
 
-  async updateVariantStock(variantId: string, delta: number): Promise<void> {
+  async updateVariantStock(variantId: string, delta: number, transaction?: any): Promise<void> {
     // Production Hardening: Optimized lookup using variantIds array index
     const q = query(collection(getUnifiedDb(), this.collectionName), where('variantIds', 'array-contains', variantId), limit(1));
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) {
-      // Fallback: This might be an old product without the index, or the variant doesn't exist
       throw new Error(`Product containing variant ${variantId} not found`);
     }
 
-    const productDoc = snapshot.docs[0];
-    const productId = productDoc.id;
+    const productId = snapshot.docs[0].id;
+    const db = getUnifiedDb();
 
-    await runTransaction(getUnifiedDb(), async (transaction: any) => {
-      const docRef = doc(getUnifiedDb(), this.collectionName, productId);
-      const docSnap = await transaction.get(docRef);
+    const operation = async (t: any) => {
+      const docRef = doc(db, this.collectionName, productId);
+      const docSnap = await t.get(docRef);
       const data = docSnap.data()!;
       const variants = [...(data.variants || [])];
       const variantIndex = variants.findIndex((v: any) => v.id === variantId);
@@ -266,26 +272,30 @@ export class FirestoreProductRepository implements IProductRepository {
 
       const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
 
-      transaction.update(docRef, { 
+      t.update(docRef, { 
         variants, 
         stock: totalStock,
         updatedAt: serverTimestamp() 
       });
-    });
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(db, operation);
+    }
   }
 
-  async batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[]): Promise<void> {
-    await runTransaction(getUnifiedDb(), async (transaction: Transaction) => {
+  async batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[], transaction?: any): Promise<void> {
+    const db = getUnifiedDb();
+    const operation = async (t: any) => {
       // Collect all unique product IDs we need to load
       const productIds = new Set<string>();
       const variantToProductMap = new Map<string, string>();
 
       for (const update of updates) {
         if (update.variantId) {
-          // We need the productId for the variant. For hardening, we'll fetch it first if not known
-          // but inside a transaction we should ideally have them.
-          // Strategy: Batch fetch all docs containing these variantIds first
-          const q = query(collection(getUnifiedDb(), this.collectionName), where('variantIds', 'array-contains', update.variantId));
+          const q = query(collection(db, this.collectionName), where('variantIds', 'array-contains', update.variantId));
           const snap = await getDocs(q);
           if (!snap.empty) {
             const pId = snap.docs[0].id;
@@ -298,7 +308,7 @@ export class FirestoreProductRepository implements IProductRepository {
       }
 
       // Load all relevant product documents
-      const docs = await Promise.all(Array.from(productIds).map(id => transaction.get(doc(getUnifiedDb(), this.collectionName, id))));
+      const docs = await Promise.all(Array.from(productIds).map(id => t.get(doc(db, this.collectionName, id))));
       const docMap = new Map<string, any>();
       docs.forEach(d => { if (d.exists()) docMap.set(d.id, d.data()); });
 
@@ -331,9 +341,15 @@ export class FirestoreProductRepository implements IProductRepository {
 
       // Commit all changes
       for (const [id, data] of docMap.entries()) {
-        transaction.update(doc(getUnifiedDb(), this.collectionName, id), data);
+        t.update(doc(db, this.collectionName, id), data);
       }
-    });
+    };
+
+    if (transaction) {
+      await operation(transaction);
+    } else {
+      await runTransaction(db, operation);
+    }
   }
 
   async batchUpdate(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {

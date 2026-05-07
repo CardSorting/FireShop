@@ -26,9 +26,9 @@ export interface IProductRepository {
   create(product: ProductDraft): Promise<Product>;
   update(id: string, updates: ProductUpdate): Promise<Product>;
   delete(id: string): Promise<void>;
-  updateStock(id: string, delta: number): Promise<void>;
-  updateVariantStock(variantId: string, delta: number): Promise<void>;
-  batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[]): Promise<void>;
+  updateStock(id: string, delta: number, transaction?: any): Promise<void>;
+  updateVariantStock(variantId: string, delta: number, transaction?: any): Promise<void>;
+  batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[], transaction?: any): Promise<void>;
   batchSetInventory?(updates: { id: string; variantId?: string; stock: number }[]): Promise<void>;
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
@@ -71,8 +71,8 @@ export interface IOrderRepository {
     from?: Date;
     to?: Date;
   }): Promise<{ orders: Order[]; nextCursor?: string }>;
-  save(order: Order): Promise<void>;
-  updateStatus(id: string, status: OrderStatus): Promise<void>;
+  save(order: Order, transaction?: any): Promise<void>;
+  updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
   updateNotes(orderId: string, notes: import('./models').OrderNote[]): Promise<void>;

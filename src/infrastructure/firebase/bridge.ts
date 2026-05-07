@@ -58,11 +58,55 @@ export async function getDoc(docRef: any) {
 }
 
 /**
+ * Exponential backoff retry helper for transient network failures.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: { maxRetries: number; initialDelay: number } = { maxRetries: 3, initialDelay: 1000 }
+): Promise<T> {
+  let lastError: any;
+  for (let i = 0; i < options.maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastError = err;
+      // Retry on common transient errors: 
+      // - UNAVAILABLE (code 14)
+      // - DEADLINE_EXCEEDED (code 4)
+      // - ABORTED (code 10) - runTransaction handles this but we wrap it anyway
+      const code = err.code || err.status;
+      const isTransient = [4, 10, 14, 'unavailable', 'deadline-exceeded', 'aborted'].includes(code);
+      
+      if (!isTransient || i === options.maxRetries - 1) throw err;
+      
+      const delay = options.initialDelay * Math.pow(2, i);
+      console.warn(`[Firebase Bridge] Transient error (${code}), retrying in ${delay}ms... (Attempt ${i + 1}/${options.maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
+
+/**
  * Environment-aware 'getDocs' helper
  */
 export async function getDocs(query: any) {
-  if (isServer) {
-    const snapshot = await query.get();
+  return withRetry(async () => {
+    if (isServer) {
+      const snapshot = await query.get();
+      const docs = snapshot.docs.map((d: any) => ({
+        id: d.id,
+        data: () => d.data() as any,
+        __native: d
+      }));
+      return {
+        docs,
+        empty: snapshot.empty,
+        size: snapshot.size,
+        forEach: (callback: (d: any) => void) => docs.forEach(callback),
+      };
+    }
+    const snapshot = await client.getDocs(query);
     const docs = snapshot.docs.map((d: any) => ({
       id: d.id,
       data: () => d.data() as any,
@@ -74,61 +118,57 @@ export async function getDocs(query: any) {
       size: snapshot.size,
       forEach: (callback: (d: any) => void) => docs.forEach(callback),
     };
-  }
-  const snapshot = await client.getDocs(query);
-  const docs = snapshot.docs.map((d: any) => ({
-    id: d.id,
-    data: () => d.data() as any,
-    __native: d
-  }));
-  return {
-    docs,
-    empty: snapshot.empty,
-    size: snapshot.size,
-    forEach: (callback: (d: any) => void) => docs.forEach(callback),
-  };
+  });
 }
 
 /**
  * Environment-aware 'getCount' helper (Aggregations)
  */
 export async function getCount(query: any) {
-  if (isServer) {
-    const snapshot = await query.count().get();
+  return withRetry(async () => {
+    if (isServer) {
+      const snapshot = await query.count().get();
+      return snapshot.data().count;
+    }
+    const snapshot = await client.getCountFromServer(query);
     return snapshot.data().count;
-  }
-  const snapshot = await client.getCountFromServer(query);
-  return snapshot.data().count;
+  });
 }
 
 /**
  * Environment-aware 'setDoc' helper
  */
 export async function setDoc(docRef: any, data: any, options?: any) {
-  if (isServer) {
-    return docRef.set(data, options);
-  }
-  return client.setDoc(docRef, data, options);
+  return withRetry(() => {
+    if (isServer) {
+      return docRef.set(data, options);
+    }
+    return client.setDoc(docRef, data, options);
+  });
 }
 
 /**
  * Environment-aware 'updateDoc' helper
  */
 export async function updateDoc(docRef: any, data: any) {
-  if (isServer) {
-    return docRef.update(data);
-  }
-  return client.updateDoc(docRef, data);
+  return withRetry(() => {
+    if (isServer) {
+      return docRef.update(data);
+    }
+    return client.updateDoc(docRef, data);
+  });
 }
 
 /**
  * Environment-aware 'deleteDoc' helper
  */
 export async function deleteDoc(docRef: any) {
-  if (isServer) {
-    return docRef.delete();
-  }
-  return client.deleteDoc(docRef);
+  return withRetry(() => {
+    if (isServer) {
+      return docRef.delete();
+    }
+    return client.deleteDoc(docRef);
+  });
 }
 
 /**
@@ -189,15 +229,33 @@ export function startAfter(snapshot: any) {
  * Environment-aware 'runTransaction' helper
  */
 export async function runTransaction(db: any, updateFunction: (transaction: any) => Promise<any>) {
-  if (isServer) {
-    return db.runTransaction(async (t: any) => {
+  return withRetry(async () => {
+    if (isServer) {
+      return db.runTransaction(async (t: any) => {
+        const transactionShim = {
+          get: async (ref: any) => {
+            const snapshot = await t.get(ref);
+            return {
+              id: snapshot.id,
+              exists: () => snapshot.exists,
+              data: () => snapshot.data() as any,
+            };
+          },
+          set: (ref: any, data: any) => t.set(ref, data),
+          update: (ref: any, data: any) => t.update(ref, data),
+          delete: (ref: any) => t.delete(ref),
+        };
+        return updateFunction(transactionShim);
+      });
+    }
+    return client.runTransaction(db, async (t) => {
       const transactionShim = {
         get: async (ref: any) => {
-          const snapshot = await t.get(ref);
+          const snap = await t.get(ref);
           return {
-            id: snapshot.id,
-            exists: () => snapshot.exists,
-            data: () => snapshot.data() as any,
+            id: snap.id,
+            exists: () => snap.exists(),
+            data: () => snap.data() as any,
           };
         },
         set: (ref: any, data: any) => t.set(ref, data),
@@ -206,22 +264,6 @@ export async function runTransaction(db: any, updateFunction: (transaction: any)
       };
       return updateFunction(transactionShim);
     });
-  }
-  return client.runTransaction(db, async (t) => {
-    const transactionShim = {
-      get: async (ref: any) => {
-        const snap = await t.get(ref);
-        return {
-          id: snap.id,
-          exists: () => snap.exists(),
-          data: () => snap.data() as any,
-        };
-      },
-      set: (ref: any, data: any) => t.set(ref, data),
-      update: (ref: any, data: any) => t.update(ref, data),
-      delete: (ref: any) => t.delete(ref),
-    };
-    return updateFunction(transactionShim);
   });
 }
 

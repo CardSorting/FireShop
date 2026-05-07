@@ -51,6 +51,23 @@ export function getDb() {
       });
     } else {
       _db = getFirestore(app);
+      
+      // Enable persistence for client-side to handle disconnects gracefully
+      try {
+        const { enableIndexedDbPersistence } = require('firebase/firestore');
+        enableIndexedDbPersistence(_db).catch((err: any) => {
+          if (err.code === 'failed-precondition') {
+            // Multiple tabs open, persistence can only be enabled in one tab at a time.
+            console.warn('[Firebase] Persistence failed: Multiple tabs open');
+          } else if (err.code === 'unimplemented') {
+            // The current browser does not support all of the features required to enable persistence
+            console.warn('[Firebase] Persistence failed: Browser not supported');
+          }
+        });
+      } catch (e) {
+        // Fallback for environments where dynamic require fails or SDK is different
+        console.warn('[Firebase] Persistence could not be initialized', e);
+      }
     }
   }
   return _db;

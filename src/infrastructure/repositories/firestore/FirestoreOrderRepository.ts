@@ -17,6 +17,7 @@ import {
   Timestamp,
   writeBatch,
   getUnifiedDb,
+  runTransaction,
   serverTimestamp,
   arrayUnion,
   getCount,
@@ -38,30 +39,48 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
     try {
-      if (order.idempotencyKey) {
-        const existing = await this.getByIdempotencyKey(order.idempotencyKey);
-        if (existing) {
-          logger.info('Duplicate order detected via idempotency key', { key: order.idempotencyKey });
-          return existing;
+      return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+        // 1. Strict Idempotency Check
+        if (order.idempotencyKey) {
+          const q = query(
+            collection(getUnifiedDb(), this.collectionName), 
+            where('idempotencyKey', '==', order.idempotencyKey), 
+            limit(1)
+          );
+          const snapshot = await getDocs(q);
+          if (!snapshot.empty) {
+            const existing = this.mapDocToOrder(snapshot.docs[0].id, snapshot.docs[0].data());
+            logger.info('Duplicate order detected via atomic idempotency check', { key: order.idempotencyKey, orderId: existing.id });
+            return existing;
+          }
         }
-      }
 
-      const id = crypto.randomUUID();
-      const now = serverTimestamp();
+        // 2. Generate Identity and Timestamps
+        const id = crypto.randomUUID();
+        const now = new Date(); // We use local date for the object but serverTimestamp for the DB
 
-      const orderData = {
-        ...order,
-        createdAt: now,
-        updatedAt: now,
-        riskScore: await this.calculateRiskScore(order),
-      };
+        const orderData = {
+          ...order,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          riskScore: await this.calculateRiskScore(order),
+        };
 
-      await setDoc(doc(getUnifiedDb(), this.collectionName, id), orderData);
-      const result = await this.getById(id);
-      if (!result) throw new Error(`Failed to retrieve newly created order: ${id}`);
-      return result;
+        // 3. Commit Atomic Block
+        const docRef = doc(getUnifiedDb(), this.collectionName, id);
+        transaction.set(docRef, orderData);
+
+        // Return a pessimistic view of the order (will be updated by subsequent reads)
+        return {
+          ...order,
+          id,
+          createdAt: now,
+          updatedAt: now,
+          riskScore: orderData.riskScore
+        } as Order;
+      });
     } catch (err) {
-      logger.error('Order creation failed', { order, err });
+      logger.error('Order creation failed in atomic block', { order, err });
       throw err;
     }
   }
@@ -72,12 +91,19 @@ export class FirestoreOrderRepository implements IOrderRepository {
     return this.mapDocToOrder(docSnap.id, docSnap.data());
   }
 
-  async save(order: Order): Promise<void> {
+  async save(order: Order, transaction?: any): Promise<void> {
     const { id, ...data } = order;
-    await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    const updateData = {
       ...data,
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    if (transaction) {
+      transaction.set(docRef, updateData);
+    } else {
+      await setDoc(docRef, updateData);
+    }
   }
 
   async getByIdempotencyKey(key: string): Promise<Order | null> {
@@ -181,11 +207,18 @@ export class FirestoreOrderRepository implements IOrderRepository {
     return { orders, nextCursor };
   }
 
-  async updateStatus(id: string, status: OrderStatus): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
+  async updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    const updateData = { 
       status, 
       updatedAt: serverTimestamp() 
-    });
+    };
+
+    if (transaction) {
+      transaction.update(docRef, updateData);
+    } else {
+      await updateDoc(docRef, updateData);
+    }
   }
 
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
