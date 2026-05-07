@@ -37,10 +37,15 @@ import {
 
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   pending: ['pending', 'confirmed', 'cancelled'],
-  confirmed: ['confirmed', 'shipped', 'cancelled'],
-  shipped: ['shipped', 'delivered'],
-  delivered: ['delivered'],
+  confirmed: ['confirmed', 'processing', 'cancelled'],
+  processing: ['processing', 'shipped', 'cancelled', 'ready_for_pickup', 'delivery_started'],
+  shipped: ['shipped', 'delivered', 'refunded'],
+  delivered: ['delivered', 'refunded'],
   cancelled: ['cancelled'],
+  refunded: ['refunded'],
+  partially_refunded: ['partially_refunded', 'refunded'],
+  ready_for_pickup: ['ready_for_pickup', 'delivered', 'cancelled'],
+  delivery_started: ['delivery_started', 'delivered', 'cancelled'],
 };
 
 interface AdminOrderDetailProps {

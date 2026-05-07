@@ -82,20 +82,22 @@ export function AdminCustomerEdit({ id }: AdminCustomerEditProps) {
         setSaving(true);
         try {
             if (!customer) throw new Error('Customer is not loaded');
-            const nextAddress = {
+            const nextAddress: Address = {
                 street: address.street?.trim() ?? '',
                 city: address.city?.trim() ?? '',
                 state: address.state?.trim() ?? '',
                 zip: address.zip?.trim() ?? '',
                 country: (address.country?.trim() || 'US').toUpperCase(),
-            } satisfies Record<keyof Address, string>;
+                zipCode: address.zip?.trim() ?? '',
+                phone: address.phone?.trim() ?? '',
+            };
             await services.authService.updateUser(id, {
                 displayName: trimmedName,
                 role,
                 notes,
                 metadata: {
                     ...(customer.metadata ?? {}),
-                    address: nextAddress,
+                    address: nextAddress as any,
                 },
             });
             toast('success', 'Customer profile updated');

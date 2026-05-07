@@ -23,7 +23,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
             trackingNumber: order.trackingNumber || null,
             carrier: order.shippingCarrier || 'Standard',
             estimatedDelivery: order.estimatedDeliveryDate?.toISOString() || null,
-            events: order.fulfillmentEvents?.map(e => ({
+            events: order.fulfillmentEvents?.map((e: any) => ({
                 status: e.label,
                 location: e.description,
                 time: e.at.toISOString(),

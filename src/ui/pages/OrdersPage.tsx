@@ -39,14 +39,19 @@ type StatusFilter = 'all' | OrderStatus;
 type SortOption = 'newest' | 'oldest' | 'total_desc' | 'total_asc' | 'status';
 type DateWindow = '30d' | '90d' | 'all';
 
-const STATUS_FILTERS: StatusFilter[] = ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+const STATUS_FILTERS: StatusFilter[] = ['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'ready_for_pickup', 'delivery_started'];
 
 const STATUS_UI: Record<OrderStatus, { badge: string; dot: string; label: string }> = {
   pending: { badge: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500', label: 'Order placed' },
-  confirmed: { badge: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500', label: 'Processing' },
+  confirmed: { badge: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500', label: 'Confirmed' },
+  processing: { badge: 'bg-indigo-50 text-indigo-700 border-indigo-100', dot: 'bg-indigo-500', label: 'Processing' },
   shipped: { badge: 'bg-violet-50 text-violet-700 border-violet-100', dot: 'bg-violet-500', label: 'On the way' },
   delivered: { badge: 'bg-green-50 text-green-700 border-green-100', dot: 'bg-green-500', label: 'Delivered' },
   cancelled: { badge: 'bg-red-50 text-red-700 border-red-100', dot: 'bg-red-500', label: 'Cancelled' },
+  refunded: { badge: 'bg-gray-50 text-gray-700 border-gray-100', dot: 'bg-gray-500', label: 'Refunded' },
+  partially_refunded: { badge: 'bg-gray-50 text-gray-600 border-gray-100', dot: 'bg-gray-400', label: 'Partially Refunded' },
+  ready_for_pickup: { badge: 'bg-cyan-50 text-cyan-700 border-cyan-100', dot: 'bg-cyan-500', label: 'Ready for Pickup' },
+  delivery_started: { badge: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-500', label: 'Out for Delivery' },
 };
 
 function dateWindowToFrom(dateWindow: DateWindow): string | undefined {

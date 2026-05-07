@@ -7,15 +7,16 @@ import AdminBlogForm from '@ui/components/AdminBlogForm';
 import { notFound } from 'next/navigation';
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function EditBlogPostPage({ params }: Props) {
+  const { id } = await params;
   const services = getInitialServices();
   let post;
 
   try {
-    post = await services.knowledgebaseRepository.getArticleById(params.id);
+    post = await services.knowledgebaseRepository.getArticleById(id);
   } catch (err) {
     console.error('Error loading post for edit:', err);
     notFound();

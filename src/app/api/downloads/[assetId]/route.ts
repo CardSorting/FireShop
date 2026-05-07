@@ -9,8 +9,9 @@ async function verifyAssetOwnership(userId: string, assetId: string): Promise<st
   const digitalAssets = await services.orderService.getDigitalAssets(userId);
   
   for (const group of digitalAssets) {
-    const asset = group.assets.find(a => a.id === assetId);
-    if (asset) return asset.path;
+    if (!group.assets) continue;
+    const asset = group.assets.find((a: any) => a.id === assetId);
+    if (asset) return asset.url;
   }
 
   return null;

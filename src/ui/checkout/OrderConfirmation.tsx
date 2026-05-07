@@ -22,7 +22,7 @@ import {
   Download,
   FileText,
 } from 'lucide-react';
-import type { Order } from '@domain/models';
+import type { Order, OrderStatus } from '@domain/models';
 import { formatDate, formatMoney, estimateDelivery } from '@utils/formatters';
 import { useCart } from '../hooks/useCart';
 import { logger } from '@utils/logger';
@@ -51,12 +51,17 @@ function statusStepIndex(status: Order['status']): number {
   return 1;
 }
 
-const STATUS_CONTENT: Record<Order['status'], { title: string; description: string }> = {
+const STATUS_CONTENT: Record<OrderStatus, { title: string; description: string }> = {
   pending: { title: 'We’re preparing your order', description: 'Your order is in queue and will be processed shortly.' },
   confirmed: { title: 'Order confirmed & processing', description: 'Your payment is confirmed. We are picking and packing your items.' },
+  processing: { title: 'Order is being prepared', description: 'Our warehouse team is picking and packing your collection.' },
   shipped: { title: 'Your package is on the way', description: 'Your collector-safe shipment has been handed to the carrier.' },
   delivered: { title: 'Delivered', description: 'Your package has arrived. We hope you enjoy your new cards!' },
   cancelled: { title: 'Cancelled', description: 'This order was cancelled. Please check your email for refund details.' },
+  refunded: { title: 'Refunded', description: 'This order has been fully refunded.' },
+  partially_refunded: { title: 'Partially Refunded', description: 'A partial refund has been issued for this order.' },
+  ready_for_pickup: { title: 'Ready for Pickup', description: 'Your order is ready at our physical location.' },
+  delivery_started: { title: 'Out for Delivery', description: 'Our local delivery team is on their way to you.' },
 };
 
 import { OrderTimeline } from '../components/OrderTimeline';

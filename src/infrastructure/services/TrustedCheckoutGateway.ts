@@ -76,6 +76,11 @@ function parseTrustedOrder(value: unknown): Order {
     discountAmount: typeof candidate.discountAmount === 'number' ? candidate.discountAmount : undefined,
     riskScore,
     notes,
+    shippingAmount: typeof candidate.shippingAmount === 'number' ? candidate.shippingAmount : 0,
+    taxAmount: typeof candidate.taxAmount === 'number' ? candidate.taxAmount : 0,
+    fulfillmentLocationId: typeof candidate.fulfillmentLocationId === 'string' ? candidate.fulfillmentLocationId : 'primary',
+    fulfillmentMethod: (candidate.fulfillmentMethod as any) || 'shipping',
+    fulfillments: Array.isArray(candidate.fulfillments) ? candidate.fulfillments : [],
     createdAt: new Date(createdAt),
     updatedAt: new Date(updatedAt),
   };
