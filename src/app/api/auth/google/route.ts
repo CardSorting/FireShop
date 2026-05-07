@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from '@infrastructure/firebase/admin';
+import { adminAuth, adminDb, FieldValue, Timestamp } from '@infrastructure/firebase/admin';
 import { setSessionUser } from '@infrastructure/server/session';
 import { assertRateLimit, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
 import type { User, UserRole } from '@domain/models';
-import { Timestamp } from 'firebase-admin/firestore';
 
 export async function POST(request: Request) {
     try {
@@ -34,7 +33,7 @@ export async function POST(request: Request) {
                 email: user.email,
                 displayName: user.displayName,
                 role: user.role,
-                createdAt: Timestamp.now(),
+                createdAt: FieldValue.serverTimestamp(),
             });
         } else {
             const data = userDoc.data()!;

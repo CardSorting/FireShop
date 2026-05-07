@@ -66,5 +66,7 @@ export function mapDoc<T>(id: string, data: any): T {
     result.items = result.items.map((i: any) => mapDoc(i.id || '', i));
   }
 
-  return result as T;
+  // Production Hardening: Double-serialization guard to ensure absolute serializability 
+  // for Next.js Client Components and state transitions.
+  return JSON.parse(JSON.stringify(result)) as T;
 }

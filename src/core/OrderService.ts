@@ -212,21 +212,55 @@ export class OrderService {
   async finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
     const order = await this.orderRepo.getByPaymentTransactionId(paymentIntentId);
     if (!order || order.status !== 'pending') return order as any;
+    
     const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
     
+    // Production Hardening: Default to 'confirmed' but allow for digital auto-delivery
     let nextStatus: OrderStatus = 'confirmed';
     if (riskScore < 75) {
        if (order.items.every(i => i.isDigital)) nextStatus = 'delivered';
        else if (order.fulfillmentMethod === 'shipping') nextStatus = 'processing';
        else if (order.fulfillmentMethod === 'pickup') nextStatus = 'ready_for_pickup';
        else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
+    } else {
+       // High risk orders stay in 'pending' or move to a 'manual_review' if we had one.
+       // For now, we'll keep it at confirmed but flag it.
+       nextStatus = 'confirmed';
     }
 
-    await this.orderRepo.updateStatus(order.id, nextStatus);
-    await this.recordFulfillmentEvent(order.id, 'payment_confirmed', 'Payment Verified', 'Order queued for logistics.');
-    await this.cartRepo.clear(order.userId);
-    await this.orderRepo.updateRiskScore(order.id, riskScore);
-    return { ...order, status: nextStatus };
+    try {
+      // 1. Deduct Inventory (Atomic Transaction inside Repo)
+      const stockUpdates = order.items.map(item => ({
+        id: item.productId,
+        variantId: item.variantId,
+        delta: -item.quantity
+      }));
+      
+      await this.productRepo.batchUpdateStock(stockUpdates);
+
+      // 2. Update Order Status & Metadata
+      await this.orderRepo.updateStatus(order.id, nextStatus);
+      await this.orderRepo.updateRiskScore(order.id, riskScore);
+      await this.recordFulfillmentEvent(order.id, 'payment_confirmed', 'Payment Verified', 'Inventory secured and order queued for logistics.');
+      
+      // 3. Clear Cart
+      await this.cartRepo.clear(order.userId);
+
+      // 4. Audit Log
+      await this.audit.record({
+        userId: 'system',
+        userEmail: 'system@dreambees.art',
+        action: 'order_payment_finalized',
+        targetId: order.id,
+        details: { status: nextStatus, riskScore, items: order.items.length }
+      });
+
+      return { ...order, status: nextStatus, riskScore };
+    } catch (err) {
+      logger.error('Failed to finalize order payment and deduct inventory', { orderId: order.id, err });
+      // In a real production scenario, we'd alert staff if payment is verified but inventory failed
+      throw err;
+    }
   }
 
   async getAdminDashboardSummary(): Promise<AdminDashboardSummary> {

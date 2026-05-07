@@ -26,7 +26,7 @@ import crypto from 'crypto';
 export type AuditAction = 
   | 'product_created' | 'product_updated' | 'product_deleted'
   | 'product_batch_updated' | 'product_batch_deleted' | 'inventory_batch_updated'
-  | 'order_placed' | 'order_status_changed' | 'order_refunded'
+  | 'order_placed' | 'order_status_changed' | 'order_refunded' | 'order_payment_finalized'
   | 'discount_created' | 'discount_updated' | 'discount_deleted'
   | 'settings_updated' | 'staff_added' | 'staff_removed'
   | 'checkout_reconciliation_required' | 'payment_received_on_cancelled_order'

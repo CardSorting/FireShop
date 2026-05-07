@@ -6,8 +6,7 @@
 import Stripe from 'stripe';
 import { PaymentFailedError } from '@domain/errors';
 import { logger } from '@utils/logger';
-import { doc, getDoc, setDoc, Timestamp, runTransaction } from 'firebase/firestore';
-import { getDb } from '../firebase/firebase';
+import { adminDb, FieldValue, Timestamp } from '@infrastructure/firebase/admin';
 
 export class StripeService {
   private stripe: Stripe;
@@ -87,19 +86,18 @@ export class StripeService {
    * Returns true if the event was already processed.
    */
   async tryProcessEvent(eventId: string, type: string): Promise<boolean> {
-    const db = getDb();
-    const eventRef = doc(db, this.collectionName, eventId);
+    const eventRef = adminDb.collection(this.collectionName).doc(eventId);
 
-    return await runTransaction(db, async (transaction: any) => {
+    return await adminDb.runTransaction(async (transaction: any) => {
       const docSnap = await transaction.get(eventRef);
-      if (docSnap.exists()) {
+      if (docSnap.exists) {
         return true; // Already processed
       }
 
       transaction.set(eventRef, {
         id: eventId,
         type,
-        processedAt: Timestamp.now(),
+        processedAt: FieldValue.serverTimestamp(),
       });
       return false; // Not processed, now marked
     });
@@ -109,18 +107,18 @@ export class StripeService {
    * Checks if a webhook event has already been processed.
    */
   async isEventProcessed(eventId: string): Promise<boolean> {
-    const docSnap = await getDoc(doc(getDb(), this.collectionName, eventId));
-    return docSnap.exists();
+    const docSnap = await adminDb.collection(this.collectionName).doc(eventId).get();
+    return docSnap.exists;
   }
 
   /**
    * Marks a webhook event as processed.
    */
   async markEventProcessed(eventId: string, type: string): Promise<void> {
-    await setDoc(doc(getDb(), this.collectionName, eventId), {
+    await adminDb.collection(this.collectionName).doc(eventId).set({
       id: eventId,
       type,
-      processedAt: Timestamp.now(),
+      processedAt: FieldValue.serverTimestamp(),
     });
   }
 

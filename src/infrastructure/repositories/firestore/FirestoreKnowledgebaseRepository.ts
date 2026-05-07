@@ -42,7 +42,7 @@ export class FirestoreKnowledgebaseRepository {
   private readonly seriesCollection = 'blog_series';
 
   private mapDocToCategory(id: string, data: DocumentData): KnowledgebaseCategory {
-    return { ...data, id } as KnowledgebaseCategory;
+    return JSON.parse(JSON.stringify({ ...data, id })) as KnowledgebaseCategory;
   }
   
   private toDate(val: any): Date {
@@ -63,29 +63,29 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   private mapDocToAuthor(id: string, data: DocumentData): Author {
-    return {
+    return JSON.parse(JSON.stringify({
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-    } as Author;
+    })) as Author;
   }
 
   private mapDocToComment(id: string, data: DocumentData): BlogComment {
-    return {
+    return JSON.parse(JSON.stringify({
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-    } as BlogComment;
+    })) as BlogComment;
   }
 
   private mapDocToSubscriber(id: string, data: DocumentData): Subscriber {
-    return {
+    return JSON.parse(JSON.stringify({
       ...data,
       id,
       subscribedAt: this.toDate(data.subscribedAt),
-    } as Subscriber;
+    })) as Subscriber;
   }
 
   private mapDocToSeries(id: string, data: DocumentData): BlogSeries {

@@ -141,6 +141,61 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const addItem = async (productId: string, quantity: number, variantId?: string) => {
+    // 1. Prepare optimistic item details
+    let product;
+    try {
+      product = await services.productService.getProduct(productId);
+    } catch {
+      product = await services.productService.getProducts({}).then(r => r.products.find(p => p.id === productId));
+    }
+    
+    if (!product) {
+      logger.error('Product not found for optimistic add');
+      return;
+    }
+
+    let price = product.price;
+    let imageUrl = product.imageUrl;
+    let variantTitle = undefined;
+
+    if (variantId && product.variants) {
+      const v = product.variants.find(varnt => varnt.id === variantId);
+      if (v) {
+        price = v.price;
+        variantTitle = v.title;
+        if (v.imageUrl) imageUrl = v.imageUrl;
+      }
+    }
+
+    // 2. Apply optimistic update
+    const prevCart = cart;
+    const currentCart = cart ? { ...cart } : { id: 'optimistic', userId: user?.id || 'guest', items: [], updatedAt: new Date() };
+    const existingIndex = currentCart.items.findIndex(i => i.productId === productId && i.variantId === variantId);
+    
+    const newItems = [...currentCart.items];
+    if (existingIndex > -1) {
+      newItems[existingIndex] = {
+        ...newItems[existingIndex],
+        quantity: Math.min(newItems[existingIndex].quantity + quantity, MAX_CART_QUANTITY)
+      };
+    } else {
+      newItems.push({
+        productId,
+        variantId,
+        variantTitle,
+        name: product.name,
+        priceSnapshot: price,
+        imageUrl,
+        quantity: Math.min(quantity, MAX_CART_QUANTITY)
+      });
+    }
+
+    if (isMounted.current) {
+      setCart({ ...currentCart, items: newItems });
+      setIsOpen(true);
+    }
+
+    // 3. Sync with server/storage
     try {
       if (user) {
         const updated = await services.cartService.addToCart(user.id, productId, quantity, variantId);
@@ -148,57 +203,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
           setCart(updated);
         }
       } else {
-        // Load product details to mimic server logic
-        let product;
-        try {
-          product = await services.productService.getProduct(productId);
-        } catch {
-          product = await services.productService.getProducts({}).then(r => r.products.find(p => p.id === productId));
-        }
-        
-        if (!product) throw new Error('Product not found');
-        if (!isMounted.current) return;
-
-        let price = product.price;
-        let imageUrl = product.imageUrl;
-        let variantTitle = undefined;
-
-        if (variantId && product.variants) {
-          const v = product.variants.find(varnt => varnt.id === variantId);
-          if (v) {
-            price = v.price;
-            variantTitle = v.title;
-            if (v.imageUrl) imageUrl = v.imageUrl;
-          }
-        }
-
-        const currentCart = getGuestCart() || { id: 'guest', userId: 'guest', items: [], updatedAt: new Date() };
-        const existingIndex = currentCart.items.findIndex(i => i.productId === productId && i.variantId === variantId);
-        
-        if (existingIndex > -1) {
-          currentCart.items[existingIndex].quantity = Math.min(currentCart.items[existingIndex].quantity + quantity, MAX_CART_QUANTITY);
-        } else {
-          currentCart.items.push({
-            productId,
-            variantId,
-            variantTitle,
-            name: product.name,
-            priceSnapshot: price,
-            imageUrl,
-            quantity: Math.min(quantity, MAX_CART_QUANTITY)
-          });
-        }
-        currentCart.updatedAt = new Date();
-        if (isMounted.current) {
-          setCart({ ...currentCart });
-          saveGuestCart(currentCart);
-        }
-      }
-      if (isMounted.current) {
-        setIsOpen(true);
+        const updatedCart = { ...currentCart, items: newItems, updatedAt: new Date() };
+        saveGuestCart(updatedCart);
       }
     } catch (err) {
-      logger.error('Failed to add to cart', err);
+      logger.error('Failed to sync cart add', err);
+      if (isMounted.current) {
+        setCart(prevCart); // Rollback on error
+      }
     }
   };
 
