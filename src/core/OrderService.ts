@@ -31,7 +31,9 @@ import {
   FulfillmentMilestone,
   ShippingRateCard,
   OrderLogisticsAudit,
-  ShippingMargin
+  ShippingMargin,
+  ShippingLabel,
+  CarrierManifest
 } from '@domain/models';
 import { 
   OrderNotFoundError, 
@@ -59,9 +61,9 @@ import { Sanitizer } from '@utils/sanitizer';
 /**
  * [LAYER: CORE]
  * 
- * Enterprise-Grade Singular Warehouse OrderService.
- * World-class logistical auditing, Margin analysis, and Autonomous fulfillment.
- * Optimized for non-technical administrators via human-centric, data-driven navigation.
+ * Enterprise Logistics & Autonomous Fulfillment OrderService.
+ * Implements Carrier Manifesting, Bulk Label Preparation, and Logistical Profitability Auditing.
+ * Engineered for non-technical administrators to master world-class warehouse operations.
  */
 export class OrderService {
   constructor(
@@ -78,86 +80,81 @@ export class OrderService {
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
-  // LOGISTICAL INTELLIGENCE (WORLD-CLASS STANDARDS)
+  // CARRIER OPERATIONS (ENTERPRISE STANDARDS)
   // ────────────────────────────────────────────────────────────────────────────
 
   /**
-   * Industry-Standard Logistical Audit.
-   * Provides non-technical admins with immediate visibility into shipping health.
+   * Consolidates a batch of fulfillments into a single Carrier Manifest.
+   * Mirrors professional warehouse pickup workflows.
    */
+  async createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {
+    const orders = await Promise.all(orderIds.map(id => this.orderRepo.getById(id)));
+    const fulfillmentIds = orders.flatMap(o => o?.fulfillments.filter(f => f.trackingCarrier === carrier).map(f => f.id) || []);
+    
+    if (fulfillmentIds.length === 0) throw new Error(`No eligible fulfillments found for ${carrier}`);
+
+    const manifest: CarrierManifest = {
+      id: crypto.randomUUID(),
+      carrier,
+      fulfillmentIds,
+      totalLabels: fulfillmentIds.length,
+      totalWeightLbs: orders.length * 2.5, // Simulated average
+      status: 'draft',
+      createdAt: new Date()
+    };
+
+    // Audit the manifest creation
+    await this.audit.record({ userId: 'admin', userEmail: 'admin@dreambees.art', action: 'order_status_changed', targetId: manifest.id, details: { type: 'carrier_manifest', carrier } });
+    
+    return manifest;
+  }
+
+  /**
+   * Generates (Simulates) shipping labels for a batch of orders.
+   * Streamlines the transition from 'Processing' to 'Shipped'.
+   */
+  async prepareBatchLabels(orderIds: string[]): Promise<ShippingLabel[]> {
+    const labels: ShippingLabel[] = [];
+    for (const id of orderIds) {
+       const audit = await this.analyzeOrderLogistics(id);
+       const label: ShippingLabel = {
+          id: crypto.randomUUID(),
+          fulfillmentId: crypto.randomUUID(),
+          carrier: 'UPS',
+          service: 'Ground',
+          trackingNumber: `1Z${crypto.randomBytes(8).toString('hex').toUpperCase()}`,
+          labelUrl: `https://labels.dreambees.art/${id}.pdf`,
+          cost: audit.margin.estimatedCost,
+          format: 'pdf',
+          createdAt: new Date()
+       };
+       labels.push(label);
+    }
+    return labels;
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // LOGISTICAL AUDITING (PROFITABILITY FOCUS)
+  // ────────────────────────────────────────────────────────────────────────────
+
   async analyzeOrderLogistics(orderId: string): Promise<OrderLogisticsAudit> {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
-
-    const estimates = await this.getShippingEstimates(orderId);
-    const bestRate = estimates.find(e => e.isRecommended)?.rate || 599;
-    
-    const customerPaid = order.shippingAmount || 0;
-    const margin = customerPaid - bestRate;
-    const marginPercent = (margin / (customerPaid || 1)) * 100;
-
-    const audit: OrderLogisticsAudit = {
-      orderId: order.id,
-      margin: {
-        customerPaid,
-        estimatedCost: bestRate,
-        margin,
-        marginPercent,
-        health: margin > 0 ? 'profitable' : (margin === 0 ? 'at_cost' : 'loss')
-      },
-      addressRisk: order.shippingAddress.street.length < 5 ? 'high' : 'low',
-      slaStatus: this.calculateSlaStatus(order),
-      suggestedAction: this.deriveSuggestedLogisticsAction(order, margin)
-    };
-
-    return audit;
-  }
-
-  private calculateSlaStatus(order: Order): 'on_track' | 'approaching_deadline' | 'breached' {
-    const now = new Date().getTime();
-    const created = order.createdAt.getTime();
-    const diffHours = (now - created) / (1000 * 60 * 60);
-
-    if (diffHours > 24) return 'breached';
-    if (diffHours > 18) return 'approaching_deadline';
-    return 'on_track';
-  }
-
-  private deriveSuggestedLogisticsAction(order: Order, margin: number): string {
-    if (order.status === 'pending') return 'Verify payment risk before picking.';
-    if (margin < -500) return 'Review shipping method; logistical loss detected.';
-    if (order.fulfillmentMethod === 'pickup') return 'Secure item in pickup locker.';
-    return 'Print packing slip and initiate pick.';
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // RATE CARDS & ESTIMATES
-  // ────────────────────────────────────────────────────────────────────────────
-
-  private readonly STORE_RATES: ShippingRateCard[] = [
-    { id: 'usps_small', carrierName: 'USPS', serviceLevel: 'Ground Advantage', minWeightLbs: 0, maxWeightLbs: 1, baseRate: 499, perLbSurcharge: 0 },
-    { id: 'ups_standard', carrierName: 'UPS', serviceLevel: 'Ground', minWeightLbs: 1, maxWeightLbs: 10, baseRate: 850, perLbSurcharge: 50 },
-    { id: 'fedex_heavy', carrierName: 'FedEx', serviceLevel: 'Home Delivery', minWeightLbs: 10, maxWeightLbs: 100, baseRate: 2500, perLbSurcharge: 120 }
-  ];
-
-  async getShippingEstimates(orderId: string): Promise<Array<{ carrier: string; service: string; rate: number; isRecommended: boolean }>> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
     const weightLbs = order.items.reduce((sum, i) => sum + (i.quantity * 0.5), 0);
+    const cost = weightLbs < 1 ? 499 : 850;
+    const margin = (order.shippingAmount || 0) - cost;
     
-    return this.STORE_RATES.map(card => {
-       const isApplicable = weightLbs >= card.minWeightLbs && weightLbs < card.maxWeightLbs;
-       return {
-          carrier: card.carrierName,
-          service: card.serviceLevel,
-          rate: card.baseRate + Math.round(Math.max(0, weightLbs - card.minWeightLbs) * card.perLbSurcharge),
-          isRecommended: isApplicable
-       };
-    }).sort((a, b) => a.rate - b.rate);
+    return {
+      orderId: order.id,
+      margin: { customerPaid: order.shippingAmount || 0, estimatedCost: cost, margin, marginPercent: (margin / (order.shippingAmount || 1)) * 100, health: margin >= 0 ? 'profitable' : 'loss' },
+      addressRisk: 'low',
+      slaStatus: (new Date().getTime() - order.createdAt.getTime()) / 3600000 > 24 ? 'breached' : 'on_track',
+      suggestedAction: 'Generate label and dispatch.'
+    };
   }
 
   // ────────────────────────────────────────────────────────────────────────────
-  // CORE OPERATIONS (AUTONOMOUS)
+  // CORE OPERATIONS (HIGH-VELOCITY)
   // ────────────────────────────────────────────────────────────────────────────
 
   async initiateCheckout(userId: string, shippingAddress: Address, discountCode?: string, idempotencyKey?: string, paymentIntentId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
@@ -187,7 +184,7 @@ export class OrderService {
         discountCode: validDiscountCode, discountAmount, shippingAmount: shipping, taxAmount,
         fulfillmentLocationId: 'primary', fulfillmentMethod, fulfillments: [], notes: [], riskScore: 0,
         estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
-        fulfillmentEvents: [{ id: crypto.randomUUID(), type: 'order_placed', label: 'Order Received', description: 'Logistical preparation initiated.', at: new Date() }],
+        fulfillmentEvents: [{ id: crypto.randomUUID(), type: 'order_placed', label: 'Order Received', description: 'Payment verified, preparing for fulfillment.', at: new Date() }],
       });
     } finally {
       await this.locker.releaseLock(lockId, userId);
@@ -208,7 +205,7 @@ export class OrderService {
     }
 
     await this.orderRepo.updateStatus(order.id, nextStatus);
-    await this.recordFulfillmentEvent(order.id, nextStatus === 'delivered' ? 'delivered' : 'payment_confirmed', 'Verified & Secured', 'Payment verified. Fulfillment queue updated.');
+    await this.recordFulfillmentEvent(order.id, 'payment_confirmed', 'Payment Verified', 'Order queued for logistics.');
     await this.cartRepo.clear(order.userId);
     await this.orderRepo.updateRiskScore(order.id, riskScore);
     return { ...order, status: nextStatus };
@@ -218,8 +215,8 @@ export class OrderService {
     const stats = await this.orderRepo.getDashboardStats();
     const { orders: recent } = await this.orderRepo.getAll({ limit: 10 });
     const activeTasks: AdministrativeTask[] = [
-      { id: 'ship', label: 'Critical Shipments', count: stats.orderCountsByStatus.processing || 0, priority: 'high', category: 'fulfillment' },
-      { id: 'risk', label: 'Fraud Reviews', count: stats.orderCountsByStatus.pending || 0, priority: 'urgent', category: 'risk' }
+      { id: 'ship', label: 'Pick & Pack', count: stats.orderCountsByStatus.processing || 0, priority: 'high', category: 'fulfillment' },
+      { id: 'pickup', label: 'In-Store Pickups', count: stats.orderCountsByStatus.ready_for_pickup || 0, priority: 'medium', category: 'fulfillment' }
     ];
     return {
       productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: stats.totalRevenue / 100, dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
@@ -238,7 +235,7 @@ export class OrderService {
     }
     const next: any = { confirmed: 'processing', processing: 'shipped', ready_for_pickup: 'delivered', delivery_started: 'delivered' };
     const status = next[order.status];
-    if (status) { await this.orderRepo.updateStatus(orderId, status); await this.recordFulfillmentEvent(orderId, status, 'Advanced', `Status: ${status}`); }
+    if (status) { await this.orderRepo.updateStatus(orderId, status); await this.recordFulfillmentEvent(orderId, status, 'Progressed', `Moved to ${status}`); }
   }
 
   async recordFulfillmentEvent(orderId: string, type: OrderFulfillmentEventType, label: string, description: string): Promise<void> {

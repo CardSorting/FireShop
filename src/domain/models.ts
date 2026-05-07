@@ -472,6 +472,29 @@ export interface OrderLogisticsAudit {
   suggestedAction: string;
 }
 
+export interface ShippingLabel {
+  id: string;
+  fulfillmentId: string;
+  carrier: string;
+  service: string;
+  trackingNumber: string;
+  labelUrl: string;
+  cost: number;
+  format: 'zpl' | 'pdf' | 'png';
+  createdAt: Date;
+}
+
+export interface CarrierManifest {
+  id: string;
+  carrier: string;
+  fulfillmentIds: string[];
+  totalLabels: number;
+  totalWeightLbs: number;
+  status: 'draft' | 'submitted' | 'scanned';
+  createdAt: Date;
+  submittedAt?: Date;
+}
+
 export interface NavigationLink {
   label: string;
   href: string;
