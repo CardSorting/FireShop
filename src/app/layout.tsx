@@ -5,6 +5,7 @@ import { CartProvider } from '@ui/hooks/useCart';
 import { WishlistProvider } from '@ui/hooks/useWishlist';
 import { ErrorBoundary } from '@ui/components/ErrorBoundary';
 import { StorefrontShell } from '@ui/layouts/StorefrontShell';
+import { CartDrawer } from '@ui/components/CartDrawer';
 import { absoluteUrl, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from '@utils/seo';
 import '@/index.css';
 
@@ -109,6 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                         {children}
                                     </div>
                                 </StorefrontShell>
+                                <CartDrawer />
                             </WishlistProvider>
                         </CartProvider>
                     </AuthProvider>

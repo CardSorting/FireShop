@@ -81,7 +81,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
   };
 
   return (
-    <div className="group relative flex flex-col h-full">
+    <div className="group relative flex flex-col h-full" data-testid="product-card">
       {/* Visual Container */}
       <div className="relative aspect-4/5 rounded-4xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-700 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-primary-100/50">
         <Link href={`/products/${product.handle || product.id}`} className="absolute inset-0 z-10" aria-label={`View ${product.name}`}>

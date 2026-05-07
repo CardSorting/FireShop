@@ -9,8 +9,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { ShoppingCart, Package, Shield, User, Home, Menu, X, ChevronRight, ChevronDown, Search, Zap, Truck, ShieldCheck, ArrowRight, Heart, RefreshCcw } from 'lucide-react';
 import { useCart } from '../hooks/useCart';
-import { CartDrawer } from '../components/CartDrawer';
-
 import { SearchCommandPalette } from '../components/SearchCommandPalette';
 import { BeeLogo, HiveCell } from '../components/Logo';
 
@@ -442,7 +440,6 @@ export function Navbar() {
         </div>
       )}
 
-      <CartDrawer />
     </nav>
     </>
   );

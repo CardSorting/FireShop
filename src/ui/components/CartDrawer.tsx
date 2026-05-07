@@ -162,7 +162,7 @@ export function CartDrawer() {
                 const isUpdating = updatingItemId === itemId;
 
                 return (
-                  <div key={itemId} className={`flex gap-6 group transition-opacity duration-300 ${isUpdating ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                  <div key={itemId} data-testid="cart-item" className={`flex gap-6 group transition-opacity duration-300 ${isUpdating ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-3xl bg-gray-50 border border-gray-100 shadow-sm group-hover:shadow-md transition-shadow">
                       <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
                       {isUpdating && (
