@@ -18,21 +18,31 @@ let _storage: any;
 
 function getAdminApp() {
   if (!_app) {
-    if (getApps().length > 0) {
-      _app = getApps()[0];
+    const apps = getApps();
+    if (apps.length > 0) {
+      _app = apps[0];
     } else {
-      if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-        _app = initializeApp({
-          credential: cert(serviceAccount),
-          projectId,
-          storageBucket: `${projectId}.firebasestorage.app`
-        });
-      } else {
-        _app = initializeApp({
-          projectId,
-          storageBucket: `${projectId}.firebasestorage.app`
-        });
+      try {
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+          _app = initializeApp({
+            credential: cert(serviceAccount),
+            projectId,
+            storageBucket: `${projectId}.firebasestorage.app`
+          });
+        } else {
+          _app = initializeApp({
+            projectId,
+            storageBucket: `${projectId}.firebasestorage.app`
+          });
+        }
+      } catch (err: any) {
+        // If we hit a race condition where another request initialized it first
+        if (err.code === 'app/duplicate-app') {
+          _app = getApps()[0];
+        } else {
+          throw err;
+        }
       }
     }
   }

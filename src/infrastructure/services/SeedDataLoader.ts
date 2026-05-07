@@ -35,7 +35,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Trading Cards',
     stock: 25,
     status: 'active',
-    imageUrl: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=400',
+    imageUrl: '/assets/generated/scarlet_violet_booster_box_1778177072594.png',
     set: 'Scarlet & Violet',
     sku: 'SV-BB-001',
     handle: 'scarlet-violet-booster-box',
@@ -44,8 +44,8 @@ const INITIAL_CATALOG: ProductDraft[] = [
     physicalItem: true,
     weightGrams: 800,
     media: [
-      { id: 'med-1', url: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=800', altText: 'Front View', position: 1, createdAt: new Date() },
-      { id: 'med-2', url: 'https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=600', altText: 'Side View', position: 2, createdAt: new Date() }
+      { id: 'med-1', url: '/assets/generated/scarlet_violet_booster_box_1778177072594.png', altText: 'Front View', position: 1, createdAt: new Date() },
+      { id: 'med-2', url: '/assets/generated/scarlet_violet_booster_box_1778177072594.png', altText: 'Side View', position: 2, createdAt: new Date() }
     ],
   },
   {
@@ -56,7 +56,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Trading Cards',
     stock: 3,
     status: 'active',
-    imageUrl: 'https://images.unsplash.com/photo-1613773827290-e46feb889f6d?w=400',
+    imageUrl: '/assets/generated/charizard_ex_holo_1778177088908.png',
     set: 'XY Evolutions',
     rarity: 'holo',
     sku: 'XY-CHZ-EX',
@@ -75,7 +75,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Accessories',
     stock: 0,
     status: 'active',
-    imageUrl: 'https://images.unsplash.com/photo-1611083360739-bdad6e0eb1fa?w=400',
+    imageUrl: '/assets/generated/custom_playmat_1778177102037.png',
     handle: 'custom-playmat-pod',
     collections: ['accessories', 'sale'],
     hasVariants: true,
@@ -101,7 +101,7 @@ const INITIAL_CATALOG: ProductDraft[] = [
     productType: 'Digital',
     stock: 1000,
     status: 'active',
-    imageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400',
+    imageUrl: '/assets/generated/tcg_digital_guide_1778177116259.png',
     handle: 'tcg-master-class-digital',
     collections: ['new'],
     isDigital: true,

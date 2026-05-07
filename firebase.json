@@ -40,7 +40,9 @@
       "**/*.map"
     ],
     "frameworksBackend": {
-      "region": "us-central1"
+      "region": "us-central1",
+      "memory": "1GB",
+      "minInstances": 1
     },
     "headers": [
       {

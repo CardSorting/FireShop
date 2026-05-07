@@ -145,7 +145,7 @@ export function HomePage() {
             ))}
           </div>
           <Image 
-            src="https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=1600&h=800&fit=crop" 
+            src="/assets/generated/pro_circuit_handbook_featured_1778177228003.png" 
             alt="Handcrafted Artist Trading Cards and fandom-inspired art prints collection" 
             fill
             priority
@@ -186,7 +186,7 @@ export function HomePage() {
                <div className="space-y-4 pt-12">
                  <div className="relative aspect-4/5 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10">
                    <Image 
-                    src="https://images.unsplash.com/photo-1643330683233-ff2ac89b002c?q=80&w=600&auto=format&fit=crop" 
+                    src="/assets/generated/charizard_ex_holo_1778177088908.png" 
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
@@ -197,7 +197,7 @@ export function HomePage() {
                <div className="space-y-4">
                  <div className="relative aspect-4/5 rounded-3xl overflow-hidden shadow-2xl border-4 border-white/10">
                    <Image 
-                    src="https://images.unsplash.com/photo-1606167668584-78701c57f13d?w=600&auto=format&fit=crop" 
+                    src="/assets/generated/scarlet_violet_booster_box_1778177072594.png" 
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover" 
@@ -268,21 +268,21 @@ export function HomePage() {
                 href: "/collections/artist-cards", 
                 title: "Artist Cards", 
                 sub: "Hand-drawn originals",
-                img: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&auto=format&fit=crop",
+                img: "/assets/generated/viral_blog_strategy_featured_1778177344526.png",
                 delay: "reveal-delay-1"
               },
               { 
                 href: "/collections/prints", 
                 title: "Art Prints", 
                 sub: "Museum-grade quality",
-                img: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=800&auto=format&fit=crop",
+                img: "/assets/generated/generic_tcg_strategy_1778177431609.png",
                 delay: "reveal-delay-2"
               },
               { 
                 href: "/collections/accessories", 
                 title: "TCG Accessories", 
                 sub: "Premium protection",
-                img: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&auto=format&fit=crop",
+                img: "/assets/generated/generic_collecting_1778177444345.png",
                 delay: "reveal-delay-3"
               }
             ].map((col) => (
@@ -396,7 +396,7 @@ export function HomePage() {
               >
                 <div className="relative aspect-video overflow-hidden">
                   <Image 
-                    src={post.featuredImageUrl || post.ogImage || 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800'} 
+                    src={post.featuredImageUrl || post.ogImage || '/assets/generated/generic_tcg_strategy_1778177431609.png'} 
                     fill 
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover transition-transform duration-1000 group-hover:scale-110" 

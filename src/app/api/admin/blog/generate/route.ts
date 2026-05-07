@@ -102,7 +102,7 @@ export async function POST(req: Request) {
     console.log(`[AI] Generating feature image using ${imageModelName}...`);
     const imagePrompt = `Generate a high-quality, professional feature image for a blog post titled: "${topic}". The style should be high-end tech photography or epic digital art, optimized for TCG collectors. Return ONLY the image URL or a base64 string.`;
     const featureImageResult = await tryGenerate(imageModelName, isVertex);
-    const featuredImageUrl = featureImageResult || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop'; // High-quality fallback
+    const featuredImageUrl = featureImageResult || '/assets/generated/generic_tcg_strategy_1778177431609.png; // High-quality fallback
 
     if (!text) {
       throw new Error('Failed to generate content: Empty response from AI model');
