@@ -421,6 +421,57 @@ export interface Weight {
   unit: 'g' | 'kg' | 'lbs' | 'oz';
 }
 
+export interface Dimensions {
+  length: number;
+  width: number;
+  height: number;
+  unit: 'in' | 'cm';
+}
+
+export interface AdministrativeTask {
+  id: string;
+  label: string;
+  count: number;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: 'fulfillment' | 'inventory' | 'payment' | 'risk';
+}
+
+export interface FulfillmentMilestone {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'completed';
+  description: string;
+  actionRequired: boolean;
+  actionLabel?: string;
+}
+
+export interface ShippingRateCard {
+  id: string;
+  carrierName: string;
+  serviceLevel: string;
+  minWeightLbs: number;
+  maxWeightLbs: number;
+  baseRate: number; // cents
+  perLbSurcharge: number; // cents
+}
+
+export interface ShippingMargin {
+  customerPaid: number;
+  estimatedCost: number;
+  actualCost?: number;
+  margin: number; // cents
+  marginPercent: number;
+  health: 'profitable' | 'at_cost' | 'loss';
+}
+
+export interface OrderLogisticsAudit {
+  orderId: string;
+  margin: ShippingMargin;
+  addressRisk: 'low' | 'medium' | 'high';
+  slaStatus: 'on_track' | 'approaching_deadline' | 'breached';
+  suggestedAction: string;
+}
+
 export interface NavigationLink {
   label: string;
   href: string;
@@ -458,6 +509,7 @@ export interface AdminDashboardSummary {
   averageOrderValue: number;
   orderCountsByStatus: Record<OrderStatus, number>;
   fulfillmentCounts: Record<FulfillmentBucket, number>;
+  activeTasks: AdministrativeTask[];
   attentionItems: AdminActionItem[];
   recentOrders: Order[];
   lowStockProducts: Product[];
