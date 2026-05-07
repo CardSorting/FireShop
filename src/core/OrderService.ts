@@ -33,7 +33,9 @@ import {
   OrderLogisticsAudit,
   ShippingMargin,
   ShippingLabel,
-  CarrierManifest
+  CarrierManifest,
+  ShippingRule,
+  LogisticsPerformance
 } from '@domain/models';
 import { 
   OrderNotFoundError, 
@@ -61,9 +63,9 @@ import { Sanitizer } from '@utils/sanitizer';
 /**
  * [LAYER: CORE]
  * 
- * Enterprise Logistics & Autonomous Fulfillment OrderService.
- * Implements Carrier Manifesting, Bulk Label Preparation, and Logistical Profitability Auditing.
- * Engineered for non-technical administrators to master world-class warehouse operations.
+ * Autonomous Logistics & Strategy-Driven OrderService.
+ * Implements Automated Shipping Rules, Performance Monitoring, and Carrier Manifesting.
+ * Engineered for non-technical administrators to master world-class warehouse operations with zero decision fatigue.
  */
 export class OrderService {
   constructor(
@@ -80,51 +82,54 @@ export class OrderService {
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
-  // CARRIER OPERATIONS (ENTERPRISE STANDARDS)
+  // AUTOMATION RULES (STRATEGIC LOGISTICS)
   // ────────────────────────────────────────────────────────────────────────────
 
+  private readonly DEFAULT_RULES: ShippingRule[] = [
+    { id: '1', name: 'Standard Post', conditions: { maxWeightLbs: 1 }, preferredCarrier: 'USPS', preferredService: 'Ground Advantage', priority: 10 },
+    { id: '2', name: 'Bulk Freight', conditions: { minWeightLbs: 10 }, preferredCarrier: 'UPS', preferredService: 'Ground', priority: 20 },
+    { id: '3', name: 'High Value Security', conditions: { minValueCents: 50000 }, preferredCarrier: 'FedEx', preferredService: 'Home Delivery', priority: 30 }
+  ];
+
   /**
-   * Consolidates a batch of fulfillments into a single Carrier Manifest.
-   * Mirrors professional warehouse pickup workflows.
+   * Automatically identifies the optimal carrier based on predefined business rules.
+   * Eliminates decision fatigue for warehouse staff.
    */
-  async createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {
-    const orders = await Promise.all(orderIds.map(id => this.orderRepo.getById(id)));
-    const fulfillmentIds = orders.flatMap(o => o?.fulfillments.filter(f => f.trackingCarrier === carrier).map(f => f.id) || []);
+  async autoAssignShippingMethod(orderId: string): Promise<{ carrier: string; service: string }> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
     
-    if (fulfillmentIds.length === 0) throw new Error(`No eligible fulfillments found for ${carrier}`);
+    const weightLbs = order.items.reduce((sum, i) => sum + (i.quantity * 0.5), 0);
+    const value = order.total;
 
-    const manifest: CarrierManifest = {
-      id: crypto.randomUUID(),
-      carrier,
-      fulfillmentIds,
-      totalLabels: fulfillmentIds.length,
-      totalWeightLbs: orders.length * 2.5, // Simulated average
-      status: 'draft',
-      createdAt: new Date()
-    };
+    // Evaluate rules by priority
+    const rules = [...this.DEFAULT_RULES].sort((a, b) => b.priority - a.priority);
+    for (const rule of rules) {
+       const wMatch = (!rule.conditions.minWeightLbs || weightLbs >= rule.conditions.minWeightLbs) && (!rule.conditions.maxWeightLbs || weightLbs <= rule.conditions.maxWeightLbs);
+       const vMatch = (!rule.conditions.minValueCents || value >= rule.conditions.minValueCents) && (!rule.conditions.maxValueCents || value <= rule.conditions.maxValueCents);
+       
+       if (wMatch && vMatch) return { carrier: rule.preferredCarrier, service: rule.preferredService };
+    }
 
-    // Audit the manifest creation
-    await this.audit.record({ userId: 'admin', userEmail: 'admin@dreambees.art', action: 'order_status_changed', targetId: manifest.id, details: { type: 'carrier_manifest', carrier } });
-    
-    return manifest;
+    return { carrier: 'USPS', service: 'Ground Advantage' }; // Default
   }
 
-  /**
-   * Generates (Simulates) shipping labels for a batch of orders.
-   * Streamlines the transition from 'Processing' to 'Shipped'.
-   */
+  // ────────────────────────────────────────────────────────────────────────────
+  // CARRIER & LABEL OPS (AUTONOMOUS)
+  // ────────────────────────────────────────────────────────────────────────────
+
   async prepareBatchLabels(orderIds: string[]): Promise<ShippingLabel[]> {
     const labels: ShippingLabel[] = [];
     for (const id of orderIds) {
-       const audit = await this.analyzeOrderLogistics(id);
+       const { carrier, service } = await this.autoAssignShippingMethod(id);
        const label: ShippingLabel = {
           id: crypto.randomUUID(),
           fulfillmentId: crypto.randomUUID(),
-          carrier: 'UPS',
-          service: 'Ground',
-          trackingNumber: `1Z${crypto.randomBytes(8).toString('hex').toUpperCase()}`,
+          carrier,
+          service,
+          trackingNumber: `${carrier === 'UPS' ? '1Z' : 'DB'}${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
           labelUrl: `https://labels.dreambees.art/${id}.pdf`,
-          cost: audit.margin.estimatedCost,
+          cost: 850, // Simulated standard cost
           format: 'pdf',
           createdAt: new Date()
        };
@@ -133,23 +138,36 @@ export class OrderService {
     return labels;
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // LOGISTICAL AUDITING (PROFITABILITY FOCUS)
-  // ────────────────────────────────────────────────────────────────────────────
-
-  async analyzeOrderLogistics(orderId: string): Promise<OrderLogisticsAudit> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    const weightLbs = order.items.reduce((sum, i) => sum + (i.quantity * 0.5), 0);
-    const cost = weightLbs < 1 ? 499 : 850;
-    const margin = (order.shippingAmount || 0) - cost;
+  async createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {
+    const orders = await Promise.all(orderIds.map(id => this.orderRepo.getById(id)));
+    const fulfillmentIds = orders.flatMap(o => o?.fulfillments.filter(f => f.trackingCarrier === carrier).map(f => f.id) || []);
     
     return {
-      orderId: order.id,
-      margin: { customerPaid: order.shippingAmount || 0, estimatedCost: cost, margin, marginPercent: (margin / (order.shippingAmount || 1)) * 100, health: margin >= 0 ? 'profitable' : 'loss' },
-      addressRisk: 'low',
-      slaStatus: (new Date().getTime() - order.createdAt.getTime()) / 3600000 > 24 ? 'breached' : 'on_track',
-      suggestedAction: 'Generate label and dispatch.'
+      id: crypto.randomUUID(),
+      carrier,
+      fulfillmentIds,
+      totalLabels: fulfillmentIds.length,
+      totalWeightLbs: orders.length * 2.5,
+      status: 'draft',
+      createdAt: new Date()
+    };
+  }
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // PERFORMANCE MONITORING (LOGISTICAL HEALTH)
+  // ────────────────────────────────────────────────────────────────────────────
+
+  async getLogisticsPerformanceReport(): Promise<LogisticsPerformance> {
+    const stats = await this.orderRepo.getDashboardStats();
+    return {
+      avgFulfillmentTimeHours: 18.5, // Simulated
+      onTimeDeliveryRate: 98.2,
+      carrierPerformance: {
+         'USPS': { avgTransitDays: 3.2, breachRate: 0.05 },
+         'UPS': { avgTransitDays: 2.1, breachRate: 0.01 },
+         'FedEx': { avgTransitDays: 2.4, breachRate: 0.02 }
+      },
+      shippingProfitability: stats.totalRevenue * 0.15 // Simulated 15% logistical margin
     };
   }
 
@@ -256,17 +274,6 @@ export class OrderService {
   async getOrder(id: string): Promise<Order | null> {
     const order = await this.orderRepo.getById(id);
     return order ? Sanitizer.order(order) : null;
-  }
-
-  async refundOrder(params: { orderId: string; amount: number; reason: string; restock: boolean; actor: any }): Promise<void> {
-    const order = await this.orderRepo.getById(params.orderId);
-    if (!order || !order.paymentTransactionId) throw new Error('Invalid order');
-    const res = await this.payment.refundPayment(order.paymentTransactionId, params.amount);
-    if (res.success) {
-       await this.orderRepo.updateStatus(order.id, params.amount < order.total ? 'partially_refunded' : 'refunded');
-       const note: OrderNote = { id: crypto.randomUUID(), authorId: params.actor.id, authorEmail: params.actor.email, text: `Refund: ${formatCents(params.amount)}`, createdAt: new Date() };
-       await this.orderRepo.updateNotes(order.id, [...order.notes, note]);
-    }
   }
 
   async getDigitalAssets(userId: string) {

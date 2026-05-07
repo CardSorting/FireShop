@@ -495,6 +495,28 @@ export interface CarrierManifest {
   submittedAt?: Date;
 }
 
+export interface ShippingRule {
+  id: string;
+  name: string;
+  conditions: {
+    minWeightLbs?: number;
+    maxWeightLbs?: number;
+    minValueCents?: number;
+    maxValueCents?: number;
+    destRegions?: string[];
+  };
+  preferredCarrier: string;
+  preferredService: string;
+  priority: number;
+}
+
+export interface LogisticsPerformance {
+  avgFulfillmentTimeHours: number;
+  onTimeDeliveryRate: number;
+  carrierPerformance: Record<string, { avgTransitDays: number; breachRate: number }>;
+  shippingProfitability: number; // Overall margin cents
+}
+
 export interface NavigationLink {
   label: string;
   href: string;
