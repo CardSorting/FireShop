@@ -396,11 +396,14 @@ export interface OrderItem {
 export type OrderStatus =
   | 'pending'
   | 'confirmed'
+  | 'processing'
   | 'shipped'
   | 'delivered'
   | 'cancelled'
   | 'refunded'
-  | 'partially_refunded';
+  | 'partially_refunded'
+  | 'ready_for_pickup'
+  | 'delivery_started';
 
 export interface Address {
   street: string;

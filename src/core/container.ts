@@ -145,8 +145,6 @@ export function getServiceContainer() {
       new FirestoreLocker(),
       createCheckoutGateway(),
       repos.shippingRepo,
-      repos.inventoryLocationRepo,
-      repos.inventoryLevelRepo,
       new FirestoreDigitalAccessRepository()
     ),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
@@ -230,8 +228,6 @@ export function getInitialServices() {
       lockProviderInstance!,
       checkoutGatewayInstance ?? undefined,
       shippingRepoInstance!,
-      inventoryLocationRepoInstance!,
-      inventoryLevelRepoInstance!,
       (() => {
         if (!digitalAccessRepoInstance) digitalAccessRepoInstance = new FirestoreDigitalAccessRepository();
         return digitalAccessRepoInstance;

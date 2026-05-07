@@ -8,8 +8,6 @@ import type {
   ILockProvider, 
   ICheckoutGateway,
   IShippingRepository,
-  IInventoryLevelRepository,
-  IInventoryLocationRepository
 } from '@domain/repositories';
 import { 
   FirestoreDigitalAccessRepository 
@@ -69,8 +67,6 @@ export class OrderService {
     private locker: ILockProvider,
     private checkoutGateway?: ICheckoutGateway,
     private shippingRepo?: IShippingRepository,
-    private locationRepo?: IInventoryLocationRepository,
-    private inventoryLevelRepo?: IInventoryLevelRepository,
     private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository()
   ) {}
 
@@ -161,24 +157,9 @@ export class OrderService {
         else await this.productRepo.updateStock(update.id, update.delta);
       }
 
-      // Simplified Fulfillment Assignment
-      let fulfillmentLocationId = 'primary-warehouse';
-      if (this.locationRepo) {
-        const locations = await this.locationRepo.findAll();
-        const firstMatch = locations.find(loc => {
-           if (fulfillmentMethod === 'pickup') return loc.isPickupLocation;
-           return true; 
-        });
-        if (firstMatch) fulfillmentLocationId = firstMatch.id;
-      }
-
+      // Ultra-Flattened Fulfillment
       const subtotal = verifiedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       let shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : 599;
-
-      if (fulfillmentMethod === 'delivery' && fulfillmentLocationId) {
-         const loc = await this.locationRepo?.findById(fulfillmentLocationId);
-         shipping = loc?.deliveryFee || 499;
-      }
 
       const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
       const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
@@ -195,7 +176,7 @@ export class OrderService {
         discountAmount,
         shippingAmount: shipping,
         taxAmount,
-        fulfillmentLocationId,
+        fulfillmentLocationId: 'primary',
         fulfillmentMethod,
         fulfillments: [],
         notes: [{
@@ -245,6 +226,78 @@ export class OrderService {
   // FULFILLMENT OPS
   // ────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * One-click fulfillment for administrative speed.
+   * Auto-detects carrier and fulfills all remaining items.
+   */
+  async quickFulfill(orderId: string, trackingNumber: string, actor: { id: string, email: string }): Promise<Fulfillment> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+
+    const itemsToFulfill = order.items
+      .filter(i => i.quantity > i.fulfilledQty)
+      .map(i => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity - i.fulfilledQty }));
+
+    if (itemsToFulfill.length === 0) throw new Error('Order is already fully fulfilled.');
+
+    // Auto-detect carrier based on tracking number pattern
+    let carrier = 'Other';
+    if (/^1Z[A-Z0-9]{16}$/i.test(trackingNumber)) carrier = 'UPS';
+    else if (/^[0-9]{12,15}$/.test(trackingNumber)) carrier = 'FedEx';
+    else if (/^[0-9]{20,22}$/.test(trackingNumber)) carrier = 'USPS';
+
+    return this.createFulfillment({
+      orderId,
+      items: itemsToFulfill,
+      trackingNumber,
+      shippingCarrier: carrier,
+      actor
+    });
+  }
+
+  /**
+   * The 'Easy Button' for admins.
+   * Automatically advances the order to its next logical fulfillment state.
+   */
+  async advanceOrderFulfillment(orderId: string, actor: { id: string, email: string }, metadata?: any): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+
+    const method = order.fulfillmentMethod || 'shipping';
+    const currentStatus = order.status;
+
+    // Logic: Confirmed -> Next Stage
+    if (currentStatus === 'confirmed') {
+      if (method === 'pickup') {
+        await this.updateOrderStatus(orderId, 'ready_for_pickup', actor);
+        await this.recordFulfillmentEvent(orderId, 'ready_for_pickup', 'Ready for Pickup', 'Your order is ready to be picked up!');
+      } else if (method === 'delivery') {
+        await this.updateOrderStatus(orderId, 'delivery_started', actor);
+        await this.recordFulfillmentEvent(orderId, 'delivery_started', 'Out for Delivery', 'Our driver has started the delivery route.');
+      } else {
+        // Shipping requires tracking, but we can provide a default 'preparing' event
+        await this.updateOrderStatus(orderId, 'processing', actor);
+      }
+      return;
+    }
+
+    // Logic: Ready for Pickup -> Picked Up
+    if (currentStatus === 'ready_for_pickup') {
+      await this.updateOrderStatus(orderId, 'delivered', actor);
+      await this.recordFulfillmentEvent(orderId, 'picked_up', 'Order Picked Up', 'The order has been successfully picked up.');
+      return;
+    }
+
+    // Logic: Delivery Started -> Delivered
+    if (currentStatus === 'delivery_started') {
+      await this.updateOrderStatus(orderId, 'delivered', actor);
+      await this.recordFulfillmentEvent(orderId, 'delivered', 'Order Delivered', 'Your order has been delivered.');
+      return;
+    }
+
+    throw new Error(`Cannot automatically advance order in status: ${currentStatus}`);
+  }
+
   async createFulfillment(params: {
     orderId: string;
     items: Array<{ productId: string; variantId?: string; quantity: number }>;
@@ -287,7 +340,16 @@ export class OrderService {
       updatedAt: new Date(),
     });
 
-    await this.recordFulfillmentEvent(params.orderId, 'in_transit', 'Items Shipped', 'Your package is on its way.');
+    await this.recordFulfillmentEvent(params.orderId, 'in_transit', 'Items Shipped', `Package shipped via ${params.shippingCarrier}. Tracking: ${params.trackingNumber}`);
+
+    // Audit the action
+    await this.audit.record({
+      userId: params.actor.id,
+      userEmail: params.actor.email,
+      action: 'order_status_changed',
+      targetId: params.orderId,
+      details: { type: 'quick_fulfillment', tracking: params.trackingNumber, carrier: params.shippingCarrier }
+    });
 
     return fulfillment;
   }

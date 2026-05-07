@@ -56,12 +56,15 @@ export const MAX_ADDRESS_FIELD_LENGTH = 120;
 const PRODUCT_SALES_CHANNELS: ProductSalesChannel[] = ['online_store', 'pos', 'draft_order'];
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['shipped', 'cancelled', 'refunded', 'partially_refunded'],
+  confirmed: ['processing', 'shipped', 'ready_for_pickup', 'delivery_started', 'cancelled', 'refunded', 'partially_refunded'],
+  processing: ['shipped', 'cancelled', 'refunded', 'partially_refunded'],
   shipped: ['delivered', 'refunded', 'partially_refunded'],
   delivered: ['refunded', 'partially_refunded'],
   cancelled: [],
   refunded: [],
   partially_refunded: ['refunded'],
+  ready_for_pickup: ['delivered', 'cancelled', 'refunded', 'partially_refunded'],
+  delivery_started: ['delivered', 'cancelled', 'refunded', 'partially_refunded'],
 };
 
 function assertNonEmptyString(value: string | undefined, field: string, maxLength: number): void {
@@ -468,15 +471,17 @@ export function classifyInventoryHealth(stock: number): InventoryHealth {
 
 export function classifyFulfillmentBucket(status: OrderStatus): FulfillmentBucket {
   if (status === 'pending') return 'to_review';
-  if (status === 'confirmed') return 'ready_to_ship';
-  if (status === 'shipped') return 'in_transit';
+  if (status === 'confirmed' || status === 'processing' || status === 'ready_for_pickup') return 'ready_to_ship';
+  if (status === 'shipped' || status === 'delivery_started') return 'in_transit';
   if (status === 'delivered') return 'completed';
   return 'cancelled';
 }
 
 export function nextOrderActionLabel(status: OrderStatus): string {
   if (status === 'pending') return 'Confirm order';
-  if (status === 'confirmed') return 'Mark as shipped';
+  if (status === 'confirmed' || status === 'processing') return 'Mark as shipped';
+  if (status === 'ready_for_pickup') return 'Mark as picked up';
+  if (status === 'delivery_started') return 'Mark as delivered';
   if (status === 'shipped') return 'Mark as delivered';
   if (status === 'delivered') return 'Completed';
   return 'Cancelled';
@@ -484,7 +489,9 @@ export function nextOrderActionLabel(status: OrderStatus): string {
 
 export function customerOrderStatusLabel(status: OrderStatus): string {
   if (status === 'pending') return 'Order placed';
-  if (status === 'confirmed') return 'Processing';
+  if (status === 'confirmed' || status === 'processing') return 'Processing';
+  if (status === 'ready_for_pickup') return 'Ready for pickup';
+  if (status === 'delivery_started') return 'Out for delivery';
   if (status === 'shipped') return 'On the way';
   if (status === 'delivered') return 'Delivered';
   return 'Cancelled';
