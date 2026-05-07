@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { knowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   try {

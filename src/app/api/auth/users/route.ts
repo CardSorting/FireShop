@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     try {

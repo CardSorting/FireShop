@@ -45,6 +45,7 @@ export async function getDoc(docRef: any) {
       id: snapshot.id,
       exists: () => snapshot.exists,
       data: () => snapshot.data() as any,
+      __native: snapshot
     };
   }
   const snap = await client.getDoc(docRef);
@@ -52,6 +53,7 @@ export async function getDoc(docRef: any) {
     id: snap.id,
     exists: () => snap.exists(),
     data: () => snap.data() as any,
+    __native: snap
   };
 }
 
@@ -64,6 +66,7 @@ export async function getDocs(query: any) {
     const docs = snapshot.docs.map((d: any) => ({
       id: d.id,
       data: () => d.data() as any,
+      __native: d
     }));
     return {
       docs,
@@ -76,6 +79,7 @@ export async function getDocs(query: any) {
   const docs = snapshot.docs.map((d: any) => ({
     id: d.id,
     data: () => d.data() as any,
+    __native: d
   }));
   return {
     docs,
@@ -176,9 +180,9 @@ export function limit(n: number) {
  */
 export function startAfter(snapshot: any) {
   if (isServer) {
-    return (q: any) => q.startAfter(snapshot);
+    return (q: any) => q.startAfter(snapshot.__native || snapshot);
   }
-  return client.startAfter(snapshot);
+  return client.startAfter(snapshot.__native || snapshot);
 }
 
 /**

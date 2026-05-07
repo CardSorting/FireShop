@@ -1,8 +1,8 @@
 /**
  * [LAYER: INFRASTRUCTURE]
  */
-import { db } from '../../firebase/firebase';
 import { 
+  getUnifiedDb,
   collection, 
   doc, 
   getDoc, 
@@ -23,18 +23,18 @@ export class FirestoreShippingRepository implements IShippingRepository {
   private zonesCollection = 'shippingZones';
   private ratesCollection = 'shippingRates';
 
-  private get classesColl() { return collection(db, this.classesCollection); }
-  private get zonesColl() { return collection(db, this.zonesCollection); }
-  private get ratesColl() { return collection(db, this.ratesCollection); }
+  private get classesColl() { return collection(getUnifiedDb(), this.classesCollection); }
+  private get zonesColl() { return collection(getUnifiedDb(), this.zonesCollection); }
+  private get ratesColl() { return collection(getUnifiedDb(), this.ratesCollection); }
 
   // Classes
   async getAllClasses(): Promise<ShippingClass[]> {
-    const snapshot = await getDocs(collection(db, this.classesCollection));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.classesCollection));
     return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<ShippingClass>(d.id, d.data()));
   }
 
   async getClassById(id: string): Promise<ShippingClass | null> {
-    const d = await getDoc(doc(db, this.classesCollection, id));
+    const d = await getDoc(doc(getUnifiedDb(), this.classesCollection, id));
     return d.exists() ? mapDoc<ShippingClass>(d.id, d.data()) : null;
   }
 
@@ -53,12 +53,12 @@ export class FirestoreShippingRepository implements IShippingRepository {
 
   // Zones
   async getAllZones(): Promise<ShippingZone[]> {
-    const snapshot = await getDocs(collection(db, this.zonesCollection));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.zonesCollection));
     return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<ShippingZone>(d.id, d.data()));
   }
 
   async getZoneById(id: string): Promise<ShippingZone | null> {
-    const d = await getDoc(doc(db, this.zonesCollection, id));
+    const d = await getDoc(doc(getUnifiedDb(), this.zonesCollection, id));
     return d.exists() ? mapDoc<ShippingZone>(d.id, d.data()) : null;
   }
 
@@ -102,7 +102,7 @@ export class FirestoreShippingRepository implements IShippingRepository {
   }
 
   async getAllRates(): Promise<ShippingRate[]> {
-    const snapshot = await getDocs(collection(db, this.ratesCollection));
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.ratesCollection));
     return snapshot.docs.map((d: QueryDocumentSnapshot) => mapDoc<ShippingRate>(d.id, d.data()));
   }
 }

@@ -53,13 +53,13 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   private mapDocToArticle(id: string, data: DocumentData): KnowledgebaseArticle {
-    return {
+    return JSON.parse(JSON.stringify({
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
       publishedAt: data.publishedAt ? this.toDate(data.publishedAt) : undefined,
-    } as KnowledgebaseArticle;
+    })) as KnowledgebaseArticle;
   }
 
   private mapDocToAuthor(id: string, data: DocumentData): Author {
@@ -89,12 +89,12 @@ export class FirestoreKnowledgebaseRepository {
   }
 
   private mapDocToSeries(id: string, data: DocumentData): BlogSeries {
-    return {
+    return JSON.parse(JSON.stringify({
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-    } as BlogSeries;
+    })) as BlogSeries;
   }
 
   async getCategories(): Promise<KnowledgebaseCategory[]> {

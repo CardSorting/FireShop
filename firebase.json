@@ -41,8 +41,7 @@
     ],
     "frameworksBackend": {
       "region": "us-central1",
-      "memory": "1GB",
-      "minInstances": 1
+      "memory": "1GB"
     },
     "headers": [
       {

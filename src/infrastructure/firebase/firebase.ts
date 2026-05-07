@@ -66,12 +66,7 @@ export function getStorage() {
   return _storage;
 }
 
-// Keep the old exports for compatibility but they are now EAGER to avoid Proxy issues
-// However, we should gradually migrate to the getters.
-// For now, to fix the build, we make them getters where possible or just keep them as is
-// but we will update the repositories to use getDb().
-export const db = typeof window !== 'undefined' ? getDb() : {} as any;
-export const auth = typeof window !== 'undefined' ? getAuth() : {} as any;
-export const storage = typeof window !== 'undefined' ? getStorage() : {} as any;
+// We don't export constants here anymore to avoid eager initialization in the browser.
+// All consumers should use getDb(), getAuth(), and getStorage().
 
 export { getFirebaseApp as app };
