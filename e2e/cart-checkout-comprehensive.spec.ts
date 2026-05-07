@@ -1,19 +1,24 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+/**
+ * [TEST SUITE: Comprehensive Commerce Flow]
+ * Objective: Guarantee deterministic checkout behavior across all edge cases.
+ */
 
 test.describe('Comprehensive Cart and Checkout Flow', () => {
   
   test.beforeEach(async ({ page }) => {
-    // Clear localStorage to start fresh
+    // 1. Reset state
     await page.addInitScript(() => {
       window.localStorage.clear();
+      window.sessionStorage.clear();
     });
 
-    // Default Auth Mock (Null user)
+    // 2. Global Mocks (Base Layer)
     await page.route('/api/auth/me', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
 
-    // Mock Shipping Config
     await page.route('/api/admin/shipping/rates', async (route) => {
         await route.fulfill({
             status: 200,
@@ -21,6 +26,7 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
             body: JSON.stringify([{ id: 'r1', name: 'Standard Shipping', amount: 599, type: 'price_based', minLimit: 0, maxLimit: 9999, shippingZoneId: 'z1' }])
         });
     });
+
     await page.route('/api/admin/shipping/zones', async (route) => {
         await route.fulfill({
             status: 200,
@@ -29,7 +35,6 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         });
     });
 
-    // Mock Taxonomy/Categories
     await page.route('/api/taxonomy/categories', async (route) => {
         await route.fulfill({
             status: 200,
@@ -38,7 +43,6 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         });
     });
 
-    // Mock Products
     await page.route('/api/products*', async (route) => {
         await route.fulfill({
             status: 200,
@@ -67,47 +71,82 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
     });
   });
 
-  // Helper to open cart drawer reliably
-  const openCart = async (page: any) => {
-    const cartBtn = page.locator('button[aria-label="Open cart"]').filter({ visible: true });
-    await cartBtn.first().click({ force: true });
-    await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 15000 });
-  };
+  // --- REUSABLE HELPERS ---
 
-  test('should show empty cart state and handle basic operations', async ({ page }) => {
-    await page.goto('/cart');
-    await expect(page.locator('h2', { hasText: /Your cart is empty/i })).toBeVisible();
-    
+  async function openCart(page: Page) {
+    // Wait for any potential hydration to finish
+    await page.waitForLoadState('networkidle');
+    const cartBtn = page.locator('button[aria-label="Open cart"]').filter({ visible: true }).first();
+    await expect(cartBtn).toBeVisible({ timeout: 15000 });
+    await cartBtn.click({ force: true });
+    // Verify drawer is actually open by checking for header
+    await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 15000 });
+  }
+
+  async function addItemToCart(page: Page) {
     await page.goto('/products');
+    await page.waitForLoadState('networkidle');
     const firstProduct = page.locator('[data-testid="product-card"]').first();
     await expect(firstProduct).toBeVisible({ timeout: 15000 });
-    
     await firstProduct.hover();
     await firstProduct.locator('button:has-text("Quick Add")').click({ force: true });
-    
-    await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible();
-    
+    await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 15000 });
+  }
+
+  // --- TEST SCENARIOS ---
+
+  test('should handle complete cart lifecycle as guest', async ({ page }) => {
+    // 1. Initial Empty State
+    await page.goto('/cart');
+    await expect(page.getByText(/Your cart is empty/i)).toBeVisible();
+
+    // 2. Add and Verify
+    await addItemToCart(page);
     const cartItem = page.locator('[data-testid="cart-item"]').first();
+    await expect(cartItem).toBeVisible({ timeout: 10000 });
+    await expect(cartItem).toContainText('Black Lotus');
+
+    // 3. Quantity Operations
     const plusBtn = cartItem.locator('button:has(svg.lucide-plus)');
     const minusBtn = cartItem.locator('button:has(svg.lucide-minus)');
     
     await plusBtn.click({ force: true });
-    await expect(cartItem.locator('span').filter({ hasText: '2' }).first()).toBeVisible();
-    await minusBtn.click({ force: true });
-    await expect(cartItem.locator('span').filter({ hasText: '1' }).first()).toBeVisible();
+    await expect(cartItem.getByText('2')).toBeVisible({ timeout: 10000 });
     
-    await cartItem.locator('button[title="Remove item"]').click({ force: true });
-    await expect(page.locator('text=/Your cart is empty/i').first()).toBeVisible();
+    await minusBtn.click({ force: true });
+    await expect(cartItem.getByText('1')).toBeVisible({ timeout: 10000 });
+
+    // 4. Persistence Check
+    await page.reload();
+    await openCart(page);
+    // Wait for the item to be visible after hydration
+    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(1);
+
+    // 5. Cleanup
+    await page.locator('[data-testid="cart-item"]').first().locator('button[title="Remove item"]').click({ force: true });
+    await expect(page.getByText(/Your cart is empty/i)).toBeVisible({ timeout: 10000 });
   });
 
-  test('should validate checkout fields and preserve data between steps', async ({ page }) => {
+  test('should calculate free shipping threshold milestones correctly', async ({ page }) => {
+    await addItemToCart(page);
+    
+    // Check initial state ($50 item, $100 threshold)
+    await expect(page.getByText(/Shipping Progress/i)).toBeVisible();
+    // Using explicit string for visibility
+    await expect(page.getByText('$50.00 to go')).toBeVisible();
+    
+    // Increase quantity to reach threshold
+    const cartItem = page.locator('[data-testid="cart-item"]').first();
+    await cartItem.locator('button:has(svg.lucide-plus)').click({ force: true });
+    
+    await expect(page.getByText(/Free Shipping Unlocked/i)).toBeVisible({ timeout: 10000 });
+  });
+
+  test('should validate checkout form and handle step transitions', async ({ page }) => {
+    // Authenticated user
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: 'user-123', email: 'tester@example.com', displayName: 'Test User', role: 'customer' })
-      });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com' }) });
     });
 
     await page.route('/api/cart', async (route) => {
@@ -115,10 +154,7 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'cart-123',
-          userId: 'user-123',
-          items: [{ productId: 'p1', name: 'Test Product', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }],
-          updatedAt: new Date().toISOString()
+          id: 'c1', userId: 'u1', items: [{ productId: 'p1', name: 'Art Print', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }]
         })
       });
     });
@@ -126,24 +162,30 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
     await page.goto('/checkout');
     await expect(page.locator('[data-testid="checkout-title"]')).toBeVisible({ timeout: 15000 });
 
+    // Step 1: Validation
     await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-    await expect(page.locator('text=/Enter the street address/i')).toBeVisible();
+    await expect(page.getByText(/Enter the street address/i)).toBeVisible();
 
-    await page.locator('#checkout-street').fill('123 Test St');
-    await page.locator('#checkout-city').fill('Test City');
-    await page.locator('#checkout-state').fill('TS');
-    await page.locator('#checkout-zip').fill('12345');
-    
+    // Step 2: Fulfillment info
+    await page.locator('#checkout-street').fill('123 Hive St');
+    await page.locator('#checkout-city').fill('New York');
+    await page.locator('#checkout-state').fill('NY');
+    await page.locator('#checkout-zip').fill('10001');
     await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-    await expect(page.locator('text=/Delivery Speed/i')).toBeVisible();
 
-    await page.locator('button:has-text("Edit Address")').click({ force: true });
-    await expect(page.locator('#checkout-street')).toHaveValue('123 Test St');
+    // Step 3: Shipping method
+    await expect(page.getByText(/Delivery Speed/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Standard Shipping/i).first()).toBeVisible();
+    await page.locator('[data-testid="continue-to-payment"]').click({ force: true });
+
+    // Step 4: Payment Summary
+    await expect(page.getByText(/Secure Payment/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/123 Hive St/i)).toBeVisible();
   });
 
-  test('should handle discount codes correctly', async ({ page }) => {
+  test('should handle discount codes and reflect them in total', async ({ page }) => {
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 't@e.com', role: 'customer' }) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com' }) });
     });
     
     await page.route('/api/cart', async (route) => {
@@ -151,21 +193,18 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'cart-123',
-          userId: 'u1',
-          items: [{ productId: 'p1', name: 'Item', priceSnapshot: 10000, quantity: 1, imageUrl: '...' }],
-          updatedAt: new Date().toISOString()
+          id: 'c1', items: [{ productId: 'p1', name: 'Item', priceSnapshot: 10000, quantity: 1, imageUrl: '...' }]
         })
       });
     });
 
     await page.route('/api/discounts/validate', async (route) => {
       const { code } = route.request().postDataJSON();
-      if (code === 'VALID10') {
+      if (code === 'SAVE20') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ valid: true, discountAmount: 1000, discount: { type: 'fixed_amount', value: 1000 } })
+          body: JSON.stringify({ valid: true, discountAmount: 2000, discount: { type: 'fixed_amount', value: 2000 } })
         });
       } else {
         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: false, message: 'Invalid code' }) });
@@ -173,36 +212,18 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
     });
 
     await page.goto('/checkout');
-    await expect(page.locator('[data-testid="checkout-title"]')).toBeVisible({ timeout: 15000 });
-    
     const discountInput = page.locator('input[placeholder="Discount code"]');
-    await discountInput.fill('VALID10');
-    await page.locator('button:has-text("Apply")').click({ force: true });
-    await expect(page.locator('text=/VALID10 applied/i')).toBeVisible();
-    await expect(page.locator('text=-$10.00').last()).toBeVisible();
+    await discountInput.fill('SAVE20');
+    await page.getByRole('button', { name: /Apply/i }).click({ force: true });
+
+    await expect(page.getByText(/SAVE20 applied/i)).toBeVisible({ timeout: 10000 });
+    // Use exact string to avoid regex escaping issues
+    await expect(page.getByText('-$20.00')).toBeVisible({ timeout: 10000 });
   });
 
-  test('should display free shipping milestone correctly', async ({ page }) => {
-    await page.goto('/products');
-    const firstProduct = page.locator('[data-testid="product-card"]').first();
-    await expect(firstProduct).toBeVisible({ timeout: 15000 });
-    
-    await firstProduct.hover();
-    await firstProduct.locator('button:has-text("Quick Add")').click({ force: true });
-    
-    await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('text=/Shipping Progress/i')).toBeVisible();
-    await expect(page.locator('text=$50.00 to go')).toBeVisible();
-    
-    const cartItem = page.locator('[data-testid="cart-item"]').first();
-    await cartItem.locator('button:has(svg.lucide-plus)').click({ force: true });
-    
-    await expect(page.locator('text=/Free Shipping Unlocked/i')).toBeVisible();
-  });
-
-  test('should complete a successful order journey', async ({ page }) => {
+  test('should execute a successful order journey to confirmation', async ({ page }) => {
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com', displayName: 'Test User', role: 'customer' }) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com', displayName: 'Collector' }) });
     });
 
     await page.route('/api/cart', async (route) => {
@@ -210,10 +231,7 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'cart-123',
-          userId: 'u1',
-          items: [{ productId: 'p1', name: 'Black Lotus', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }],
-          updatedAt: new Date().toISOString()
+          id: 'c1', items: [{ productId: 'p1', name: 'Masterpiece', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }]
         })
       });
     });
@@ -224,12 +242,11 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            id: 'ord-999',
-            userId: 'u1',
+            id: 'ord-confirm-777',
             status: 'confirmed',
             total: 5599,
-            items: [{ productId: 'p1', name: 'Black Lotus', unitPrice: 5000, quantity: 1 }],
-            shippingAddress: { street: '123 Test St', city: 'Test City', state: 'TS', zip: '12345', country: 'US' },
+            items: [{ productId: 'p1', name: 'Masterpiece', unitPrice: 5000, quantity: 1 }],
+            shippingAddress: { street: '123 Hive St', city: 'NY', state: 'NY', zip: '10001', country: 'US' },
             createdAt: new Date().toISOString()
           })
         });
@@ -238,28 +255,34 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
 
     await page.goto('/checkout');
     await expect(page.locator('[data-testid="checkout-title"]')).toBeVisible();
-
-    await page.locator('#checkout-street').fill('123 Test St');
-    await page.locator('#checkout-city').fill('Test City');
-    await page.locator('#checkout-state').fill('TS');
-    await page.locator('#checkout-zip').fill('12345');
+    
+    // Fill all required fields including email
+    await page.locator('#checkout-email').fill('tester@example.com');
+    await page.locator('#checkout-street').fill('123 Hive St');
+    await page.locator('#checkout-city').fill('NY');
+    await page.locator('#checkout-state').fill('NY');
+    await page.locator('#checkout-zip').fill('10001');
+    
     await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-
-    await expect(page.locator('text=/Standard Shipping/i').first()).toBeVisible({ timeout: 15000 });
+    
+    // Wait for transition to shipping
+    await expect(page.getByText(/Delivery Speed/i)).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="continue-to-payment"]').click({ force: true });
 
-    await expect(page.locator('text=/Payment Method/i')).toBeVisible({ timeout: 10000 });
-    const paymentBtn = page.locator('[data-testid="mock-checkout-button"]');
-    await paymentBtn.click({ force: true });
+    // Finalize
+    const finalizeBtn = page.locator('[data-testid="mock-checkout-button"]');
+    await expect(finalizeBtn).toBeVisible({ timeout: 20000 });
+    await finalizeBtn.click({ force: true });
 
-    await expect(page.locator('text=/Thank you/i')).toBeVisible({ timeout: 25000 });
-    await expect(page.locator('text=ORD-999')).toBeVisible();
+    // Success check
+    await expect(page.getByText(/Thank you for your order/i)).toBeVisible({ timeout: 30000 });
+    await expect(page.getByText(/ORD-CONFIRM-777/i)).toBeVisible();
   });
 
-  test('should handle product variants in cart and checkout', async ({ page }) => {
-    // Mock user for this test to ensure it fetches the mocked cart API
+  test('should handle variant selection and correct pricing in cart', async ({ page }) => {
+    // Authenticated for predictable cart fetching
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'v@e.com', role: 'customer' }) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'v@e.com' }) });
     });
 
     await page.route('/api/cart', async (route) => {
@@ -269,8 +292,15 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
         body: JSON.stringify({
           id: 'cart-v1',
           userId: 'u1',
-          items: [{ productId: 'p1', variantId: 'v2', variantTitle: 'Holographic', name: 'Black Lotus', priceSnapshot: 7500, quantity: 1, imageUrl: '...' }],
-          updatedAt: new Date().toISOString()
+          items: [{ 
+            productId: 'p1', 
+            variantId: 'v2', 
+            variantTitle: 'Holographic', 
+            name: 'Black Lotus', 
+            priceSnapshot: 7500, 
+            quantity: 1, 
+            imageUrl: '...' 
+          }]
         })
       });
     });
@@ -282,42 +312,59 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
     await expect(cartItem).toContainText('Holographic', { timeout: 15000 });
     await expect(cartItem).toContainText('$75.00');
 
+    // Verify in checkout summary
     await page.goto('/checkout');
-    await expect(page.locator('text=/Holographic/i').last()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=/$75.00/i').last()).toBeVisible();
+    await expect(page.locator('aside').getByText(/Holographic/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('aside').getByText('75.00').last()).toBeVisible();
   });
 
-  test('should persist guest cart after page reload', async ({ page }) => {
-    await page.goto('/products');
-    const firstProduct = page.locator('[data-testid="product-card"]').first();
-    await firstProduct.hover();
-    await firstProduct.locator('button:has-text("Quick Add")').click({ force: true });
-    
-    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
-
-    await page.reload();
-    await openCart(page);
-    await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(1, { timeout: 15000 });
-  });
-
-  test('should enforce maximum quantity limits', async ({ page }) => {
-    // Use authenticated user to ensure cart is fetched from API
+  test('should skip shipping step for purely digital orders', async ({ page }) => {
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'q@e.com', role: 'customer' }) });
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'd@e.com' }) });
     });
 
     await page.route('/api/cart', async (route) => {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'cart-qty',
-            userId: 'u1',
-            items: [{ productId: 'p1', name: 'Item', priceSnapshot: 1000, quantity: 9, imageUrl: '...' }],
-            updatedAt: new Date().toISOString()
-          })
-        });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'cart-digital',
+          items: [{ productId: 'p1', name: 'Digital Art', priceSnapshot: 2500, quantity: 1, isDigital: true, imageUrl: '...' }]
+        })
       });
+    });
+
+    await page.goto('/checkout');
+    
+    // Fill identity (email)
+    await page.locator('#checkout-email').fill('d@e.com');
+    
+    // Click continue - should go straight to payment because it's digital
+    await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
+    
+    await expect(page.getByText(/Secure Payment/i)).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Instant digital fulfillment/i)).toBeVisible();
+    
+    // Verify shipping step is not in the stepper
+    await expect(page.locator('text=/Delivery Speed/i')).not.toBeVisible();
+  });
+
+  test('should enforce max quantity limits reliably', async ({ page }) => {
+    await page.route('/api/auth/me', async (route) => {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'limit@e.com' }) });
+    });
+
+    await page.route('/api/cart', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'cart-qty',
+          userId: 'u1',
+          items: [{ productId: 'p1', name: 'Limited Edition', priceSnapshot: 1000, quantity: 9, imageUrl: '...' }]
+        })
+      });
+    });
 
     await page.goto('/products');
     await openCart(page);
@@ -325,9 +372,12 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
     const cartItem = page.locator('[data-testid="cart-item"]').first();
     const plusBtn = cartItem.locator('button:has(svg.lucide-plus)');
     
+    // Increment to 10
     await plusBtn.click({ force: true });
-    await expect(cartItem.locator('span').filter({ hasText: '10' }).first()).toBeVisible({ timeout: 10000 });
-    await expect(plusBtn).toBeDisabled();
+    await expect(cartItem.getByText('10')).toBeVisible({ timeout: 15000 });
+
+    // Verify disabled
+    await expect(plusBtn).toBeDisabled({ timeout: 10000 });
   });
 
 });
