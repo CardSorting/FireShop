@@ -416,6 +416,11 @@ export interface Address {
   coordinates?: { lat: number, lng: number };
 }
 
+export interface Weight {
+  value: number;
+  unit: 'g' | 'kg' | 'lbs' | 'oz';
+}
+
 export interface NavigationLink {
   label: string;
   href: string;
