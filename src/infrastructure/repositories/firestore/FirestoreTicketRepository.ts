@@ -89,42 +89,49 @@ export class FirestoreTicketRepository {
       updatedAt: now,
       slaDeadline: ticket.slaDeadline ? Timestamp.fromDate(new Date(ticket.slaDeadline)) : null,
     };
-    await setDoc(doc(getUnifiedDb(), this.ticketCollection, ticket.id), ticketData);
 
-    if (ticket.messages && ticket.messages.length > 0) {
-      const batch = writeBatch(getUnifiedDb());
-      for (const m of ticket.messages) {
-        batch.set(doc(getUnifiedDb(), this.messageCollection, m.id), {
-          ...m,
-          createdAt: m.createdAt ? Timestamp.fromDate(new Date(m.createdAt)) : now
-        });
+    const db = getUnifiedDb();
+    await runTransaction(db, async (transaction: any) => {
+      transaction.set(doc(db, this.ticketCollection, ticket.id), ticketData);
+
+      if (ticket.messages && ticket.messages.length > 0) {
+        for (const m of ticket.messages) {
+          transaction.set(doc(db, this.messageCollection, m.id), {
+            ...m,
+            createdAt: m.createdAt ? Timestamp.fromDate(new Date(m.createdAt)) : now
+          });
+        }
       }
-      await batch.commit();
-    }
+    });
   }
 
   async updateTicketProperties(id: string, updates: Partial<SupportTicket>) {
-    const firestoreUpdates: any = { ...updates, updatedAt: serverTimestamp() };
-    if (updates.slaDeadline) firestoreUpdates.slaDeadline = Timestamp.fromDate(new Date(updates.slaDeadline));
+    const db = getUnifiedDb();
     
-    await updateDoc(doc(getUnifiedDb(), this.ticketCollection, id), firestoreUpdates);
+    await runTransaction(db, async (transaction: any) => {
+      const firestoreUpdates: any = { ...updates, updatedAt: serverTimestamp() };
+      if (updates.slaDeadline) firestoreUpdates.slaDeadline = Timestamp.fromDate(new Date(updates.slaDeadline));
+      
+      transaction.update(doc(db, this.ticketCollection, id), firestoreUpdates);
 
-    // Audit log
-    const auditEntries = Object.entries(updates)
-      .filter(([key]) => key !== 'updatedAt')
-      .map(([key, val]) => `Ticket ${key} changed to "${val}"`);
-    
-    if (auditEntries.length > 0) {
-      await this.addMessage({
-        id: crypto.randomUUID(),
-        ticketId: id,
-        senderId: 'system',
-        senderType: 'system',
-        visibility: 'internal',
-        content: `Audit: ${auditEntries.join(', ')}`,
-        createdAt: new Date()
-      });
-    }
+      // Audit log as an internal message
+      const auditEntries = Object.entries(updates)
+        .filter(([key]) => key !== 'updatedAt')
+        .map(([key, val]) => `Ticket ${key} changed to "${val}"`);
+      
+      if (auditEntries.length > 0) {
+        const messageId = crypto.randomUUID();
+        transaction.set(doc(db, this.messageCollection, messageId), {
+          id: messageId,
+          ticketId: id,
+          senderId: 'system',
+          senderType: 'system',
+          visibility: 'internal',
+          content: `Audit: ${auditEntries.join(', ')}`,
+          createdAt: serverTimestamp()
+        });
+      }
+    });
   }
 
   async updateTicketStatus(id: string, status: string) {
@@ -136,36 +143,41 @@ export class FirestoreTicketRepository {
   }
 
   async addMessage(message: TicketMessage) {
-    const now = serverTimestamp();
-    await setDoc(doc(getUnifiedDb(), this.messageCollection, message.id), {
-      ...message,
-      createdAt: message.createdAt ? Timestamp.fromDate(new Date(message.createdAt)) : now
+    const db = getUnifiedDb();
+    await runTransaction(db, async (transaction: any) => {
+      const now = serverTimestamp();
+      transaction.set(doc(db, this.messageCollection, message.id), {
+        ...message,
+        createdAt: message.createdAt ? Timestamp.fromDate(new Date(message.createdAt)) : now
+      });
+      transaction.update(doc(db, this.ticketCollection, message.ticketId), { updatedAt: now });
     });
-    await updateDoc(doc(getUnifiedDb(), this.ticketCollection, message.ticketId), { updatedAt: now });
   }
 
   async batchUpdateTickets(ids: string[], updates: Partial<SupportTicket>) {
-    const batch = writeBatch(getUnifiedDb());
-    const now = serverTimestamp();
-    const auditContent = `Bulk update performed on ${ids.length} tickets: ${Object.entries(updates).map(([k, v]) => `${k}=${v}`).join(', ')}`;
-    
-    for (const id of ids) {
-      const firestoreUpdates: any = { ...updates, updatedAt: now };
-      if (updates.slaDeadline) firestoreUpdates.slaDeadline = Timestamp.fromDate(new Date(updates.slaDeadline));
-      batch.update(doc(getUnifiedDb(), this.ticketCollection, id), firestoreUpdates);
+    const db = getUnifiedDb();
+    // Use transaction for bulk update to ensure all tickets and audit messages are consistent
+    await runTransaction(db, async (transaction: any) => {
+      const now = serverTimestamp();
+      const auditContent = `Bulk update performed on ${ids.length} tickets: ${Object.entries(updates).map(([k, v]) => `${k}=${v}`).join(', ')}`;
       
-      const messageId = crypto.randomUUID();
-      batch.set(doc(getUnifiedDb(), this.messageCollection, messageId), {
-        id: messageId,
-        ticketId: id,
-        senderId: 'system',
-        senderType: 'system',
-        visibility: 'internal',
-        content: auditContent,
-        createdAt: now
-      });
-    }
-    await batch.commit();
+      for (const id of ids) {
+        const firestoreUpdates: any = { ...updates, updatedAt: now };
+        if (updates.slaDeadline) firestoreUpdates.slaDeadline = Timestamp.fromDate(new Date(updates.slaDeadline));
+        transaction.update(doc(db, this.ticketCollection, id), firestoreUpdates);
+        
+        const messageId = crypto.randomUUID();
+        transaction.set(doc(db, this.messageCollection, messageId), {
+          id: messageId,
+          ticketId: id,
+          senderId: 'system',
+          senderType: 'system',
+          visibility: 'internal',
+          content: auditContent,
+          createdAt: now
+        });
+      }
+    });
   }
 
   async getTicketHealthMetrics() {
@@ -236,27 +248,32 @@ export class FirestoreTicketRepository {
   }
 
   async markHeartbeat(ticketId: string, userId: string, userName: string) {
-    const id = `ticket_view_${ticketId}`;
+    // Production Hardening: Use a dedicated heartbeat collection to support multiple concurrent viewers
+    // instead of a single document per ticket.
+    const id = `${ticketId}_${userId}`;
     const expiresAt = Timestamp.fromDate(new Date(Date.now() + 15000));
     await setDoc(doc(getUnifiedDb(), this.claimCollection, id), {
       id,
-      owner: `${userId}:${userName}`,
+      ticketId,
+      userId,
+      userName,
       expiresAt,
-      createdAt: serverTimestamp()
+      updatedAt: serverTimestamp()
     });
   }
 
   async getActiveViewers(ticketId: string, currentUserId: string) {
-    const id = `ticket_view_${ticketId}`;
-    const docSnap = await getDoc(doc(getUnifiedDb(), this.claimCollection, id));
-    if (!docSnap.exists()) return [];
+    const q = query(
+      collection(getUnifiedDb(), this.claimCollection), 
+      where('ticketId', '==', ticketId)
+    );
+    const snapshot = await getDocs(q);
+    const now = Date.now();
     
-    const data = docSnap.data();
-    if (data.expiresAt.toDate().getTime() < Date.now()) return [];
-    
-    const [ownerId, ownerName] = data.owner.split(':');
-    if (ownerId === currentUserId) return [];
-    return [{ id: ownerId, name: ownerName }];
+    return snapshot.docs
+      .map((d: QueryDocumentSnapshot) => d.data() as any)
+      .filter((d: any) => d.userId !== currentUserId && d.expiresAt.toDate().getTime() > now)
+      .map((d: any) => ({ id: d.userId, name: d.userName }));
   }
 }
 

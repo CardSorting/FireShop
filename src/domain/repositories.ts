@@ -46,8 +46,8 @@ export interface IProductRepository {
 }
 
 export interface ICartRepository {
-  getByUserId(userId: string): Promise<Cart | null>;
-  save(cart: Cart): Promise<void>;
+  getByUserId(userId: string, transaction?: any): Promise<Cart | null>;
+  save(cart: Cart, transaction?: any): Promise<void>;
   clear(userId: string): Promise<void>;
 }
 

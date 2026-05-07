@@ -10,6 +10,7 @@ import {
   calculateCartTotal,
 } from '@domain/rules';
 import { ProductNotFoundError } from '@domain/errors';
+import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 
 export class CartService {
   constructor(
@@ -30,36 +31,40 @@ export class CartService {
     const product = await this.productRepo.getById(productId);
     if (!product) throw new ProductNotFoundError(productId);
 
-    const cart = await this.cartRepo.getByUserId(userId);
-    const items = cart?.items ?? [];
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.cartRepo.getByUserId(userId, transaction);
+      const items = cart?.items ?? [];
 
-    const updatedItems = addCartItem(items, product, quantity, variantId);
+      const updatedItems = addCartItem(items, product, quantity, variantId);
 
-    const updatedCart: Cart = {
-      id: userId,
-      userId,
-      items: updatedItems,
-      updatedAt: new Date(),
-    };
+      const updatedCart: Cart = {
+        id: userId,
+        userId,
+        items: updatedItems,
+        updatedAt: new Date(),
+      };
 
-    await this.cartRepo.save(updatedCart);
-    return updatedCart;
+      await this.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
   }
 
   async removeFromCart(userId: string, productId: string, variantId?: string): Promise<Cart> {
-    const cart = await this.cartRepo.getByUserId(userId);
-    const items = cart?.items ?? [];
-    const updatedItems = removeCartItem(items, productId, variantId);
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.cartRepo.getByUserId(userId, transaction);
+      const items = cart?.items ?? [];
+      const updatedItems = removeCartItem(items, productId, variantId);
 
-    const updatedCart: Cart = {
-      id: userId,
-      userId,
-      items: updatedItems,
-      updatedAt: new Date(),
-    };
+      const updatedCart: Cart = {
+        id: userId,
+        userId,
+        items: updatedItems,
+        updatedAt: new Date(),
+      };
 
-    await this.cartRepo.save(updatedCart);
-    return updatedCart;
+      await this.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
   }
 
   async updateQuantity(
@@ -71,20 +76,22 @@ export class CartService {
     const product = await this.productRepo.getById(productId);
     if (!product) throw new ProductNotFoundError(productId);
 
-    const cart = await this.cartRepo.getByUserId(userId);
-    const items = cart?.items ?? [];
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const cart = await this.cartRepo.getByUserId(userId, transaction);
+      const items = cart?.items ?? [];
 
-    const updatedItems = updateCartItemQuantity(items, productId, quantity, product, variantId);
+      const updatedItems = updateCartItemQuantity(items, productId, quantity, product, variantId);
 
-    const updatedCart: Cart = {
-      id: userId,
-      userId,
-      items: updatedItems,
-      updatedAt: new Date(),
-    };
+      const updatedCart: Cart = {
+        id: userId,
+        userId,
+        items: updatedItems,
+        updatedAt: new Date(),
+      };
 
-    await this.cartRepo.save(updatedCart);
-    return updatedCart;
+      await this.cartRepo.save(updatedCart, transaction);
+      return updatedCart;
+    });
   }
 
   async clearCart(userId: string): Promise<void> {

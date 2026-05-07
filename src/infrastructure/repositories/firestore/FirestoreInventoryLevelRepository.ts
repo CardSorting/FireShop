@@ -64,6 +64,7 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
     await runTransaction(getUnifiedDb(), async (transaction) => {
       const docSnap = await transaction.get(docRef);
       if (!docSnap.exists()) {
+        if (delta < 0) throw new Error(`Cannot initialize inventory with negative quantity for ${productId}`);
         transaction.set(docRef, {
           productId,
           locationId,
@@ -75,8 +76,16 @@ export class FirestoreInventoryLevelRepository implements IInventoryLevelReposit
           updatedAt: serverTimestamp()
         });
       } else {
+        const data = docSnap.data() as any;
+        const currentQty = data.availableQty || 0;
+        const nextQty = currentQty + delta;
+        
+        if (nextQty < 0) {
+          throw new Error(`Insufficient inventory: ${productId} at ${locationId}. Requested: ${Math.abs(delta)}, Available: ${currentQty}`);
+        }
+
         transaction.update(docRef, {
-          availableQty: increment(delta),
+          availableQty: nextQty,
           updatedAt: serverTimestamp()
         });
       }

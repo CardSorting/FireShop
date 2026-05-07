@@ -31,26 +31,46 @@ export class FirestoreCartRepository implements ICartRepository {
     return mapDoc<Cart>(id, data);
   }
 
-  async getByUserId(userId: string): Promise<Cart | null> {
+  async getByUserId(userId: string, transaction?: any): Promise<Cart | null> {
     try {
       const docRef = doc(getUnifiedDb(), this.collectionName, userId);
-      const docSnap = await getDoc(docRef);
-      if (!docSnap.exists()) return null;
-      return this.mapDocToCart(docSnap.id, docSnap.data());
+      let data: DocumentData | undefined;
+      let id: string;
+
+      if (transaction) {
+        const docSnap = await transaction.get(docRef);
+        if (!docSnap.exists()) return null;
+        data = docSnap.data();
+        id = docSnap.id;
+      } else {
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return null;
+        data = docSnap.data();
+        id = docSnap.id;
+      }
+
+      return this.mapDocToCart(id, data!);
     } catch (err) {
       logger.error('Failed to get cart', { userId, err });
       return null;
     }
   }
 
-  async save(cart: Cart): Promise<void> {
+  async save(cart: Cart, transaction?: any): Promise<void> {
     try {
       const id = cart.userId; // Production Hardening: Use userId as ID for atomicity and speed
-      await setDoc(doc(getUnifiedDb(), this.collectionName, id), {
+      const docRef = doc(getUnifiedDb(), this.collectionName, id);
+      const updateData = {
         ...cart,
         id,
         updatedAt: serverTimestamp()
-      }, { merge: true });
+      };
+
+      if (transaction) {
+        transaction.set(docRef, updateData);
+      } else {
+        await setDoc(docRef, updateData, { merge: true });
+      }
     } catch (err) {
       logger.error('Failed to save cart', { userId: cart.userId, err });
       throw err;
