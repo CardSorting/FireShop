@@ -14,6 +14,7 @@ import { useServices } from '../hooks/useServices';
 import { Bookmark, ExternalLink, Play, CheckCircle2, BarChart3, BookOpen } from 'lucide-react';
 import Image from 'next/image';
 import type { BlogSeries } from '@domain/models';
+import { productPath } from '@utils/seo';
 
 
 export function BlogCard({ post, variant = 'standard' }: { 
@@ -209,7 +210,7 @@ export function TopicPill({
 export function SeriesCard({ series }: { series: BlogSeries }) {
   return (
     <Link 
-      href={`/blog/series/${series.slug}`}
+      href={`/blog?category=${series.categoryIds?.[0] || 'all'}`}
       className="group relative flex flex-col w-[320px] md:w-[400px] shrink-0 bg-white rounded-3xl overflow-hidden border border-gray-100 transition-all duration-500 hover:border-primary-200"
     >
       <div className="relative h-48 overflow-hidden">
@@ -516,7 +517,7 @@ export function RelatedProducts({ products }: { products: Product[] }) {
         {products.map(product => (
           <Link 
             key={product.id}
-            href={`/products/${product.id}`}
+            href={productPath(product)}
             className="group bg-white rounded-4xl p-6 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500"
           >
             <div className="relative h-48 overflow-hidden rounded-3xl mb-6 bg-gray-50">

@@ -317,18 +317,41 @@ export default function PostContent({ post, initialComments, initialAuthor, init
 
           {/* Post Navigation */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-20 border-t border-gray-100">
-            <div className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-start gap-4 group cursor-pointer hover:bg-white hover:shadow-xl transition-all">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                 <ChevronLeft className="h-3 w-3" /> Previous Story
-               </span>
-               <h4 className="font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">The Future of Art Conservation</h4>
-            </div>
-            <div className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-end text-right gap-4 group cursor-pointer hover:bg-white hover:shadow-xl transition-all">
-               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
-                 Next Story <ChevronRight className="h-3 w-3" />
-               </span>
-               <h4 className="font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">Digital Brushstrokes in the 21st Century</h4>
-            </div>
+            {latestPosts && latestPosts.length > 0 ? (
+              <Link 
+                href={`/blog/${latestPosts[0].slug}`}
+                className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-start gap-4 group cursor-pointer hover:bg-white hover:shadow-xl transition-all"
+              >
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                  <ChevronLeft className="h-3 w-3" /> Previous Story
+                </span>
+                <h4 className="font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">
+                  {latestPosts[0].title}
+                </h4>
+              </Link>
+            ) : (
+              <div className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-start gap-4 opacity-50">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">No Previous Story</span>
+              </div>
+            )}
+
+            {latestPosts && latestPosts.length > 1 ? (
+              <Link 
+                href={`/blog/${latestPosts[1].slug}`}
+                className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-end text-right gap-4 group cursor-pointer hover:bg-white hover:shadow-xl transition-all"
+              >
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-2">
+                  Next Story <ChevronRight className="h-3 w-3" />
+                </span>
+                <h4 className="font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">
+                  {latestPosts[1].title}
+                </h4>
+              </Link>
+            ) : (
+              <div className="p-8 rounded-[2.5rem] bg-gray-50 border border-gray-100 flex flex-col items-end text-right gap-4 opacity-50">
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">No Next Story</span>
+              </div>
+            )}
           </div>
 
           <div className="pt-20 border-t border-gray-100">

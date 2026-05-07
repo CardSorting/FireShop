@@ -119,6 +119,7 @@ export function Footer() {
               <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Shop</h3>
               <ul className="space-y-3">
                 <li><Link href={STORE_PATHS.PRODUCTS} title="Shop all art and accessories" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">All Products</Link></li>
+                <li><Link href="/blog" title="DreamBeesArt Journal & Strategy" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Journal & Strategy</Link></li>
                 <li><Link href="/collections/artist-cards" title="Browse handcrafted Artist Trading Cards" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Artist Trading Cards</Link></li>
                 <li><Link href="/collections/prints" title="Explore premium art prints" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Art Prints</Link></li>
                 <li><Link href="/collections/accessories" title="Shop TCG protection and gear" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">TCG Accessories</Link></li>

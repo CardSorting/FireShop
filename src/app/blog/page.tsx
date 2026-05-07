@@ -2,7 +2,8 @@
  * [LAYER: INFRASTRUCTURE]
  */
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useServices } from '@ui/hooks/useServices';
 import { BlogCard, NewsletterBox, TrendingPostItem, TopicPill, SeriesCard } from '@ui/components/BlogComponents';
 import { BlogHero } from '@ui/components/Blog/BlogHero';
@@ -13,12 +14,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { KnowledgebaseArticle, KnowledgebaseCategory, BlogSeries } from '@domain/models';
 
 export default function BlogPage() {
+  const searchParams = useSearchParams();
   const services = useServices();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
   const [posts, setPosts] = useState<KnowledgebaseArticle[]>([]);
   const [categories, setCategories] = useState<KnowledgebaseCategory[]>([]);
   const [series, setSeries] = useState<BlogSeries[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => searchParams.get('category') || 'all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'new' | 'popular'>('new');
   const [loading, setLoading] = useState(true);

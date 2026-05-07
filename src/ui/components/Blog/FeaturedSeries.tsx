@@ -32,7 +32,7 @@ export function FeaturedSeries({ title, subtitle, posts }: FeaturedSeriesProps) 
         </div>
         
         <Link 
-          href="/blog?series=mastering-blogging"
+          href="/blog?category=tcg-strategy"
           className="group flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 transition-all"
         >
           View Full Series
