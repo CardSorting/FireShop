@@ -6,22 +6,19 @@
 
 # Test info
 
-- Name: cart-checkout-comprehensive.spec.ts >> Comprehensive Cart and Checkout Flow >> should require shipping for mixed carts
-- Location: e2e/cart-checkout-comprehensive.spec.ts:85:3
+- Name: cart-checkout-comprehensive.spec.ts >> Comprehensive Cart and Checkout Flow >> should apply discount codes
+- Location: e2e/cart-checkout-comprehensive.spec.ts:142:3
 
 # Error details
 
 ```
-Error: expect(locator).toBeVisible() failed
+Test timeout of 60000ms exceeded.
+```
 
-Locator: locator('#checkout-email')
-Expected: visible
-Timeout: 15000ms
-Error: element(s) not found
-
+```
+Error: locator.fill: Test timeout of 60000ms exceeded.
 Call log:
-  - Expect "toBeVisible" with timeout 15000ms
-  - waiting for locator('#checkout-email')
+  - waiting for locator('input[placeholder="Discount code"]')
 
 ```
 
@@ -238,53 +235,6 @@ Call log:
 # Test source
 
 ```ts
-  1   | import { test, expect, Page } from '@playwright/test';
-  2   | 
-  3   | /**
-  4   |  * [TEST SUITE: Industrialized Commerce Flow - MASTER V8 ULTIMATE]
-  5   |  * Objective: 100% Deterministic by bypassing UI flakiness for data setup.
-  6   |  */
-  7   | 
-  8   | test.describe('Comprehensive Cart and Checkout Flow', () => {
-  9   |   
-  10  |   test.beforeEach(async ({ page }) => {
-  11  |     test.setTimeout(60000);
-  12  |     await setupBaseMocks(page);
-  13  |   });
-  14  | 
-  15  |   async function setupBaseMocks(page: Page) {
-  16  |     await page.route('/api/auth/me', async (route) => {
-  17  |       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
-  18  |     });
-  19  | 
-  20  |     await page.route('/api/admin/shipping/rates', async (route) => {
-  21  |         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 'r1', name: 'Standard Shipping', amount: 599, type: 'price_based', minLimit: 0, maxLimit: 9999, shippingZoneId: 'z1' }]) });
-  22  |     });
-  23  |     await page.route('/api/admin/shipping/zones', async (route) => {
-  24  |         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([{ id: 'z1', name: 'USA', countries: ['US'] }]) });
-  25  |     });
-  26  | 
-  27  |     await page.route('/api/products*', async (route) => {
-  28  |         await route.fulfill({
-  29  |             status: 200,
-  30  |             contentType: 'application/json',
-  31  |             body: JSON.stringify({
-  32  |                 products: [
-  33  |                     { id: 'p1', name: 'Physical Art', handle: 'physical-art', price: 5000, stock: 10, category: 'Art', isDigital: false, imageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400' },
-  34  |                     { id: 'p2', name: 'Digital Art', handle: 'digital-art', price: 2000, stock: 999, category: 'Art', isDigital: true, imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400' }
-  35  |                 ],
-  36  |                 nextCursor: null
-  37  |             })
-  38  |         });
-  39  |     });
-  40  | 
-  41  |     await page.route('/api/cart*', async (route) => {
-  42  |         const url = route.request().url();
-  43  |         const items = [];
-  44  |         // Support stateful-like behavior via URL hints or default to p1
-  45  |         items.push({ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1, imageUrl: '...' });
-  46  |         if (url.includes('mixed')) {
-  47  |              items.push({ productId: 'p2', name: 'Digital Art', priceSnapshot: 2000, quantity: 1, imageUrl: '...' });
   48  |         }
   49  |         await route.fulfill({
   50  |             status: 200,
@@ -330,8 +280,7 @@ Call log:
   90  |     
   91  |     // Hint to the cart mock to return both items
   92  |     await page.goto('/checkout?mixed=true');
-> 93  |     await expect(page.locator('#checkout-email')).toBeVisible({ timeout: 15000 });
-      |                                                   ^ Error: expect(locator).toBeVisible() failed
+  93  |     await expect(page.locator('#checkout-email')).toBeVisible({ timeout: 15000 });
   94  |     await page.locator('#checkout-email').fill('mixed@example.com');
   95  |     await page.locator('#checkout-street').fill('123 Hive St');
   96  |     await page.locator('#checkout-city').fill('NY');
@@ -386,7 +335,8 @@ Call log:
   145 |     await page.route('/api/discounts/validate', async (route) => {
   146 |         await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, discountAmount: 1000, discount: { type: 'fixed_amount', value: 1000 } }) });
   147 |     });
-  148 |     await page.locator('input[placeholder="Discount code"]').fill('SAVE10');
+> 148 |     await page.locator('input[placeholder="Discount code"]').fill('SAVE10');
+      |                                                              ^ Error: locator.fill: Test timeout of 60000ms exceeded.
   149 |     await page.getByRole('button', { name: /Apply/i }).click({ force: true });
   150 |     await expect(page.getByText(/SAVE10 applied/i)).toBeVisible({ timeout: 15000 });
   151 |   });

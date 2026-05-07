@@ -141,7 +141,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const addItem = async (productId: string, quantity: number, variantId?: string) => {
-    // 1. Prepare optimistic item details
+    // 1. Fetch product info (asynchronous)
     let product;
     try {
       product = await services.productService.getProduct(productId);
@@ -150,7 +150,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
     
     if (!product) {
-      logger.error('Product not found for optimistic add');
+      logger.error('Product not found for add');
       return;
     }
 
@@ -167,50 +167,56 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // 2. Apply optimistic update
-    const prevCart = cart;
-    const currentCart = cart ? { ...cart } : { id: 'optimistic', userId: user?.id || 'guest', items: [], updatedAt: new Date() };
-    const existingIndex = currentCart.items.findIndex(i => i.productId === productId && i.variantId === variantId);
+    // 2. State update using functional pattern
+    let nextCart: Cart | null = null;
     
-    const newItems = [...currentCart.items];
-    if (existingIndex > -1) {
-      newItems[existingIndex] = {
-        ...newItems[existingIndex],
-        quantity: Math.min(newItems[existingIndex].quantity + quantity, MAX_CART_QUANTITY)
+    setCart((prevCart) => {
+      const currentCart = prevCart ? { ...prevCart } : { 
+        id: 'optimistic', 
+        userId: user?.id || 'guest', 
+        items: [], 
+        updatedAt: new Date() 
       };
-    } else {
-      newItems.push({
-        productId,
-        variantId,
-        variantTitle,
-        name: product.name,
-        priceSnapshot: price,
-        imageUrl,
-        quantity: Math.min(quantity, MAX_CART_QUANTITY)
-      });
-    }
+      
+      const existingIndex = currentCart.items.findIndex(i => i.productId === productId && i.variantId === variantId);
+      const newItems = [...currentCart.items];
+      
+      if (existingIndex > -1) {
+        newItems[existingIndex] = {
+          ...newItems[existingIndex],
+          quantity: Math.min(newItems[existingIndex].quantity + quantity, MAX_CART_QUANTITY)
+        };
+      } else {
+        newItems.push({
+          productId,
+          variantId,
+          variantTitle,
+          name: product.name,
+          priceSnapshot: price,
+          imageUrl,
+          quantity: Math.min(quantity, MAX_CART_QUANTITY)
+        });
+      }
+      
+      nextCart = { ...currentCart, items: newItems, updatedAt: new Date() };
+      return nextCart;
+    });
 
+    // 3. Side effects outside of the updater
     if (isMounted.current) {
-      setCart({ ...currentCart, items: newItems });
       setIsOpen(true);
     }
 
-    // 3. Sync with server/storage
+    // 4. Persistence Sync
     try {
       if (user) {
-        const updated = await services.cartService.addToCart(user.id, productId, quantity, variantId);
-        if (isMounted.current) {
-          setCart(updated);
-        }
-      } else {
-        const updatedCart = { ...currentCart, items: newItems, updatedAt: new Date() };
-        saveGuestCart(updatedCart);
+        const synced = await services.cartService.addToCart(user.id, productId, quantity, variantId);
+        if (isMounted.current) setCart(synced);
+      } else if (nextCart) {
+        saveGuestCart(nextCart);
       }
     } catch (err) {
-      logger.error('Failed to sync cart add', err);
-      if (isMounted.current) {
-        setCart(prevCart); // Rollback on error
-      }
+      logger.error('Sync failed', err);
     }
   };
 

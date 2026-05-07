@@ -6,21 +6,18 @@
 
 # Test info
 
-- Name: cart-checkout-comprehensive.spec.ts >> Comprehensive Cart and Checkout Flow >> should require shipping for mixed carts
-- Location: e2e/cart-checkout-comprehensive.spec.ts:85:3
+- Name: cart-checkout-comprehensive.spec.ts >> Comprehensive Cart and Checkout Flow >> should block checkout for unsupported shipping countries
+- Location: e2e/cart-checkout-comprehensive.spec.ts:104:3
 
 # Error details
 
 ```
-Error: expect(locator).toBeVisible() failed
+Test timeout of 60000ms exceeded.
+```
 
-Locator: locator('#checkout-email')
-Expected: visible
-Timeout: 15000ms
-Error: element(s) not found
-
+```
+Error: locator.fill: Test timeout of 60000ms exceeded.
 Call log:
-  - Expect "toBeVisible" with timeout 15000ms
   - waiting for locator('#checkout-email')
 
 ```
@@ -238,12 +235,6 @@ Call log:
 # Test source
 
 ```ts
-  1   | import { test, expect, Page } from '@playwright/test';
-  2   | 
-  3   | /**
-  4   |  * [TEST SUITE: Industrialized Commerce Flow - MASTER V8 ULTIMATE]
-  5   |  * Objective: 100% Deterministic by bypassing UI flakiness for data setup.
-  6   |  */
   7   | 
   8   | test.describe('Comprehensive Cart and Checkout Flow', () => {
   9   |   
@@ -330,8 +321,7 @@ Call log:
   90  |     
   91  |     // Hint to the cart mock to return both items
   92  |     await page.goto('/checkout?mixed=true');
-> 93  |     await expect(page.locator('#checkout-email')).toBeVisible({ timeout: 15000 });
-      |                                                   ^ Error: expect(locator).toBeVisible() failed
+  93  |     await expect(page.locator('#checkout-email')).toBeVisible({ timeout: 15000 });
   94  |     await page.locator('#checkout-email').fill('mixed@example.com');
   95  |     await page.locator('#checkout-street').fill('123 Hive St');
   96  |     await page.locator('#checkout-city').fill('NY');
@@ -345,7 +335,8 @@ Call log:
   104 |   test('should block checkout for unsupported shipping countries', async ({ page }) => {
   105 |     await seedCart(page, [{ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }]);
   106 |     await page.goto('/checkout');
-  107 |     await page.locator('#checkout-email').fill('test@example.com');
+> 107 |     await page.locator('#checkout-email').fill('test@example.com');
+      |                                           ^ Error: locator.fill: Test timeout of 60000ms exceeded.
   108 |     await page.locator('#checkout-street').fill('123 Foreign St');
   109 |     await page.locator('#checkout-city').fill('Toronto');
   110 |     await page.locator('#checkout-state').fill('ON');
