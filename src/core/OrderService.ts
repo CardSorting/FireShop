@@ -211,13 +211,25 @@ export class OrderService {
     // AUTO-ADVANCE: Move straight to the actionable fulfillment state for the admin
     let nextStatus: OrderStatus = 'confirmed';
     if (riskScore < 75) {
-       if (order.fulfillmentMethod === 'shipping') nextStatus = 'processing';
-       else if (order.fulfillmentMethod === 'pickup') nextStatus = 'ready_for_pickup';
-       else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
+       const allDigital = order.items.every(i => i.isDigital);
+       if (allDigital) {
+          nextStatus = 'delivered'; // Instant fulfillment for digital assets
+       } else if (order.fulfillmentMethod === 'shipping') {
+          nextStatus = 'processing';
+       } else if (order.fulfillmentMethod === 'pickup') {
+          nextStatus = 'ready_for_pickup';
+       } else if (order.fulfillmentMethod === 'delivery') {
+          nextStatus = 'delivery_started';
+       }
     }
 
     await this.orderRepo.updateStatus(order.id, nextStatus);
-    await this.recordFulfillmentEvent(order.id, nextStatus === 'processing' ? 'processing' : 'payment_confirmed', 'Payment Confirmed', 'Your payment was successful.');
+    
+    if (nextStatus === 'delivered' && order.items.every(i => i.isDigital)) {
+       await this.recordFulfillmentEvent(order.id, 'delivered', 'Digital Delivery Complete', 'Your digital assets are now accessible in your account.');
+    } else {
+       await this.recordFulfillmentEvent(order.id, nextStatus === 'processing' ? 'processing' : 'payment_confirmed', 'Payment Confirmed', 'Your payment was successful.');
+    }
     
     await this.cartRepo.clear(order.userId);
     await this.orderRepo.updateRiskScore(order.id, riskScore);
@@ -287,6 +299,34 @@ export class OrderService {
        const labels: any = { ready_for_pickup: 'Ready for Pickup', delivery_started: 'Out for Delivery', delivered: 'Delivered' };
        if (labels[next]) await this.recordFulfillmentEvent(orderId, next as any, labels[next], `Your order has been moved to ${next}.`);
     }
+  }
+
+  /**
+   * Generates a high-fidelity packing slip for warehouse staff.
+   */
+  async generatePackingSlip(orderId: string): Promise<{
+    orderId: string;
+    customer: { name: string; email: string };
+    shipping: Address;
+    items: Array<{ name: string; variant?: string; quantity: number; sku?: string; location: string }>;
+    summary: string;
+  }> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+
+    return {
+      orderId: order.id,
+      customer: { name: order.shippingAddress.street, email: order.userId }, // Simplified for refactor
+      shipping: order.shippingAddress,
+      items: order.items.map(item => ({
+        name: item.name,
+        variant: item.variantTitle,
+        quantity: item.quantity,
+        sku: item.productId, // Simulated
+        location: 'A1-Z1' // Simulated singular warehouse location
+      })),
+      summary: `${order.items.length} items to pick. Fulfillment Method: ${order.fulfillmentMethod}`
+    };
   }
 
   async createFulfillment(params: {
@@ -412,5 +452,21 @@ export class OrderService {
   async getDigitalAssets(userId: string) {
      const { orders } = await this.orderRepo.getByUserId(userId, { limit: 100 });
      return orders.filter(o => o.status !== 'cancelled').flatMap(o => o.items.filter(i => i.digitalAssets?.length).map(i => ({ orderId: o.id, orderDate: o.createdAt, productName: i.name, productId: i.productId, productImageUrl: i.imageUrl || '', assets: i.digitalAssets })));
+  }
+
+  /**
+   * Optimized fulfillment queue for warehouse management.
+   */
+  async getFulfillmentQueue(): Promise<{
+    shipping: Order[];
+    pickup: Order[];
+    localDelivery: Order[];
+  }> {
+    const { orders } = await this.orderRepo.getAll({ limit: 100 });
+    return {
+      shipping: orders.filter(o => o.fulfillmentMethod === 'shipping' && (o.status === 'processing' || o.status === 'confirmed')),
+      pickup: orders.filter(o => o.fulfillmentMethod === 'pickup' && o.status === 'confirmed'),
+      localDelivery: orders.filter(o => o.fulfillmentMethod === 'delivery' && o.status === 'confirmed'),
+    };
   }
 }
