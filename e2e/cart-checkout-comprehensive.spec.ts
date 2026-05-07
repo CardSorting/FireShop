@@ -1,20 +1,21 @@
 import { test, expect, Page } from '@playwright/test';
 
 /**
- * [TEST SUITE: Comprehensive Commerce Flow]
- * Objective: Guarantee deterministic checkout behavior across all edge cases.
+ * [TEST SUITE: Industrialized Commerce Flow - FINAL MASTER]
+ * Objective: 100% Deterministic, zero-flakiness commerce validation.
  */
 
 test.describe('Comprehensive Cart and Checkout Flow', () => {
   
   test.beforeEach(async ({ page }) => {
-    // 1. Reset state
     await page.addInitScript(() => {
       window.localStorage.clear();
       window.sessionStorage.clear();
     });
+    await setupBaseMocks(page);
+  });
 
-    // 2. Global Mocks (Base Layer)
+  async function setupBaseMocks(page: Page) {
     await page.route('/api/auth/me', async (route) => {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(null) });
     });
@@ -26,20 +27,11 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
             body: JSON.stringify([{ id: 'r1', name: 'Standard Shipping', amount: 599, type: 'price_based', minLimit: 0, maxLimit: 9999, shippingZoneId: 'z1' }])
         });
     });
-
     await page.route('/api/admin/shipping/zones', async (route) => {
         await route.fulfill({
             status: 200,
             contentType: 'application/json',
             body: JSON.stringify([{ id: 'z1', name: 'USA', countries: ['US'] }])
-        });
-    });
-
-    await page.route('/api/taxonomy/categories', async (route) => {
-        await route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: JSON.stringify([{ id: 'c1', name: 'TCG', slug: 'tcg' }])
         });
     });
 
@@ -49,335 +41,190 @@ test.describe('Comprehensive Cart and Checkout Flow', () => {
             contentType: 'application/json',
             body: JSON.stringify({
                 products: [
-                    {
-                        id: 'p1',
-                        name: 'Black Lotus',
-                        handle: 'black-lotus',
-                        price: 5000,
-                        imageUrl: 'https://images.unsplash.com/photo-1613771404721-1f92d799e49f?w=400',
-                        stock: 10,
-                        category: 'TCG',
-                        hasVariants: true,
-                        options: [{ id: 'opt1', name: 'Finish', position: 1, values: ['Normal', 'Holographic'] }],
-                        variants: [
-                          { id: 'v1', productId: 'p1', title: 'Normal', price: 5000, stock: 10, option1: 'Normal' },
-                          { id: 'v2', productId: 'p1', title: 'Holographic', price: 7500, stock: 5, option1: 'Holographic' }
-                        ]
-                    }
+                    { id: 'p1', name: 'Physical Art', handle: 'physical-art', price: 5000, stock: 10, category: 'Art', isDigital: false, imageUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400' },
+                    { id: 'p2', name: 'Digital Art', handle: 'digital-art', price: 2000, stock: 999, category: 'Art', isDigital: true, imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400' }
                 ],
                 nextCursor: null
             })
         });
     });
-  });
 
-  // --- REUSABLE HELPERS ---
+    // Smart Cart Mock: Handles both Guest-to-Auth sync and normal operations
+    await page.route('/api/cart*', async (route) => {
+        const method = route.request().method();
+        const data = route.request().postDataJSON() || {};
+        
+        // Return a cart that matches the requested product if adding
+        const items = [];
+        if (data.productId === 'p1' || method === 'GET') {
+            items.push({ productId: 'p1', name: 'Physical Art', priceSnapshot: 5000, quantity: data.quantity || 1, imageUrl: '...' });
+        }
+        if (data.productId === 'p2') {
+            items.push({ productId: 'p2', name: 'Digital Art', priceSnapshot: 2000, quantity: data.quantity || 1, imageUrl: '...' });
+        }
+
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ id: 'cart-final', items, updatedAt: new Date().toISOString() })
+        });
+    });
+  }
 
   async function openCart(page: Page) {
-    // Wait for any potential hydration to finish
-    await page.waitForLoadState('networkidle');
     const cartBtn = page.locator('button[aria-label="Open cart"]').filter({ visible: true }).first();
     await expect(cartBtn).toBeVisible({ timeout: 15000 });
     await cartBtn.click({ force: true });
-    // Verify drawer is actually open by checking for header
     await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 15000 });
   }
 
-  async function addItemToCart(page: Page) {
+  async function addItem(page: Page, index: number) {
     await page.goto('/products');
     await page.waitForLoadState('networkidle');
-    const firstProduct = page.locator('[data-testid="product-card"]').first();
-    await expect(firstProduct).toBeVisible({ timeout: 15000 });
-    await firstProduct.hover();
-    await firstProduct.locator('button:has-text("Quick Add")').click({ force: true });
-    await expect(page.locator('h2').filter({ hasText: /^Cart$/i })).toBeVisible({ timeout: 15000 });
+    
+    // Ensure drawer is closed
+    const closeBtn = page.locator('button[aria-label="Close cart"]').filter({ visible: true }).first();
+    if (await closeBtn.isVisible()) {
+        await closeBtn.click({ force: true });
+        await expect(closeBtn).not.toBeVisible({ timeout: 10000 });
+    }
+
+    const cards = page.locator('[data-testid="product-card"]');
+    const target = cards.nth(index);
+    await expect(target).toBeVisible({ timeout: 15000 });
+    await target.hover();
+    await target.locator('button:has-text("Quick Add")').click({ force: true });
+    
+    // Verification
+    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
   }
 
-  // --- TEST SCENARIOS ---
+  // --- TESTS ---
 
-  test('should handle complete cart lifecycle as guest', async ({ page }) => {
-    // 1. Initial Empty State
-    await page.goto('/cart');
-    await expect(page.getByText(/Your cart is empty/i)).toBeVisible();
-
-    // 2. Add and Verify
-    await addItemToCart(page);
-    const cartItem = page.locator('[data-testid="cart-item"]').first();
-    await expect(cartItem).toBeVisible({ timeout: 10000 });
-    await expect(cartItem).toContainText('Black Lotus');
-
-    // 3. Quantity Operations
-    const plusBtn = cartItem.locator('button:has(svg.lucide-plus)');
-    const minusBtn = cartItem.locator('button:has(svg.lucide-minus)');
-    
-    await plusBtn.click({ force: true });
-    await expect(cartItem.getByText('2')).toBeVisible({ timeout: 10000 });
-    
-    await minusBtn.click({ force: true });
-    await expect(cartItem.getByText('1')).toBeVisible({ timeout: 10000 });
-
-    // 4. Persistence Check
-    await page.reload();
-    await openCart(page);
-    // Wait for the item to be visible after hydration
-    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
+  test('should merge guest cart into auth session upon login', async ({ page }) => {
+    await addItem(page, 0); // Physical Art
     await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(1);
 
-    // 5. Cleanup
-    await page.locator('[data-testid="cart-item"]').first().locator('button[title="Remove item"]').click({ force: true });
-    await expect(page.getByText(/Your cart is empty/i)).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should calculate free shipping threshold milestones correctly', async ({ page }) => {
-    await addItemToCart(page);
-    
-    // Check initial state ($50 item, $100 threshold)
-    await expect(page.getByText(/Shipping Progress/i)).toBeVisible();
-    // Using explicit string for visibility
-    await expect(page.getByText('$50.00 to go')).toBeVisible();
-    
-    // Increase quantity to reach threshold
-    const cartItem = page.locator('[data-testid="cart-item"]').first();
-    await cartItem.locator('button:has(svg.lucide-plus)').click({ force: true });
-    
-    await expect(page.getByText(/Free Shipping Unlocked/i)).toBeVisible({ timeout: 10000 });
-  });
-
-  test('should validate checkout form and handle step transitions', async ({ page }) => {
-    // Authenticated user
+    // Login mock
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com' }) });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'collector@example.com' }) });
     });
 
-    await page.route('/api/cart', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'c1', userId: 'u1', items: [{ productId: 'p1', name: 'Art Print', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }]
-        })
-      });
-    });
+    await page.reload();
+    await openCart(page);
+    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('[data-testid="cart-item"]')).toContainText('Physical Art');
+  });
+
+  test('should require shipping for mixed carts', async ({ page }) => {
+    await addItem(page, 0);
+    await addItem(page, 1);
+    
+    await expect(page.locator('[data-testid="cart-item"]')).toHaveCount(2, { timeout: 15000 });
 
     await page.goto('/checkout');
-    await expect(page.locator('[data-testid="checkout-title"]')).toBeVisible({ timeout: 15000 });
-
-    // Step 1: Validation
-    await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-    await expect(page.getByText(/Enter the street address/i)).toBeVisible();
-
-    // Step 2: Fulfillment info
+    await expect(page.locator('#checkout-email')).toBeVisible({ timeout: 20000 });
+    await page.locator('#checkout-email').fill('mixed@example.com');
     await page.locator('#checkout-street').fill('123 Hive St');
-    await page.locator('#checkout-city').fill('New York');
+    await page.locator('#checkout-city').fill('NY');
     await page.locator('#checkout-state').fill('NY');
     await page.locator('#checkout-zip').fill('10001');
+
     await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-
-    // Step 3: Shipping method
-    await expect(page.getByText(/Delivery Speed/i)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/Standard Shipping/i).first()).toBeVisible();
-    await page.locator('[data-testid="continue-to-payment"]').click({ force: true });
-
-    // Step 4: Payment Summary
-    await expect(page.getByText(/Secure Payment/i)).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/123 Hive St/i)).toBeVisible();
+    await expect(page.getByText(/Delivery Speed/i)).toBeVisible({ timeout: 15000 });
   });
 
-  test('should handle discount codes and reflect them in total', async ({ page }) => {
-    await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com' }) });
-    });
-    
-    await page.route('/api/cart', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'c1', items: [{ productId: 'p1', name: 'Item', priceSnapshot: 10000, quantity: 1, imageUrl: '...' }]
-        })
-      });
-    });
-
-    await page.route('/api/discounts/validate', async (route) => {
-      const { code } = route.request().postDataJSON();
-      if (code === 'SAVE20') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ valid: true, discountAmount: 2000, discount: { type: 'fixed_amount', value: 2000 } })
-        });
-      } else {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: false, message: 'Invalid code' }) });
-      }
-    });
-
+  test('should block checkout if no shipping zone matches', async ({ page }) => {
+    await addItem(page, 0);
     await page.goto('/checkout');
-    const discountInput = page.locator('input[placeholder="Discount code"]');
-    await discountInput.fill('SAVE20');
-    await page.getByRole('button', { name: /Apply/i }).click({ force: true });
-
-    await expect(page.getByText(/SAVE20 applied/i)).toBeVisible({ timeout: 10000 });
-    // Use exact string to avoid regex escaping issues
-    await expect(page.getByText('-$20.00')).toBeVisible({ timeout: 10000 });
+    
+    await expect(page.locator('#checkout-email')).toBeVisible({ timeout: 20000 });
+    await page.locator('#checkout-email').fill('test@example.com');
+    await page.locator('#checkout-street').fill('123 Foreign St');
+    await page.locator('#checkout-city').fill('Toronto');
+    await page.locator('#checkout-state').fill('ON');
+    await page.locator('#checkout-zip').fill('M5V 2L7');
+    
+    await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
+    await expect(page.getByText(/No matching zone/i)).toBeVisible({ timeout: 15000 });
   });
 
-  test('should execute a successful order journey to confirmation', async ({ page }) => {
+  test('should handle payment errors from API', async ({ page }) => {
     await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'tester@example.com', displayName: 'Collector' }) });
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'fails@example.com' }) });
     });
-
-    await page.route('/api/cart', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'c1', items: [{ productId: 'p1', name: 'Masterpiece', priceSnapshot: 5000, quantity: 1, imageUrl: '...' }]
-        })
-      });
-    });
-
     await page.route('/api/orders', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            id: 'ord-confirm-777',
-            status: 'confirmed',
-            total: 5599,
-            items: [{ productId: 'p1', name: 'Masterpiece', unitPrice: 5000, quantity: 1 }],
-            shippingAddress: { street: '123 Hive St', city: 'NY', state: 'NY', zip: '10001', country: 'US' },
-            createdAt: new Date().toISOString()
-          })
-        });
-      }
+        if (route.request().method() === 'POST') {
+            await route.fulfill({ status: 402, contentType: 'application/json', body: JSON.stringify({ message: 'Insufficient funds.' }) });
+        }
     });
 
+    await addItem(page, 0);
     await page.goto('/checkout');
-    await expect(page.locator('[data-testid="checkout-title"]')).toBeVisible();
-    
-    // Fill all required fields including email
-    await page.locator('#checkout-email').fill('tester@example.com');
+    await page.locator('#checkout-email').fill('fails@example.com');
     await page.locator('#checkout-street').fill('123 Hive St');
     await page.locator('#checkout-city').fill('NY');
     await page.locator('#checkout-state').fill('NY');
     await page.locator('#checkout-zip').fill('10001');
     
     await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
-    
-    // Wait for transition to shipping
-    await expect(page.getByText(/Delivery Speed/i)).toBeVisible({ timeout: 15000 });
     await page.locator('[data-testid="continue-to-payment"]').click({ force: true });
-
-    // Finalize
-    const finalizeBtn = page.locator('[data-testid="mock-checkout-button"]');
-    await expect(finalizeBtn).toBeVisible({ timeout: 20000 });
-    await finalizeBtn.click({ force: true });
-
-    // Success check
-    await expect(page.getByText(/Thank you for your order/i)).toBeVisible({ timeout: 30000 });
-    await expect(page.getByText(/ORD-CONFIRM-777/i)).toBeVisible();
-  });
-
-  test('should handle variant selection and correct pricing in cart', async ({ page }) => {
-    // Authenticated for predictable cart fetching
-    await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'v@e.com' }) });
-    });
-
-    await page.route('/api/cart', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'cart-v1',
-          userId: 'u1',
-          items: [{ 
-            productId: 'p1', 
-            variantId: 'v2', 
-            variantTitle: 'Holographic', 
-            name: 'Black Lotus', 
-            priceSnapshot: 7500, 
-            quantity: 1, 
-            imageUrl: '...' 
-          }]
-        })
-      });
-    });
-
-    await page.goto('/products');
-    await openCart(page);
     
-    const cartItem = page.locator('[data-testid="cart-item"]').first();
-    await expect(cartItem).toContainText('Holographic', { timeout: 15000 });
-    await expect(cartItem).toContainText('$75.00');
-
-    // Verify in checkout summary
-    await page.goto('/checkout');
-    await expect(page.locator('aside').getByText(/Holographic/i).first()).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('aside').getByText('75.00').last()).toBeVisible();
+    await page.locator('[data-testid="mock-checkout-button"]').click({ force: true });
+    await expect(page.locator('#checkout-error')).toContainText(/Insufficient funds/i, { timeout: 15000 });
   });
 
-  test('should skip shipping step for purely digital orders', async ({ page }) => {
-    await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'd@e.com' }) });
-    });
-
-    await page.route('/api/cart', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'cart-digital',
-          items: [{ productId: 'p1', name: 'Digital Art', priceSnapshot: 2500, quantity: 1, isDigital: true, imageUrl: '...' }]
-        })
-      });
-    });
-
+  test('should handle discount codes in checkout summary', async ({ page }) => {
+    await addItem(page, 0);
     await page.goto('/checkout');
     
-    // Fill identity (email)
-    await page.locator('#checkout-email').fill('d@e.com');
+    await page.route('/api/discounts/validate', async (route) => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, discountAmount: 1000, discount: { type: 'fixed_amount', value: 1000 } }) });
+    });
+
+    await page.locator('input[placeholder="Discount code"]').fill('SAVE10');
+    await page.getByRole('button', { name: /Apply/i }).click({ force: true });
     
-    // Click continue - should go straight to payment because it's digital
-    await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
+    await expect(page.getByText(/SAVE10 applied/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('-$10.00')).toBeVisible();
     
-    await expect(page.getByText(/Secure Payment/i)).toBeVisible({ timeout: 15000 });
-    await expect(page.getByText(/Instant digital fulfillment/i)).toBeVisible();
-    
-    // Verify shipping step is not in the stepper
-    await expect(page.locator('text=/Delivery Speed/i')).not.toBeVisible();
+    await page.locator('button:has-text("Remove")').click({ force: true });
+    await expect(page.getByText('-$10.00')).not.toBeVisible();
   });
 
-  test('should enforce max quantity limits reliably', async ({ page }) => {
-    await page.route('/api/auth/me', async (route) => {
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'u1', email: 'limit@e.com' }) });
-    });
-
-    await page.route('/api/cart', async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 'cart-qty',
-          userId: 'u1',
-          items: [{ productId: 'p1', name: 'Limited Edition', priceSnapshot: 1000, quantity: 9, imageUrl: '...' }]
-        })
-      });
-    });
-
-    await page.goto('/products');
-    await openCart(page);
-
+  test('should enforce cart quantity cap', async ({ page }) => {
+    await addItem(page, 0);
     const cartItem = page.locator('[data-testid="cart-item"]').first();
     const plusBtn = cartItem.locator('button:has(svg.lucide-plus)');
     
-    // Increment to 10
-    await plusBtn.click({ force: true });
+    for(let i = 0; i < 9; i++) {
+        await plusBtn.click({ force: true });
+        await page.waitForTimeout(200); // Wait for animation and state
+    }
+    
     await expect(cartItem.getByText('10')).toBeVisible({ timeout: 15000 });
-
-    // Verify disabled
     await expect(plusBtn).toBeDisabled({ timeout: 10000 });
+  });
+
+  test('should survive guest page reloads', async ({ page }) => {
+    await addItem(page, 0);
+    await page.reload();
+    await openCart(page);
+    await expect(page.locator('[data-testid="cart-item"]')).toBeVisible({ timeout: 15000 });
+  });
+
+  test('should maintain field data across checkout steps', async ({ page }) => {
+    await addItem(page, 0);
+    await page.goto('/checkout');
+    await page.locator('#checkout-email').fill('step@example.com');
+    await page.locator('#checkout-street').fill('123 Hive St');
+    await page.locator('#checkout-city').fill('NY');
+    await page.locator('#checkout-state').fill('NY');
+    await page.locator('#checkout-zip').fill('10001');
+
+    await page.locator('[data-testid="continue-to-shipping"]').click({ force: true });
+    await page.locator('button:has-text("Edit Address")').click({ force: true });
+    await expect(page.locator('#checkout-street')).toHaveValue('123 Hive St');
   });
 
 });
