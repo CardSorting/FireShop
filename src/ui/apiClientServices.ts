@@ -23,7 +23,20 @@ import {
 } from 'firebase/auth';
 
 const sessionScoped = (userId: string) => void userId;
-const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt', 'estimatedDeliveryDate', 'at']);
+const DATE_FIELD_KEYS = new Set([
+    'createdAt',
+    'updatedAt',
+    'publishedAt',
+    'scheduledAt',
+    'subscribedAt',
+    'joined',
+    'lastOrder',
+    'startsAt',
+    'endsAt',
+    'expectedAt',
+    'estimatedDeliveryDate',
+    'at',
+]);
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(path, {

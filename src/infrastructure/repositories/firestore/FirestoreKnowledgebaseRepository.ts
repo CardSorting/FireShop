@@ -48,53 +48,58 @@ export class FirestoreKnowledgebaseRepository {
   private toDate(val: any): Date {
     if (val instanceof Timestamp) return val.toDate();
     if (val instanceof Date) return val;
+    if (val && typeof val.toDate === 'function') return val.toDate();
+    if (val && typeof val.seconds === 'number') {
+      return new Date(val.seconds * 1000 + Math.floor((val.nanoseconds ?? 0) / 1_000_000));
+    }
     if (typeof val === 'string' || typeof val === 'number') return new Date(val);
     return new Date();
   }
 
   private mapDocToArticle(id: string, data: DocumentData): KnowledgebaseArticle {
-    return JSON.parse(JSON.stringify({
+    return {
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
       publishedAt: data.publishedAt ? this.toDate(data.publishedAt) : undefined,
-    })) as KnowledgebaseArticle;
+      scheduledAt: data.scheduledAt ? this.toDate(data.scheduledAt) : undefined,
+    } as KnowledgebaseArticle;
   }
 
   private mapDocToAuthor(id: string, data: DocumentData): Author {
-    return JSON.parse(JSON.stringify({
+    return {
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-    })) as Author;
+    } as Author;
   }
 
   private mapDocToComment(id: string, data: DocumentData): BlogComment {
-    return JSON.parse(JSON.stringify({
+    return {
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-    })) as BlogComment;
+    } as BlogComment;
   }
 
   private mapDocToSubscriber(id: string, data: DocumentData): Subscriber {
-    return JSON.parse(JSON.stringify({
+    return {
       ...data,
       id,
       subscribedAt: this.toDate(data.subscribedAt),
-    })) as Subscriber;
+    } as Subscriber;
   }
 
   private mapDocToSeries(id: string, data: DocumentData): BlogSeries {
-    return JSON.parse(JSON.stringify({
+    return {
       ...data,
       id,
       createdAt: this.toDate(data.createdAt),
       updatedAt: this.toDate(data.updatedAt),
-    })) as BlogSeries;
+    } as BlogSeries;
   }
 
   async getCategories(): Promise<KnowledgebaseCategory[]> {
