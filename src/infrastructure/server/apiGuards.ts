@@ -4,7 +4,7 @@ import type { Address, JsonValue, OrderStatus, ProductStatus, ProductDraft, Prod
 import { AuthError, DomainError, OrderNotFoundError, ProductNotFoundError, UnauthorizedError } from '@domain/errors';
 import { getSessionUser } from './session';
 import { logger } from '@utils/logger';
-import { adminDb } from '@infrastructure/firebase/admin';
+import { adminDb, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
 
 const ORDER_STATUSES = new Set<OrderStatus>(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']);
 
@@ -58,27 +58,30 @@ class FirestoreRateLimitStore implements RateLimitStore {
     async increment(key: string, windowMs: number): Promise<RateLimitBucket> {
         const docRef = adminDb.collection('rate_limits').doc(key.replace(/\//g, '_'));
         try {
-            return await adminDb.runTransaction(async (transaction: any) => {
-                const doc = await transaction.get(docRef);
-                const now = Date.now();
-                
-                if (!doc.exists) {
-                    const bucket = { count: 1, resetAt: now + windowMs };
-                    transaction.set(docRef, bucket);
+            return await withAdminFirestoreRetry(
+                () => adminDb.runTransaction(async (transaction: any) => {
+                    const doc = await transaction.get(docRef);
+                    const now = Date.now();
+
+                    if (!doc.exists) {
+                        const bucket = { count: 1, resetAt: now + windowMs };
+                        transaction.set(docRef, bucket);
+                        return bucket;
+                    }
+
+                    const data = doc.data() as RateLimitBucket;
+                    if (data.resetAt <= now) {
+                        const bucket = { count: 1, resetAt: now + windowMs };
+                        transaction.set(docRef, bucket);
+                        return bucket;
+                    }
+
+                    const bucket = { count: data.count + 1, resetAt: data.resetAt };
+                    transaction.update(docRef, { count: bucket.count });
                     return bucket;
-                }
-                
-                const data = doc.data() as RateLimitBucket;
-                if (data.resetAt <= now) {
-                    const bucket = { count: 1, resetAt: now + windowMs };
-                    transaction.set(docRef, bucket);
-                    return bucket;
-                }
-                
-                const bucket = { count: data.count + 1, resetAt: data.resetAt };
-                transaction.update(docRef, { count: bucket.count });
-                return bucket;
-            });
+                }),
+                { operationName: 'apiGuards.rateLimit.increment' }
+            );
         } catch (e) {
             logger.error('Rate limit transaction failed, falling back to permissive mode', e);
             return { count: 1, resetAt: Date.now() + windowMs };

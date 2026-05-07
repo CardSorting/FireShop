@@ -10,6 +10,7 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  type User as FirebaseUser,
 } from 'firebase/auth';
 import { 
   collection,
@@ -27,6 +28,7 @@ import { getAuth } from '../firebase/firebase';
 import type { IAuthProvider } from '@domain/repositories';
 import type { User, UserRole } from '@domain/models';
 import { mapDoc } from '@infrastructure/repositories/firestore/utils';
+import { logger } from '@utils/logger';
 
 export class FirebaseAuthAdapter implements IAuthProvider {
   private currentUser: User | null = null;
@@ -37,17 +39,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
 
     firebaseOnAuthStateChanged(getAuth(), async (firebaseUser) => {
       if (firebaseUser) {
-        // Fetch additional data from Firestore
-        const userDoc = await getDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid));
-        const userData = userDoc.data();
-        
-        const user: User = mapDoc<User>(firebaseUser.uid, {
-          ...userData,
-          email: firebaseUser.email || '',
-          displayName: firebaseUser.displayName || userData?.displayName || 'User',
-          role: (userData?.role as UserRole) || 'customer',
-        });
-        this.setCurrentUser(user);
+        this.setCurrentUser(await this.resolveUserProfile(firebaseUser, 'authStateChanged'));
       } else {
         this.setCurrentUser(null);
       }
@@ -61,18 +53,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   async signIn(email: string, password: string): Promise<User> {
     this.assertBrowserAuth('signIn');
     const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
-    const firebaseUser = userCredential.user;
-    
-    const userDoc = await getDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid));
-    const userData = userDoc.data();
-    
-    const user: User = mapDoc<User>(firebaseUser.uid, {
-      ...userData,
-      email: firebaseUser.email || '',
-      displayName: firebaseUser.displayName || userData?.displayName || 'User',
-      role: (userData?.role as UserRole) || 'customer',
-    });
-    
+    const user = await this.resolveUserProfile(userCredential.user, 'signIn');
     this.setCurrentUser(user);
     return user;
   }
@@ -82,36 +63,39 @@ export class FirebaseAuthAdapter implements IAuthProvider {
     const provider = new GoogleAuthProvider();
     const userCredential = await signInWithPopup(getAuth(), provider);
     const firebaseUser = userCredential.user;
-    
-    // Check if user exists in Firestore
-    const userDoc = await getDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid));
+
     let user: User;
-    
-    if (!userDoc.exists()) {
-      user = {
-        id: firebaseUser.uid,
-        email: firebaseUser.email || '',
-        displayName: firebaseUser.displayName || 'User',
-        role: 'customer',
-        createdAt: new Date(),
-      };
-      
-      await setDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid), {
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-        createdAt: serverTimestamp(),
+
+    try {
+      // Check if user exists in Firestore
+      const userDoc = await getDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid));
+
+      if (!userDoc.exists()) {
+        user = this.fallbackUserProfile(firebaseUser);
+
+        await setDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid), {
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        const userData = userDoc.data();
+        user = mapDoc<User>(firebaseUser.uid, {
+          ...userData,
+          email: firebaseUser.email || '',
+          displayName: firebaseUser.displayName || userData?.displayName || 'User',
+          role: (userData?.role as UserRole) || 'customer',
+        });
+      }
+    } catch (error) {
+      logger.warn('Google sign-in profile sync failed; continuing with Firebase Auth fallback profile', {
+        uid: firebaseUser.uid,
+        error: error instanceof Error ? error.message : String(error),
       });
-    } else {
-      const userData = userDoc.data();
-      user = mapDoc<User>(firebaseUser.uid, {
-        ...userData,
-        email: firebaseUser.email || '',
-        displayName: firebaseUser.displayName || userData?.displayName || 'User',
-        role: (userData?.role as UserRole) || 'customer',
-      });
+      user = this.fallbackUserProfile(firebaseUser);
     }
-    
+
     this.setCurrentUser(user);
     return user;
   }
@@ -131,13 +115,20 @@ export class FirebaseAuthAdapter implements IAuthProvider {
       createdAt: new Date(),
     };
     
-    // Save additional data to Firestore
-    await setDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid), {
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      createdAt: serverTimestamp(),
-    });
+    try {
+      // Save additional data to Firestore
+      await setDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid), {
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        createdAt: serverTimestamp(),
+      });
+    } catch (error) {
+      logger.warn('Email sign-up profile sync failed; continuing with Firebase Auth fallback profile', {
+        uid: firebaseUser.uid,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     
     this.setCurrentUser(user);
     return user;
@@ -178,6 +169,38 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   private setCurrentUser(user: User | null) {
     this.currentUser = user;
     this.authListeners.forEach(l => l(user));
+  }
+
+  private async resolveUserProfile(firebaseUser: FirebaseUser, operation: string): Promise<User> {
+    try {
+      const userDoc = await getDoc(doc(getUnifiedDb(), 'users', firebaseUser.uid));
+      const userData = userDoc.data();
+
+      return mapDoc<User>(firebaseUser.uid, {
+        ...userData,
+        email: firebaseUser.email || '',
+        displayName: firebaseUser.displayName || userData?.displayName || 'User',
+        role: (userData?.role as UserRole) || 'customer',
+      });
+    } catch (error) {
+      logger.warn('Firestore user profile fetch failed; using Firebase Auth fallback profile', {
+        operation,
+        uid: firebaseUser.uid,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      return this.fallbackUserProfile(firebaseUser);
+    }
+  }
+
+  private fallbackUserProfile(firebaseUser: FirebaseUser): User {
+    return {
+      id: firebaseUser.uid,
+      email: firebaseUser.email || '',
+      displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+      role: 'customer',
+      createdAt: new Date(),
+    };
   }
 
   private assertBrowserAuth(operation: string) {

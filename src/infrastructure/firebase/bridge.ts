@@ -11,6 +11,47 @@ import { getDb as getClientDb } from './firebase';
 import { logger } from '@utils/logger';
 
 const isServer = typeof window === 'undefined';
+const DEFAULT_RETRY_OPTIONS = {
+  maxAttempts: 5,
+  initialDelayMs: 300,
+  maxDelayMs: 5000,
+};
+
+const READ_RETRY_OPTIONS = {
+  ...DEFAULT_RETRY_OPTIONS,
+  timeoutMs: 15000,
+};
+
+const TRANSIENT_FIRESTORE_CODES = new Set<any>([
+  1,
+  2,
+  4,
+  8,
+  10,
+  13,
+  14,
+  'cancelled',
+  'unknown',
+  'deadline-exceeded',
+  'resource-exhausted',
+  'aborted',
+  'internal',
+  'unavailable',
+  'firestore/cancelled',
+  'firestore/deadline-exceeded',
+  'firestore/resource-exhausted',
+  'firestore/aborted',
+  'firestore/internal',
+  'firestore/unavailable',
+]);
+
+type RetryOptions = {
+  maxAttempts: number;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  timeoutMs?: number;
+  operationName?: string;
+};
 
 /**
  * Returns the appropriate Firestore instance based on the environment.
@@ -57,56 +98,75 @@ export async function getDoc(docRef: any) {
       data: () => snap.data() as any,
       __native: snap
     };
-  });
+  }, { ...READ_RETRY_OPTIONS, operationName: 'getDoc' });
 }
 
 /**
  * Exponential backoff retry helper for transient network failures.
  */
+export function isTransientFirestoreError(err: any): boolean {
+  const code = err?.code || err?.status;
+  const message = typeof err?.message === 'string' ? err.message : '';
+  return TRANSIENT_FIRESTORE_CODES.has(code) || /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|RST_STREAM|GOAWAY|UNAVAILABLE|DEADLINE_EXCEEDED|Listen stream/i.test(message);
+}
+
+function getRetryDelayMs(attempt: number, options: RetryOptions): number {
+  const exponentialDelay = Math.min(options.initialDelayMs * 2 ** attempt, options.maxDelayMs);
+  return exponentialDelay + Math.floor(Math.random() * Math.min(500, exponentialDelay));
+}
+
+function withDeadline<T>(promise: Promise<T>, timeoutMs: number, operationName?: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`Firestore operation timed out after ${timeoutMs}ms`);
+      (error as any).code = 'deadline-exceeded';
+      (error as any).operationName = operationName;
+      reject(error);
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function recoverClientNetwork(operationName?: string): Promise<void> {
+  if (isServer) return;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+  try {
+    await client.enableNetwork(getClientDb());
+  } catch (error: any) {
+    logger.warn('Firestore client network recovery failed', {
+      operationName,
+      code: error?.code,
+      message: error?.message,
+    });
+  }
+}
+
 async function withRetry<T>(
   fn: () => Promise<T>,
-  options: { maxAttempts: number; initialDelayMs: number; maxDelayMs: number } = {
-    maxAttempts: 4,
-    initialDelayMs: 250,
-    maxDelayMs: 4000,
-  }
+  options: RetryOptions = DEFAULT_RETRY_OPTIONS
 ): Promise<T> {
   let lastError: any;
   for (let i = 0; i < options.maxAttempts; i++) {
     try {
-      return await fn();
+      const promise = fn();
+      return await (options.timeoutMs ? withDeadline(promise, options.timeoutMs, options.operationName) : promise);
     } catch (err: any) {
       lastError = err;
       const code = err.code || err.status;
-      const message = typeof err.message === 'string' ? err.message : '';
-      const isTransient = [
-        1,
-        2,
-        4,
-        8,
-        10,
-        13,
-        14,
-        'cancelled',
-        'unknown',
-        'deadline-exceeded',
-        'resource-exhausted',
-        'aborted',
-        'internal',
-        'unavailable',
-        'firestore/cancelled',
-        'firestore/deadline-exceeded',
-        'firestore/resource-exhausted',
-        'firestore/aborted',
-        'firestore/internal',
-        'firestore/unavailable',
-      ].includes(code) || /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|RST_STREAM|GOAWAY|Listen stream/i.test(message);
+      const isTransient = isTransientFirestoreError(err);
       
       if (!isTransient || i === options.maxAttempts - 1) throw err;
-      
-      const exponentialDelay = Math.min(options.initialDelayMs * 2 ** i, options.maxDelayMs);
-      const delay = exponentialDelay + Math.floor(Math.random() * Math.min(250, exponentialDelay));
+
+      await recoverClientNetwork(options.operationName);
+      const delay = getRetryDelayMs(i, options);
       logger.warn('Transient Firestore error; retrying operation', {
+        operationName: options.operationName,
         code,
         attempt: i + 1,
         maxAttempts: options.maxAttempts,
@@ -149,7 +209,7 @@ export async function getDocs(query: any) {
       size: snapshot.size,
       forEach: (callback: (d: any) => void) => docs.forEach(callback),
     };
-  });
+  }, { ...READ_RETRY_OPTIONS, operationName: 'getDocs' });
 }
 
 /**
@@ -163,7 +223,7 @@ export async function getCount(query: any) {
     }
     const snapshot = await client.getCountFromServer(query);
     return snapshot.data().count;
-  });
+  }, { ...READ_RETRY_OPTIONS, operationName: 'getCount' });
 }
 
 /**
@@ -175,7 +235,7 @@ export async function setDoc(docRef: any, data: any, options?: any) {
       return docRef.set(data, options);
     }
     return client.setDoc(docRef, data, options);
-  });
+  }, { ...DEFAULT_RETRY_OPTIONS, operationName: 'setDoc' });
 }
 
 /**
@@ -187,7 +247,7 @@ export async function updateDoc(docRef: any, data: any) {
       return docRef.update(data);
     }
     return client.updateDoc(docRef, data);
-  });
+  }, { ...DEFAULT_RETRY_OPTIONS, operationName: 'updateDoc' });
 }
 
 /**
@@ -199,7 +259,7 @@ export async function deleteDoc(docRef: any) {
       return docRef.delete();
     }
     return client.deleteDoc(docRef);
-  });
+  }, { ...DEFAULT_RETRY_OPTIONS, operationName: 'deleteDoc' });
 }
 
 /**
@@ -295,7 +355,7 @@ export async function runTransaction(db: any, updateFunction: (transaction: any)
       };
       return updateFunction(transactionShim);
     });
-  });
+  }, { ...DEFAULT_RETRY_OPTIONS, operationName: 'runTransaction' });
 }
 
 /**
@@ -308,7 +368,7 @@ export function writeBatch(db: any) {
       set: (ref: any, data: any) => batch.set(ref, data),
       update: (ref: any, data: any) => batch.update(ref, data),
       delete: (ref: any) => batch.delete(ref),
-      commit: () => withRetry(() => batch.commit()),
+      commit: () => withRetry(() => batch.commit(), { ...DEFAULT_RETRY_OPTIONS, operationName: 'writeBatch.commit' }),
     };
   }
   const batch = client.writeBatch(db);
@@ -316,7 +376,7 @@ export function writeBatch(db: any) {
     set: (ref: any, data: any) => batch.set(ref, data),
     update: (ref: any, data: any) => batch.update(ref, data),
     delete: (ref: any) => batch.delete(ref),
-    commit: () => withRetry(() => batch.commit()),
+    commit: () => withRetry(() => batch.commit(), { ...DEFAULT_RETRY_OPTIONS, operationName: 'writeBatch.commit' }),
   };
 }
 

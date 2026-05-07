@@ -1,4 +1,4 @@
-import { adminAuth, adminDb, FieldValue } from '@infrastructure/firebase/admin';
+import { adminAuth, adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { User, UserRole } from '@domain/models';
 import { mapTimestamp } from '@infrastructure/repositories/firestore/utils';
@@ -15,7 +15,10 @@ export async function userFromVerifiedIdToken(
     const uid = decodedToken.uid;
     const email = decodedToken.email || '';
     const userRef = adminDb.collection('users').doc(uid);
-    const userDoc = await userRef.get();
+    const userDoc: any = await withAdminFirestoreRetry(
+        () => userRef.get(),
+        { operationName: 'firebaseSession.user.get' }
+    );
 
     if (!userDoc.exists) {
         const user: User = {
@@ -26,12 +29,15 @@ export async function userFromVerifiedIdToken(
             createdAt: new Date(),
         };
 
-        await userRef.set({
-            email: user.email,
-            displayName: user.displayName,
-            role: user.role,
-            createdAt: FieldValue.serverTimestamp(),
-        });
+        await withAdminFirestoreRetry(
+            () => userRef.set({
+                email: user.email,
+                displayName: user.displayName,
+                role: user.role,
+                createdAt: FieldValue.serverTimestamp(),
+            }),
+            { operationName: 'firebaseSession.user.create' }
+        );
 
         return user;
     }
@@ -42,7 +48,10 @@ export async function userFromVerifiedIdToken(
     if (options.displayName && data.displayName !== options.displayName) updates.displayName = options.displayName;
     if (Object.keys(updates).length > 0) {
         updates.updatedAt = FieldValue.serverTimestamp();
-        await userRef.update(updates);
+        await withAdminFirestoreRetry(
+            () => userRef.update(updates),
+            { operationName: 'firebaseSession.user.update' }
+        );
     }
 
     return {

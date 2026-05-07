@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@domain/errors';
-import { adminAuth, adminDb, FieldValue } from '@infrastructure/firebase/admin';
+import { adminAuth, adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 import type { User, UserRole } from '@domain/models';
@@ -46,12 +46,15 @@ export async function POST(request: Request) {
             createdAt: new Date(),
         };
 
-        await adminDb.collection('users').doc(record.uid).set({
-            email,
-            displayName,
-            role,
-            createdAt: FieldValue.serverTimestamp(),
-        });
+        await withAdminFirestoreRetry(
+            () => adminDb.collection('users').doc(record.uid).set({
+                email,
+                displayName,
+                role,
+                createdAt: FieldValue.serverTimestamp(),
+            }),
+            { operationName: 'auth.users.createProfile' }
+        );
 
         return NextResponse.json(user, { status: 201 });
     } catch (error) {

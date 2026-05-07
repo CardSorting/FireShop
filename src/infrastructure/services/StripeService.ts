@@ -6,7 +6,7 @@
 import Stripe from 'stripe';
 import { PaymentFailedError } from '@domain/errors';
 import { logger } from '@utils/logger';
-import { adminDb, FieldValue, Timestamp } from '@infrastructure/firebase/admin';
+import { adminDb, FieldValue, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
 
 export class StripeService {
   private stripe: Stripe;
@@ -88,26 +88,32 @@ export class StripeService {
   async tryProcessEvent(eventId: string, type: string): Promise<boolean> {
     const eventRef = adminDb.collection(this.collectionName).doc(eventId);
 
-    return await adminDb.runTransaction(async (transaction: any) => {
-      const docSnap = await transaction.get(eventRef);
-      if (docSnap.exists) {
-        return true; // Already processed
-      }
+    return await withAdminFirestoreRetry(
+      () => adminDb.runTransaction(async (transaction: any) => {
+        const docSnap = await transaction.get(eventRef);
+        if (docSnap.exists) {
+          return true; // Already processed
+        }
 
-      transaction.set(eventRef, {
-        id: eventId,
-        type,
-        processedAt: FieldValue.serverTimestamp(),
-      });
-      return false; // Not processed, now marked
-    });
+        transaction.set(eventRef, {
+          id: eventId,
+          type,
+          processedAt: FieldValue.serverTimestamp(),
+        });
+        return false; // Not processed, now marked
+      }),
+      { operationName: 'stripe.tryProcessEvent' }
+    );
   }
 
   /**
    * Checks if a webhook event has already been processed.
    */
   async isEventProcessed(eventId: string): Promise<boolean> {
-    const docSnap = await adminDb.collection(this.collectionName).doc(eventId).get();
+    const docSnap: any = await withAdminFirestoreRetry(
+      () => adminDb.collection(this.collectionName).doc(eventId).get(),
+      { operationName: 'stripe.isEventProcessed' }
+    );
     return docSnap.exists;
   }
 
@@ -115,11 +121,14 @@ export class StripeService {
    * Marks a webhook event as processed.
    */
   async markEventProcessed(eventId: string, type: string): Promise<void> {
-    await adminDb.collection(this.collectionName).doc(eventId).set({
-      id: eventId,
-      type,
-      processedAt: FieldValue.serverTimestamp(),
-    });
+    await withAdminFirestoreRetry(
+      () => adminDb.collection(this.collectionName).doc(eventId).set({
+        id: eventId,
+        type,
+        processedAt: FieldValue.serverTimestamp(),
+      }),
+      { operationName: 'stripe.markEventProcessed' }
+    );
   }
 
   /**
