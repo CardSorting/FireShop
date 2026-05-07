@@ -33,6 +33,8 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   private authListeners: ((user: User | null) => void)[] = [];
 
   constructor() {
+    if (typeof window === 'undefined') return;
+
     firebaseOnAuthStateChanged(getAuth(), async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch additional data from Firestore
@@ -57,6 +59,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signIn(email: string, password: string): Promise<User> {
+    this.assertBrowserAuth('signIn');
     const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
     const firebaseUser = userCredential.user;
     
@@ -75,6 +78,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signInWithGoogle(): Promise<User> {
+    this.assertBrowserAuth('signInWithGoogle');
     const provider = new GoogleAuthProvider();
     const userCredential = await signInWithPopup(getAuth(), provider);
     const firebaseUser = userCredential.user;
@@ -113,6 +117,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signUp(email: string, password: string, displayName: string): Promise<User> {
+    this.assertBrowserAuth('signUp');
     const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
     const firebaseUser = userCredential.user;
     
@@ -139,6 +144,7 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   }
 
   async signOut(): Promise<void> {
+    this.assertBrowserAuth('signOut');
     await firebaseSignOut(getAuth());
     this.setCurrentUser(null);
   }
@@ -172,5 +178,11 @@ export class FirebaseAuthAdapter implements IAuthProvider {
   private setCurrentUser(user: User | null) {
     this.currentUser = user;
     this.authListeners.forEach(l => l(user));
+  }
+
+  private assertBrowserAuth(operation: string) {
+    if (typeof window === 'undefined') {
+      throw new Error(`FirebaseAuthAdapter.${operation} cannot run on the server. Use Admin SDK session routes instead.`);
+    }
   }
 }

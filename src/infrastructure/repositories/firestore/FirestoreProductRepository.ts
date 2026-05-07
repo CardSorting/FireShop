@@ -100,7 +100,7 @@ export class FirestoreProductRepository implements IProductRepository {
       }
 
       const snapshot = await getDocs(q);
-      let results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToProduct(d.id, d.data()));
+      const results = snapshot.docs.map((d: QueryDocumentSnapshot) => this.mapDocToProduct(d.id, d.data()));
       
       // Note: With searchKeywords, we no longer need the in-memory filtering here
       // which was limited by the fetch limit. The query above handles it server-side.

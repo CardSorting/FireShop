@@ -4,10 +4,19 @@
  * 
  * Includes robust fallbacks for production environment variables.
  */
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, initializeFirestore } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import {
+  getFirestore,
+  initializeFirestore,
+  memoryLocalCache,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+  type FirestoreSettings,
+} from 'firebase/firestore';
 import { getAuth as getAuthSDK } from 'firebase/auth';
 import { getStorage as getStorageSDK } from 'firebase/storage';
+import { logger } from '@utils/logger';
 
 // Production constants for robust fallback
 const PROD_CONFIG = {
@@ -29,45 +38,46 @@ const firebaseConfig = {
 };
 
 // Internal lazy instances
-let _app: any;
-let _db: any;
-let _auth: any;
-let _storage: any;
+let _app: FirebaseApp | undefined;
+let _db: Firestore | undefined;
+let _auth: ReturnType<typeof getAuthSDK> | undefined;
+let _storage: ReturnType<typeof getStorageSDK> | undefined;
 
-function getFirebaseApp() {
+function getFirebaseApp(): FirebaseApp {
   if (!_app) {
     _app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   }
   return _app;
 }
 
-export function getDb() {
+function createFirestoreSettings(): FirestoreSettings {
+  if (typeof window === 'undefined') {
+    return {
+      ignoreUndefinedProperties: true,
+      localCache: memoryLocalCache(),
+    };
+  }
+
+  return {
+    ignoreUndefinedProperties: true,
+    experimentalAutoDetectLongPolling: true,
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+  };
+}
+
+export function getDb(): Firestore {
   if (!_db) {
     const app = getFirebaseApp();
-    if (typeof window === 'undefined') {
-      // Force long polling on the server to prevent gRPC connection issues
-      _db = initializeFirestore(app, {
-        experimentalForceLongPolling: true,
-      });
-    } else {
+    try {
+      _db = initializeFirestore(app, createFirestoreSettings());
+    } catch (error: any) {
       _db = getFirestore(app);
-      
-      // Enable persistence for client-side to handle disconnects gracefully
-      try {
-        const { enableIndexedDbPersistence } = require('firebase/firestore');
-        enableIndexedDbPersistence(_db).catch((err: any) => {
-          if (err.code === 'failed-precondition') {
-            // Multiple tabs open, persistence can only be enabled in one tab at a time.
-            console.warn('[Firebase] Persistence failed: Multiple tabs open');
-          } else if (err.code === 'unimplemented') {
-            // The current browser does not support all of the features required to enable persistence
-            console.warn('[Firebase] Persistence failed: Browser not supported');
-          }
-        });
-      } catch (e) {
-        // Fallback for environments where dynamic require fails or SDK is different
-        console.warn('[Firebase] Persistence could not be initialized', e);
-      }
+      logger.warn('Reusing existing Firestore instance after initialization race', {
+        code: error?.code,
+        message: error?.message,
+      });
     }
   }
   return _db;

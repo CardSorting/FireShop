@@ -8,7 +8,7 @@ const USER_ROLES = new Set<UserRole>(['customer', 'admin']);
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        await requireAdminSession();
+        const actor = await requireAdminSession();
         const { id } = await params;
         const body = await readJsonObject(request);
 
@@ -52,7 +52,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
 
         const services = await getServerServices();
-        const updated = await services.authService.updateUser(id, updates);
+        const updated = await services.authService.updateUser(id, updates, actor);
         return NextResponse.json(updated);
     } catch (error) {
         return jsonError(error, 'Failed to update user');

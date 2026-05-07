@@ -13,7 +13,14 @@ import type {
     ShippingClass, ShippingZone, ShippingRate
 } from '@domain/models';
 import { getAuth } from '@infrastructure/firebase/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import {
+    GoogleAuthProvider,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signInWithPopup,
+    signOut as firebaseSignOut,
+    updateProfile,
+} from 'firebase/auth';
 
 const sessionScoped = (userId: string) => void userId;
 const DATE_FIELD_KEYS = new Set(['createdAt', 'updatedAt', 'joined', 'lastOrder', 'startsAt', 'endsAt', 'expectedAt', 'estimatedDeliveryDate', 'at']);
@@ -62,7 +69,14 @@ export function createApiClientServices() {
         },
         authService: {
             getCurrentUser: (signal?: AbortSignal) => request<User | null>('/api/auth/me', { signal }),
-            signIn: (email: string, password: string) => request<User>('/api/auth/sign-in', { method: 'POST', body: JSON.stringify({ email, password }) }),
+            signIn: async (email: string, password: string) => {
+                const result = await signInWithEmailAndPassword(getAuth(), email, password);
+                const idToken = await result.user.getIdToken();
+                return request<User>('/api/auth/sign-in', {
+                    method: 'POST',
+                    body: JSON.stringify({ idToken }),
+                });
+            },
             signInWithGoogle: async () => {
                 const provider = new GoogleAuthProvider();
                 const result = await signInWithPopup(getAuth(), provider);
@@ -72,8 +86,19 @@ export function createApiClientServices() {
                     body: JSON.stringify({ idToken }) 
                 });
             },
-            signUp: (email: string, password: string, displayName: string) => request<User>('/api/auth/sign-up', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
-            signOut: () => request<void>('/api/auth/sign-out', { method: 'POST' }),
+            signUp: async (email: string, password: string, displayName: string) => {
+                const result = await createUserWithEmailAndPassword(getAuth(), email, password);
+                await updateProfile(result.user, { displayName });
+                const idToken = await result.user.getIdToken(true);
+                return request<User>('/api/auth/sign-up', {
+                    method: 'POST',
+                    body: JSON.stringify({ idToken, displayName }),
+                });
+            },
+            signOut: async () => {
+                await firebaseSignOut(getAuth());
+                return request<void>('/api/auth/sign-out', { method: 'POST' });
+            },
             onAuthStateChanged(callback: (user: User | null) => void) {
                 const controller = new AbortController();
                 void request<User | null>('/api/auth/me', { signal: controller.signal })
@@ -86,6 +111,7 @@ export function createApiClientServices() {
                 return () => controller.abort();
             },
             getAllUsers: (signal?: AbortSignal) => request<User[]>('/api/auth/users', { signal }),
+            createUser: (data: { email: string; displayName: string; role?: 'customer' | 'admin' }) => request<User>('/api/auth/users', { method: 'POST', body: JSON.stringify(data) }),
             updateUser: (id: string, updates: Partial<User>) => request<User>(`/api/auth/users/${id}`, { method: 'PATCH', body: JSON.stringify(updates) }),
         },
         productService: {

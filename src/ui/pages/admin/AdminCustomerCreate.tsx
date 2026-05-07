@@ -36,11 +36,11 @@ export function AdminCustomerCreate() {
     const formData = new FormData(e.currentTarget);
     const email = formData.get('email') as string;
     const name = formData.get('name') as string;
+    const role = formData.get('role') === 'admin' ? 'admin' : 'customer';
 
     try {
-      // Hardened registration: Create real user record in SQLite
-      await services.authService.signUp(email, 'P@ssword123!', name);
-      toast('success', `Customer ${name} registered and invitation sent.`);
+      await services.authService.createUser({ email, displayName: name, role });
+      toast('success', `Customer ${name} registered.`);
       router.push('/admin/customers');
     } catch (err) {
       toast('error', err instanceof Error ? err.message : 'Failed to create customer');
@@ -136,7 +136,7 @@ export function AdminCustomerCreate() {
                 disabled={loading}
                 className="rounded-xl bg-primary-600 px-8 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 active:scale-95 disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Send Invitation'}
+                {loading ? 'Creating...' : 'Create Customer'}
               </button>
             </div>
           </form>
@@ -149,8 +149,8 @@ export function AdminCustomerCreate() {
               <div className="space-y-2">
                 <h4 className="text-sm font-bold uppercase tracking-widest">How it works</h4>
                 <p className="text-xs leading-relaxed font-medium">
-                  When you add a customer manually, we'll send them an invitation email. 
-                  They'll need to follow the link to set their password and verify their account before they can log in.
+                  Manual customer creation provisions the account in Firebase Auth and Firestore. 
+                  Send a password reset from Firebase Auth when the customer is ready to activate access.
                 </p>
                 <div className="pt-2 flex items-center gap-2 text-[10px] font-bold uppercase">
                   <CheckCircle2 className="h-3 w-3" /> Secure Enrollment

@@ -3,7 +3,7 @@
  * Firebase Admin SDK Initialization
  */
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, initializeFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
@@ -15,6 +15,10 @@ let _app: any;
 let _db: any;
 let _auth: any;
 let _storage: any;
+
+function shouldPreferRestTransport(): boolean {
+  return process.env.FIRESTORE_PREFER_REST !== 'false';
+}
 
 function getAdminApp() {
   if (!_app) {
@@ -51,7 +55,20 @@ function getAdminApp() {
 
 export const adminDb = new Proxy({} as any, {
   get(_, prop) {
-    if (!_db) _db = getFirestore(getAdminApp());
+    if (!_db) {
+      try {
+        _db = initializeFirestore(getAdminApp(), {
+          ignoreUndefinedProperties: true,
+          preferRest: shouldPreferRestTransport(),
+        } as any);
+      } catch (err: any) {
+        if (err?.message?.includes('already been called')) {
+          _db = getFirestore(getAdminApp());
+        } else {
+          throw err;
+        }
+      }
+    }
     return (Reflect as any).get(_db, prop);
   }
 });

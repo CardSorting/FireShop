@@ -128,7 +128,7 @@ function createRepositories() {
 export function getServiceContainer() {
   const repos = createRepositories();
   const authProvider = new FirebaseAuthAdapter();
-  const authService = new AuthService(authProvider);
+  const authService = new AuthService(authProvider, new AuditService());
 
   return {
     authProvider,
@@ -171,6 +171,11 @@ export function getServiceContainer() {
  * SINGLETON PATTERN: Gets global cached services (Production Default)
  */
 export function getInitialServices() {
+  const getAuditService = () => {
+    if (!auditServiceInstance) auditServiceInstance = new AuditService();
+    return auditServiceInstance;
+  };
+
   if (!productRepoInstance || !cartRepoInstance || !orderRepoInstance || !discountRepoInstance || !settingsRepoInstance || !transferRepoInstance) {
     const repos = createRepositories();
     productRepoInstance = repos.productRepo;
@@ -193,7 +198,7 @@ export function getInitialServices() {
   }
 
   if (!authServiceInstance) {
-    authServiceInstance = new AuthService(authProviderInstance!);
+    authServiceInstance = new AuthService(authProviderInstance!, getAuditService());
   }
 
   if (!paymentProcessorInstance) {
@@ -207,11 +212,6 @@ export function getInitialServices() {
   if (!checkoutGatewayInstance && process.env.CHECKOUT_ENDPOINT) {
     checkoutGatewayInstance = new TrustedCheckoutGateway();
   }
-
-  const getAuditService = () => {
-    if (!auditServiceInstance) auditServiceInstance = new AuditService();
-    return auditServiceInstance;
-  };
 
   return {
     authProvider: authProviderInstance!,

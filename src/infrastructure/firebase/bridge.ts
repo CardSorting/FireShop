@@ -8,6 +8,7 @@
 import * as client from 'firebase/firestore';
 import { adminDb, Timestamp as AdminTimestamp, FieldValue as AdminFieldValue } from './admin';
 import { getDb as getClientDb } from './firebase';
+import { logger } from '@utils/logger';
 
 const isServer = typeof window === 'undefined';
 
@@ -39,22 +40,24 @@ export function doc(db: any, path: string, ...pathSegments: string[]) {
  * Environment-aware 'getDoc' helper
  */
 export async function getDoc(docRef: any) {
-  if (isServer) {
-    const snapshot = await docRef.get();
+  return withRetry(async () => {
+    if (isServer) {
+      const snapshot = await docRef.get();
+      return {
+        id: snapshot.id,
+        exists: () => snapshot.exists,
+        data: () => snapshot.data() as any,
+        __native: snapshot
+      };
+    }
+    const snap = await client.getDoc(docRef);
     return {
-      id: snapshot.id,
-      exists: () => snapshot.exists,
-      data: () => snapshot.data() as any,
-      __native: snapshot
+      id: snap.id,
+      exists: () => snap.exists(),
+      data: () => snap.data() as any,
+      __native: snap
     };
-  }
-  const snap = await client.getDoc(docRef);
-  return {
-    id: snap.id,
-    exists: () => snap.exists(),
-    data: () => snap.data() as any,
-    __native: snap
-  };
+  });
 }
 
 /**
@@ -62,25 +65,53 @@ export async function getDoc(docRef: any) {
  */
 async function withRetry<T>(
   fn: () => Promise<T>,
-  options: { maxRetries: number; initialDelay: number } = { maxRetries: 3, initialDelay: 1000 }
+  options: { maxAttempts: number; initialDelayMs: number; maxDelayMs: number } = {
+    maxAttempts: 4,
+    initialDelayMs: 250,
+    maxDelayMs: 4000,
+  }
 ): Promise<T> {
   let lastError: any;
-  for (let i = 0; i < options.maxRetries; i++) {
+  for (let i = 0; i < options.maxAttempts; i++) {
     try {
       return await fn();
     } catch (err: any) {
       lastError = err;
-      // Retry on common transient errors: 
-      // - UNAVAILABLE (code 14)
-      // - DEADLINE_EXCEEDED (code 4)
-      // - ABORTED (code 10) - runTransaction handles this but we wrap it anyway
       const code = err.code || err.status;
-      const isTransient = [4, 10, 14, 'unavailable', 'deadline-exceeded', 'aborted'].includes(code);
+      const message = typeof err.message === 'string' ? err.message : '';
+      const isTransient = [
+        1,
+        2,
+        4,
+        8,
+        10,
+        13,
+        14,
+        'cancelled',
+        'unknown',
+        'deadline-exceeded',
+        'resource-exhausted',
+        'aborted',
+        'internal',
+        'unavailable',
+        'firestore/cancelled',
+        'firestore/deadline-exceeded',
+        'firestore/resource-exhausted',
+        'firestore/aborted',
+        'firestore/internal',
+        'firestore/unavailable',
+      ].includes(code) || /ECONNRESET|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|socket hang up|RST_STREAM|GOAWAY|Listen stream/i.test(message);
       
-      if (!isTransient || i === options.maxRetries - 1) throw err;
+      if (!isTransient || i === options.maxAttempts - 1) throw err;
       
-      const delay = options.initialDelay * Math.pow(2, i);
-      console.warn(`[Firebase Bridge] Transient error (${code}), retrying in ${delay}ms... (Attempt ${i + 1}/${options.maxRetries})`);
+      const exponentialDelay = Math.min(options.initialDelayMs * 2 ** i, options.maxDelayMs);
+      const delay = exponentialDelay + Math.floor(Math.random() * Math.min(250, exponentialDelay));
+      logger.warn('Transient Firestore error; retrying operation', {
+        code,
+        attempt: i + 1,
+        maxAttempts: options.maxAttempts,
+        delay,
+      });
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -277,10 +308,16 @@ export function writeBatch(db: any) {
       set: (ref: any, data: any) => batch.set(ref, data),
       update: (ref: any, data: any) => batch.update(ref, data),
       delete: (ref: any) => batch.delete(ref),
-      commit: () => batch.commit(),
+      commit: () => withRetry(() => batch.commit()),
     };
   }
-  return client.writeBatch(db);
+  const batch = client.writeBatch(db);
+  return {
+    set: (ref: any, data: any) => batch.set(ref, data),
+    update: (ref: any, data: any) => batch.update(ref, data),
+    delete: (ref: any) => batch.delete(ref),
+    commit: () => withRetry(() => batch.commit()),
+  };
 }
 
 /**
