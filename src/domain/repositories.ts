@@ -125,10 +125,6 @@ export interface ICheckoutGateway {
   }): Promise<Order>;
 }
 
-export interface IGeocodingService {
-  geocode(address: string | Address): Promise<{ lat: number; lng: number } | null>;
-}
-
 export interface ILockProvider {
   acquireLock(resourceId: string, owner: string, ttlMs?: number): Promise<boolean>;
   releaseLock(resourceId: string, owner: string): Promise<void>;

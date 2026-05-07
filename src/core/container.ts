@@ -12,7 +12,6 @@ import { FirebaseAuthAdapter } from '@infrastructure/services/FirebaseAuthAdapte
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
-import { NominatimGeocodingService } from '@infrastructure/services/NominatimGeocodingService';
 import { FirestoreSettingsRepository } from '@infrastructure/repositories/firestore/FirestoreSettingsRepository';
 import { FirestoreTransferRepository } from '@infrastructure/repositories/firestore/FirestoreTransferRepository';
 import { FirestorePurchaseOrderRepository } from '@infrastructure/repositories/firestore/FirestorePurchaseOrderRepository';
@@ -148,8 +147,7 @@ export function getServiceContainer() {
       new FirestoreDigitalAccessRepository(),
       repos.shippingRepo,
       repos.inventoryLocationRepo,
-      repos.inventoryLevelRepo,
-      new NominatimGeocodingService()
+      repos.inventoryLevelRepo
     ),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),

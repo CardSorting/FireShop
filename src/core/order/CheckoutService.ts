@@ -9,8 +9,7 @@ import type {
   ICheckoutGateway,
   IShippingRepository,
   IInventoryLevelRepository,
-  IInventoryLocationRepository,
-  IGeocodingService
+  IInventoryLocationRepository
 } from '@domain/repositories';
 import type { Order, Address, OrderItem, OrderStatus } from '@domain/models';
 import { 
@@ -46,8 +45,7 @@ export class CheckoutService {
     private checkoutGateway?: ICheckoutGateway,
     private shippingRepo?: IShippingRepository,
     private inventoryLevelRepo?: IInventoryLevelRepository,
-    private inventoryLocationRepo?: IInventoryLocationRepository,
-    private geocodingService?: IGeocodingService
+    private inventoryLocationRepo?: IInventoryLocationRepository
   ) {}
 
   async finalizeTrustedCheckout(
@@ -86,16 +84,6 @@ export class CheckoutService {
     paymentIntentId?: string,
     fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'
   ): Promise<Order> {
-    // Deep Audit: Geospatial address resolution for delivery verification
-    if (fulfillmentMethod === 'delivery' && !shippingAddress.coordinates && this.geocodingService) {
-      try {
-        const coords = await this.geocodingService.geocode(shippingAddress);
-        if (coords) shippingAddress.coordinates = coords;
-      } catch (err) {
-        logger.error('Geocoding failure during checkout', err);
-      }
-    }
-
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_lock:${userId}`;
     const checkoutAttemptId = crypto.randomUUID();
