@@ -6,84 +6,31 @@
 
 # Test info
 
-- Name: industrialized-commerce-v10.spec.ts >> Industrialized Commerce Suite V10 >> Edge Case: Multi-Currency & Precision Formatting
-- Location: e2e/industrialized-commerce-v10.spec.ts:151:3
+- Name: industrialized-commerce-v10.spec.ts >> Industrialized Commerce Suite V10 >> Search & Filter Industrial Performance
+- Location: e2e/industrialized-commerce-v10.spec.ts:187:3
 
 # Error details
 
 ```
-Error: expect(locator).toHaveText(expected) failed
+Test timeout of 90000ms exceeded.
+```
 
-Locator: getByTestId('cart-total')
-Expected pattern: /\$300\.00/
-Timeout: 20000ms
-Error: element(s) not found
-
+```
+Error: locator.fill: Test timeout of 90000ms exceeded.
 Call log:
-  - Expect "toHaveText" with timeout 20000ms
-  - waiting for getByTestId('cart-total')
+  - waiting for locator('input[placeholder*="Search"]')
 
 ```
 
 # Page snapshot
 
 ```yaml
-- generic [active] [ref=e1]:
-  - status [ref=e2]:
-    - generic [ref=e3]:
-      - img [ref=e5]
-      - generic [ref=e7]:
-        - text: Static route
-        - button "Hide static indicator" [ref=e8] [cursor=pointer]:
-          - img [ref=e9]
-  - alert [ref=e12]
-  - generic [ref=e14]:
-    - img [ref=e16]
-    - heading "Something went wrong" [level=1] [ref=e18]
-    - paragraph [ref=e19]: We're sorry, but an unexpected error occurred. The application may need to be refreshed.
-    - generic [ref=e20]:
-      - paragraph [ref=e21]: "Error details:"
-      - paragraph [ref=e22]: Cannot read properties of undefined (reading 'title')
-    - button "Reload Page" [ref=e23]
+- 'heading "Application error: a client-side exception has occurred (see the browser console for more information)." [level=2] [ref=e4]'
 ```
 
 # Test source
 
 ```ts
-  57  |       // 2. PRODUCTS
-  58  |       if (url.includes('/api/products')) {
-  59  |         if (url.includes('/api/products/')) {
-  60  |           const idOrHandle = url.split('/').pop()?.split('?')[0];
-  61  |           const product = allProducts.find(p => p.id === idOrHandle || p.handle === idOrHandle);
-  62  |           return product ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(product) }) : route.fulfill({ status: 404 });
-  63  |         }
-  64  |         const query = searchParams.get('query')?.toLowerCase();
-  65  |         let products = allProducts;
-  66  |         if (query) {
-  67  |           products = allProducts.filter(p => p.name.toLowerCase().includes(query) || p.handle.toLowerCase().includes(query));
-  68  |         }
-  69  |         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ products }) });
-  70  |       }
-  71  | 
-  72  |       // 3. CART
-  73  |       if (url.includes('/api/cart')) {
-  74  |         if (method === 'POST' && url.includes('/items')) {
-  75  |           const existing = state.items.find(i => i.productId === body.productId && (i.variantId || undefined) === (body.variantId || undefined));
-  76  |           if (existing) existing.quantity += (body.quantity ?? 1);
-  77  |           else {
-  78  |             const newItem = toCartItem(body.productId, body.quantity ?? 1);
-  79  |             if (newItem) state.items.push(newItem);
-  80  |           }
-  81  |         } else if (method === 'PATCH' && url.includes('/items')) {
-  82  |           const existing = state.items.find(i => i.productId === body.productId && (i.variantId || undefined) === (body.variantId || undefined));
-  83  |           if (existing) existing.quantity = body.quantity;
-  84  |         } else if (method === 'DELETE' && url.includes('/items')) {
-  85  |           state.items = state.items.filter(i => !(i.productId === body.productId && (i.variantId || undefined) === (body.variantId || undefined)));
-  86  |         } else if (method === 'DELETE') {
-  87  |           state.items = [];
-  88  |         }
-  89  |         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'c1', userId: 'u_v10', items: [...state.items], updatedAt: nowIso }) });
-  90  |       }
   91  | 
   92  |       // 4. DISCOUNTS
   93  |       if (url.includes('/api/discounts/validate')) {
@@ -150,8 +97,7 @@ Call log:
   154 |     ];
   155 |     
   156 |     await page.goto('/cart');
-> 157 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$300\.00/, { timeout: 20000 });
-      |                                                  ^ Error: expect(locator).toHaveText(expected) failed
+  157 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$300\.00/, { timeout: 20000 });
   158 | 
   159 |     const cartItem = page.locator('[data-testid="cart-item"]').filter({ hasText: 'Physical Masterpiece' });
   160 |     await cartItem.getByTestId('increase-quantity').click();
@@ -185,7 +131,8 @@ Call log:
   188 |     await page.goto('/products');
   189 |     const searchInput = page.locator('input[placeholder*="Search"]');
   190 |     
-  191 |     await searchInput.fill('Digital');
+> 191 |     await searchInput.fill('Digital');
+      |                       ^ Error: locator.fill: Test timeout of 90000ms exceeded.
   192 |     await expect(page.locator('[data-testid="product-card"]')).toHaveCount(1, { timeout: 20000 });
   193 |     await expect(page.getByText('Digital Genesis')).toBeVisible({ timeout: 20000 });
   194 |     

@@ -128,6 +128,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
         <div className="absolute inset-x-4 bottom-4 z-20 flex gap-2 translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
           <button 
             onClick={handleAddToCart}
+            data-testid="quick-add"
             disabled={isAdding || showSuccess || isOutOfStock}
             aria-label={showSuccess ? "Item added to cart" : `Add ${product.name} to cart`}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl ${
@@ -199,7 +200,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
               </p>
             )}
             {product.stock === 0 && (
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tight" data-testid="sold-out-badge">
                 Sold Out
               </p>
             )}

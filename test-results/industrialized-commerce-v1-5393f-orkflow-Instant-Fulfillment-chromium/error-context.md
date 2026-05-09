@@ -6,22 +6,19 @@
 
 # Test info
 
-- Name: industrialized-commerce-v10.spec.ts >> Industrialized Commerce Suite V10 >> Edge Case: Multi-Currency & Precision Formatting
-- Location: e2e/industrialized-commerce-v10.spec.ts:151:3
+- Name: industrialized-commerce-v10.spec.ts >> Industrialized Commerce Suite V10 >> Digital Workflow: Instant Fulfillment
+- Location: e2e/industrialized-commerce-v10.spec.ts:172:3
 
 # Error details
 
 ```
-Error: expect(locator).toHaveText(expected) failed
+Test timeout of 90000ms exceeded.
+```
 
-Locator: getByTestId('cart-total')
-Expected pattern: /\$300\.00/
-Timeout: 20000ms
-Error: element(s) not found
-
+```
+Error: locator.fill: Test timeout of 90000ms exceeded.
 Call log:
-  - Expect "toHaveText" with timeout 20000ms
-  - waiting for getByTestId('cart-total')
+  - waiting for locator('#checkout-street')
 
 ```
 
@@ -50,27 +47,6 @@ Call log:
 # Test source
 
 ```ts
-  57  |       // 2. PRODUCTS
-  58  |       if (url.includes('/api/products')) {
-  59  |         if (url.includes('/api/products/')) {
-  60  |           const idOrHandle = url.split('/').pop()?.split('?')[0];
-  61  |           const product = allProducts.find(p => p.id === idOrHandle || p.handle === idOrHandle);
-  62  |           return product ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(product) }) : route.fulfill({ status: 404 });
-  63  |         }
-  64  |         const query = searchParams.get('query')?.toLowerCase();
-  65  |         let products = allProducts;
-  66  |         if (query) {
-  67  |           products = allProducts.filter(p => p.name.toLowerCase().includes(query) || p.handle.toLowerCase().includes(query));
-  68  |         }
-  69  |         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ products }) });
-  70  |       }
-  71  | 
-  72  |       // 3. CART
-  73  |       if (url.includes('/api/cart')) {
-  74  |         if (method === 'POST' && url.includes('/items')) {
-  75  |           const existing = state.items.find(i => i.productId === body.productId && (i.variantId || undefined) === (body.variantId || undefined));
-  76  |           if (existing) existing.quantity += (body.quantity ?? 1);
-  77  |           else {
   78  |             const newItem = toCartItem(body.productId, body.quantity ?? 1);
   79  |             if (newItem) state.items.push(newItem);
   80  |           }
@@ -150,8 +126,7 @@ Call log:
   154 |     ];
   155 |     
   156 |     await page.goto('/cart');
-> 157 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$300\.00/, { timeout: 20000 });
-      |                                                  ^ Error: expect(locator).toHaveText(expected) failed
+  157 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$300\.00/, { timeout: 20000 });
   158 | 
   159 |     const cartItem = page.locator('[data-testid="cart-item"]').filter({ hasText: 'Physical Masterpiece' });
   160 |     await cartItem.getByTestId('increase-quantity').click();
@@ -172,7 +147,8 @@ Call log:
   175 |     ];
   176 |     
   177 |     await page.goto('/checkout');
-  178 |     await page.locator('#checkout-street').fill('Digital Way 1');
+> 178 |     await page.locator('#checkout-street').fill('Digital Way 1');
+      |                                            ^ Error: locator.fill: Test timeout of 90000ms exceeded.
   179 |     await page.locator('#checkout-city').fill('CyberCity');
   180 |     await page.locator('#checkout-state').fill('NE');
   181 |     await page.locator('#checkout-zip').fill('10101');

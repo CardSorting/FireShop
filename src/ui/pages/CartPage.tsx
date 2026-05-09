@@ -224,7 +224,7 @@ export function CartPage() {
                       <div className="mt-8 flex flex-wrap items-center justify-between gap-6">
                         <div className="flex items-center bg-gray-50 p-1.5 rounded-2xl border-2 border-transparent focus-within:border-primary-100 transition-all">
                            <button 
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={() => updateQuantity(item.productId, Number(item.quantity) - 1, item.variantId)}
                             disabled={item.quantity <= 1}
                             className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-gray-400 hover:text-primary-600 disabled:opacity-30 transition-all active:scale-90"
                             aria-label="Decrease quantity"
@@ -232,9 +232,9 @@ export function CartPage() {
                            >
                              <Minus className="h-4 w-4" />
                            </button>
-                           <span className="w-14 text-center text-lg font-black text-gray-900">{item.quantity}</span>
+                           <span className="w-14 text-center text-lg font-black text-gray-900" data-testid="item-quantity">{item.quantity}</span>
                            <button 
-                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                            onClick={() => updateQuantity(item.productId, Number(item.quantity) + 1, item.variantId)}
                             disabled={item.quantity >= MAX_CART_QUANTITY}
                             className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-gray-400 hover:text-primary-600 disabled:opacity-30 transition-all active:scale-90"
                             aria-label="Increase quantity"

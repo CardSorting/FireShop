@@ -1,0 +1,597 @@
+
+> dreambees-art@0.0.0 test:e2e
+> playwright test e2e/industrialized-commerce-v10.spec.ts --reporter=list
+
+
+Running 5 tests using 5 workers
+
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307984880
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307984880
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307984880
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307984918
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307984918
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307984918
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307984956
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307984956
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307984956
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307985082
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307985082
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307985082
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307985081
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307985081
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307985081
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=0 FirstItemQty=undefined
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/products
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=1 FirstItemQty=2
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=1 FirstItemQty=1
+[REQUEST] GET http://localhost:3000/
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=0 FirstItemQty=undefined
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/products
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=0 FirstItemQty=undefined
+[REQUEST] GET http://localhost:3000/products
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307988992
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307988992
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307988992
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=3840&q=75
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307988999
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307988999
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307988999
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307989068
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307989068
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307989068
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/products/page.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/page.js
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307989313
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307989313
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307989313
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/products/page.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307989315
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307989315
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307989315
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/products/page.js
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fcharizard_ex_holo_1778177088908.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fscarlet_violet_booster_box_1778177072594.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fviral_blog_strategy_featured_1778177344526.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_tcg_strategy_1778177431609.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fgeneric_collecting_1778177444345.png&w=640&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/_next/image?url=%2Fassets%2Fgenerated%2Fpro_circuit_handbook_featured_1778177228003.png&w=1920&q=75
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=8
+[REQUEST] GET http://localhost:3000/api/support/articles?type=blog&status=published
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/products?_rsc=16mho
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/products?limit=20
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/products?_rsc=16mho
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/products?limit=20
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/products?_rsc=16mho
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/products?limit=20
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=1 FirstItemQty=2
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=1 FirstItemQty=1
+[REQUEST] GET http://localhost:3000/cart
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=0 FirstItemQty=undefined
+[REQUEST] POST http://localhost:3000/api/cart/items
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=0 FirstItemQty=undefined
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1550684848-fac1c5b4e853%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1561070791-2526d30994b5%3Fq%3D80%26w%3D400&w=384&q=75
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=0 FirstItemQty=undefined
+[REQUEST] POST http://localhost:3000/api/cart/items
+[REQUEST] GET http://localhost:3000/checkout
+[REQUEST] GET http://localhost:3000/products?q=Digital&_rsc=16mho
+[REQUEST] GET http://localhost:3000/api/products?limit=20&query=Digital
+  ✓  2 [chromium] › e2e/industrialized-commerce-v10.spec.ts:247:3 › Industrialized Commerce Suite V10 › Constraint Validation: Sold Out Product (9.2s)
+[REQUEST] GET http://localhost:3000/products?_rsc=16mho
+[REQUEST] GET http://localhost:3000/api/products?limit=20
+[REQUEST] GET http://localhost:3000/_next/image?url=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579783902614-a3fb3927b6a5%3Fq%3D80%26w%3D400&w=384&q=75
+  ✓  5 [chromium] › e2e/industrialized-commerce-v10.spec.ts:276:3 › Industrialized Commerce Suite V10 › Search & Filter Industrial Performance (9.3s)
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.097Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.097Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.097Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.097Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.097Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.097Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseCart.tsx&methodName=CartProvider.useCallback%5BloadCart%5D&arguments=&lineNumber=107&column=67
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.098Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.098Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.098Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.098Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.098Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A34.098Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseCart.tsx&methodName=CartProvider.useCallback%5BloadCart%5D&arguments=&lineNumber=107&column=67
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307994176
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307994176
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307994176
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/checkout/page.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778307994185
+[REQUEST] GET http://localhost:3000/_next/static/chunks/webpack.js?v=1778307994185
+[REQUEST] GET http://localhost:3000/_next/static/chunks/main-app.js?v=1778307994185
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app-pages-internals.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/template.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/layout.js
+[REQUEST] GET http://localhost:3000/_next/static/chunks/app/cart/page.js
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/api/products/p1
+[REQUEST] GET https://js.stripe.com/v3
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/products?limit=4
+[REQUEST] GET http://localhost:3000/api/taxonomy/categories
+[REQUEST] GET http://localhost:3000/api/navigation?id=main-nav
+[REQUEST] GET http://localhost:3000/api/admin/shipping/rates
+[REQUEST] GET http://localhost:3000/api/admin/shipping/zones
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/api/auth/me
+[REQUEST] GET http://localhost:3000/...
+[REQUEST] GET http://localhost:3000/...
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=1 FirstItemQty=1
+[REQUEST] GET http://localhost:3000/api/wishlists
+[REQUEST] GET http://localhost:3000/api/cart
+[MOCK CART] Method=GET URL=http://localhost:3000/api/cart ResponseItems=1 FirstItemQty=2
+[REQUEST] POST http://localhost:3000/api/cart/items
+[REQUEST] POST http://localhost:3000/api/cart/items
+[REQUEST] GET https://js.stripe.com/v3/controller-with-preconnect-d6f301f5db2ee5e4f4e49fadaa5fa80c.html
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fpages%2FCheckoutPage.tsx&methodName=CheckoutPage.useEffect.loadShippingConfig&arguments=&lineNumber=150&column=75
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.098Z+%22Failed+to+load+shipping+config%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fpages%2FCheckoutPage.tsx&methodName=CheckoutPage.useEffect.loadShippingConfig&arguments=&lineNumber=150&column=75
+[REQUEST] GET https://js.stripe.com/v3/fingerprinted/js/shared-b138bf604bfc59278b5eef99e10f9169.js
+[REQUEST] GET https://js.stripe.com/v3/fingerprinted/js/controller-with-preconnect-a7544b5cbfbb4802b7b6cb8ff9a91357.js
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+Authentication+required&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseWishlist.tsx&methodName=WishlistProvider.useCallback%5BrefreshWishlists%5D&arguments=&lineNumber=88&column=25
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.242Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.242Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.242Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.242Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.242Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.242Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseCart.tsx&methodName=CartProvider.useCallback%5BloadCart%5D&arguments=&lineNumber=107&column=67
+[REQUEST] GET http://localhost:3000/...
+[REQUEST] GET http://localhost:3000/...
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.303Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.303Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.303Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.303Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.303Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.303Z+%22Failed+to+load+cart%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseCart.tsx&methodName=CartProvider.useCallback%5BloadCart%5D&arguments=&lineNumber=107&column=67
+[REQUEST] GET https://js.stripe.com/v3/.deploy_status_henson.json
+[REQUEST] GET https://js.stripe.com/v3/.deploy_status_henson.json
+[REQUEST] GET https://js.stripe.com/v3/fingerprinted/js/stripe-cookies-99315d136700f132b072c563090f72a7.js
+[REQUEST] GET https://js.stripe.com/v3/fingerprinted/js/consumerSchema-d5481af344428bd36cfedb4a0f155cd6.js
+[REQUEST] PATCH http://localhost:3000/api/cart/items
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.597Z+%22Failed+to+update+quantity%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fconsole-error.js&methodName=createUnhandledError&arguments=&lineNumber=23&column=19
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.597Z+%22Failed+to+update+quantity%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fuse-error-handler.js&methodName=handleClientError&arguments=&lineNumber=42&column=98
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.597Z+%22Failed+to+update+quantity%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=53&column=56
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.597Z+%22Failed+to+update+quantity%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=emit&arguments=&lineNumber=70&column=21
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.597Z+%22Failed+to+update+quantity%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Futils%2Flogger.ts&methodName=Object.error&arguments=&lineNumber=78&column=32
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%5BDB-ART%3AERROR%5D+2026-05-09T06%3A26%3A35.597Z+%22Failed+to+update+quantity%22+%7B%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fhooks%2FuseCart.tsx&methodName=updateQuantity&arguments=&lineNumber=294&column=63
+[REQUEST] GET https://js.stripe.com/v3/m-outer-3437aaddcdf6922d623e172c2d6f9278.html
+[REQUEST] GET https://js.stripe.com/v3/fingerprinted/js/m-outer-15a2b40a058ddff1cffdb63779fe3de1.js
+[REQUEST] GET https://m.stripe.network/inner.html
+[REQUEST] GET https://m.stripe.network/out-4.5.45.js
+[REQUEST] POST https://m.stripe.com/6
+[REQUEST] POST https://r.stripe.com/b
+[REQUEST] POST https://r.stripe.com/b
+[REQUEST] GET https://js.stripe.com/v3/fingerprinted/js/trusted-types-checker-a86dcafd042e60cf7585cbabd57b0cdb.js
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fcomponents%2FSearchCommandPalette%2FuseSearchDiscovery.ts&methodName=useSearchDiscovery.useEffect.loadCategories&arguments=&lineNumber=125&column=33
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fcomponents%2FSearchCommandPalette%2FuseSearchDiscovery.ts&methodName=useSearchDiscovery.useEffect.loadCategories&arguments=&lineNumber=125&column=33
+[REQUEST] GET http://localhost:3000/products?_rsc=1ogvx
+[REQUEST] GET http://localhost:3000/_next/static/webpack/c34b4fce82ebfe05.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/cart?_rsc=lv74e
+[REQUEST] GET http://localhost:3000/_next/static/webpack/c34b4fce82ebfe05.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/c34b4fce82ebfe05.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.c34b4fce82ebfe05.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.c34b4fce82ebfe05.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.c34b4fce82ebfe05.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.c34b4fce82ebfe05.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.c34b4fce82ebfe05.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.c34b4fce82ebfe05.hot-update.js
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fpages%2FProductsPage.tsx&methodName=ProductsPage.useEffect.loadCategories&arguments=&lineNumber=224&column=33
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fpages%2FProductsPage.tsx&methodName=ProductsPage.useEffect.loadCategories&arguments=&lineNumber=224&column=33
+[REQUEST] GET http://localhost:3000/_next/static/webpack/490da60630a0141f.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/490da60630a0141f.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/490da60630a0141f.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.490da60630a0141f.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.490da60630a0141f.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.490da60630a0141f.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.490da60630a0141f.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.490da60630a0141f.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.490da60630a0141f.hot-update.js
+[REQUEST] GET http://localhost:3000/products?_rsc=esy4k
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/cart?_rsc=lv74e
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308002803
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308002794
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308002809
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fcomponents%2FSearchCommandPalette%2FuseSearchDiscovery.ts&methodName=useSearchDiscovery.useEffect.loadCategories&arguments=&lineNumber=125&column=33
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Freact-dev-overlay%2Finternal%2Fhelpers%2Fcapture-stack-trace.js&methodName=captureStackTrace&arguments=&lineNumber=13&column=23
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fnode_modules%2Fnext%2Fdist%2Fclient%2Fcomponents%2Fglobals%2Fintercept-console-error.js&methodName=console.error&arguments=&lineNumber=51&column=62
+[REQUEST] GET http://localhost:3000/__nextjs_original-stack-frame?isServer=false&isEdgeServer=false&isAppDirectory=true&errorMessage=Error%3A+%7B%22error%22%3A%22invalid_grant%22%2C%22error_description%22%3A%22reauth+related+error+%28invalid_rapt%29%22%2C%22error_uri%22%3A%22https%3A%2F%2Fsupport.google.com%2Fa%2Fanswer%2F9368756%22%2C%22error_subtype%22%3A%22invalid_rapt%22%7D&file=webpack-internal%3A%2F%2F%2F%28app-pages-browser%29%2F.%2Fsrc%2Fui%2Fcomponents%2FSearchCommandPalette%2FuseSearchDiscovery.ts&methodName=useSearchDiscovery.useEffect.loadCategories&arguments=&lineNumber=125&column=33
+  ✘  4 [chromium] › e2e/industrialized-commerce-v10.spec.ts:188:3 › Industrialized Commerce Suite V10 › Full Life Cycle: Physical Product Purchase (20.1s)
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/_next/static/webpack/82e71a35a0364358.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/cart?_rsc=lv74e
+[REQUEST] GET http://localhost:3000/_next/static/webpack/82e71a35a0364358.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.82e71a35a0364358.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.82e71a35a0364358.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.82e71a35a0364358.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.82e71a35a0364358.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308005001
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308005027
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+  ✘  1 [chromium] › e2e/industrialized-commerce-v10.spec.ts:227:3 › Industrialized Commerce Suite V10 › Edge Case: Multi-Currency & Precision Formatting (21.0s)
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/_next/static/webpack/9033e3c741ecf423.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.9033e3c741ecf423.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.9033e3c741ecf423.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308005851
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/_next/static/webpack/1fb961ef88970fdb.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.1fb961ef88970fdb.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.1fb961ef88970fdb.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308037363
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/_next/static/webpack/3545ae63f5784297.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.3545ae63f5784297.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.3545ae63f5784297.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308037430
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/_next/static/webpack/a6bac565504ce708.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.a6bac565504ce708.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.a6bac565504ce708.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308062256
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+[REQUEST] GET http://localhost:3000/checkout?_rsc=r2pxr
+[REQUEST] GET http://localhost:3000/_next/static/webpack/b6f92b13ca6c1373.webpack.hot-update.json
+[REQUEST] GET http://localhost:3000/_next/static/webpack/app/layout.b6f92b13ca6c1373.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/webpack/webpack.b6f92b13ca6c1373.hot-update.js
+[REQUEST] GET http://localhost:3000/_next/static/css/app/layout.css?v=1778308068892
+[REQUEST] GET http://localhost:3000/_next/static/media/e4af272ccee01ff0-s.p.woff2
+  ✘  3 [chromium] › e2e/industrialized-commerce-v10.spec.ts:258:3 › Industrialized Commerce Suite V10 › Digital Workflow: Instant Fulfillment (1.5m)
+
+
+  1) [chromium] › e2e/industrialized-commerce-v10.spec.ts:188:3 › Industrialized Commerce Suite V10 › Full Life Cycle: Physical Product Purchase 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('h2').filter({ hasText: /Cart/i })
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('h2').filter({ hasText: /Cart/i })[22m
+
+
+      192 |     await firstProduct.getByRole('button', { name: /Add Physical Masterpiece/i }).click();
+      193 |
+    > 194 |     await expect(page.locator('h2', { hasText: /Cart/i })).toBeVisible({ timeout: 10000 });
+          |                                                            ^
+      195 |     await page.getByRole('link', { name: /Checkout/i }).click();
+      196 |     await page.getByTestId('cart-drawer').waitFor({ state: 'detached', timeout: 15000 });
+      197 |     await expect(page).toHaveURL(/\/checkout/);
+        at /Users/bozoegg/Desktop/DreamBeesArt/e2e/industrialized-commerce-v10.spec.ts:194:60
+
+    Error Context: test-results/industrialized-commerce-v1-6f489-e-Physical-Product-Purchase-chromium/error-context.md
+
+  2) [chromium] › e2e/industrialized-commerce-v10.spec.ts:227:3 › Industrialized Commerce Suite V10 › Edge Case: Multi-Currency & Precision Formatting 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('[data-testid="cart-item"]').filter({ hasText: 'Physical Masterpiece' }).getByTestId('item-quantity')
+    Expected: [32m"3"[39m
+    Received: [31m"2"[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveText" with timeout 10000ms[22m
+    [2m  - waiting for locator('[data-testid="cart-item"]').filter({ hasText: 'Physical Masterpiece' }).getByTestId('item-quantity')[22m
+    [2m    14 × locator resolved to <span data-testid="item-quantity" class="w-14 text-center text-lg font-black text-gray-900">2</span>[22m
+    [2m       - unexpected value "2"[22m
+
+
+      241 |     
+      242 |     // Wait for BOTH the quantity span AND the total to update
+    > 243 |     await expect(cartItem.getByTestId('item-quantity')).toHaveText('3', { timeout: 10000 });
+          |                                                         ^
+      244 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$450\.00/, { timeout: 15000 });
+      245 |   });
+      246 |
+        at /Users/bozoegg/Desktop/DreamBeesArt/e2e/industrialized-commerce-v10.spec.ts:243:57
+
+    Error Context: test-results/industrialized-commerce-v1-701be-rrency-Precision-Formatting-chromium/error-context.md
+
+  3) [chromium] › e2e/industrialized-commerce-v10.spec.ts:258:3 › Industrialized Commerce Suite V10 › Digital Workflow: Instant Fulfillment 
+
+    [31mTest timeout of 90000ms exceeded.[39m
+
+    Error: locator.fill: Test timeout of 90000ms exceeded.
+    Call log:
+    [2m  - waiting for locator('#checkout-street')[22m
+
+
+      262 |     
+      263 |     await page.goto('/checkout');
+    > 264 |     await page.locator('#checkout-street').fill('Digital Way 1');
+          |                                            ^
+      265 |     await page.locator('#checkout-city').fill('CyberCity');
+      266 |     await page.locator('#checkout-state').fill('NE');
+      267 |     await page.locator('#checkout-zip').fill('10101');
+        at /Users/bozoegg/Desktop/DreamBeesArt/e2e/industrialized-commerce-v10.spec.ts:264:44
+
+    Error Context: test-results/industrialized-commerce-v1-5393f-orkflow-Instant-Fulfillment-chromium/error-context.md
+
+  3 failed
+    [chromium] › e2e/industrialized-commerce-v10.spec.ts:188:3 › Industrialized Commerce Suite V10 › Full Life Cycle: Physical Product Purchase 
+    [chromium] › e2e/industrialized-commerce-v10.spec.ts:227:3 › Industrialized Commerce Suite V10 › Edge Case: Multi-Currency & Precision Formatting 
+    [chromium] › e2e/industrialized-commerce-v10.spec.ts:258:3 › Industrialized Commerce Suite V10 › Digital Workflow: Instant Fulfillment 
+  2 passed (1.5m)

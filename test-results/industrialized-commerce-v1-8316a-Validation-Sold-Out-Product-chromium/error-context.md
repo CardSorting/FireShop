@@ -6,22 +6,22 @@
 
 # Test info
 
-- Name: industrialized-commerce-v10.spec.ts >> Industrialized Commerce Suite V10 >> Edge Case: Multi-Currency & Precision Formatting
-- Location: e2e/industrialized-commerce-v10.spec.ts:151:3
+- Name: industrialized-commerce-v10.spec.ts >> Industrialized Commerce Suite V10 >> Constraint Validation: Sold Out Product
+- Location: e2e/industrialized-commerce-v10.spec.ts:166:3
 
 # Error details
 
 ```
-Error: expect(locator).toHaveText(expected) failed
+Error: expect(locator).toBeVisible() failed
 
-Locator: getByTestId('cart-total')
-Expected pattern: /\$300\.00/
+Locator: locator('[data-testid="product-card"]').filter({ hasText: 'Sold Out Artifact' }).getByTestId('sold-out-badge')
+Expected: visible
 Timeout: 20000ms
 Error: element(s) not found
 
 Call log:
-  - Expect "toHaveText" with timeout 20000ms
-  - waiting for getByTestId('cart-total')
+  - Expect "toBeVisible" with timeout 20000ms
+  - waiting for locator('[data-testid="product-card"]').filter({ hasText: 'Sold Out Artifact' }).getByTestId('sold-out-badge')
 
 ```
 
@@ -29,39 +29,33 @@ Call log:
 
 ```yaml
 - generic [active] [ref=e1]:
-  - status [ref=e2]:
-    - generic [ref=e3]:
+  - generic:
+    - generic [ref=e4] [cursor=pointer]:
       - img [ref=e5]
-      - generic [ref=e7]:
-        - text: Static route
-        - button "Hide static indicator" [ref=e8] [cursor=pointer]:
-          - img [ref=e9]
-  - alert [ref=e12]
-  - generic [ref=e14]:
-    - img [ref=e16]
-    - heading "Something went wrong" [level=1] [ref=e18]
-    - paragraph [ref=e19]: We're sorry, but an unexpected error occurred. The application may need to be refreshed.
-    - generic [ref=e20]:
-      - paragraph [ref=e21]: "Error details:"
-      - paragraph [ref=e22]: Cannot read properties of undefined (reading 'title')
-    - button "Reload Page" [ref=e23]
+      - generic [ref=e7]: 2 errors
+      - button "Hide Errors" [ref=e8]:
+        - img [ref=e9]
+    - status [ref=e12]:
+      - generic [ref=e13]:
+        - img [ref=e15]
+        - generic [ref=e17]:
+          - text: Static route
+          - button "Hide static indicator" [ref=e18] [cursor=pointer]:
+            - img [ref=e19]
+  - alert [ref=e22]
+  - generic [ref=e24]:
+    - img [ref=e26]
+    - heading "Something went wrong" [level=1] [ref=e28]
+    - paragraph [ref=e29]: We're sorry, but an unexpected error occurred. The application may need to be refreshed.
+    - generic [ref=e30]:
+      - paragraph [ref=e31]: "Error details:"
+      - paragraph [ref=e32]: Cannot read properties of undefined (reading 'title')
+    - button "Reload Page" [ref=e33]
 ```
 
 # Test source
 
 ```ts
-  57  |       // 2. PRODUCTS
-  58  |       if (url.includes('/api/products')) {
-  59  |         if (url.includes('/api/products/')) {
-  60  |           const idOrHandle = url.split('/').pop()?.split('?')[0];
-  61  |           const product = allProducts.find(p => p.id === idOrHandle || p.handle === idOrHandle);
-  62  |           return product ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(product) }) : route.fulfill({ status: 404 });
-  63  |         }
-  64  |         const query = searchParams.get('query')?.toLowerCase();
-  65  |         let products = allProducts;
-  66  |         if (query) {
-  67  |           products = allProducts.filter(p => p.name.toLowerCase().includes(query) || p.handle.toLowerCase().includes(query));
-  68  |         }
   69  |         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ products }) });
   70  |       }
   71  | 
@@ -150,8 +144,7 @@ Call log:
   154 |     ];
   155 |     
   156 |     await page.goto('/cart');
-> 157 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$300\.00/, { timeout: 20000 });
-      |                                                  ^ Error: expect(locator).toHaveText(expected) failed
+  157 |     await expect(page.getByTestId('cart-total')).toHaveText(/\$300\.00/, { timeout: 20000 });
   158 | 
   159 |     const cartItem = page.locator('[data-testid="cart-item"]').filter({ hasText: 'Physical Masterpiece' });
   160 |     await cartItem.getByTestId('increase-quantity').click();
@@ -163,7 +156,8 @@ Call log:
   166 |   test('Constraint Validation: Sold Out Product', async ({ page }) => {
   167 |     await page.goto('/products');
   168 |     const soldOutProduct = page.locator('[data-testid="product-card"]').filter({ hasText: 'Sold Out Artifact' });
-  169 |     await expect(soldOutProduct.getByTestId('sold-out-badge')).toBeVisible({ timeout: 20000 });
+> 169 |     await expect(soldOutProduct.getByTestId('sold-out-badge')).toBeVisible({ timeout: 20000 });
+      |                                                                ^ Error: expect(locator).toBeVisible() failed
   170 |   });
   171 | 
   172 |   test('Digital Workflow: Instant Fulfillment', async ({ page }) => {

@@ -148,18 +148,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       product = await services.productService.getProducts({}).then(r => r.products.find(p => p.id === productId));
     }
-    
     if (!product) {
-      logger.error('Product not found for add');
+      logger.error(`Product not found: ${productId}`);
       return;
     }
-
+    
     let price = product.price;
     let imageUrl = product.imageUrl;
     let variantTitle = undefined;
 
     if (variantId && product.variants) {
-      const v = product.variants.find(varnt => varnt.id === variantId);
+      const v = product.variants.find(varnt => varnt.id == variantId);
       if (v) {
         price = v.price;
         variantTitle = v.title;
@@ -194,6 +193,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
           name: product.name,
           priceSnapshot: price,
           imageUrl,
+          isDigital: product.isDigital,
+          productHandle: product.handle,
+          shippingClassId: product.shippingClassId,
           quantity: Math.min(quantity, MAX_CART_QUANTITY)
         });
       }
@@ -222,13 +224,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const updateQuantity = async (productId: string, quantity: number, variantId?: string) => {
     const safeQuantity = Math.max(1, Math.min(quantity, MAX_CART_QUANTITY));
+    console.log(`[useCart] updateQuantity: ID=${productId}, target=${safeQuantity}, variant=${variantId}`);
     
     const prevCart = cart;
     setCart(prev => {
       if (!prev) return prev;
+      const nextItems = prev.items.map(i => {
+        const isMatch = i.productId === productId && (i.variantId || undefined) === (variantId || undefined);
+        return isMatch ? { ...i, quantity: safeQuantity } : i;
+      });
       return {
         ...prev,
-        items: prev.items.map(i => (i.productId === productId && i.variantId === variantId) ? { ...i, quantity: safeQuantity } : i)
+        items: nextItems
       };
     });
 
