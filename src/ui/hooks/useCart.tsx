@@ -224,12 +224,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const safeQuantity = Math.max(1, Math.min(quantity, MAX_CART_QUANTITY));
     
     const prevCart = cart;
-    if (cart) {
-      setCart({
-        ...cart,
-        items: cart.items.map(i => (i.productId === productId && i.variantId === variantId) ? { ...i, quantity: safeQuantity } : i)
-      });
-    }
+    setCart(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map(i => (i.productId === productId && i.variantId === variantId) ? { ...i, quantity: safeQuantity } : i)
+      };
+    });
 
     try {
       if (user) {

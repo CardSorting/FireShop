@@ -13,7 +13,7 @@ import { Loader2, Search, Sparkles, Filter, X, ArrowRight, BookOpen, Layers, Che
 import { motion, AnimatePresence } from 'framer-motion';
 import type { KnowledgebaseArticle, KnowledgebaseCategory, BlogSeries } from '@domain/models';
 
-export default function BlogPage() {
+function BlogContent() {
   const searchParams = useSearchParams();
   const services = useServices();
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -341,3 +341,17 @@ export default function BlogPage() {
     </div>
   );
 }
+
+export default function BlogPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex flex-col items-center justify-center py-40 space-y-6 pt-28">
+        <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
+        <p className="text-sm font-black uppercase tracking-widest text-gray-400">Loading the Hive Journal...</p>
+      </div>
+    }>
+      <BlogContent />
+    </Suspense>
+  );
+}
+

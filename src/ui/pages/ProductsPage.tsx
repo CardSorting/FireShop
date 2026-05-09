@@ -182,6 +182,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       const result = await services.productService.getProducts({
         category: !isCollectionType && selectedCategories.length > 0 ? selectedCategories[0] : undefined,
         collection: isCollectionType && collectionSlug ? collectionSlug : undefined,
+        query: search.trim() || undefined,
         limit: 20,
         cursor,
         signal: controller.signal
@@ -223,7 +224,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
         setLoading(false);
       }
     }
-  }, [selectedCategories, selectedConditions, selectedAvailability, priceRange, sortBy, services.productService, resolvedType, collectionSlug]);
+  }, [selectedCategories, selectedConditions, selectedAvailability, priceRange, sortBy, search, services.productService, resolvedType, collectionSlug]);
 
   const handleSearch = useCallback(async (value: string) => {
     setSearch(value);

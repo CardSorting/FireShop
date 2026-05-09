@@ -63,7 +63,7 @@ export function CartDrawer() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-drawer flex justify-end">
+    <div className="fixed inset-0 z-drawer flex justify-end" data-testid="cart-drawer">
       {/* Backdrop: with smoother blur and opacity */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px] transition-opacity animate-in fade-in duration-500"
@@ -211,6 +211,7 @@ export function CartDrawer() {
                             }}
                             disabled={item.quantity <= 1 || isUpdating}
                             className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-primary-600 hover:bg-gray-50 disabled:opacity-20 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            aria-label="Decrease quantity"
                           >
                             <Minus className="h-3 w-3" />
                           </button>
@@ -222,6 +223,7 @@ export function CartDrawer() {
                             }}
                             disabled={item.quantity >= MAX_CART_QUANTITY || isUpdating}
                             className="h-8 w-8 flex items-center justify-center rounded-xl text-gray-400 hover:text-primary-600 hover:bg-gray-50 disabled:opacity-20 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+                            aria-label="Increase quantity"
                           >
                             <Plus className="h-3 w-3" />
                           </button>

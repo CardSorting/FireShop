@@ -210,7 +210,7 @@ export function CartPage() {
                           <div className="flex items-center gap-4">
                              <p className="text-sm font-bold text-gray-400">Unit Price: <span className="text-gray-900">{formatMoney(item.priceSnapshot)}</span></p>
                              <div className="h-4 w-px bg-gray-200" />
-                             <p className="text-sm font-black text-primary-600">Total: {formatMoney(item.priceSnapshot * item.quantity)}</p>
+                             <p className="text-sm font-black text-primary-600" data-testid="item-total">Total: {formatMoney(item.priceSnapshot * item.quantity)}</p>
                           </div>
                         </div>
                         <button 
@@ -227,6 +227,8 @@ export function CartPage() {
                             onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                             disabled={item.quantity <= 1}
                             className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-gray-400 hover:text-primary-600 disabled:opacity-30 transition-all active:scale-90"
+                            aria-label="Decrease quantity"
+                            data-testid="decrease-quantity"
                            >
                              <Minus className="h-4 w-4" />
                            </button>
@@ -235,6 +237,8 @@ export function CartPage() {
                             onClick={() => updateQuantity(item.productId, item.quantity + 1)}
                             disabled={item.quantity >= MAX_CART_QUANTITY}
                             className="h-10 w-10 flex items-center justify-center rounded-xl bg-white shadow-sm text-gray-400 hover:text-primary-600 disabled:opacity-30 transition-all active:scale-90"
+                            aria-label="Increase quantity"
+                            data-testid="increase-quantity"
                            >
                              <Plus className="h-4 w-4" />
                            </button>
@@ -324,7 +328,7 @@ export function CartPage() {
                   )}
                   <div className="pt-4 border-t-2 border-gray-50 flex justify-between items-center">
                     <span className="text-xl font-black text-gray-900 tracking-tight">Total</span>
-                    <span className="text-3xl font-black text-primary-600 tracking-tighter">
+                    <span className="text-3xl font-black text-primary-600 tracking-tighter" data-testid="cart-total">
                        {formatMoney(subtotal + (subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : 599) - (appliedPromo?.amount || 0))}
                     </span>
                   </div>

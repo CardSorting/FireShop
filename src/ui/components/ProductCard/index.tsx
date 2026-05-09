@@ -80,7 +80,9 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
     }
   };
 
-  return (
+    const isOutOfStock = product.stock === 0;
+
+    return (
     <div className="group relative flex flex-col h-full" data-testid="product-card">
       {/* Visual Container */}
       <div className="relative aspect-4/5 rounded-4xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-700 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-primary-100/50">
@@ -126,7 +128,7 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
         <div className="absolute inset-x-4 bottom-4 z-20 flex gap-2 translate-y-12 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
           <button 
             onClick={handleAddToCart}
-            disabled={isAdding || showSuccess}
+            disabled={isAdding || showSuccess || isOutOfStock}
             aria-label={showSuccess ? "Item added to cart" : `Add ${product.name} to cart`}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl ${
               showSuccess 

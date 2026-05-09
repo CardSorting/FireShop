@@ -99,7 +99,6 @@ export function CheckoutPage() {
     if (!checkoutAttemptKey.current) {
         checkoutAttemptKey.current = `checkout-ui:${crypto.randomUUID()}`;
     }
-    if (user) setEmail(user.email);
     const savedAddress = localStorage.getItem('checkout:address');
     if (savedAddress) {
       try {
@@ -108,7 +107,13 @@ export function CheckoutPage() {
         logger.error('Failed to parse saved address', e);
       }
     }
+  }, []);
 
+  useEffect(() => {
+    if (user) setEmail(user.email);
+  }, [user]);
+
+  useEffect(() => {
     const loadShippingConfig = async () => {
       setLoadingShipping(true);
       try {
@@ -125,7 +130,7 @@ export function CheckoutPage() {
       }
     };
     void loadShippingConfig();
-  }, [user, services.shippingService]);
+  }, [services.shippingService]);
   
   const cartItems = cart?.items ?? [];
 
@@ -395,7 +400,7 @@ export function CheckoutPage() {
                         autoComplete="shipping street-address" 
                         error={fieldErrors.street} 
                         value={address.street} 
-                        onChange={(val) => setAddress({ ...address, street: val })} 
+                        onChange={(val) => setAddress(prev => ({ ...prev, street: val }))} 
                         placeholder="Street address, suite, or apartment" 
                       />
                       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -405,7 +410,7 @@ export function CheckoutPage() {
                           autoComplete="shipping address-level2" 
                           error={fieldErrors.city}
                           value={address.city} 
-                          onChange={(val) => setAddress({ ...address, city: val })} 
+                          onChange={(val) => setAddress(prev => ({ ...prev, city: val }))} 
                         />
                         <div className="grid grid-cols-2 gap-6">
                           <FormField 
@@ -414,7 +419,7 @@ export function CheckoutPage() {
                             autoComplete="shipping address-level1" 
                             error={fieldErrors.state}
                             value={address.state} 
-                            onChange={(val) => setAddress({ ...address, state: val })} 
+                            onChange={(val) => setAddress(prev => ({ ...prev, state: val }))} 
                           />
                           <FormField 
                             label="ZIP Code" 
@@ -422,7 +427,7 @@ export function CheckoutPage() {
                             autoComplete="shipping postal-code" 
                             error={fieldErrors.zip}
                             value={address.zip} 
-                            onChange={(val) => setAddress({ ...address, zip: val })} 
+                            onChange={(val) => setAddress(prev => ({ ...prev, zip: val }))} 
                           />
                         </div>
                       </div>
