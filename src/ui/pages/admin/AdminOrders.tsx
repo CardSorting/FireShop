@@ -289,7 +289,7 @@ export function AdminOrders() {
     <div className="space-y-6 pb-20 animate-in fade-in duration-500">
       <AdminPageHeader
         title="Orders"
-        subtitle="Manage fulfillment and customer communications"
+        subtitle="High-velocity fulfillment and collector management console"
         actions={
           <button 
             onClick={handleExport}

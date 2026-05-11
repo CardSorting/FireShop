@@ -55,6 +55,7 @@ export const MAX_ADDRESS_FIELD_LENGTH = 120;
 
 const PRODUCT_SALES_CHANNELS: ProductSalesChannel[] = ['online_store', 'pos', 'draft_order'];
 const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  draft: ['pending', 'cancelled'],
   pending: ['confirmed', 'cancelled'],
   confirmed: ['processing', 'shipped', 'ready_for_pickup', 'delivery_started', 'cancelled', 'refunded', 'partially_refunded'],
   processing: ['shipped', 'cancelled', 'refunded', 'partially_refunded'],

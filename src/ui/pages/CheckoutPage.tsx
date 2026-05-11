@@ -366,7 +366,7 @@ export function CheckoutPage() {
               <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <section>
                   <div className="mb-8 flex items-center justify-between">
-                    <h1 className="text-3xl font-black tracking-tight text-gray-900" data-testid="checkout-title">Customer Identity</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-gray-900" data-testid="checkout-title">Collector Identity</h1>
                     {!user && <Link href="/login" className="text-xs font-black uppercase tracking-widest text-primary-600 hover:underline">Log in</Link>}
                   </div>
                   
