@@ -66,7 +66,15 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   delivery_started: ['delivery_started', 'delivered', 'cancelled'],
 };
 
+/* Enhanced Triage Tabs */
 const FULFILLMENT_TABS = [
+  { label: 'All Orders', value: 'all', icon: PackageCheck },
+  { label: 'Unfulfilled', value: 'confirmed', icon: Clock },
+  { label: 'Unpaid', value: 'pending', icon: DollarSign },
+  { label: 'Open', value: 'processing', icon: RefreshCcw },
+  { label: 'Shipped', value: 'shipped', icon: Truck },
+];
+// Old tabs removed:
   { label: 'All', value: 'all', icon: PackageCheck },
   { label: 'To review', value: 'pending', icon: Clock },
   { label: 'Ready to ship', value: 'confirmed', icon: PackageCheck },
@@ -398,9 +406,20 @@ export function AdminOrders() {
                       <td className="px-4 py-3.5">
                         <p className="text-xs font-bold text-gray-900 truncate">{o.customerName || `User #${o.userId.slice(0, 8)}`}</p>
                       </td>
+                      
                       <td className="px-4 py-3.5">
-                        <AdminStatusBadge status={o.status} type="order" />
+                        {o.status === 'confirmed' ? (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); /* Logic to open tracking modal */ }}
+                            className="rounded-lg border border-primary-100 bg-primary-50 px-3 py-1 text-[10px] font-black uppercase text-primary-700 hover:bg-primary-100"
+                          >
+                            Add Tracking
+                          </button>
+                        ) : (
+                          <AdminStatusBadge status={o.status} type="order" />
+                        )}
                       </td>
+
                       <td className="px-4 py-3.5 text-right font-bold text-gray-900 tracking-tight">
                         {formatCurrency(o.total)}
                       </td>

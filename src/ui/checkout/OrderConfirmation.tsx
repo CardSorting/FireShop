@@ -248,6 +248,23 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
               </section>
             )}
 
+            
+            <section className="overflow-hidden rounded-[3rem] border border-amber-100 bg-amber-50/20 p-8 shadow-sm">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-amber-500 text-white shadow-lg shadow-amber-200">
+                  <ShieldCheck className="h-10 w-10" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-900">The Artisan Guarantee</h3>
+                  <p className="mt-2 text-sm font-medium leading-relaxed text-gray-600">
+                    Your collection is handled with precision. Every item undergoes a multi-point quality inspection, 
+                    is hand-packed with archival-safe materials, and protected by full-value transit insurance.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+
             <section className="overflow-hidden rounded-[3rem] border border-gray-100 bg-white shadow-sm">
               <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6">
                 <h2 className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400"><ShoppingBag className="h-5 w-5" /> Itemized List</h2>
@@ -309,7 +326,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
             {!user && context === 'confirmation' && (
               <section className="relative overflow-hidden rounded-[3rem] border border-primary-200 bg-primary-600 p-8 text-white shadow-xl shadow-primary-200/50">
                 <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
-                <h2 className="relative z-10 text-xl font-black tracking-tight">Save your details for next time</h2>
+                <h2 className="relative z-10 text-xl font-black tracking-tight">Join the Collector Registry</h2>
                 <p className="relative z-10 mt-3 text-sm font-medium leading-relaxed text-primary-100">Create a collector account to track this order, manage your collection, and speed through checkout next time.</p>
                 <Link href={`/register?email=${encodeURIComponent(userEmail)}`} className="relative z-10 mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-6 py-4 text-sm font-black text-primary-700 shadow-lg transition-transform hover:-translate-y-1">
                   Create Collector Account <ArrowRight className="h-4 w-4" />
@@ -331,7 +348,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                 {reordering ? 'Adding to cart...' : 'Order again'} <RotateCcw className={`h-5 w-5 ${reordering ? 'animate-spin' : ''}`} />
               </button>
               <Link href="/products" className="group flex w-full items-center justify-between rounded-2xl border-2 border-gray-100 bg-white px-6 py-5 text-sm font-black text-gray-800 transition hover:bg-gray-50 hover:border-gray-200">
-                Keep Shopping <ShoppingBag className="h-5 w-5 transition-transform group-hover:scale-110" />
+                Explore New Collections <ShoppingBag className="h-5 w-5 transition-transform group-hover:scale-110" />
               </Link>
               <div className="grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => window.print()} className="flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:bg-gray-50 hover:text-gray-900 transition-colors"><Printer className="h-4 w-4" /> Print</button>

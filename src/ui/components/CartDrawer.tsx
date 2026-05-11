@@ -58,6 +58,14 @@ export function CartDrawer() {
   }, [isOpen]);
 
   const items = cart?.items ?? [];
+
+  const collectorLevel = useMemo(() => {
+    if (subtotal >= 50000) return { label: 'Elite Collector', color: 'text-purple-600', bg: 'bg-purple-50' };
+    if (subtotal >= 25000) return { label: 'Vanguard', color: 'text-blue-600', bg: 'bg-blue-50' };
+    if (subtotal >= 10000) return { label: 'Artisan Patron', color: 'text-green-600', bg: 'bg-green-50' };
+    return { label: 'New Collector', color: 'text-gray-600', bg: 'bg-gray-50' };
+  }, [subtotal]);
+
   const FREE_SHIPPING_THRESHOLD = 10000; // $100.00
 
   if (!isOpen) return null;
@@ -98,9 +106,9 @@ export function CartDrawer() {
           <div className="px-6 py-3 border-b border-gray-50 bg-gray-50/30">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Truck className={`h-3 w-3 ${subtotal >= FREE_SHIPPING_THRESHOLD ? 'text-green-600' : 'text-primary-600'}`} />
-                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                  {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Free Shipping Unlocked' : 'Shipping Progress'}
+                <ShieldCheck className={`h-3 w-3 ${collectorLevel.color}`} />
+                <span className={`text-[9px] font-black uppercase tracking-widest ${collectorLevel.color}`}>
+                  {collectorLevel.label} Status
                 </span>
               </div>
               {subtotal < FREE_SHIPPING_THRESHOLD && (
