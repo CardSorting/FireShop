@@ -126,7 +126,7 @@ export function AdminConciergeInsights() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedSession, setSelectedSession] = useState<ConciergeSession | null>(null);
-  const [activeTab, setActiveTab] = useState<'inbox' | 'patterns' | 'digest'>('inbox');
+  const [activeTab, setActiveTab] = useState<'inbox' | 'patterns' | 'digest' | 'settings'>('inbox');
   const [filter, setFilter] = useState('all');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'findings': true,
@@ -135,6 +135,15 @@ export function AdminConciergeInsights() {
     'activity': true,
     'assignment': true
   });
+  const [internalNote, setInternalNote] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [adminSettings, setAdminSettings] = useState<any>({
+    isBarteringEnabled: false,
+    maxDiscountPercentage: 15,
+    negotiationTone: 'Friendly & Approachable',
+    minOrderValueForBarter: 50
+  });
+  const [storeDigest, setStoreDigest] = useState<any>(null);
 
   const fetchSessions = async () => {
     setIsLoading(true);
@@ -154,17 +163,81 @@ export function AdminConciergeInsights() {
     }
   };
 
-  const handleUpdateSession = async (sessionId: string, updates: Partial<ConciergeSession>) => {
-    try {
-      setSessions(prev => prev.map(s => s.id === sessionId ? { ...s, ...updates } : s));
-      if (selectedSession?.id === sessionId) {
-        setSelectedSession({ ...selectedSession, ...updates });
+  // Real-time Poll for new activity
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isAnalyzing && !isLoading) {
+        fetchSessions();
       }
-      toast('success', 'Update saved');
+    }, 10000); // Poll every 10s
+    return () => clearInterval(interval);
+  }, [isAnalyzing, isLoading]);
+
+  const handleSessionAction = async (action: string, payload: any = {}) => {
+    if (!selectedSession) return;
+    try {
+      const res = await fetch(`/api/admin/concierge/sessions/${selectedSession.id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action, 
+          payload,
+          operator: 'Me' // In a real app, this would be the logged-in admin name
+        })
+      });
+      if (!res.ok) throw new Error('Action failed');
+      toast('success', `Action ${action} successful`);
+      await fetchSessions();
     } catch (error) {
-      toast('error', 'Failed to update');
+      toast('error', 'Failed to perform action');
     }
   };
+
+  const handleSaveSettings = async () => {
+    setIsSavingSettings(true);
+    try {
+      const res = await fetch('/api/concierge/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adminSettings)
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      toast('success', 'Concierge settings updated');
+    } catch (error) {
+      toast('error', 'Failed to save settings');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const res = await fetch('/api/concierge/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setAdminSettings(data);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const fetchDigest = async () => {
+    try {
+      const res = await fetch('/api/admin/concierge/digest');
+      if (res.ok) {
+        const data = await res.json();
+        setStoreDigest(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch digest');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'digest') {
+      fetchDigest();
+    }
+  }, [activeTab]);
 
   const handleAnalyze = async (sessionId: string) => {
     setIsAnalyzing(true);
@@ -266,6 +339,7 @@ export function AdminConciergeInsights() {
             { id: 'inbox', label: 'Inbox', icon: Inbox },
             { id: 'patterns', label: 'Suggested Fixes', icon: Zap },
             { id: 'digest', label: 'Operational Digest', icon: FileText },
+            { id: 'settings', label: 'Settings', icon: Lock },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -366,11 +440,24 @@ export function AdminConciergeInsights() {
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100">
-                       <button className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Snooze</button>
+                       <button 
+                         onClick={() => handleSessionAction('snooze', { followUpDate: new Date(Date.now() + 86400000).toISOString() })}
+                         className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                       >
+                         Snooze
+                       </button>
                        <div className="w-px h-4 self-center bg-gray-200" />
-                       <button className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Assign</button>
+                       <button 
+                         onClick={() => handleSessionAction('assign', { operatorName: 'Team Lead' })}
+                         className="px-4 py-2 text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                       >
+                         Assign
+                       </button>
                     </div>
-                    <button className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white hover:bg-black transition-all shadow-xl active:scale-95">
+                    <button 
+                      onClick={() => handleSessionAction('resolve')}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-gray-900 px-6 py-3.5 text-xs font-black uppercase tracking-widest text-white hover:bg-black transition-all shadow-xl active:scale-95"
+                    >
                       Mark Handled
                     </button>
                   </div>
@@ -505,12 +592,25 @@ export function AdminConciergeInsights() {
                               <div className="h-8 w-8 rounded-xl bg-gray-900 flex items-center justify-center text-white shrink-0">
                                 <User className="h-4 w-4" />
                               </div>
-                              <div className="flex-1">
-                                 <input 
-                                   placeholder="Add an internal handoff note..." 
-                                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-medium focus:ring-0 focus:border-gray-300 transition-all placeholder:text-gray-300"
-                                 />
-                              </div>
+                               <div className="flex-1 flex gap-2">
+                                  <input 
+                                    value={internalNote}
+                                    onChange={(e) => setInternalNote(e.target.value)}
+                                    placeholder="Add an internal handoff note..." 
+                                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-xs font-medium focus:ring-0 focus:border-gray-300 transition-all placeholder:text-gray-300"
+                                  />
+                                  <button 
+                                    onClick={() => {
+                                      if (internalNote) {
+                                        handleSessionAction('add_note', { note: internalNote });
+                                        setInternalNote('');
+                                      }
+                                    }}
+                                    className="p-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-all"
+                                  >
+                                    <ArrowRightCircle className="h-4 w-4" />
+                                  </button>
+                               </div>
                            </div>
                         </div>
                       )}
@@ -617,14 +717,20 @@ export function AdminConciergeInsights() {
                  <h4 className="text-2xl font-black text-gray-900 mb-3 leading-tight relative z-10">{suggestion.action}</h4>
                  <p className="text-sm font-bold text-gray-500 leading-relaxed mb-10 relative z-10">"{suggestion.why}"</p>
                  
-                 <div className="mt-auto pt-10 border-t border-gray-50 relative z-10 flex gap-4">
-                    <button className="flex-1 py-5 bg-gray-900 text-white rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95">
+                  <div className="mt-auto pt-10 border-t border-gray-50 relative z-10 flex gap-4">
+                    <button 
+                      onClick={() => handleSessionAction('accept_suggestion', { suggestionIndex: i, action: suggestion.action })}
+                      className="flex-1 py-5 bg-gray-900 text-white rounded-3xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95"
+                    >
                       Accept Fix
                     </button>
-                    <button className="flex-1 py-5 bg-white border border-gray-100 text-gray-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:border-gray-900 hover:text-gray-900 transition-all active:scale-95">
+                    <button 
+                      onClick={() => handleSessionAction('dismiss_suggestion', { suggestionIndex: i })}
+                      className="flex-1 py-5 bg-white border border-gray-100 text-gray-400 rounded-3xl text-xs font-black uppercase tracking-widest hover:border-gray-900 hover:text-gray-900 transition-all active:scale-95"
+                    >
                       Dismiss
                     </button>
-                 </div>
+                  </div>
                </div>
              )))}
            </div>
@@ -646,21 +752,15 @@ export function AdminConciergeInsights() {
                     </div>
                  </div>
                  
-                 <div className="space-y-10">
-                    {[
+                  <div className="space-y-10">
+                    {(storeDigest?.digestItems || [
                       { 
-                        title: 'Checkout Hesitation: Weekend Delivery', 
-                        desc: 'Customers are repeatedly asking about weekend shipping on plushie pages before abandoning.', 
-                        action: 'Add a "Weekend Delivery Guarantee" banner to high-friction variants.', 
+                        title: 'Syncing Intelligence...', 
+                        desc: 'Aggregating recent sessions for patterns.', 
+                        action: 'Wait for analysis', 
                         type: 'conversion' 
-                      },
-                      { 
-                        title: 'Pattern: Repeat Sizing Concern', 
-                        desc: '8 sessions this week required manual escalation for oversized collection fit questions.', 
-                        action: 'Update sizing guide for the "Oversized" series.', 
-                        type: 'support_burden' 
-                      },
-                    ].map((item, i) => (
+                      }
+                    ]).map((item: any, i: number) => (
                       <div key={i} className="flex gap-8 group">
                          <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-900 group-hover:text-white transition-all shrink-0">
                             {i + 1}
@@ -671,7 +771,7 @@ export function AdminConciergeInsights() {
                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-lg border ${
                                  item.type === 'conversion' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-primary-50 text-primary-600 border-primary-100'
                                }`}>
-                                 {item.type.replace('_', ' ')}
+                                 {item.type?.replace('_', ' ')}
                                </span>
                             </div>
                             <p className="text-sm font-bold text-gray-500 leading-relaxed italic">"{item.desc}"</p>
@@ -699,10 +799,10 @@ export function AdminConciergeInsights() {
                  <div className="relative z-10 pt-16">
                     <div className="flex justify-between items-end mb-6">
                        <span className="text-[11px] font-black uppercase tracking-widest text-gray-500">System Accuracy</span>
-                       <span className="text-4xl font-black">94%</span>
+                       <span className="text-4xl font-black">{storeDigest?.trustScore || 90}%</span>
                     </div>
                     <div className="h-4 w-full bg-white/10 rounded-full overflow-hidden flex shadow-inner p-1">
-                       <div className="h-full bg-green-500 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.6)]" style={{ width: '94%' }} />
+                       <div className="h-full bg-green-500 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.6)]" style={{ width: `${storeDigest?.trustScore || 90}%` }} />
                     </div>
                  </div>
               </div>
@@ -714,12 +814,126 @@ export function AdminConciergeInsights() {
                 <Sparkles className="h-4 w-4" /> Strategic Observation
               </h4>
               <p className="text-2xl font-bold leading-relaxed italic max-w-3xl">
-                "We've detected that <span className="text-primary-100">14% of customers</span> are hesitating at checkout due to lack of weekend shipping info. Adding this single detail could increase weekly conversion by <span className="text-green-300 font-black">approx. 4.2%</span>."
+                "{storeDigest?.strategicObservation || 'Analyzing session aggregates for strategic opportunities...'}"
               </p>
               <div className="mt-12 flex gap-4">
                  <button className="px-8 py-4 bg-white text-primary-700 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95">Take Action</button>
                  <button className="px-8 py-4 bg-primary-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-800 transition-all">Review Impact</button>
               </div>
+           </div>
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="max-w-4xl space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+           <div>
+             <h3 className="text-3xl font-black text-gray-900 uppercase tracking-tight">Concierge Settings</h3>
+             <p className="text-sm font-bold text-gray-400 mt-2">Configure how the automated concierge interacts with your customers.</p>
+           </div>
+
+           <div className="grid gap-8">
+              {/* Bartering Configuration */}
+              <div className="bg-white rounded-4xl border border-gray-100 p-12 shadow-sm space-y-10">
+                 <div className="flex items-start justify-between">
+                    <div className="flex gap-6">
+                       <div className="h-14 w-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm border border-amber-100">
+                         <Sparkles className="h-7 w-7" />
+                       </div>
+                       <div>
+                         <h4 className="text-xl font-black text-gray-900">Conversational Bartering</h4>
+                         <p className="text-sm font-bold text-gray-400 max-w-md">Allow customers to negotiate prices directly in the chat, mirroring a Facebook Marketplace experience.</p>
+                       </div>
+                    </div>
+                    <div className="relative inline-flex items-center cursor-pointer">
+                       <input 
+                         type="checkbox" 
+                         className="sr-only peer" 
+                         checked={adminSettings.isBarteringEnabled} 
+                         onChange={(e) => setAdminSettings({ ...adminSettings, isBarteringEnabled: e.target.checked })}
+                       />
+                       <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600"></div>
+                    </div>
+                 </div>
+
+                 <div className="grid gap-10 pt-10 border-t border-gray-50 md:grid-cols-2">
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Max Discount Limit</label>
+                       <div className="flex items-center gap-4">
+                          <input 
+                            type="range" 
+                            min="5" 
+                            max="30" 
+                            step="5" 
+                            value={adminSettings.maxDiscountPercentage} 
+                            onChange={(e) => setAdminSettings({ ...adminSettings, maxDiscountPercentage: parseInt(e.target.value) })}
+                            className="flex-1 accent-primary-600" 
+                          />
+                          <span className="text-sm font-black text-gray-900 w-12 text-right">{adminSettings.maxDiscountPercentage}%</span>
+                       </div>
+                       <p className="text-[10px] font-bold text-gray-400">The absolute maximum the concierge can offer.</p>
+                    </div>
+
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Negotiation Tone</label>
+                       <select 
+                         value={adminSettings.negotiationTone}
+                         onChange={(e) => setAdminSettings({ ...adminSettings, negotiationTone: e.target.value })}
+                         className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-6 py-4 text-sm font-black focus:ring-0 focus:border-gray-300 transition-all"
+                       >
+                          <option>Friendly & Approachable</option>
+                          <option>Firm & Professional</option>
+                          <option>Playful & Witty</option>
+                       </select>
+                    </div>
+
+                    <div className="space-y-4">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Minimum Order Value</label>
+                       <div className="relative">
+                          <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 font-black text-sm">$</span>
+                          <input 
+                            type="number" 
+                            value={adminSettings.minOrderValueForBarter} 
+                            onChange={(e) => setAdminSettings({ ...adminSettings, minOrderValueForBarter: parseInt(e.target.value) })}
+                            className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-10 pr-6 py-4 text-sm font-black focus:ring-0 focus:border-gray-300 transition-all" 
+                          />
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Memory Configuration */}
+              <div className="bg-white rounded-4xl border border-gray-100 p-12 shadow-sm space-y-10">
+                 <div className="flex items-start justify-between">
+                    <div className="flex gap-6">
+                       <div className="h-14 w-14 bg-primary-50 rounded-2xl flex items-center justify-center text-primary-600 shadow-sm border border-primary-100">
+                         <History className="h-7 w-7" />
+                       </div>
+                       <div>
+                         <h4 className="text-xl font-black text-gray-900">Customer Memory</h4>
+                         <p className="text-sm font-bold text-gray-400 max-w-md">Enable the concierge to remember past interactions and preferences for return customers.</p>
+                       </div>
+                    </div>
+                    <div className="relative inline-flex items-center cursor-pointer">
+                       <input 
+                         type="checkbox" 
+                         className="sr-only peer" 
+                         checked={adminSettings.useMemory || true} 
+                         onChange={(e) => setAdminSettings({ ...adminSettings, useMemory: e.target.checked })}
+                       />
+                       <div className="w-14 h-8 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-600"></div>
+                    </div>
+                 </div>
+              </div>
+           </div>
+
+           <div className="flex justify-end pt-8">
+              <button 
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                className="px-12 py-5 bg-gray-900 text-white rounded-3xl text-xs font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isSavingSettings ? 'Saving...' : 'Save Settings'}
+              </button>
            </div>
         </div>
       )}

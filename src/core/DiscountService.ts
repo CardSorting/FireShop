@@ -123,4 +123,51 @@ export class DiscountService {
       isFreeShipping
     };
   }
+
+  /**
+   * Generates a unique, single-use barter discount code.
+   */
+  async createBarterDiscount(percentage: number, sessionId: string) {
+    const code = `BARTER-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const now = new Date();
+    const endsAt = new Date();
+    endsAt.setHours(endsAt.getHours() + 24); // Barter deals expire in 24h
+
+    const draft: DiscountDraft = {
+      code,
+      type: 'percentage',
+      value: percentage,
+      status: 'active',
+      isAutomatic: false,
+      selectionType: 'all_products',
+      selectedProductIds: [],
+      selectedCollectionIds: [],
+      minimumRequirementType: 'none',
+      minimumAmount: null,
+      minimumQuantity: null,
+      eligibilityType: 'everyone',
+      eligibleCustomerIds: [],
+      eligibleCustomerSegments: [],
+      usageLimit: 1,
+      oncePerCustomer: true,
+      combinesWith: {
+        orderDiscounts: false,
+        productDiscounts: false,
+        shippingDiscounts: false
+      },
+      startsAt: now,
+      endsAt: endsAt
+    };
+
+    const discount = await this.discountRepo.create(draft);
+    await this.audit.record({
+      userId: 'system',
+      userEmail: 'concierge@dreambees.art',
+      action: 'barter_discount_created',
+      targetId: discount.id,
+      details: { code, sessionId, percentage }
+    });
+
+    return discount;
+  }
 }

@@ -27,7 +27,7 @@ export type AuditAction =
   | 'product_created' | 'product_updated' | 'product_deleted'
   | 'product_batch_updated' | 'product_batch_deleted' | 'inventory_batch_updated'
   | 'order_placed' | 'order_status_changed' | 'order_refunded' | 'order_payment_finalized'
-  | 'discount_created' | 'discount_updated' | 'discount_deleted'
+  | 'discount_created' | 'discount_updated' | 'discount_deleted' | 'barter_discount_created'
   | 'auth_signin' | 'auth_signup' | 'auth_signout' | 'auth_password_reset' | 'auth_password_reset_requested'
   | 'staff_added' | 'staff_removed' | 'staff_role_updated'
   | 'checkout_reconciliation_required' | 'payment_received_on_cancelled_order'

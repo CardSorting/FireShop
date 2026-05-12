@@ -3,12 +3,14 @@ import { sanitizeClientMessages } from '@domain/concierge/types';
 import { createHermesChatCompletionStream } from '@infrastructure/services/HermesService';
 import { logger } from '@utils/logger';
 import { z } from 'zod';
+import { DEFAULT_CONCIERGE_SETTINGS } from '@domain/concierge/settings';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 import { getDb } from '@infrastructure/firebase/firebase';
 import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { getInitialServices } from '@core/container';
 
 const ChatSchema = z.object({
   messages: z.array(z.object({
@@ -87,6 +89,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Inject Bartering Settings (In a real app, these would be fetched from Firestore/Config)
+    const settings = DEFAULT_CONCIERGE_SETTINGS; // Placeholder for DB fetch
+    if (settings.isBarteringEnabled) {
+      contextString += `\n### BARTERING ENABLED\n`;
+      contextString += `Max Discount: ${settings.maxDiscountPercentage}%\n`;
+      contextString += `Negotiation Tone: ${settings.negotiationTone}\n`;
+      contextString += `Minimum Order Value: $${(settings.minOrderValueForBarter || 0) / 100}\n`;
+    }
+
     logger.info('Initiating Concierge chat stream', { 
       userId: context?.userSession?.id,
       sessionId: activeSessionId
@@ -98,7 +109,54 @@ export async function POST(req: NextRequest) {
     const responseHeaders = new Headers(hermesRes.headers);
     responseHeaders.set('X-Concierge-Session-Id', activeSessionId);
 
-    return new Response(hermesRes.body, {
+    // Create a transform stream to detect barter success tokens
+    const { discountService } = getInitialServices();
+    let fullResponse = '';
+    
+    const transformer = new TransformStream({
+      async transform(chunk, controller) {
+        const text = new TextDecoder().decode(chunk);
+        fullResponse += text;
+        controller.enqueue(chunk);
+      },
+      async flush(controller) {
+        // After stream is done, check for barter success
+        const barterMatch = fullResponse.match(/\[BARTER_SUCCESS:\s*(\d+)%\]/);
+        if (barterMatch && activeSessionId) {
+          const percentage = parseInt(barterMatch[1]);
+          try {
+            const discount = await discountService.createBarterDiscount(percentage, activeSessionId);
+            const db = getDb();
+            const sessionRef = doc(db, 'conciergeSessions', activeSessionId);
+            await updateDoc(sessionRef, {
+              status: 'analyzed',
+              customerOutcome: 'converted',
+              isConverted: true,
+              events: arrayUnion({
+                type: 'outcome_tracked',
+                timestamp: new Date().toISOString(),
+                label: 'Barter Success',
+                description: `Customer agreed to ${percentage}% discount. Code: ${discount.code}`
+              })
+            });
+            
+            // Note: Since the stream is already finished, we can't easily "inject" into the middle.
+            // But we can append a final message or have the client handle the replacement.
+            // For now, we'll append the success confirmation to the session transcript.
+            await updateDoc(sessionRef, {
+              transcript: arrayUnion({ 
+                role: 'assistant', 
+                content: `Perfect! I've generated your unique code: ${discount.code}. You can use this at checkout. It expires in 24 hours.` 
+              })
+            });
+          } catch (err) {
+            logger.error('Failed to fulfill barter', err);
+          }
+        }
+      }
+    });
+
+    return new Response(hermesRes.body?.pipeThrough(transformer), {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache, no-transform',

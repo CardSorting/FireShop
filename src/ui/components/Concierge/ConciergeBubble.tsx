@@ -25,6 +25,9 @@ import {
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { ClientChatMessage } from '@domain/concierge/types';
+import { ConciergeSettings } from '@domain/concierge/settings';
+import { useCart } from '@ui/hooks/useCart';
+import { useAuth } from '@ui/hooks/useAuth';
 
 export function ConciergeBubble() {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,8 +42,15 @@ export function ConciergeBubble() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [connStatus, setConnStatus] = useState<'online' | 'reconnecting' | 'offline'>('online');
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [settings, setSettings] = useState<ConciergeSettings | null>(null);
+  const [isDealReached, setIsDealReached] = useState(false);
+  const [agreedPercentage, setAgreedPercentage] = useState<number | null>(null);
+  const [isOffering, setIsOffering] = useState(false);
+  const [offerValue, setOfferValue] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const { cart, subtotal } = useCart();
+  const { user } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,32 +61,58 @@ export function ConciergeBubble() {
   }, [messages, isLoading]);
 
   // Handle Personalized Greeting & Memory
+  // Handle Session Syncing & Persistence
   useEffect(() => {
-    const checkReturning = async () => {
+    const syncSession = async () => {
       const storedSessionId = localStorage.getItem('dream_concierge_session');
-      if (storedSessionId) {
-        setSessionId(storedSessionId);
-        setIsSyncing(true);
-        // Simulate sync
-        setTimeout(() => {
-          setIsSyncing(false);
-          setMessages([{
-            role: 'assistant',
-            content: "Welcome back! I've synced your previous session. Is there anything else you need help with today?"
-          }]);
-        }, 800);
+      if (!storedSessionId) return;
+
+      setIsSyncing(true);
+      try {
+        const res = await fetch(`/api/admin/concierge/sessions?id=${storedSessionId}`);
+        if (res.ok) {
+          const session = await res.json();
+          if (session && session.status !== 'resolved') {
+            setSessionId(storedSessionId);
+            setMessages(session.transcript || []);
+            setConnStatus('online');
+          } else {
+             localStorage.removeItem('dream_concierge_session');
+          }
+        }
+      } catch (err) {
+        setConnStatus('offline');
+      } finally {
+        setIsSyncing(false);
       }
     };
-    checkReturning();
+    syncSession();
   }, []);
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
+  // Fetch Settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/concierge/settings');
+        if (res.ok) {
+          const data = await res.json();
+          setSettings(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch concierge settings', err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
-    const userMsg: ClientChatMessage = { role: 'user', content: inputValue };
+  const handleSendMessage = async (e: React.FormEvent | null, manualContent?: string) => {
+    if (e) e.preventDefault();
+    const content = manualContent || inputValue;
+    if (!content.trim() || isLoading) return;
+
+    const userMsg: ClientChatMessage = { role: 'user', content: content };
     setMessages(prev => [...prev, userMsg]);
-    setInputValue('');
+    if (!manualContent) setInputValue('');
     setIsLoading(true);
 
     try {
@@ -84,25 +120,64 @@ export function ConciergeBubble() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          message: userMsg.content,
+          messages: [...messages, userMsg],
           sessionId: sessionId,
           context: {
-            currentPath: pathname,
+            currentPage: pathname,
             pageTitle: document.title,
-            cartValue: 124.50 // Mocked cart value
+            cartValue: subtotal,
+            cartContents: cart?.items || [],
+            userSession: user ? {
+              id: user.id,
+              email: user.email,
+              name: user.displayName || user.email
+            } : undefined
           }
         })
       });
 
       if (!res.ok) throw new Error('Connection failed');
 
-      const data = await res.json();
-      if (data.sessionId && !sessionId) {
-        setSessionId(data.sessionId);
-        localStorage.setItem('dream_concierge_session', data.sessionId);
+      // Update Session ID from header
+      const headerSessionId = res.headers.get('X-Concierge-Session-Id');
+      if (headerSessionId && !sessionId) {
+        setSessionId(headerSessionId);
+        localStorage.setItem('dream_concierge_session', headerSessionId);
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+      // Handle Streaming
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantMsg = '';
+      
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader!.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value);
+        assistantMsg += chunk;
+
+        // Detect Barter Success in stream (for immediate UI feedback)
+        if (assistantMsg.includes('[BARTER_SUCCESS:')) {
+          const match = assistantMsg.match(/\[BARTER_SUCCESS:\s*(\d+)%\]/);
+          if (match) {
+            setAgreedPercentage(parseInt(match[1]));
+            setIsDealReached(true);
+          }
+        }
+
+        setMessages(prev => {
+          const last = [...prev];
+          last[last.length - 1] = { 
+            role: 'assistant', 
+            content: assistantMsg.replace(/\[BARTER_SUCCESS:.*?\]/g, '') 
+          };
+          return last;
+        });
+      }
+
       setConnStatus('online');
     } catch (error) {
       setConnStatus('reconnecting');
@@ -110,7 +185,6 @@ export function ConciergeBubble() {
         role: 'assistant', 
         content: "I'm having a little trouble connecting right now. Still here, just trying to reconnect to the store..." 
       }]);
-      // Attempt retry
       setTimeout(() => setConnStatus('online'), 3000);
     } finally {
       setIsLoading(false);
@@ -165,7 +239,24 @@ export function ConciergeBubble() {
             </div>
           )}
 
-          {/* Messages Area */}
+          {/* Deal Celebration Overlay */}
+          {isDealReached && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in zoom-in duration-500">
+               <div className="bg-white rounded-4xl p-8 text-center shadow-2xl border border-primary-100 max-w-[240px]">
+                  <div className="h-16 w-16 bg-green-50 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4 animate-bounce">
+                    <Sparkles className="h-8 w-8" />
+                  </div>
+                  <h4 className="text-xl font-black text-gray-900 mb-2">Deal Reached!</h4>
+                  <p className="text-xs font-bold text-gray-500 mb-6">You've unlocked a {agreedPercentage}% "Neighbor Deal".</p>
+                  <button 
+                    onClick={() => setIsDealReached(false)}
+                    className="w-full py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                  >
+                    Keep Shopping
+                  </button>
+               </div>
+            </div>
+          )}
           {!isSyncing && (
             <div className="flex-1 overflow-y-auto p-8 space-y-6 styled-scrollbar bg-white">
               {messages.map((msg, i) => (
@@ -180,7 +271,19 @@ export function ConciergeBubble() {
                         : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none shadow-sm'
                     }`}
                   >
-                    {msg.content}
+                    {msg.content.includes('[OFFER:') ? (
+                      <div className="bg-primary-50 border border-primary-100 p-6 rounded-3xl text-center space-y-4 shadow-sm animate-in zoom-in duration-300">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-primary-600">New Offer Received</div>
+                        <div className="text-3xl font-black text-gray-900">
+                          {msg.content.match(/\[OFFER:\s*(.*?)\s*\]/)?.[1] || '---'}
+                        </div>
+                        <div className="text-[11px] font-bold text-gray-500 italic">
+                          {msg.content.replace(/\[OFFER:.*?\]/g, '').trim() || "What do you think?"}
+                        </div>
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                 </div>
               ))}
@@ -189,11 +292,14 @@ export function ConciergeBubble() {
               {!isLoading && messages.length < 3 && (
                 <div className="pt-4 grid grid-cols-1 gap-2 animate-in fade-in duration-700">
                   <button 
-                    onClick={() => handleQuickAction("Can you help me compare these two items?")}
+                    onClick={() => {
+                      const productMatch = document.title.split('|')[0].trim();
+                      handleSendMessage(null, `Is the ${productMatch} still available? It looks amazing.`);
+                    }}
                     className="w-full text-left p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-900 transition-all group flex items-center gap-3"
                   >
                     <Zap className="h-4 w-4 text-gray-400 group-hover:text-gray-900" />
-                    <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Compare products</span>
+                    <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Is this still available?</span>
                     <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
                   </button>
                   <button 
@@ -204,6 +310,16 @@ export function ConciergeBubble() {
                     <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Shipping & Delivery</span>
                     <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
                   </button>
+                  {settings?.isBarteringEnabled && (
+                    <button 
+                      onClick={() => setIsOffering(true)}
+                      className="w-full text-left p-4 rounded-2xl bg-primary-50 border border-primary-100 hover:border-primary-600 transition-all group flex items-center gap-3"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary-400 group-hover:text-primary-600" />
+                      <span className="text-xs font-bold text-primary-600 group-hover:text-primary-700">Make an offer (Barter)</span>
+                      <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -235,26 +351,56 @@ export function ConciergeBubble() {
           </div>
 
           {/* Input Area */}
-          <div className="px-6 py-6 bg-white border-t border-gray-50">
-            <form 
-              onSubmit={handleSendMessage}
-              className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-3xl p-1.5 focus-within:ring-4 focus-within:ring-gray-100 focus-within:border-gray-200 transition-all shadow-inner"
-            >
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask us anything..."
-                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-medium px-4 py-2 text-gray-800 placeholder:text-gray-400"
-              />
-              <button
-                type="submit"
-                disabled={!inputValue.trim() || isLoading}
-                className="h-12 w-12 bg-gray-900 text-white rounded-2xl shadow-xl shadow-gray-200 hover:bg-black disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center"
-              >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-              </button>
-            </form>
+          <div className="p-8 bg-white border-t border-gray-50">
+            {isOffering ? (
+              <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Make your offer</span>
+                  <button onClick={() => setIsOffering(false)} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Cancel</button>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-black">$</span>
+                    <input 
+                      type="number"
+                      value={offerValue}
+                      onChange={(e) => setOfferValue(e.target.value)}
+                      placeholder="Enter amount..."
+                      className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-8 pr-4 py-4 text-sm font-black focus:ring-0 focus:border-gray-900 transition-all"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (offerValue) {
+                        handleSendMessage(null, `I'd like to offer $${offerValue} for this.`);
+                        setOfferValue('');
+                        setIsOffering(false);
+                      }
+                    }}
+                    className="px-8 py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95"
+                  >
+                    Send Offer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSendMessage} className="relative group">
+                <input 
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Ask a question..."
+                  disabled={isLoading}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-8 py-5 pr-16 text-[14px] font-medium focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all placeholder:text-gray-300 group-hover:bg-white group-hover:shadow-lg disabled:opacity-50"
+                />
+                <button 
+                  type="submit"
+                  disabled={isLoading || !inputValue.trim()}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-3 bg-gray-900 text-white rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-0"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

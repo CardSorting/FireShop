@@ -237,6 +237,52 @@ export class ConciergeService {
     
     return ticketRef.id;
   }
+
+  /**
+   * Generates store-wide operational intelligence by analyzing recent sessions.
+   * This powers the "Operational Digest" and "Strategic Observation" in the Admin panel.
+   */
+  async generateStoreDigest() {
+    try {
+      const db = getDb();
+      // Fetch last 50 analyzed sessions
+      const sessionsQuery = query(
+        collection(db, 'conciergeSessions'),
+        where('status', 'in', ['analyzed', 'resolved']),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+      );
+      const sessionsSnap = await getDocs(sessionsQuery);
+      const summaries = sessionsSnap.docs.map(d => ({
+        summary: d.data().summary,
+        category: d.data().category,
+        outcome: d.data().customerOutcome
+      }));
+
+      const digestPrompt = `
+        Analyze the following recent customer session summaries for a DreamBees store.
+        Identify the most significant friction points and strategic opportunities.
+        
+        SESSIONS:
+        ${JSON.stringify(summaries)}
+
+        Return a JSON object with:
+        {
+          "strategicObservation": "A high-level natural language observation about store health (e.g. '14% of customers hesitating due to shipping')",
+          "digestItems": [
+            { "title": "Short Title", "desc": "Contextual description", "action": "Recommended Fix", "type": "conversion" | "support_burden" }
+          ],
+          "trustScore": number (0-100)
+        }
+      `;
+
+      const result = await createHermesChatCompletion([], digestPrompt, 'Generate Store Intelligence Digest');
+      return JSON.parse(result);
+    } catch (error) {
+      logger.error('Failed to generate store digest', error);
+      return null;
+    }
+  }
 }
 
 export const conciergeService = new ConciergeService();
