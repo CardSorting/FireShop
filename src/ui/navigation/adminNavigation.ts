@@ -30,6 +30,7 @@ import {
   Zap,
   MessageSquare,
   NotebookPen,
+  Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -233,6 +234,14 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     id: 'insights',
     label: 'Insights',
     items: [
+      {
+        id: 'concierge-insights',
+        href: '/admin/concierge',
+        label: 'Concierge Insights',
+        description: 'Customer struggles and support intelligence',
+        icon: Sparkles,
+        aliases: ['concierge', 'intelligence', 'suggestions', 'struggles', 'chat insights'],
+      },
       {
         id: 'analytics',
         href: '/admin/analytics',

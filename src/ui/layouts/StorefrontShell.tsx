@@ -14,13 +14,38 @@ import { PageProgressBar } from '@ui/animations/PageProgressBar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PAGE_TRANSITION_VARIANTS } from '@ui/animations';
 
+import { useAuth } from '@ui/hooks/useAuth';
+import { useCart } from '@ui/hooks/useCart';
+import { ConciergeBubble } from '@ui/components/Concierge/ConciergeBubble';
+
 export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const { user } = useAuth();
+    const { cart } = useCart();
     const isAdmin = pathname.startsWith('/admin');
 
     if (isAdmin) {
         return <>{children}</>;
     }
+
+    const conciergeContext = {
+        userSession: user ? {
+            id: user.id,
+            email: user.email || '',
+            name: user.displayName || undefined
+        } : undefined,
+        cartContents: cart?.items.map(item => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.priceSnapshot
+        })) || [],
+        shippingPolicy: "Standard shipping is 3-5 business days. Free shipping on orders over $50.",
+        returnPolicy: "30-day returns on all physical items. Digital products are non-refundable."
+    };
+
+    const isProductPage = pathname.startsWith('/products/');
+    const productHandle = isProductPage ? pathname.split('/').pop() : undefined;
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 relative">
@@ -40,6 +65,10 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
             </AnimatePresence>
             <Footer />
             <BottomNav />
+            <ConciergeBubble 
+              initialContext={conciergeContext} 
+              productInfo={productHandle ? { name: productHandle.replace(/-/g, ' '), id: productHandle } : undefined}
+            />
         </div>
     );
 }
