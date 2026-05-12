@@ -1,27 +1,18 @@
-import nodemailer from 'nodemailer';
+import { BrevoClient } from '@getbrevo/brevo';
 import type { IEmailService } from '@domain/repositories';
 
 export class BrevoEmailService implements IEmailService {
-  private transporter: nodemailer.Transporter;
+  private client: BrevoClient;
 
   constructor() {
-    const host = process.env.BREVO_SMTP_HOST || 'smtp-relay.brevo.com';
-    const port = parseInt(process.env.BREVO_SMTP_PORT || '587');
-    const user = process.env.BREVO_SMTP_USER;
-    const pass = process.env.BREVO_SMTP_KEY;
+    const apiKey = process.env.BREVO_API_KEY || process.env.BREVO_SMTP_KEY;
 
-    if (!user || !pass) {
-      console.warn('Brevo SMTP credentials not found. Email service will not be able to send emails.');
+    if (!apiKey) {
+      console.warn('Brevo API key not found. Email service will not be able to send emails.');
     }
 
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465, // true for 465, false for other ports
-      auth: {
-        user,
-        pass,
-      },
+    this.client = new BrevoClient({
+      apiKey: apiKey || '',
     });
   }
 
@@ -32,20 +23,21 @@ export class BrevoEmailService implements IEmailService {
     html?: string;
     from?: string;
   }): Promise<void> {
-    const from = params.from || process.env.BREVO_FROM_EMAIL || 'no-reply@dreambees.art';
+    const fromEmail = params.from || process.env.BREVO_FROM_EMAIL || 'notsosuper68@gmail.com';
     const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
 
     try {
-      await this.transporter.sendMail({
-        from: `"${fromName}" <${from}>`,
-        to: params.to,
+      const result = await this.client.transactionalEmails.sendTransacEmail({
         subject: params.subject,
-        text: params.text,
-        html: params.html,
+        htmlContent: params.html || params.text || '',
+        textContent: params.text,
+        sender: { name: fromName, email: fromEmail },
+        to: [{ email: params.to }],
       });
-      console.log(`Email sent successfully to ${params.to}`);
-    } catch (error) {
-      console.error('Failed to send email via Brevo:', error);
+      
+      console.log('Email sent successfully via Brevo API:', result);
+    } catch (error: any) {
+      console.error('Failed to send email via Brevo API:', error.message);
       throw new Error('Email delivery failed');
     }
   }
