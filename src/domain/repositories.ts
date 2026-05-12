@@ -316,3 +316,13 @@ export interface IShippingRepository {
   deleteRate(id: string): Promise<void>;
   getAllRates(): Promise<import('./models').ShippingRate[]>;
 }
+
+export interface IEmailService {
+  sendEmail(params: {
+    to: string;
+    subject: string;
+    text?: string;
+    html?: string;
+    from?: string;
+  }): Promise<void>;
+}

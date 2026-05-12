@@ -12,6 +12,7 @@ import { FirebaseAuthAdapter } from '@infrastructure/services/FirebaseAuthAdapte
 import { StripePaymentProcessor } from '@infrastructure/services/StripePaymentProcessor';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { TrustedCheckoutGateway } from '@infrastructure/services/TrustedCheckoutGateway';
+import { BrevoEmailService } from '@infrastructure/services/BrevoEmailService';
 import { FirestoreSettingsRepository } from '@infrastructure/repositories/firestore/FirestoreSettingsRepository';
 import { FirestoreTransferRepository } from '@infrastructure/repositories/firestore/FirestoreTransferRepository';
 import { FirestorePurchaseOrderRepository } from '@infrastructure/repositories/firestore/FirestorePurchaseOrderRepository';
@@ -64,6 +65,7 @@ import type {
   ILockProvider,
   ICheckoutGateway,
   IShippingRepository,
+  IEmailService,
 } from '@domain/repositories';
 
 // Singleton caches for production (Pattern 2 - getInitialServices)
@@ -97,6 +99,7 @@ let wishlistServiceInstance: WishlistService | null = null;
 let ticketRepoInstance: ITicketRepository | null = null;
 let kbRepoInstance: IKnowledgebaseRepository | null = null;
 let shippingServiceInstance: ShippingService | null = null;
+let emailServiceInstance: IEmailService | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -168,6 +171,7 @@ export function getServiceContainer() {
     inventoryLevelRepo: repos.inventoryLevelRepo,
     ticketRepository: repos.ticketRepo,
     knowledgebaseRepository: repos.kbRepo,
+    emailService: new BrevoEmailService(),
   };
 }
 
@@ -284,6 +288,10 @@ export function getInitialServices() {
     stripeService: (() => {
       if (!stripeServiceInstance) stripeServiceInstance = new StripeService();
       return stripeServiceInstance;
+    })(),
+    emailService: (() => {
+      if (!emailServiceInstance) emailServiceInstance = new BrevoEmailService();
+      return emailServiceInstance;
     })(),
   };
 }
