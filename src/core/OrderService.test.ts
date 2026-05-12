@@ -32,6 +32,7 @@ describe('OrderService', () => {
       getByPaymentTransactionIdTransactional: vi.fn(),
       updateStatus: vi.fn(),
       updateRiskScore: vi.fn(),
+      addFulfillmentEvent: vi.fn(),
     };
     mockProductRepo = {
       batchUpdateStock: vi.fn(),

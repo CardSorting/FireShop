@@ -10,7 +10,7 @@ const CHECKOUT_TIMEOUT_MS = 15_000;
 
 function isOrderStatus(value: unknown): value is OrderStatus {
   return typeof value === 'string'
-    && ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].includes(value);
+    && ['draft', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'partially_refunded', 'ready_for_pickup', 'delivery_started'].includes(value);
 }
 
 function isAddress(value: unknown): value is Address {

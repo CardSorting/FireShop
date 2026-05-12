@@ -36,8 +36,10 @@ export async function POST(request: Request) {
         order = await services.orderService.initiateCheckout(
             user.id,
             shippingAddress,
-            discountCode,
-            idempotencyKey
+            user.email,        // userEmail
+            user.displayName,  // userName
+            discountCode,      // discountCode
+            idempotencyKey     // idempotencyKey
         );
     } catch (err) {
         return jsonError(err, 'Failed to reserve inventory for checkout');

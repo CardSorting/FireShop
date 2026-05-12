@@ -47,10 +47,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
         
         if (idempSnap.exists()) {
           const { orderId } = idempSnap.data();
-          const existingOrder = await this.getById(orderId);
-          if (existingOrder) {
+          // Production Hardening: Use transactional point-read instead of non-transactional getById
+          // to maintain ACID guarantees within the idempotency check.
+          const existingRef = doc(db, this.collectionName, orderId);
+          const existingSnap = await t.get(existingRef);
+          if (existingSnap.exists()) {
             logger.info('Duplicate order detected via atomic idempotency check', { key: order.idempotencyKey, orderId });
-            return existingOrder;
+            return this.mapDocToOrder(existingSnap.id, existingSnap.data());
           }
         }
       }

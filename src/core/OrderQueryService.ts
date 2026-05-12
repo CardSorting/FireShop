@@ -47,8 +47,9 @@ export class OrderQueryService {
       { id: 'ship', label: 'Pick & Pack', count: stats.orderCountsByStatus.processing || 0, priority: 'high', category: 'fulfillment' },
       { id: 'pickup', label: 'In-Store Pickups', count: stats.orderCountsByStatus.ready_for_pickup || 0, priority: 'medium', category: 'fulfillment' }
     ];
+    const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
     return {
-      productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: stats.totalRevenue / 100, dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
+      productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0, dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
       fulfillmentCounts: { to_review: stats.orderCountsByStatus.pending, ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), completed: stats.orderCountsByStatus.delivered, cancelled: stats.orderCountsByStatus.cancelled },
       activeTasks, attentionItems: [], recentOrders: recent, lowStockProducts: []
     };
@@ -57,11 +58,12 @@ export class OrderQueryService {
   async getAnalyticsData(): Promise<AnalyticsData> {
     const stats = await this.orderRepo.getDashboardStats();
     const topProducts = await this.orderRepo.getTopProducts(5);
+    const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
     return {
       totalRevenue: stats.totalRevenue,
       dailyRevenue: stats.dailyRevenue,
       revenueGrowth: 15.5, // Simulated
-      averageOrderValue: stats.totalRevenue / 100,
+      averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0,
       topProducts: topProducts.map(p => ({ ...p, growth: 10.2 }))
     };
   }

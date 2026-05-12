@@ -116,9 +116,9 @@ export class FulfillmentService {
   }
 
   async recordFulfillmentEvent(orderId: string, type: OrderFulfillmentEventType, label: string, description: string): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) return;
+    // Production Hardening: Use atomic addFulfillmentEvent instead of read-modify-write
+    // to prevent concurrent write clobbering.
     const event: OrderFulfillmentEvent = { id: crypto.randomUUID(), type, label, description, at: new Date() };
-    await this.orderRepo.save({ ...order, fulfillmentEvents: [...(order.fulfillmentEvents || []), event], updatedAt: new Date() });
+    await this.orderRepo.addFulfillmentEvent(orderId, event);
   }
 }

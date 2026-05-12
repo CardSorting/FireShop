@@ -33,8 +33,9 @@ export const Sanitizer = {
     delete sanitized.paymentTransactionId;
     delete sanitized.idempotencyKey;
     
-    // Hide digital assets if not paid yet (confirmed or beyond)
-    const isPaid = ['confirmed', 'shipped', 'delivered'].includes(order.status);
+    // Production Hardening: Include ALL post-payment statuses so digital assets
+    // are visible to customers who have completed payment regardless of fulfillment state.
+    const isPaid = ['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started', 'partially_refunded'].includes(order.status);
     sanitized.items = order.items.map(item => {
       const sanitizedItem = { ...item } as any;
       if (!isPaid) {

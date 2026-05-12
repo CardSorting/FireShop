@@ -192,7 +192,8 @@ export class OrderService {
         }
       }
 
-      return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      // Phase 1: Create PENDING order atomically (NO external network calls inside transaction)
+      const order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
         // 1. Fetch Cart (Atomic)
         const cart = await this.cartRepo.getByUserId(userId, transaction);
         if (!cart || cart.items.length === 0) throw new CartEmptyError();
@@ -221,26 +222,9 @@ export class OrderService {
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
-        // 4. Process Payment (Synchronous for Trusted Flow)
-        let paymentIntentId: string | null = null;
-        if (paymentMethodId) {
-          try {
-            const paymentResult = await this.payment.processPayment({
-              amount: total,
-              orderId: 'pending', // Temporary ID since we haven't generated it yet
-              paymentMethodId,
-              idempotencyKey: idempotencyKey || crypto.randomUUID()
-            });
-            if (paymentResult.success) {
-              paymentIntentId = paymentResult.transactionId;
-            }
-          } catch (paymentErr: any) {
-            logger.error('Payment processing failed during checkout initiation', { userId, paymentErr });
-            throw paymentErr; // Re-throw to abort transaction
-          }
-        }
-
-        // 5. Create Order (Atomic via Repository Hardening)
+        // 4. Create Order as PENDING (Atomic via Repository Hardening)
+        // PRODUCTION HARDENING: NO payment calls inside transactions. External network I/O
+        // risks transaction timeout (Firestore max ~15s). Payment is processed in Phase 2.
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
           userId,
           items: cart.items.map(i => ({ 
@@ -262,11 +246,11 @@ export class OrderService {
           discountAmount: discountAmount,
           discountCode: validDiscountCode,
           total,
-          status: paymentIntentId ? 'confirmed' : 'pending', // Immediate confirmation if PI succeeded
+          status: 'pending',
           shippingAddress,
           customerEmail: userEmail,
           customerName: userName,
-          paymentTransactionId: paymentIntentId,
+          paymentTransactionId: null,
           idempotencyKey: idempotencyKey || crypto.randomUUID(),
           fulfillmentMethod,
           fulfillmentLocationId: 'primary',
@@ -278,31 +262,59 @@ export class OrderService {
             id: crypto.randomUUID(), 
             type: 'order_placed', 
             label: 'Order Received', 
-            description: paymentIntentId ? 'Payment verified and secured.' : 'Order received, pending payment verification.', 
+            description: 'Order received, pending payment verification.', 
             at: new Date() 
           }],
-          metadata: {
-            nodeVersion: process.version,
-            userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server'
-          }
+          metadata: {}
         };
 
-        const order = await this.orderRepo.create(orderData, transaction);
+        const createdOrder = await this.orderRepo.create(orderData, transaction);
 
-        // 6. Clear Cart (Transactional)
+        // 5. Clear Cart (Transactional)
         await this.cartRepo.clear(userId, transaction);
 
         // 6. Record Audit (Transactional)
         await this.audit.recordWithTransaction(transaction, {
           userId,
-          userEmail: order.customerEmail || 'unknown@dreambees.art',
+          userEmail: userEmail || 'unknown@dreambees.art',
           action: 'order_placed',
-          targetId: order.id,
+          targetId: createdOrder.id,
           details: { total, itemCount: cart.items.length, discountCode: validDiscountCode }
         });
 
-        return order;
+        return createdOrder;
       });
+
+      // Phase 2: Process Payment OUTSIDE the transaction (safe from timeout)
+      if (paymentMethodId) {
+        try {
+          const paymentResult = await this.payment.processPayment({
+            amount: order.total,
+            orderId: order.id,
+            paymentMethodId,
+            idempotencyKey: idempotencyKey || order.idempotencyKey || crypto.randomUUID()
+          });
+          if (paymentResult.success && paymentResult.transactionId) {
+            // Atomically update both the order and the PI mapping
+            await runTransaction(getUnifiedDb(), async (t: any) => {
+              await this.orderRepo.updateStatus(order.id, 'confirmed', t);
+              await this.orderRepo.updatePaymentTransactionId 
+                ? await this.orderRepo.save({ ...order, status: 'confirmed', paymentTransactionId: paymentResult.transactionId }, t)
+                : null;
+            });
+            return { ...order, status: 'confirmed' as OrderStatus, paymentTransactionId: paymentResult.transactionId };
+          }
+        } catch (paymentErr: any) {
+          logger.error('Payment processing failed, cancelling pending order', { userId, orderId: order.id, paymentErr });
+          // Rollback: Cancel the pending order since payment failed
+          await this.orderRepo.updateStatus(order.id, 'cancelled').catch(e => {
+            logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, e });
+          });
+          throw paymentErr;
+        }
+      }
+
+      return order;
     } catch (err) {
       logger.error('Failed to initiate checkout', { userId, err });
       throw err;
@@ -370,12 +382,18 @@ export class OrderService {
         // 6. Clear Cart (Transactional)
         await this.cartRepo.clear(order.userId, transaction);
 
-        // 7. Return the finalized state
+        // 7. Record fulfillment event atomically within the same transaction
+        await this.orderRepo.addFulfillmentEvent(order.id, {
+          id: crypto.randomUUID(),
+          type: 'payment_confirmed',
+          label: 'Payment Verified',
+          description: 'Inventory secured and order queued for logistics.',
+          at: new Date()
+        }, transaction);
+
+        // 8. Return the finalized state
         return { ...order, status: nextStatus, riskScore };
       });
-
-      // Post-transaction notifications/background tasks
-      await this.recordFulfillmentEvent(finalizedOrder.id, 'payment_confirmed', 'Payment Verified', 'Inventory secured and order queued for logistics.');
       
       logger.info(`[OrderService] Payment finalized for order ${finalizedOrder.id}`);
       return finalizedOrder;
@@ -396,7 +414,7 @@ export class OrderService {
       { id: 'pickup', label: 'In-Store Pickups', count: stats.orderCountsByStatus.ready_for_pickup || 0, priority: 'medium', category: 'fulfillment' }
     ];
     return {
-      productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: stats.totalRevenue / 100, dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
+      productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: (() => { const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0); return totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0; })(), dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
       fulfillmentCounts: { to_review: stats.orderCountsByStatus.pending, ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), completed: stats.orderCountsByStatus.delivered, cancelled: stats.orderCountsByStatus.cancelled },
       activeTasks, attentionItems: [], recentOrders: recent, lowStockProducts: []
     };
@@ -416,10 +434,10 @@ export class OrderService {
   }
 
   async recordFulfillmentEvent(orderId: string, type: OrderFulfillmentEventType, label: string, description: string): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) return;
+    // Production Hardening: Use atomic addFulfillmentEvent instead of read-modify-write
+    // to prevent concurrent write clobbering.
     const event: OrderFulfillmentEvent = { id: crypto.randomUUID(), type, label, description, at: new Date() };
-    await this.orderRepo.save({ ...order, fulfillmentEvents: [...(order.fulfillmentEvents || []), event], updatedAt: new Date() });
+    await this.orderRepo.addFulfillmentEvent(orderId, event);
   }
 
   async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
