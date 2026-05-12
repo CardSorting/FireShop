@@ -21,6 +21,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - [Support CRM](./architecture/support-crm.md) — Professional ticketing system, agent collision, macros, and knowledgebase routing.
 - [Digital Fulfillment](./architecture/digital-fulfillment.md) — Streaming-first ingestion, digital locker, and secure asset delivery.
 - [SEO & Navigation](./architecture/seo-routing.md) — Canonical handles, JSON-LD, and crawler optimization.
+- [Concierge & Support Operations](./architecture/concierge-system.md) — Intelligent support workspace, outcome tracking, and operational digests.
 - [Admin Access](./admin-access.md) — credentials and instructions for local access.
 
 ### Agent
@@ -38,6 +39,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - **Support CRM Industrialization Verified**: Full-stack ticketing system implemented with `AdminTicketDetail.tsx` and `AdminTickets.tsx`. Real-time agent collision (heartbeat) prevents response overlap. Quick Reply macros and internal notes are fully functional.
 - **Digital Fulfillment Pipeline Verified**: Memory-efficient, streaming-first ingestion architecture deployed. Digital Locker UI implemented in `DigitalLibraryPage.tsx` for secure, authenticated asset access.
 - **SEO & Navigation Hardening Verified**: Canonical handle-based routing active for `/products/[handle]` and `/collections/[slug]`. Automated `sitemap.ts` and `robots.ts` orchestration implemented. JSON-LD structured data injected.
+- **Concierge & Operational Intelligence Verified**: Production-grade support desk with triage intelligence and outcome tracking. Automated "Operational Digest" generates natural-language business insights. Team collaboration (assignment, activity feed) and customer continuity (session syncing) are fully functional and ground-truth verified.
 - **Framework/Runtime Stack**: Next.js `15.0.5`, React `18.3.1`, TypeScript `6.0.2`, ESLint `10.2.1`, Tailwind CSS `4.2.4`.
 - **Persistence Layer**: Google Cloud Firestore (Distributed NoSQL).
 - **Security Configuration**: Signed HTTP-only session cookies with HMAC-SHA256 signatures and production `SESSION_SECRET` length enforcement.
