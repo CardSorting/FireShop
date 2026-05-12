@@ -75,3 +75,31 @@ The "Digest" tab translates support volume into business intelligence:
 - **Conversion Assist**: Number of sales attributed to concierge interactions.
 - **Trust Score**: Percentage of suggestions marked "Helpful" by operators.
 - **Repeat Friction Reduction**: Decrease in specific category volume (e.g., Sizing) after implementing suggested fixes.
+
+---
+
+## 7. Artisanal Bartering Engine
+
+The Concierge has been graduated into a high-fidelity **Artisanal Bartering Engine**, designed to mirror the trust and negotiation dynamics of a boutique peer-to-peer marketplace (e.g., Facebook Marketplace).
+
+### 7.1 Marketplace Persona ("Sarah from DreamBees")
+To embed **Operational Trust**, the Concierge utilizes a verified seller identity:
+- **Verified Profile**: Displayed with social proof badges: "100% Response Rate" and "9-6 PM Studio Hours."
+- **Live Studio Status**: Real-time indicators of current activity (e.g., *"🎨 In the studio • Packing orders"*).
+- **Atmospheric Anchoring**: Contextual greetings and studio anecdotes that ground the interaction in a physical, human-run workspace.
+
+### 7.2 Trust-Based Negotiation UI
+- **High-Fidelity Offer Cards**: Displays original vs. negotiated price with strikethrough styling and transparent percentage savings.
+- **Negotiation History Trail**: A visual log of the "haggle path," showing previous offers to build a sense of an "earned" deal.
+- **Deal Confidence Meter**: A dynamic progress bar that visualizes how close the buyer and seller are to a consensus, encouraging "closing the gap."
+- **Natural Number Haggling**: AI is programmed to use rounded, human-friendly numbers (, ) rather than robotic, precise cents.
+
+### 7.3 Scarcity & Social Proof
+- **High Interest Scarcity Banner**: Triggers automatically when stock is low (<5), displaying "neighbors watching this item" to drive organic urgency.
+- **Live Activity Toasts**: Periodic notifications of "Recent Studio Sales" to reinforce the live, competitive nature of the marketplace.
+- **"Sarah's Pick" Curation**: Visual badges for curated favorites, allowing the AI to leverage passion and design stories to justify price firmness.
+
+### 7.4 Psychological Grounding
+- **Deliberation Delays**: Simulated 1.5-second "thinking pauses" and status updates (e.g., *"Sarah is checking the workbench..."*) to mirror human deliberation.
+- **Returning Neighbor Recognition**: Personalized greetings and "Loyalty Bonuses" for repeat customers, leveraging interpersonal history to drive retention.
+- **"The Owner Shadow"**: Negotiation tactics that imply checking with the shop owner to make deep discounts feel exclusive and manually approved.
