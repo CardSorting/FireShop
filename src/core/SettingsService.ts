@@ -4,6 +4,8 @@
  */
 import type { ISettingsRepository, IProductRepository, IDiscountRepository } from '@domain/repositories';
 import type { JsonValue, NavigationMenu } from '@domain/models';
+import type { ConciergeSettings } from '@domain/concierge/settings';
+import { DEFAULT_CONCIERGE_SETTINGS } from '@domain/concierge/settings';
 import { AuditService } from './AuditService';
 
 export interface SetupGuideProgress {
@@ -65,6 +67,15 @@ export class SettingsService {
   async getSettings(signal?: AbortSignal): Promise<Record<string, JsonValue>> {
     if (signal?.aborted) return {};
     return this.settingsRepo.getAll();
+  }
+
+  async getConciergeSettings(): Promise<ConciergeSettings> {
+    const settings = await this.settingsRepo.get<ConciergeSettings>('concierge');
+    return settings || DEFAULT_CONCIERGE_SETTINGS;
+  }
+
+  async updateConciergeSettings(settings: ConciergeSettings, actor: { id: string, email: string }): Promise<void> {
+    await this.updateSetting('concierge', settings as unknown as JsonValue, actor);
   }
 
   async updateSetting(key: string, value: JsonValue, actor: { id: string, email: string }): Promise<void> {

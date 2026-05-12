@@ -47,6 +47,7 @@ export function ConciergeBubble() {
   const [agreedPercentage, setAgreedPercentage] = useState<number | null>(null);
   const [isOffering, setIsOffering] = useState(false);
   const [offerValue, setOfferValue] = useState('');
+  const [statusMessage, setStatusMessage] = useState('Concierge is online');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { cart, subtotal } = useCart();
@@ -114,6 +115,13 @@ export function ConciergeBubble() {
     setMessages(prev => [...prev, userMsg]);
     if (!manualContent) setInputValue('');
     setIsLoading(true);
+    
+    // Set a personalized status message for bartering
+    if (content.toLowerCase().includes('offer') || content.toLowerCase().includes('deal')) {
+      setStatusMessage('Checking with the shop owner...');
+    } else {
+      setStatusMessage('Concierge is typing...');
+    }
 
     try {
       const res = await fetch('/api/concierge/chat', {
@@ -179,6 +187,7 @@ export function ConciergeBubble() {
       }
 
       setConnStatus('online');
+      setStatusMessage('Concierge is online');
     } catch (error) {
       setConnStatus('reconnecting');
       setMessages(prev => [...prev, { 
@@ -211,16 +220,20 @@ export function ConciergeBubble() {
             <div className="relative z-10 flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                   {connStatus === 'online' ? (
-                     <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
-                   ) : (
-                     <div className="h-2 w-2 bg-amber-400 rounded-full animate-pulse"></div>
-                   )}
+                   <div className={`h-2 w-2 rounded-full ${connStatus === 'online' ? 'bg-green-500' : 'bg-gray-300'} animate-pulse`} />
                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                     {connStatus === 'online' ? 'Concierge Online' : 'Reconnecting...'}
+                     {isLoading ? statusMessage : (connStatus === 'online' ? 'Concierge is online' : 'Reconnecting...')}
                    </span>
                 </div>
-                <h3 className="text-2xl font-black leading-tight">Helpful Support</h3>
+                <div className="flex items-center gap-1.5 mt-1 bg-primary-50/50 self-start px-2 py-0.5 rounded-full border border-primary-100/50">
+                  <div className="h-1 w-1 bg-primary-400 rounded-full animate-ping" />
+                  <span className="text-[8px] font-black text-primary-700 uppercase tracking-tighter">3 people looking at this item</span>
+                </div>
+                <h3 className="text-2xl font-black leading-tight mt-1">Helpful Support</h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center text-[10px] font-black text-primary-600 border border-primary-200">S</div>
+                  <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Managed by Sarah • Replies in minutes</span>
+                </div>
               </div>
               <button 
                 onClick={toggleOpen}
@@ -241,18 +254,32 @@ export function ConciergeBubble() {
 
           {/* Deal Celebration Overlay */}
           {isDealReached && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in zoom-in duration-500">
-               <div className="bg-white rounded-4xl p-8 text-center shadow-2xl border border-primary-100 max-w-[240px]">
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in zoom-in duration-500 overflow-hidden">
+               {/* Festive Particles */}
+               {[...Array(12)].map((_, i) => (
+                 <div 
+                   key={i}
+                   className="absolute h-2 w-2 rounded-full bg-primary-400 animate-bounce"
+                   style={{ 
+                     left: `${Math.random() * 100}%`, 
+                     top: `${Math.random() * 100}%`,
+                     animationDelay: `${Math.random() * 2}s`,
+                     opacity: 0.6
+                   }}
+                 />
+               ))}
+               
+               <div className="bg-white rounded-4xl p-8 text-center shadow-2xl border border-primary-100 max-w-[240px] relative z-10">
                   <div className="h-16 w-16 bg-green-50 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4 animate-bounce">
                     <Sparkles className="h-8 w-8" />
                   </div>
-                  <h4 className="text-xl font-black text-gray-900 mb-2">Deal Reached!</h4>
-                  <p className="text-xs font-bold text-gray-500 mb-6">You've unlocked a {agreedPercentage}% "Neighbor Deal".</p>
+                  <h4 className="text-xl font-black text-gray-900 mb-2">It's a Deal!</h4>
+                  <p className="text-xs font-bold text-gray-500 mb-6">You've unlocked a {agreedPercentage}% "Neighbor Discount". We're excited to get this piece out to you!</p>
                   <button 
                     onClick={() => setIsDealReached(false)}
                     className="w-full py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
                   >
-                    Keep Shopping
+                    Thanks, neighbor!
                   </button>
                </div>
             </div>
@@ -272,14 +299,56 @@ export function ConciergeBubble() {
                     }`}
                   >
                     {msg.content.includes('[OFFER:') ? (
-                      <div className="bg-primary-50 border border-primary-100 p-6 rounded-3xl text-center space-y-4 shadow-sm animate-in zoom-in duration-300">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-primary-600">New Offer Received</div>
+                      <div className={`border p-6 rounded-3xl text-center space-y-4 shadow-sm animate-in zoom-in duration-300 relative overflow-hidden ${
+                        msg.content.includes('[FINAL_OFFER]') 
+                          ? 'bg-red-50 border-red-100 ring-2 ring-red-100' 
+                          : 'bg-primary-50 border-primary-100'
+                      }`}>
+                        {msg.content.includes('[FINAL_OFFER]') && (
+                          <div className="absolute -right-12 top-4 rotate-45 bg-red-600 text-white text-[8px] font-black uppercase tracking-[0.2em] px-12 py-1 shadow-lg">
+                            Final
+                          </div>
+                        )}
+                        <div className={`text-[10px] font-black uppercase tracking-widest ${
+                          msg.content.includes('[FINAL_OFFER]') ? 'text-red-600' : 'text-primary-600'
+                        }`}>
+                          {msg.content.includes('[FINAL_OFFER]') ? 'Best & Final Offer' : 'New Offer Received'}
+                        </div>
                         <div className="text-3xl font-black text-gray-900">
-                          {msg.content.match(/\[OFFER:\s*(.*?)\s*\]/)?.[1] || '---'}
+                          {msg.content.match(/\[OFFER:\s*(.*?)\s*,/)?.[1] || '---'}
                         </div>
                         <div className="text-[11px] font-bold text-gray-500 italic">
-                          {msg.content.replace(/\[OFFER:.*?\]/g, '').trim() || "What do you think?"}
+                          {msg.content.replace(/\[OFFER:.*?\]/g, '').replace('[FINAL_OFFER]', '').trim() || "What do you think?"}
                         </div>
+                        
+                        {/* Transactional Actions */}
+                        {msg.role === 'assistant' && !isDealReached && (
+                          <div className="flex gap-2 pt-2 animate-in slide-in-from-bottom-2 duration-500 delay-300">
+                            <button 
+                              onClick={() => {
+                                const match = msg.content.match(/percentage:\s*(\d+)%/);
+                                if (match) {
+                                  const pct = match[1];
+                                  handleSendMessage(null, "I accept this offer! Let's do it.");
+                                  // The success token will be detected in the next response or we can trigger celebration
+                                  setAgreedPercentage(parseInt(pct));
+                                  setIsDealReached(true);
+                                }
+                              }}
+                              className="flex-1 py-3 bg-gray-900 text-white rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                            >
+                              Accept Deal
+                            </button>
+                            {!msg.content.includes('[FINAL_OFFER]') && (
+                              <button 
+                                onClick={() => setIsOffering(true)}
+                                className="flex-1 py-3 bg-white border border-gray-200 text-gray-900 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+                              >
+                                Counter
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ) : (
                       msg.content
@@ -355,7 +424,10 @@ export function ConciergeBubble() {
             {isOffering ? (
               <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Make your offer</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Make your offer</span>
+                    <span className="text-[9px] font-bold text-primary-500 italic mt-0.5">Tip: Offers within 15% are most likely to be accepted.</span>
+                  </div>
                   <button onClick={() => setIsOffering(false)} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Cancel</button>
                 </div>
                 <div className="flex gap-2">
@@ -366,8 +438,17 @@ export function ConciergeBubble() {
                       value={offerValue}
                       onChange={(e) => setOfferValue(e.target.value)}
                       placeholder="Enter amount..."
-                      className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-8 pr-4 py-4 text-sm font-black focus:ring-0 focus:border-gray-900 transition-all"
+                      className={`w-full bg-gray-50 border rounded-2xl pl-8 pr-4 py-4 text-sm font-black focus:ring-0 transition-all ${
+                        offerValue && parseFloat(offerValue) < (subtotal / 200) 
+                          ? 'border-red-200 focus:border-red-400' 
+                          : 'border-gray-100 focus:border-gray-900'
+                      }`}
                     />
+                    {offerValue && parseFloat(offerValue) < (subtotal / 200) && (
+                      <div className="absolute left-0 -top-6 text-[8px] font-black text-red-500 uppercase tracking-widest animate-in fade-in slide-in-from-bottom-1">
+                        ⚠️ Offer is a bit low for our studio
+                      </div>
+                    )}
                   </div>
                   <button 
                     onClick={() => {

@@ -29,6 +29,7 @@ const ChatSchema = z.object({
     orderHistory: z.array(z.any()).optional(),
     inventoryState: z.any().optional(),
     activePromotions: z.array(z.any()).optional(),
+    pageTitle: z.string().optional(),
   }).optional(),
 });
 
@@ -89,13 +90,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Inject Bartering Settings (In a real app, these would be fetched from Firestore/Config)
-    const settings = DEFAULT_CONCIERGE_SETTINGS; // Placeholder for DB fetch
+    // Inject Bartering Settings & Inventory Pressure
+    const { settingsService, productService } = getInitialServices();
+    const settings = await settingsService.getConciergeSettings();
+    
     if (settings.isBarteringEnabled) {
       contextString += `\n### BARTERING ENABLED\n`;
       contextString += `Max Discount: ${settings.maxDiscountPercentage}%\n`;
       contextString += `Negotiation Tone: ${settings.negotiationTone}\n`;
       contextString += `Minimum Order Value: $${(settings.minOrderValueForBarter || 0) / 100}\n`;
+
+      // Dynamic Inventory Pressure: Look for current product in pageTitle
+      if (context?.pageTitle) {
+        const productName = context.pageTitle.split('|')[0].trim();
+        try {
+          const { products } = await productService.getProducts({ query: productName, limit: 1 });
+          if (products.length > 0) {
+            const product = products[0];
+            contextString += `Current Product Stock: ${product.stock} units remaining.\n`;
+            if (product.stock < 5) {
+              contextString += `PRESSURE: This item is in LOW STOCK. Use this to maintain price or push for immediate conversion.\n`;
+            }
+          }
+        } catch (err) {
+          logger.warn('Failed to fetch inventory for context', { productName });
+        }
+      }
     }
 
     logger.info('Initiating Concierge chat stream', { 
