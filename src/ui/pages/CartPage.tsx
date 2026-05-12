@@ -57,6 +57,7 @@ export function CartPage() {
         if (result.valid) {
           setAppliedPromo({ code, amount: result.discountAmount });
           setPromoMessage({ text: `${code} applied!`, isError: false });
+          localStorage.setItem('checkout:discountCode', code);
         } else {
           setPromoMessage({ text: result.message || 'Invalid code', isError: true });
         }
@@ -244,8 +245,8 @@ export function CartPage() {
                            </button>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-xs font-bold text-green-600 bg-green-50 px-4 py-2 rounded-full">
-                           <ShieldCheck className="h-4 w-4" /> Securely reserved for you
+                        <div className="flex items-center gap-2 text-xs font-bold text-amber-600 bg-amber-50 px-4 py-2 rounded-full">
+                           <ShieldCheck className="h-4 w-4" /> Inventory availability verified
                         </div>
                       </div>
                     </div>

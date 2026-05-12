@@ -37,51 +37,57 @@ export class FirestoreOrderRepository implements IOrderRepository {
     return mapDoc<Order>(id, data);
   }
 
-  async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order> {
-    try {
-      return await runTransaction(getUnifiedDb(), async (transaction: any) => {
-        // 1. Strict Idempotency Check
-        if (order.idempotencyKey) {
-          const q = query(
-            collection(getUnifiedDb(), this.collectionName), 
-            where('idempotencyKey', '==', order.idempotencyKey), 
-            limit(1)
-          );
-          const snapshot = await getDocs(q);
-          if (!snapshot.empty) {
-            const existing = this.mapDocToOrder(snapshot.docs[0].id, snapshot.docs[0].data());
-            logger.info('Duplicate order detected via atomic idempotency check', { key: order.idempotencyKey, orderId: existing.id });
-            return existing;
+  async create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>, transaction?: any): Promise<Order> {
+    const db = getUnifiedDb();
+    const operation = async (t: any) => {
+      // 1. Strict Idempotency Check (Transactional Point-Read)
+      if (order.idempotencyKey) {
+        const idempRef = doc(db, 'order_idempotency_keys', order.idempotencyKey);
+        const idempSnap = await t.get(idempRef);
+        
+        if (idempSnap.exists()) {
+          const { orderId } = idempSnap.data();
+          const existingOrder = await this.getById(orderId);
+          if (existingOrder) {
+            logger.info('Duplicate order detected via atomic idempotency check', { key: order.idempotencyKey, orderId });
+            return existingOrder;
           }
         }
+      }
 
-        // 2. Generate Identity and Timestamps
-        const id = crypto.randomUUID();
-        const now = new Date(); // We use local date for the object but serverTimestamp for the DB
+      // 2. Generate Identity and Timestamps
+      const id = crypto.randomUUID();
+      const now = new Date();
 
-        const orderData = {
-          ...order,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          riskScore: await this.calculateRiskScore(order),
-        };
+      const orderData = {
+        ...order,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        riskScore: await this.calculateRiskScore(order),
+      };
 
-        // 3. Commit Atomic Block
-        const docRef = doc(getUnifiedDb(), this.collectionName, id);
-        transaction.set(docRef, orderData);
+      // 3. Commit Atomic Block
+      const docRef = doc(db, this.collectionName, id);
+      t.set(docRef, orderData);
 
-        // Return a pessimistic view of the order (will be updated by subsequent reads)
-        return {
-          ...order,
-          id,
-          createdAt: now,
-          updatedAt: now,
-          riskScore: orderData.riskScore
-        } as Order;
-      });
-    } catch (err) {
-      logger.error('Order creation failed in atomic block', { order, err });
-      throw err;
+      if (order.idempotencyKey) {
+        const idempRef = doc(db, 'order_idempotency_keys', order.idempotencyKey);
+        t.set(idempRef, { orderId: id, createdAt: serverTimestamp() });
+      }
+
+      return {
+        ...order,
+        id,
+        createdAt: now,
+        updatedAt: now,
+        riskScore: orderData.riskScore
+      } as Order;
+    };
+
+    if (transaction) {
+      return await operation(transaction);
+    } else {
+      return await runTransaction(db, operation);
     }
   }
 

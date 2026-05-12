@@ -33,7 +33,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
 import { formatMoney } from '@utils/formatters';
-import { calculateShipping } from '@domain/rules';
+import { calculateShipping, calculateTax } from '@domain/rules';
 import type { ShippingRate, ShippingZone } from '@domain/models';
 
 
@@ -107,6 +107,11 @@ export function CheckoutPage() {
         logger.error('Failed to parse saved address', e);
       }
     }
+    
+    const savedDiscount = localStorage.getItem('checkout:discountCode');
+    if (savedDiscount) {
+      setDiscountCode(savedDiscount);
+    }
   }, []);
 
   useEffect(() => {
@@ -161,7 +166,18 @@ export function CheckoutPage() {
   const shippingName = shippingResult?.rateName ?? 'Shipping';
 
   const discountAmount = appliedDiscount?.amount ?? 0;
-  const total = Math.max(0, subtotal + shipping - discountAmount);
+  
+  // Tax estimation based on domain rules
+  const taxAmount = useMemo(() => {
+    return calculateTax({ 
+      subtotal, 
+      shipping, 
+      discount: discountAmount, 
+      address 
+    });
+  }, [subtotal, shipping, discountAmount, address]);
+
+  const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
   const freeShippingRemaining = Math.max(0, 10000 - subtotal);
   const currentStepIndex = CHECKOUT_STEPS.findIndex((item) => item.id === step);
 
@@ -230,10 +246,21 @@ export function CheckoutPage() {
     } finally {
       if (!controller.signal.aborted) {
         setIsApplying(false);
+        // Don't clear discountCode if it was successful, but maybe we should clear it if we want to show it's "applied"
         setDiscountCode('');
+        if (appliedDiscount) localStorage.setItem('checkout:discountCode', appliedDiscount.code);
       }
     }
   };
+
+  // Auto-apply saved discount
+  useEffect(() => {
+    const saved = localStorage.getItem('checkout:discountCode');
+    if (saved && !appliedDiscount && !isApplying) {
+      setDiscountCode(saved);
+      handleApplyDiscount();
+    }
+  }, [subtotal]); // Re-validate if subtotal changes
 
   useEffect(() => {
     return () => discountControllerRef.current?.abort();
@@ -655,7 +682,7 @@ export function CheckoutPage() {
                 {!isPurelyDigital && (
                   <SummaryRow label={shippingName} value={shipping === 0 ? 'Free' : formatMoney(shipping)} />
                 )}
-                <SummaryRow label="Estimated Tax" value="Calculated at next step" />
+                <SummaryRow label="Estimated Tax" value={formatMoney(taxAmount)} />
                 {appliedDiscount && <SummaryRow label="Promotional Discount" value={`-${formatMoney(appliedDiscount.amount)}`} isDiscount />}
                 
                 <div className="flex items-end justify-between border-t border-gray-900 pt-8 mt-4">

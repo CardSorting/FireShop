@@ -52,7 +52,7 @@ export interface ICartRepository {
 }
 
 export interface IOrderRepository {
-  create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<Order>;
+  create(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>, transaction?: any): Promise<Order>;
   getById(id: string): Promise<Order | null>;
   getByIdempotencyKey(key: string): Promise<Order | null>;
   getByPaymentTransactionId(id: string): Promise<Order | null>;

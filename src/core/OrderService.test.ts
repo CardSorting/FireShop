@@ -25,6 +25,7 @@ describe('OrderService', () => {
 
   beforeEach(() => {
     mockOrderRepo = {
+      create: vi.fn(),
       save: vi.fn(),
       getById: vi.fn(),
       getByPaymentTransactionId: vi.fn(),
@@ -74,11 +75,18 @@ describe('OrderService', () => {
         items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1' }]
       });
 
+      mockOrderRepo.create.mockResolvedValue({
+        id: 'o1',
+        userId: 'u1',
+        total: 1000,
+        status: 'pending'
+      });
+
       const order = await orderService.initiateCheckout('u1', address as any);
 
       expect(order.userId).toBe('u1');
       expect(order.total).toBeGreaterThan(0);
-      expect(mockOrderRepo.save).toHaveBeenCalled();
+      expect(mockOrderRepo.create).toHaveBeenCalled();
       expect(mockCartRepo.clear).toHaveBeenCalledWith('u1');
     });
 

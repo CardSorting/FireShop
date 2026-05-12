@@ -176,7 +176,7 @@ export class OrderService {
   // CORE OPERATIONS (HIGH-VELOCITY)
   // ────────────────────────────────────────────────────────────────────────────
 
-  async initiateCheckout(userId: string, shippingAddress: Address, discountCode?: string, idempotencyKey?: string, paymentIntentId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
+  async initiateCheckout(userId: string, shippingAddress: Address, userEmail?: string, userName?: string, discountCode?: string, idempotencyKey?: string, paymentIntentId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_lock:${userId}`;
     const acquired = await this.locker.acquireLock(lockId, userId, 45000);
@@ -212,12 +212,23 @@ export class OrderService {
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
-        // 4. Create Order (Atomic)
-        const orderId = crypto.randomUUID();
-        const order: Order = {
-          id: orderId,
+        // 4. Create Order (Atomic via Repository Hardening)
+        const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
           userId,
-          items: cart.items.map(i => ({ ...i, fulfilledQty: 0, at: new Date() })) as any,
+          items: cart.items.map(i => ({ 
+            productId: i.productId,
+            variantId: i.variantId,
+            variantTitle: i.variantTitle,
+            productHandle: i.productHandle,
+            name: i.name,
+            quantity: i.quantity,
+            unitPrice: i.priceSnapshot,
+            imageUrl: i.imageUrl,
+            isDigital: i.isDigital,
+            shippingClassId: i.shippingClassId,
+            fulfilledQty: 0, 
+            at: new Date() 
+          })) as any,
           shippingAmount: shipping,
           taxAmount: taxAmount,
           discountAmount: discountAmount,
@@ -225,6 +236,8 @@ export class OrderService {
           total,
           status: 'pending',
           shippingAddress,
+          customerEmail: userEmail,
+          customerName: userName,
           paymentTransactionId: paymentIntentId || null,
           idempotencyKey: idempotencyKey || crypto.randomUUID(),
           fulfillmentMethod,
@@ -240,15 +253,13 @@ export class OrderService {
             description: 'Payment verified, preparing for fulfillment.', 
             at: new Date() 
           }],
-          createdAt: new Date(),
-          updatedAt: new Date(),
           metadata: {
             nodeVersion: process.version,
             userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'server'
           }
         };
 
-        await this.orderRepo.save(order, transaction);
+        const order = await this.orderRepo.create(orderData, transaction);
 
         // 5. Clear Cart (Atomic)
         await this.cartRepo.clear(userId);
@@ -256,9 +267,9 @@ export class OrderService {
         // 6. Record Audit (Transactional)
         await this.audit.recordWithTransaction(transaction, {
           userId,
-          userEmail: 'user@example.com',
+          userEmail: order.customerEmail || 'unknown@dreambees.art',
           action: 'order_placed',
-          targetId: orderId,
+          targetId: order.id,
           details: { total, itemCount: cart.items.length, discountCode: validDiscountCode }
         });
 
@@ -377,8 +388,8 @@ export class OrderService {
     await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { from: order.status, to: status } });
   }
 
-  async placeOrder(userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string): Promise<Order> {
-    return this.initiateCheckout(userId, shippingAddress, discountCode, idempotencyKey, paymentMethodId);
+  async placeOrder(userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string, userEmail?: string, userName?: string): Promise<Order> {
+    return this.initiateCheckout(userId, shippingAddress, userEmail, userName, discountCode, idempotencyKey, paymentMethodId);
   }
 
   async getAllOrders(options?: any): Promise<{ orders: Order[], nextCursor?: string }> {

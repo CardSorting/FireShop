@@ -254,18 +254,18 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async updateVariantStock(variantId: string, delta: number, transaction?: any): Promise<void> {
-    // Production Hardening: Optimized lookup using variantIds array index
-    const q = query(collection(getUnifiedDb(), this.collectionName), where('variantIds', 'array-contains', variantId), limit(1));
-    const snapshot = await getDocs(q);
-    
-    if (snapshot.empty) {
-      throw new Error(`Product containing variant ${variantId} not found`);
-    }
-
-    const productId = snapshot.docs[0].id;
     const db = getUnifiedDb();
-
+    
     const operation = async (t: any) => {
+      // Find the product by variant ID using a query (outside of the transaction write phase if possible, but here we need the ID)
+      // Since Firestore transactions don't support queries, we must find the product ID first.
+      const q = query(collection(db, this.collectionName), where('variantIds', 'array-contains', variantId), limit(1));
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        throw new Error(`Product containing variant ${variantId} not found`);
+      }
+      const productId = snapshot.docs[0].id;
       const docRef = doc(db, this.collectionName, productId);
       const docSnap = await t.get(docRef);
       const data = docSnap.data()!;
@@ -300,58 +300,53 @@ export class FirestoreProductRepository implements IProductRepository {
   async batchUpdateStock(updates: { id: string; variantId?: string; delta: number }[], transaction?: any): Promise<void> {
     const db = getUnifiedDb();
     const operation = async (t: any) => {
-      // Collect all unique product IDs we need to load
-      const productIds = new Set<string>();
-      const variantToProductMap = new Map<string, string>();
+      // 1. Group unique product IDs to load
+      const productIds = new Set<string>(updates.map(u => u.id));
+      
+      // 2. Load all products transactionally
+      const docRefs = Array.from(productIds).map(id => doc(db, this.collectionName, id));
+      const snapshots = await Promise.all(docRefs.map(ref => t.get(ref)));
+      
+      const productDataMap = new Map<string, any>();
+      snapshots.forEach(snap => {
+        if (snap.exists()) productDataMap.set(snap.id, snap.data());
+      });
 
+      // 3. Apply updates to the loaded data (locally first)
+      const finalUpdates = new Map<string, any>();
+      
       for (const update of updates) {
-        if (update.variantId) {
-          const q = query(collection(db, this.collectionName), where('variantIds', 'array-contains', update.variantId));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            const pId = snap.docs[0].id;
-            productIds.add(pId);
-            variantToProductMap.set(update.variantId, pId);
-          }
-        } else {
-          productIds.add(update.id);
-        }
-      }
+        const data = finalUpdates.get(update.id) || productDataMap.get(update.id);
+        if (!data) throw new Error(`Product ${update.id} not found for stock update`);
 
-      // Load all relevant product documents
-      const docs = await Promise.all(Array.from(productIds).map(id => t.get(doc(db, this.collectionName, id))));
-      const docMap = new Map<string, any>();
-      docs.forEach(d => { if (d.exists()) docMap.set(d.id, d.data()); });
-
-      // Apply updates
-      for (const update of updates) {
-        const pId = update.variantId ? variantToProductMap.get(update.variantId) : update.id;
-        if (!pId) continue;
-
-        const data = docMap.get(pId);
-        if (!data) continue;
+        // Create a working copy
+        const workingData = { ...data };
 
         if (update.variantId) {
-          const variants = [...(data.variants || [])];
+          const variants = [...(workingData.variants || [])];
           const vIdx = variants.findIndex((v: any) => v.id === update.variantId);
-          if (vIdx !== -1) {
-            const current = variants[vIdx].stock || 0;
-            if (current + update.delta < 0) throw new InsufficientStockError(pId, Math.abs(update.delta), current);
-            variants[vIdx].stock = current + update.delta;
-            variants[vIdx].updatedAt = serverTimestamp();
-            data.variants = variants;
-            data.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
-          }
+          if (vIdx === -1) throw new Error(`Variant ${update.variantId} not found in product ${update.id}`);
+          
+          const current = variants[vIdx].stock || 0;
+          if (current + update.delta < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), current);
+          
+          variants[vIdx].stock = current + update.delta;
+          variants[vIdx].updatedAt = serverTimestamp();
+          
+          workingData.variants = variants;
+          workingData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
         } else {
-          const current = data.stock || 0;
-          if (current + update.delta < 0) throw new InsufficientStockError(pId, Math.abs(update.delta), current);
-          data.stock = current + update.delta;
+          const current = workingData.stock || 0;
+          if (current + update.delta < 0) throw new InsufficientStockError(update.id, Math.abs(update.delta), current);
+          workingData.stock = current + update.delta;
         }
-        data.updatedAt = serverTimestamp();
+        
+        workingData.updatedAt = serverTimestamp();
+        finalUpdates.set(update.id, workingData);
       }
 
-      // Commit all changes
-      for (const [id, data] of docMap.entries()) {
+      // 4. Commit all updates to the transaction
+      for (const [id, data] of finalUpdates.entries()) {
         t.update(doc(db, this.collectionName, id), data);
       }
     };
