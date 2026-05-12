@@ -35,6 +35,7 @@ describe('OrderService Concurrency', () => {
       getById: vi.fn(),
       getByPaymentTransactionId: vi.fn(),
       getByPaymentTransactionIdTransactional: vi.fn(),
+      getByIdempotencyKey: vi.fn().mockResolvedValue(null),
     };
     mockProductRepo = {
       batchUpdateStock: vi.fn(),
@@ -110,13 +111,7 @@ describe('OrderService Concurrency', () => {
     await orderService.initiateCheckout('u1', address as any, 'user@example.com', 'User', undefined, idempotencyKey);
     
     // Mock repo to return the existing order for the same idempotency key
-    // (In reality, the hardened FirestoreOrderRepository handles this)
-    mockOrderRepo.save.mockImplementationOnce(async (o) => {
-       if (o.idempotencyKey === idempotencyKey) {
-           return { ...o, id: 'o1', status: 'pending' };
-       }
-       return o;
-    });
+    mockOrderRepo.getByIdempotencyKey.mockResolvedValueOnce({ id: 'o1', status: 'pending' });
 
     // Release lock manually for the test
     await mockLocker.releaseLock(`checkout_lock:u1`);
@@ -125,7 +120,7 @@ describe('OrderService Concurrency', () => {
     const order2 = await orderService.initiateCheckout('u1', address as any, 'user@example.com', 'User', undefined, idempotencyKey);
     
     expect(order2.id).toBe('o1'); // Should be the same order
-    expect(mockOrderRepo.save).toHaveBeenCalledTimes(1); // Should not have called save again if it was truly idempotent at the repo level
+    expect(mockOrderRepo.create).toHaveBeenCalledTimes(1); // Should not have called create again if it was truly idempotent at the repo level
     // Note: The mock above is a bit simplified; real hardening is in FirestoreOrderRepository.
   });
 });

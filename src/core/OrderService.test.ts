@@ -90,8 +90,8 @@ describe('OrderService', () => {
 
       expect(order.userId).toBe('u1');
       expect(order.total).toBeGreaterThan(0);
-      expect(mockOrderRepo.create).toHaveBeenCalled();
-      expect(mockCartRepo.clear).toHaveBeenCalledWith('u1');
+      expect(mockOrderRepo.create).toHaveBeenCalledTimes(1);
+      expect(mockCartRepo.clear).toHaveBeenCalledWith('u1', expect.anything());
     });
 
     it('should throw if cart is empty', async () => {

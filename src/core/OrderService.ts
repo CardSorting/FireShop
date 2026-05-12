@@ -183,6 +183,15 @@ export class OrderService {
     if (!acquired) throw new CheckoutInProgressError();
 
     try {
+      // Production Hardening: Check idempotency BEFORE entering heavy logic
+      if (idempotencyKey) {
+        const existing = await this.orderRepo.getByIdempotencyKey(idempotencyKey);
+        if (existing) {
+          logger.info('Duplicate checkout attempt, returning existing order', { userId, idempotencyKey });
+          return existing;
+        }
+      }
+
       return await runTransaction(getUnifiedDb(), async (transaction: any) => {
         // 1. Fetch Cart (Atomic)
         const cart = await this.cartRepo.getByUserId(userId, transaction);
