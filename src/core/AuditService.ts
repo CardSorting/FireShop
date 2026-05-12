@@ -88,18 +88,14 @@ export class AuditService {
       const nodeVersion = typeof process !== 'undefined' ? process.version : 'browser';
 
       await runTransaction(getUnifiedDb(), async (transaction) => {
-        // 1. Resolve the latest link in the forensic chain
-        const q = query(
-          collection(getUnifiedDb(), this.collectionName), 
-          orderBy('createdAt', 'desc'), 
-          limit(1)
-        );
-        const snapshot = await getDocs(q);
-        const lastEntry = snapshot.empty ? null : snapshot.docs[0].data();
+        // 1. Resolve the latest link in the forensic chain via transactional point-read
+        // This eliminates the race condition inherent in non-transactional queries.
+        const tailRef = doc(getUnifiedDb(), 'system_state', 'audit_tail');
+        const tailSnap = await transaction.get(tailRef);
+        const lastEntry = tailSnap.exists() ? tailSnap.data() : null;
         const previousHash = lastEntry?.hash || '0'.repeat(64);
         
         // 2. Construct forensic payload for hashing
-        // We include all immutable fields in the hash to prevent tamper
         const payload = [
           id,
           params.action,
@@ -134,6 +130,13 @@ export class AuditService {
           location: params.location || 'Unknown',
           createdAt: serverTimestamp(),
           clientCreatedAt: now.toISOString()
+        });
+
+        // 4. Update the tail pointer (Atomic)
+        transaction.set(tailRef, {
+          hash,
+          lastId: id,
+          updatedAt: serverTimestamp()
         });
       });
 
@@ -290,11 +293,10 @@ export class AuditService {
     const ip = params.ip || '0.0.0.0';
     const userAgent = params.userAgent || 'unknown';
     const nodeVersion = typeof process !== 'undefined' ? process.version : 'browser';
-
-    // Note: We cannot easily chain hashes in a single transaction if we need to read the latest log
-    // because the read would happen before the previous commit in high-velocity scenarios.
-    // For transactional logs, we omit the previousHash check or accept a simplified link.
-    const previousHash = '0'.repeat(64); // Transactional entries use a simpler link or separate verification
+    const tailRef = doc(getUnifiedDb(), 'system_state', 'audit_tail');
+    const tailSnap = await transaction.get(tailRef);
+    const lastEntry = tailSnap.exists() ? tailSnap.data() : null;
+    const previousHash = lastEntry?.hash || '0'.repeat(64);
     
     const payload = [
       id,
@@ -327,6 +329,13 @@ export class AuditService {
       nodeVersion,
       createdAt: serverTimestamp(),
       clientCreatedAt: now.toISOString()
+    });
+
+    // Update tail pointer within the same transaction
+    transaction.set(tailRef, {
+      hash,
+      lastId: id,
+      updatedAt: serverTimestamp()
     });
   }
 

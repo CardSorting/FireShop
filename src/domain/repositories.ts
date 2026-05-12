@@ -94,6 +94,8 @@ export interface IOrderRepository {
     sales: number;
   }>>;
   hasUsedDiscount(userId: string, discountCode: string): Promise<boolean>;
+  checkUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<boolean>;
+  recordUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<void>;
   markHeartbeat(orderId: string, userId: string, email: string): Promise<void>;
   getActiveViewers(orderId: string): Promise<Array<{ userId: string, email: string, lastActive: Date }>>;
 }

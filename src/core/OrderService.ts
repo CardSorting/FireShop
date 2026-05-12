@@ -242,6 +242,11 @@ export class OrderService {
             
             // Critical: Increment usage within the same transaction
             await this.discountRepo.incrementUsage(val.discount.id, transaction);
+            
+            // Production Hardening: Record user-specific usage for once-per-customer enforcement
+            if (val.discount.oncePerCustomer) {
+              await this.orderRepo.recordUserDiscountUsage(userId, val.discount.code, transaction);
+            }
           } else if (discountCode && !val.valid) {
              logger.warn('Checkout attempted with invalid discount code', { userId, discountCode, reason: val.message });
           }

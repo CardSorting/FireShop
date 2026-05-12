@@ -90,8 +90,24 @@ export class StorageService {
   }
 
   /**
+   * Helper to extract the internal storage path from a Firebase Download URL.
+   */
+  private static extractPathFromUrl(urlStr: string): string | null {
+    try {
+      const url = new URL(urlStr);
+      // Firebase Storage URLs are in the format: 
+      // https://firebasestorage.googleapis.com/v0/b/[bucket]/o/[path]?alt=media&token=[token]
+      const parts = url.pathname.split('/o/');
+      if (parts.length < 2) return null;
+      const pathPart = parts[1].split('?')[0]; // Remove query params
+      return decodeURIComponent(pathPart);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Reads a file from Firebase Storage.
-   * Returns a Buffer.
    */
   static async readFile(storedPath: string): Promise<{ buffer: Buffer; mimeType: string; name: string }> {
     let storageRef;
@@ -103,9 +119,9 @@ export class StorageService {
         throw new Error('Untrusted asset source.');
       }
 
-      const encodedPath = url.pathname.split('/o/')[1]?.split('/')[0];
-      if (!encodedPath) throw new Error('Invalid Firebase Storage URL.');
-      const objectPath = decodeURIComponent(encodedPath);
+      const objectPath = this.extractPathFromUrl(storedPath);
+      if (!objectPath) throw new Error('Invalid Firebase Storage URL.');
+      
       storageRef = ref(getStorage(), objectPath);
       const arrayBuffer = await getBytes(storageRef, MAX_DOWNLOAD_BYTES);
       const buffer = Buffer.from(arrayBuffer);
@@ -125,22 +141,22 @@ export class StorageService {
    */
   static async deleteFile(storedPath: string): Promise<void> {
     try {
-      // If it's a URL, we need to extract the path or use the URL
-      // firebase/storage deleteObject accepts a reference
       let storageRef;
       if (storedPath.startsWith('http')) {
-         // This is tricky with download URLs. 
-         // Ideally we should store the getStorage() path in the DB too.
-         // For now, we'll try to extract the path from the URL if possible or just log.
-         console.warn('Deleting by URL is not directly supported without path extraction.');
-         return;
+         const objectPath = this.extractPathFromUrl(storedPath);
+         if (!objectPath) {
+           logger.error(`[Forensic] Failed to extract path from storage URL: ${storedPath}`);
+           return;
+         }
+         storageRef = ref(getStorage(), objectPath);
       } else {
         storageRef = ref(getStorage(), storedPath);
       }
       
       await deleteObject(storageRef);
+      logger.info(`[Forensic] Deleted storage asset: ${storedPath}`);
     } catch (e) {
-      console.error(`Failed to delete file at ${storedPath}:`, e);
+      logger.error(`[Forensic] Failed to delete file at ${storedPath}:`, e);
     }
   }
 }

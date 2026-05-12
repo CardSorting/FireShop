@@ -78,7 +78,10 @@ export class DiscountService {
 
     // Production Hardening: Check for per-customer usage limits
     if (discount.oncePerCustomer && userId && this.orderRepo) {
-      const hasUsed = await this.orderRepo.hasUsedDiscount(userId, discount.code);
+      const hasUsed = transaction 
+        ? await this.orderRepo.checkUserDiscountUsage(userId, discount.code, transaction)
+        : await this.orderRepo.hasUsedDiscount(userId, discount.code);
+        
       if (hasUsed) {
         return { valid: false, message: 'You have already used this discount code.' };
       }

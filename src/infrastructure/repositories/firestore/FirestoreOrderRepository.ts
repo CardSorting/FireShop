@@ -437,7 +437,6 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   async hasUsedDiscount(userId: string, discountCode: string): Promise<boolean> {
     // Production Hardening: Exclude cancelled/refunded orders from usage check.
-    // A customer whose order was cancelled should be able to reuse the discount code.
     const q = query(
       collection(getUnifiedDb(), this.collectionName),
       where('userId', '==', userId),
@@ -445,10 +444,33 @@ export class FirestoreOrderRepository implements IOrderRepository {
       limit(10)
     );
     const snapshot = await getDocs(q);
-    // Filter out cancelled/refunded orders — those shouldn't count as "used"
     return snapshot.docs.some((d: QueryDocumentSnapshot) => {
       const status = d.data().status;
       return status !== 'cancelled' && status !== 'refunded';
+    });
+  }
+
+  /**
+   * Transactional check for user-specific discount usage.
+   * Uses a dedicated document to ensure atomicity via point-read (t.get).
+   */
+  async checkUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<boolean> {
+    const id = `${userId}_${discountCode}`;
+    const docRef = doc(getUnifiedDb(), 'user_discount_usage', id);
+    const docSnap = await transaction.get(docRef);
+    return docSnap.exists();
+  }
+
+  /**
+   * Records a user's discount usage atomically.
+   */
+  async recordUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<void> {
+    const id = `${userId}_${discountCode}`;
+    const docRef = doc(getUnifiedDb(), 'user_discount_usage', id);
+    transaction.set(docRef, {
+      userId,
+      discountCode,
+      usedAt: serverTimestamp()
     });
   }
   async markHeartbeat(orderId: string, userId: string, email: string): Promise<void> {

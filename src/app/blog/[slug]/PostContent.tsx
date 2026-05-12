@@ -14,6 +14,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
 import rehypeRaw from 'rehype-raw';
+import DOMPurify from 'dompurify';
 import type { KnowledgebaseArticle, Author, BlogComment, Product } from '@domain/models';
 
 export default function PostContent({ post, initialComments, initialAuthor, initialRelatedProducts, latestPosts = [] }: { 
@@ -268,7 +269,6 @@ export default function PostContent({ post, initialComments, initialAuthor, init
                   <h2 {...props} className="editorial-h2 mt-20 mb-10">{children}</h2>
                 ),
                 blockquote: ({node, children, ...props}) => {
-                  // Destructure to avoid prop conflicts with motion
                   const { onAnimationStart, onDragStart, onDragEnd, onDrag, ...safeProps } = props as any;
                   return (
                     <motion.blockquote 
@@ -311,7 +311,7 @@ export default function PostContent({ post, initialComments, initialAuthor, init
                 }
               }}
             >
-              {post.content}
+              {typeof window !== 'undefined' ? DOMPurify.sanitize(post.content) : post.content}
             </ReactMarkdown>
           </article>
 
