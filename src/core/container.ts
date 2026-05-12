@@ -45,6 +45,7 @@ import { OrderManagementService } from './OrderManagementService';
 import { OrderQueryService } from './OrderQueryService';
 import { RefundService } from './RefundService';
 import { RateLimitService } from './RateLimitService';
+import { OperationsRuntimeService } from './OperationsRuntimeService';
 import { assertMultiStoreNotEnabled, SINGLE_STORE_ID } from './TenantContext';
 import type {
   IProductRepository,
@@ -177,6 +178,23 @@ export function getServiceContainer() {
     knowledgebaseRepository: repos.kbRepo,
     emailService: new BrevoEmailService(),
     rateLimitService: new RateLimitService(),
+    operationsRuntimeService: new OperationsRuntimeService(
+      new OrderService(
+        repos.orderRepo,
+        repos.productRepo,
+        repos.cartRepo,
+        repos.discountRepo,
+        new StripePaymentProcessor(),
+        new AuditService(),
+        new FirestoreLocker(),
+        createCheckoutGateway(),
+        repos.shippingRepo
+      ),
+      new ProductService(repos.productRepo, new AuditService()),
+      new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
+      new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
+      new AuditService()
+    ),
     tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };
 }
@@ -229,6 +247,18 @@ export function getInitialServices() {
     checkoutGatewayInstance = new TrustedCheckoutGateway();
   }
 
+  const getPurchaseOrderService = () => {
+    if (!purchaseOrderServiceInstance) {
+      purchaseOrderServiceInstance = new PurchaseOrderService(
+        purchaseOrderRepoInstance!,
+        productRepoInstance!,
+        inventoryLevelRepoInstance!,
+        getAuditService()
+      );
+    }
+    return purchaseOrderServiceInstance;
+  };
+
   return {
     authProvider: authProviderInstance!,
     authService: authServiceInstance,
@@ -259,17 +289,7 @@ export function getInitialServices() {
       if (!transferServiceInstance) transferServiceInstance = new TransferService(transferRepoInstance!, productRepoInstance!);
       return transferServiceInstance;
     })(),
-    purchaseOrderService: (() => {
-      if (!purchaseOrderServiceInstance) {
-        purchaseOrderServiceInstance = new PurchaseOrderService(
-          purchaseOrderRepoInstance!,
-          productRepoInstance!,
-          inventoryLevelRepoInstance!,
-          getAuditService()
-        );
-      }
-      return purchaseOrderServiceInstance;
-    })(),
+    purchaseOrderService: getPurchaseOrderService(),
     supplierService: (() => {
       if (!supplierServiceInstance) supplierServiceInstance = new SupplierService(new FirestoreSupplierRepository(), getAuditService());
       return supplierServiceInstance;
@@ -304,6 +324,23 @@ export function getInitialServices() {
       if (!rateLimitServiceInstance) rateLimitServiceInstance = new RateLimitService();
       return rateLimitServiceInstance;
     })(),
+    operationsRuntimeService: new OperationsRuntimeService(
+      new OrderService(
+        orderRepoInstance!,
+        productRepoInstance!,
+        cartRepoInstance!,
+        discountRepoInstance!,
+        paymentProcessorInstance!,
+        getAuditService(),
+        lockProviderInstance!,
+        checkoutGatewayInstance ?? undefined,
+        shippingRepoInstance!
+      ),
+      new ProductService(productRepoInstance!, getAuditService()),
+      getPurchaseOrderService(),
+      new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
+      getAuditService()
+    ),
     tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };
 }

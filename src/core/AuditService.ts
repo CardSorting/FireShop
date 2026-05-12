@@ -38,6 +38,7 @@ export type AuditAction =
   | 'product_type_created' | 'product_type_updated' | 'product_type_deleted'
   | 'wishlist_created' | 'wishlist_updated' | 'wishlist_deleted'
   | 'settings_updated'
+  | 'ops_plan_generated'
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted';
 
 export interface AuditEntry {
