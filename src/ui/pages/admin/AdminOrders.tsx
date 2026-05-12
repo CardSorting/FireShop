@@ -65,6 +65,7 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   partially_refunded: ['partially_refunded', 'refunded'],
   ready_for_pickup: ['ready_for_pickup', 'delivered', 'cancelled'],
   delivery_started: ['delivery_started', 'delivered', 'cancelled'],
+  reconciling: ['reconciling'], // locked — resolve via /api/admin/orders/[id]/reconcile
 };
 
 /* Enhanced Triage Tabs */

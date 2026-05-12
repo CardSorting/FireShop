@@ -154,6 +154,15 @@ service cloud.firestore {
       allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
       allow write: if false; // Only written via service layer
     }
+    
+    // Email Idempotency Ledger
+    // TTL: 30 days (field: expiresAt). Firestore TTL policy must be set on this collection.
+    // Privacy: stores only recipient email, subject, sentAt, expiresAt. No message content.
+    // Replay safety: after TTL expiry, a new send is permitted (30d window exceeds all realistic retry windows).
+    match /sent_emails/{emailId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only written via Admin SDK (BrevoEmailService.markEmailSent)
+    }
 
     // Default deny
     match /{path=**} {

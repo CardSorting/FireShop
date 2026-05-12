@@ -22,7 +22,7 @@ export class RefundService {
     private locker?: import('@domain/repositories').ILockProvider
   ) {}
 
-  async processRefund(orderId: string, amount: number, actor: { id: string, email: string }): Promise<void> {
+  async processRefund(orderId: string, amount: number, actor: { id: string, email: string }, refundAttemptId?: string): Promise<void> {
     // 0. Production Hardening: Acquire distributed lock to prevent double-refund races
     const lockId = `refund_lock:${orderId}`;
     let fencingToken: number | null = null;
@@ -35,6 +35,11 @@ export class RefundService {
     try {
       const order = await this.orderRepo.getById(orderId);
       if (!order) throw new OrderNotFoundError(orderId);
+
+      // Point 7: Reconciliation Abuse Block — no refunds on locked orders
+      if (order.reconciliationRequired || order.status === 'reconciling') {
+        throw new Error('Cannot process refund: order requires manual reconciliation.');
+      }
 
       if (!order.paymentTransactionId) {
         throw new Error('Cannot refund order without a payment transaction ID.');
@@ -56,10 +61,10 @@ export class RefundService {
       // Validate status transition before processing payment
       assertValidOrderStatusTransition(order.status, nextStatus as any);
 
-      // Point 2: Deterministic Idempotency Keys
-      // Format: refund:{orderId}:{amount}
-      // Note: In a more complex system, we'd include a refundAttemptId from the DB.
-      const refundIdempotencyKey = `refund:${orderId}:${safeAmount}`;
+      // Point 2: Deterministic Idempotency Keys (Granular)
+      // Format: refund:{orderId}:{refundAttemptId}:{amount}
+      const attemptId = refundAttemptId || `att_${Date.now()}`;
+      const refundIdempotencyKey = `refund:${orderId}:${attemptId}:${safeAmount}`;
       
       const result = await this.payment.refundPayment(order.paymentTransactionId, safeAmount, refundIdempotencyKey);
       

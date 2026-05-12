@@ -63,6 +63,7 @@ const STATUS_CONTENT: Record<OrderStatus, { title: string; description: string }
   partially_refunded: { title: 'Partially Refunded', description: 'A partial refund has been issued for this order.' },
   ready_for_pickup: { title: 'Ready for Pickup', description: 'Your order is ready at our physical location.' },
   delivery_started: { title: 'Out for Delivery', description: 'Our local delivery team is on their way to you.' },
+  reconciling: { title: 'Order Under Review', description: 'Your order is temporarily under review. Our team will follow up shortly. No further charges will be made.' },
 };
 
 import { OrderTimeline } from '../components/OrderTimeline';

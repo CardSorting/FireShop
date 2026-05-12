@@ -64,10 +64,12 @@ export class BrevoEmailService implements IEmailService {
 
   private async markEmailSent(key: string, to: string, subject: string): Promise<void> {
     const { adminDb, FieldValue } = await import('@infrastructure/firebase/admin');
+    const retentionDays = 30; // 30 day replay protection / lifecycle
     await adminDb.collection('sent_emails').doc(key).set({
       to,
       subject,
-      sentAt: FieldValue.serverTimestamp()
+      sentAt: FieldValue.serverTimestamp(),
+      expiresAt: new Date(Date.now() + retentionDays * 24 * 60 * 60 * 1000)
     });
   }
 

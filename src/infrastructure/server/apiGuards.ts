@@ -6,7 +6,7 @@ import { getSessionUser } from './session';
 import { logger } from '@utils/logger';
 import { adminDb, withAdminFirestoreRetry } from '@infrastructure/firebase/admin';
 
-const ORDER_STATUSES = new Set<OrderStatus>(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'partially_refunded', 'ready_for_pickup', 'delivery_started']);
+const ORDER_STATUSES = new Set<OrderStatus>(['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'partially_refunded', 'ready_for_pickup', 'delivery_started', 'reconciling']);
 
 const PRODUCT_STATUSES = new Set<ProductStatus>(['active', 'draft', 'archived']);
 const PRODUCT_SALES_CHANNELS = new Set<ProductSalesChannel>(['online_store', 'pos', 'draft_order']);

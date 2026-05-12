@@ -407,17 +407,21 @@ export class OrderService {
           return order;
         }
 
-        // Point 3: Fencing Token Enforcement
+        // Point 3: Fencing Token Enforcement (Strict Canonical Authority)
         const expectedToken = Number(stripePi?.metadata?.fencingToken || 0);
         const currentToken = Number(order.metadata?.fencingToken || 0);
         
-        if (expectedToken < currentToken) {
-           logger.warn('Fencing token superseded, marking order for reconciliation', { 
+        // Finalization MUST happen under the authority of the exact token that initiated it.
+        // If currentToken > expectedToken, a newer lock was acquired (e.g. manual cancel).
+        // If currentToken < expectedToken, this PI has a token from the "future" (Impossible state).
+        if (expectedToken !== currentToken) {
+           logger.warn('Fencing token mismatch detected', { 
              orderId: order.id, expectedToken, currentToken 
            });
            await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
            await this.orderRepo.markForReconciliation(order.id, [
-             `Fencing token mismatch: Payment token ${expectedToken} is older than Order token ${currentToken}.`
+             `Fencing token mismatch: Stripe PI token ${expectedToken} does not match Order token ${currentToken}.`,
+             `This suggests a race condition or manual intervention superseded the checkout lease.`
            ]);
            return order;
         }
@@ -502,7 +506,7 @@ export class OrderService {
     ];
     return {
       productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: (() => { const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0); return totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0; })(), dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
-      fulfillmentCounts: { to_review: stats.orderCountsByStatus.pending, ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), completed: stats.orderCountsByStatus.delivered, cancelled: stats.orderCountsByStatus.cancelled },
+            fulfillmentCounts: { to_review: stats.orderCountsByStatus.pending, ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), completed: stats.orderCountsByStatus.delivered, cancelled: stats.orderCountsByStatus.cancelled },
       activeTasks, attentionItems: [], recentOrders: recent, lowStockProducts: []
     };
   }
@@ -545,6 +549,47 @@ export class OrderService {
     // to prevent concurrent write clobbering.
     const event: OrderFulfillmentEvent = { id: crypto.randomUUID(), type, label, description, at: new Date() };
     await this.orderRepo.addFulfillmentEvent(orderId, event);
+  }
+
+  async resolveReconciliation(id: string, resolutionAction: OrderStatus, reason: string, evidence: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(id);
+    if (!order) throw new OrderNotFoundError(id);
+    if (!order.reconciliationRequired) throw new Error('Order is not in a reconciliation state.');
+
+    // Service-level enforcement: reason and evidence are mandatory (defence-in-depth below route layer)
+    if (!reason?.trim()) throw new Error('A resolution reason is required.');
+    if (!evidence?.trim()) throw new Error('Supporting evidence is required.');
+
+    // Atomically clear the lock and set the resolution status
+    await runTransaction(getUnifiedDb(), async (transaction: any) => {
+        // 1. Clear the hard lock and transition to the resolution status
+        await this.orderRepo.clearReconciliationFlag(id, transaction);
+        await this.orderRepo.updateStatus(id, resolutionAction, transaction);
+
+        // 2. Record resolution metadata
+        await this.orderRepo.updateMetadata(id, {
+            ...order.metadata,
+            reconciliationResolvedAt: new Date().toISOString(),
+            reconciliationResolvedBy: actor.id
+        }, transaction);
+    });
+
+    // 3. Append resolution note AFTER commit (appendOnly=true so we don't re-lock the order)
+    const resolutionNote = `RECONCILIATION RESOLVED: Action=${resolutionAction}, Reason=${reason}, Evidence=${evidence}, By=${actor.email}`;
+    await this.orderRepo.markForReconciliation(id, [resolutionNote], true);
+
+    await this.audit.record({ 
+        userId: actor.id, 
+        userEmail: actor.email, 
+        action: 'order_status_changed', 
+        targetId: id, 
+        details: { 
+            resolution: true, 
+            action: resolutionAction, 
+            reason, 
+            evidence 
+        } 
+    });
   }
 
   async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {

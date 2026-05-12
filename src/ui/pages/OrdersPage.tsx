@@ -53,6 +53,7 @@ const STATUS_UI: Record<OrderStatus, { badge: string; dot: string; label: string
   partially_refunded: { badge: 'bg-gray-50 text-gray-600 border-gray-100', dot: 'bg-gray-400', label: 'Partially Refunded' },
   ready_for_pickup: { badge: 'bg-cyan-50 text-cyan-700 border-cyan-100', dot: 'bg-cyan-500', label: 'Ready for Pickup' },
   delivery_started: { badge: 'bg-orange-50 text-orange-700 border-orange-100', dot: 'bg-orange-500', label: 'Out for Delivery' },
+  reconciling: { badge: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500', label: 'Under Review' },
 };
 
 function dateWindowToFrom(dateWindow: DateWindow): string | undefined {
