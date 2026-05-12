@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StorageService } from '../../../../infrastructure/services/StorageService';
 import { getServerServices } from '../../../../infrastructure/server/services';
 import { FirestoreDigitalAccessRepository } from '../../../../infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
+import { jsonError, requireSessionUser } from '@infrastructure/server/apiGuards';
 
 // Helper to verify if a user has purchased a specific asset
 async function verifyAssetOwnership(userId: string, assetId: string): Promise<string | null> {
@@ -17,19 +18,20 @@ async function verifyAssetOwnership(userId: string, assetId: string): Promise<st
   return null;
 }
 
+function safeDownloadName(name: string): string {
+  const sanitized = name.replace(/[\r\n"]/g, '').trim();
+  return sanitized || 'download';
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
   try {
     const { assetId } = await params;
-    const userId = req.nextUrl.searchParams.get('userId');
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    const user = await requireSessionUser();
 
-    const assetPath = await verifyAssetOwnership(userId, assetId);
+    const assetPath = await verifyAssetOwnership(user.id, assetId);
     
     if (!assetPath) {
       return NextResponse.json({ error: 'Access denied or asset not found' }, { status: 403 });
@@ -40,7 +42,7 @@ export async function GET(
     try {
       await accessRepo.record({
         id: crypto.randomUUID(),
-        userId,
+        userId: user.id,
         assetId,
         ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
         userAgent: req.headers.get('user-agent') || 'unknown',
@@ -54,15 +56,12 @@ export async function GET(
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${name}"`,
+        'Content-Disposition': `attachment; filename="${safeDownloadName(name)}"`,
         'Cache-Control': 'no-store, max-age=0',
       },
     });
   } catch (error: any) {
     console.error('Download error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process download', details: error.message },
-      { status: 500 }
-    );
+    return jsonError(error, 'Failed to process download');
   }
 }

@@ -3,7 +3,7 @@ import { ticketRepository } from '@infrastructure/repositories/firestore/Firesto
 
 export async function PATCH(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const { ids, updates } = await readJsonObject(request);
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return jsonError(new Error('IDs are required'));

@@ -3,7 +3,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 export async function GET() {
   try {
@@ -18,8 +18,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireAdminSession();
-    const body = await request.json();
+    await requireAdminSession(request);
+    const body = await readJsonObject(request) as any;
     const services = await getServerServices();
     const location = await services.inventoryLocationRepo.save(body);
     return NextResponse.json(location, { status: 201 });

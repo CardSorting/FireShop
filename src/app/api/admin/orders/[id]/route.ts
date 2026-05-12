@@ -18,7 +18,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const { id } = await params;
         const { status } = await readJsonObject(request);
         const parsedStatus = parseOrderStatus(status);

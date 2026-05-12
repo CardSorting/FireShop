@@ -1,42 +1,48 @@
-import { Product, Order, User, ProductManagementProduct } from '@domain/models';
+import { JSDOM } from 'jsdom';
+import DOMPurify from 'dompurify';
+import type { Order, Product, User } from '@domain/models';
+
+const window = new JSDOM('').window;
+const purify = DOMPurify(window as any);
 
 /**
- * [LAYER: UTILS]
- * Production Data Sanitization Engine.
- * Ensures internal merchant data never leaks to public endpoints.
+ * Sanitizes HTML to prevent XSS attacks.
+ * Allows common formatting tags but strips scripts and event handlers.
  */
+export function sanitizeHtml(html: string): string {
+  return purify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol',
+      'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'br', 'div',
+      'table', 'thead', 'caption', 'tbody', 'tr', 'th', 'td', 'pre', 'img', 'span'
+    ],
+    ALLOWED_ATTR: [
+      'href', 'name', 'target', 'src', 'alt', 'title', 'class', 'id', 'style'
+    ],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^&#/\\?:]*(?:[?/#]|$))/i,
+    ADD_TAGS: ['iframe'], // Allow iframes for video embeds if needed, but be careful
+    ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling']
+  });
+}
 
-export const Sanitizer = {
-  /**
-   * Removes sensitive internal fields from a product for public display.
-   */
-  product(product: Product): Product {
+export class Sanitizer {
+  static product(product: Product): Product {
     const sanitized = { ...product } as any;
     delete sanitized.cost;
-    // Hide digital assets in list view
-    if (sanitized.digitalAssets) {
-      delete sanitized.digitalAssets;
-    }
-    // Remove reorder info
+    delete sanitized.digitalAssets;
     delete sanitized.reorderPoint;
     delete sanitized.reorderQuantity;
     return sanitized;
-  },
+  }
 
-  /**
-   * Sanitizes an order for the customer view.
-   * Prevents leakage of internal risk metrics and sensitive IDs.
-   */
-  order(order: Order): Order {
+  static order(order: Order): Order {
     const sanitized = { ...order } as any;
     delete sanitized.riskScore;
     delete sanitized.paymentTransactionId;
     delete sanitized.idempotencyKey;
-    
-    // Production Hardening: Include ALL post-payment statuses so digital assets
-    // are visible to customers who have completed payment regardless of fulfillment state.
+
     const isPaid = ['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started', 'partially_refunded'].includes(order.status);
-    sanitized.items = order.items.map(item => {
+    sanitized.items = order.items.map((item) => {
       const sanitizedItem = { ...item } as any;
       if (!isPaid) {
         delete sanitizedItem.digitalAssets;
@@ -45,12 +51,9 @@ export const Sanitizer = {
     });
 
     return sanitized;
-  },
+  }
 
-  /**
-   * Sanitizes a user object for public display.
-   */
-  user(user: User): Partial<User> {
+  static user(user: User): Partial<User> {
     return {
       id: user.id,
       displayName: user.displayName,
@@ -59,4 +62,4 @@ export const Sanitizer = {
       createdAt: user.createdAt
     };
   }
-};
+}

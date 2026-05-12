@@ -32,9 +32,11 @@ describe('OrderService', () => {
       getByPaymentTransactionIdTransactional: vi.fn(),
       updateStatus: vi.fn(),
       updateRiskScore: vi.fn(),
+      updateMetadata: vi.fn(),
       addFulfillmentEvent: vi.fn(),
     };
     mockProductRepo = {
+      getById: vi.fn().mockResolvedValue({ id: 'p1', price: 1000, stock: 10 }),
       batchUpdateStock: vi.fn(),
     };
     mockCartRepo = {
@@ -66,8 +68,7 @@ describe('OrderService', () => {
       mockAudit,
       mockLocker,
       undefined, // checkoutGateway
-      undefined, // shippingRepo
-      undefined  // accessRepo
+      undefined // shippingRepo
     );
   });
 
@@ -77,7 +78,7 @@ describe('OrderService', () => {
     it('should create an order from a cart', async () => {
       mockCartRepo.getByUserId.mockResolvedValue({
         userId: 'u1',
-        items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1' }]
+        items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1', imageUrl: '/p1.png' }]
       });
 
       mockOrderRepo.create.mockResolvedValue({
@@ -91,6 +92,7 @@ describe('OrderService', () => {
 
       expect(order.userId).toBe('u1');
       expect(order.total).toBeGreaterThan(0);
+      expect(mockProductRepo.batchUpdateStock).toHaveBeenCalledWith([{ id: 'p1', delta: -1 }], expect.anything());
       expect(mockOrderRepo.create).toHaveBeenCalledTimes(1);
       expect(mockCartRepo.clear).toHaveBeenCalledWith('u1', expect.anything());
     });
@@ -102,21 +104,26 @@ describe('OrderService', () => {
   });
 
   describe('finalizeOrderPayment', () => {
-    it('should update status and deduct stock', async () => {
+    it('should update status without double-deducting reserved stock', async () => {
       const mockOrder = {
         id: 'o1',
         userId: 'u1',
         status: 'pending',
         fulfillmentMethod: 'shipping',
+        metadata: { inventoryReserved: true },
         items: [{ productId: 'p1', quantity: 2 }]
       };
       mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValue(mockOrder);
 
-      const result = await orderService.finalizeOrderPayment('pi_123', { charges: { data: [{ outcome: { risk_score: 10 } }] } });
+      const result = await orderService.finalizeOrderPayment('pi_123', { status: 'succeeded', charges: { data: [{ outcome: { risk_score: 10 } }] } });
 
       expect(result.status).toBe('processing');
-      expect(mockProductRepo.batchUpdateStock).toHaveBeenCalled();
+      expect(mockProductRepo.batchUpdateStock).not.toHaveBeenCalled();
       expect(mockOrderRepo.updateStatus).toHaveBeenCalledWith('o1', 'processing', expect.anything());
+      expect(mockOrderRepo.updateMetadata).toHaveBeenCalledWith('o1', {
+        inventoryReserved: true,
+        inventoryReservationFinalized: true,
+      }, expect.anything());
     });
 
     it('should return existing order if already finalized', async () => {

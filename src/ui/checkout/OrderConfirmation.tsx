@@ -52,6 +52,7 @@ function statusStepIndex(status: Order['status']): number {
 }
 
 const STATUS_CONTENT: Record<OrderStatus, { title: string; description: string }> = {
+  draft: { title: 'Draft order', description: 'This order has not been submitted yet.' },
   pending: { title: 'We’re preparing your order', description: 'Your order is in queue and will be processed shortly.' },
   confirmed: { title: 'Order confirmed & processing', description: 'Your payment is confirmed. We are picking and packing your items.' },
   processing: { title: 'Order is being prepared', description: 'Our warehouse team is picking and packing your collection.' },
@@ -223,7 +224,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                           {item.digitalAssets?.map((asset) => (
                             <a 
                               key={asset.id} 
-                              href={`/api/downloads/${asset.id}?userId=${user?.id || order.userId}`} 
+                              href={`/api/downloads/${asset.id}`} 
                               download
                               rel="noopener noreferrer"
                               className="group flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm border border-gray-100 transition-all hover:border-primary-500 hover:shadow-md hover:-translate-y-0.5"

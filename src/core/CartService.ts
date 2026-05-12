@@ -36,7 +36,7 @@ export class CartService {
       const items = cart?.items ?? [];
 
       // Transactional product read prevents stale-read race
-      const product = await this.productRepo.getById(productId);
+      const product = await this.productRepo.getById(productId, transaction);
       if (!product) throw new ProductNotFoundError(productId);
 
       const updatedItems = addCartItem(items, product, quantity, variantId);
@@ -84,7 +84,7 @@ export class CartService {
       const items = cart?.items ?? [];
 
       // Transactional product read
-      const product = await this.productRepo.getById(productId);
+      const product = await this.productRepo.getById(productId, transaction);
       if (!product) throw new ProductNotFoundError(productId);
 
       const updatedItems = updateCartItemQuantity(items, productId, quantity, product, variantId);

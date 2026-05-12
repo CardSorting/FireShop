@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const { id: ticketId } = await params;
     const { userId, userName } = await readJsonObject(request);
     

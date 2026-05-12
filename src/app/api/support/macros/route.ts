@@ -1,21 +1,29 @@
 import { NextResponse } from 'next/server';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    await requireAdminSession(req);
     const macros = await ticketRepository.getMacros();
     return NextResponse.json(macros);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    return jsonError(err, 'Failed to load support macros');
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const data = await req.json();
-    await ticketRepository.addMacro(data);
+    await requireAdminSession(req);
+    const data = await readJsonObject(req);
+    await ticketRepository.addMacro({
+      name: requireString(data.name, 'name'),
+      content: requireString(data.content, 'content'),
+      category: requireString(data.category, 'category'),
+      slug: typeof data.slug === 'string' && data.slug.trim() ? data.slug.trim() : undefined,
+    });
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    return jsonError(err, 'Failed to save support macro');
   }
 }

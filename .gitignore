@@ -72,3 +72,4 @@ src/infrastructure/firebase/admin.ts
 # Storage
 public/storage/**/*
 !public/storage/**/.gitkeep
+dreambees-alchemist-d9b93dca6bf4.json

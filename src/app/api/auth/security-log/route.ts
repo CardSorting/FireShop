@@ -2,31 +2,34 @@ import { NextResponse } from 'next/server';
 import { getInitialServices } from '@core/container';
 import { logger } from '@utils/logger';
 import { getGeoLocation } from '@utils/geo';
+import { assertRateLimit, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
+import { validateEmail } from '@utils/validators';
 
 export async function POST(request: Request) {
   try {
-    const { action, email, details } = await request.json();
+    await assertRateLimit(request, 'auth_security_log', 5, 60_000);
+    const { action, email, details } = await readJsonObject(request);
 
-    if (!action || !email) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    const actionName = requireString(action, 'action');
+    const emailAddress = requireString(email, 'email').toLowerCase();
+    if (!validateEmail(emailAddress).valid) {
+      return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
     }
 
-    const { emailService, auditService } = getInitialServices();
+    const { auditService } = getInitialServices();
     const ip = request.headers.get('x-forwarded-for') || '0.0.0.0';
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const location = await getGeoLocation(ip);
 
-    if (action === 'password_reset_finalized') {
-      // 1. Send confirmation email
-      await emailService.sendPasswordChangedEmail(email);
-
-      // 2. Audit the success
+    if (actionName === 'password_reset_finalized') {
+      // Do not send mail based solely on client-supplied identity; this public
+      // endpoint is only for best-effort audit logging after Firebase reset.
       await auditService.record({
         action: 'auth_password_reset',
         userId: 'system',
-        userEmail: email,
-        targetId: email,
-        details: { ...details, status: 'success' },
+        userEmail: emailAddress,
+        targetId: emailAddress,
+        details: { status: 'success', method: (details as any)?.method || 'self_service_reset' },
         ip,
         userAgent,
         location,
@@ -36,8 +39,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error: any) {
-    logger.error('Security log API failed', { error: error.message });
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (error) {
+    logger.error('Security log API failed', { error: error instanceof Error ? error.message : String(error) });
+    return jsonError(error, 'Security log failed');
   }
 }

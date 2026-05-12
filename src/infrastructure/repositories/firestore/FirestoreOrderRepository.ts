@@ -298,6 +298,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
     else await updateDoc(docRef, data);
   }
 
+  async updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const data = { metadata, updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, data);
+    else await updateDoc(docRef, data);
+  }
+
   async addFulfillmentEvent(orderId: string, event: import('@domain/models').OrderFulfillmentEvent, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
     const data = { fulfillmentEvents: arrayUnion(event), updatedAt: serverTimestamp() };

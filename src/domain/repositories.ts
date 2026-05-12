@@ -21,8 +21,8 @@ export interface IProductRepository {
     limit?: number;
     cursor?: string;
   }): Promise<{ products: Product[]; nextCursor?: string }>;
-  getById(id: string): Promise<Product | null>;
-  getByHandle(handle: string): Promise<Product | null>;
+  getById(id: string, transaction?: any): Promise<Product | null>;
+  getByHandle(handle: string, transaction?: any): Promise<Product | null>;
   create(product: ProductDraft): Promise<Product>;
   update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product>;
   delete(id: string): Promise<void>;
@@ -79,6 +79,7 @@ export interface IOrderRepository {
   updateNotes(orderId: string, notes: import('./models').OrderNote[], transaction?: any): Promise<void>;
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;
   updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void>;
+  updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
   addNote?(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
   getDashboardStats(): Promise<{
@@ -136,7 +137,7 @@ export interface ILockProvider {
 
 export interface IDiscountRepository {
   getAll(): Promise<Discount[]>;
-  getById(id: string): Promise<Discount | null>;
+  getById(id: string, transaction?: any): Promise<Discount | null>;
   getByCode(code: string, transaction?: any): Promise<Discount | null>;
   create(discount: DiscountDraft): Promise<Discount>;
   update(id: string, updates: DiscountUpdate): Promise<Discount>;

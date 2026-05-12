@@ -24,9 +24,9 @@ service cloud.firestore {
     // COLLECTION RULES
     // ─────────────────────────────────────────────
 
-    // Products: Publicly readable, Admin writeable
+    // Products: Publicly readable (active only), Admin writeable
     match /products/{productId} {
-      allow read: if true;
+      allow read: if isAdmin() || (resource == null || resource.data.status == 'active');
       allow write: if isAdmin();
     }
 
@@ -51,14 +51,18 @@ service cloud.firestore {
     // Users: Owner or Admin
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow write: if isOwner(userId) || isAdmin();
+      // Prevent users from changing their own role (privilege escalation)
+      allow create: if isOwner(userId) && (!request.resource.data.keys().contains('role') || request.resource.data.role == 'customer');
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
     }
 
     // Carts: Owner only
     match /carts/{cartId} {
       allow read, write: if isAuthenticated() && (
         resource == null || resource.data.userId == request.auth.uid
-      ) && request.resource.data.userId == request.auth.uid;
+      ) && request.resource.data.userId == request.auth.uid &&
+      // Production Hardening: Prevent negative quantities in cart at the substrate layer
+      request.resource.data.items.all(item, item.quantity > 0 && item.quantity < 1000);
     }
 
     // Orders: Owner or Admin
@@ -97,7 +101,11 @@ service cloud.firestore {
         resource.data.senderId == request.auth.uid || isAdmin() || 
         get(/databases/$(database)/documents/support_tickets/$(resource.data.ticketId)).data.userId == request.auth.uid
       );
-      allow create: if isAuthenticated();
+      // Ensure users can only create messages for tickets they own
+      allow create: if isAuthenticated() && (
+        isAdmin() || 
+        get(/databases/$(database)/documents/support_tickets/$(request.resource.data.ticketId)).data.userId == request.auth.uid
+      );
     }
 
     // Inventory & Procurement: Admin only

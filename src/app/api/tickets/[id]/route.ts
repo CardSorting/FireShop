@@ -1,22 +1,22 @@
 import { NextResponse } from 'next/server';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
+import { jsonError, requireSessionUser } from '@infrastructure/server/apiGuards';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-    
-    if (!userId) return NextResponse.json({ error: 'UserId required' }, { status: 400 });
+    const user = await requireSessionUser();
 
-    const ticket = await ticketRepository.getTicketForCustomer(id, userId);
+    const ticket = user.role === 'admin'
+      ? await ticketRepository.getTicketById(id)
+      : await ticketRepository.getTicketForCustomer(id, user.id);
     
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
 
     return NextResponse.json(ticket);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    return jsonError(err, 'Failed to load support ticket');
   }
 }

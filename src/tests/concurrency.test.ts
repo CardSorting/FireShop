@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { OrderService } from '../core/OrderService';
-import { CheckoutInProgressError } from '@domain/errors';
+import { CheckoutInProgressError, InsufficientStockError } from '@domain/errors';
 
 // Mock the bridge
 vi.mock('@infrastructure/firebase/bridge', () => ({
@@ -38,12 +38,13 @@ describe('OrderService Concurrency', () => {
       getByIdempotencyKey: vi.fn().mockResolvedValue(null),
     };
     mockProductRepo = {
+      getById: vi.fn().mockResolvedValue({ id: 'p1', price: 1000, stock: 1 }),
       batchUpdateStock: vi.fn(),
     };
     mockCartRepo = {
       getByUserId: vi.fn().mockResolvedValue({
         userId: 'u1',
-        items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1' }]
+        items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1', imageUrl: '/p1.png' }]
       }),
       clear: vi.fn(),
     };
@@ -80,7 +81,6 @@ describe('OrderService Concurrency', () => {
       mockPayment,
       mockAudit,
       mockLocker,
-      undefined,
       undefined,
       undefined
     );
@@ -122,5 +122,28 @@ describe('OrderService Concurrency', () => {
     expect(order2.id).toBe('o1'); // Should be the same order
     expect(mockOrderRepo.create).toHaveBeenCalledTimes(1); // Should not have called create again if it was truly idempotent at the repo level
     // Note: The mock above is a bit simplified; real hardening is in FirestoreOrderRepository.
+  });
+
+  it('allows only one buyer to reserve the last physical item', async () => {
+    const address = { street: '123 St', city: 'City', state: 'ST', zip: '12345', country: 'US' };
+    let stock = 1;
+    mockCartRepo.getByUserId.mockImplementation(async (userId: string) => ({
+      userId,
+      items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1', imageUrl: '/p1.png' }]
+    }));
+    mockProductRepo.batchUpdateStock.mockImplementation(async (updates: Array<{ delta: number }>) => {
+      const nextStock = stock + updates.reduce((sum, update) => sum + update.delta, 0);
+      if (nextStock < 0) throw new InsufficientStockError('p1', 1, stock);
+      stock = nextStock;
+    });
+
+    const results = await Promise.allSettled([
+      orderService.initiateCheckout('buyer-1', address as any),
+      orderService.initiateCheckout('buyer-2', address as any),
+    ]);
+
+    expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter(result => result.status === 'rejected')).toHaveLength(1);
+    expect(stock).toBe(0);
   });
 });

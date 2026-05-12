@@ -4,7 +4,7 @@ import { jsonError, parseProductUpdate, readJsonObject, requireAdminSession, req
 
 export async function POST(request: Request) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const body = await readJsonObject(request);
         const { updates } = body;
 
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const body = await readJsonObject(request);
         const { ids } = body;
 

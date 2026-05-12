@@ -3,7 +3,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -19,9 +19,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await requireAdminSession();
+    const session = await requireAdminSession(request);
     const { id } = await params;
-    const body = await request.json();
+    const body = await readJsonObject(request);
     const services = await getServerServices();
     
     const collection = await services.collectionService.update(id, body, {
@@ -37,7 +37,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await requireAdminSession();
+    const session = await requireAdminSession(request);
     const { id } = await params;
     const services = await getServerServices();
     

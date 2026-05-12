@@ -3,7 +3,7 @@
  */
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,9 +23,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireAdminSession();
+    const user = await requireAdminSession(request);
     const { id } = await params;
-    const body = await request.json();
+    const body = await readJsonObject(request) as any;
     const services = await getServerServices();
 
     if (body.action === 'submit') {

@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
+import { jsonError, readJsonObject, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 export async function DELETE(
-    _request: Request,
+    request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const { id } = await params;
         const services = await getServerServices();
         await services.discountService.deleteDiscount(id, { id: user.id, email: user.email });
@@ -22,9 +22,9 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const { id } = await params;
-        const data = await request.json();
+        const data = await readJsonObject(request) as any;
         const services = await getServerServices();
         
         if (data.startsAt) data.startsAt = new Date(data.startsAt);

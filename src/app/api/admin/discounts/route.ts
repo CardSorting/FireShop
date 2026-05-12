@@ -14,7 +14,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const data = await readJsonObject(request);
         const services = await getServerServices();
         

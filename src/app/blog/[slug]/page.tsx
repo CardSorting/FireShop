@@ -4,6 +4,7 @@ import PostContent from './PostContent';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { absoluteUrl, seoDescription } from '@utils/seo';
+import { sanitizeHtml } from '@utils/sanitizer';
 import type { Author, BlogComment, KnowledgebaseArticle, Product } from '@domain/models';
 
 export const dynamic = 'force-dynamic';
@@ -53,6 +54,11 @@ export default async function BlogPostPage({ params }: Props) {
   
   if (!post) {
     notFound();
+  }
+
+  // Production Hardening: Sanitize post content on the server to prevent XSS
+  if (post.content) {
+    post.content = sanitizeHtml(post.content);
   }
   
   let comments: BlogComment[];

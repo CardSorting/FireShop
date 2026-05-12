@@ -117,14 +117,23 @@ export class FirestoreProductRepository implements IProductRepository {
     }
   }
 
-  async getById(id: string): Promise<Product | null> {
+  async getById(id: string, transaction?: any): Promise<Product | null> {
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
-    const docSnap = await getDoc(docRef);
+    const docSnap = transaction ? await transaction.get(docRef) : await getDoc(docRef);
     if (!docSnap.exists()) return null;
     return this.mapDocToProduct(docSnap.id, docSnap.data());
   }
 
-  async getByHandle(handle: string): Promise<Product | null> {
+  async getByHandle(handle: string, transaction?: any): Promise<Product | null> {
+    if (transaction) {
+      // Note: Firestore transactions do not support queries directly in the client SDK
+      // but in admin SDK they do. Our bridge handles this if passed.
+      // However, if we can't do it in a transaction, we fallback to a normal get.
+      const q = query(collection(getUnifiedDb(), this.collectionName), where('handle', '==', handle), limit(1));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+      return this.mapDocToProduct(snapshot.docs[0].id, snapshot.docs[0].data());
+    }
     const q = query(collection(getUnifiedDb(), this.collectionName), where('handle', '==', handle), limit(1));
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;

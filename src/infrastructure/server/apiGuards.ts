@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Address, JsonValue, OrderStatus, ProductStatus, ProductDraft, ProductUpdate, User, ProductSalesChannel, ProductMedia } from '@domain/models';
 import { AuthError, DomainError, OrderNotFoundError, ProductNotFoundError, UnauthorizedError } from '@domain/errors';
 import { getSessionUser } from './session';
@@ -55,6 +55,8 @@ class MemoryRateLimitStore implements RateLimitStore {
 }
 
 class FirestoreRateLimitStore implements RateLimitStore {
+    private readonly fallback = new MemoryRateLimitStore();
+
     async increment(key: string, windowMs: number): Promise<RateLimitBucket> {
         const docRef = adminDb.collection('rate_limits').doc(key.replace(/\//g, '_'));
         try {
@@ -83,8 +85,13 @@ class FirestoreRateLimitStore implements RateLimitStore {
                 { operationName: 'apiGuards.rateLimit.increment' }
             );
         } catch (e) {
-            logger.error('Rate limit transaction failed, falling back to permissive mode', e);
-            return { count: 1, resetAt: Date.now() + windowMs };
+            logger.error('Rate limit transaction failed, using emergency in-memory fallback', e);
+            try {
+                return await this.fallback.increment(`emergency:${key}`, windowMs);
+            } catch (fallbackError) {
+                logger.error('Emergency rate limit fallback failed closed', fallbackError);
+                return { count: Number.MAX_SAFE_INTEGER, resetAt: Date.now() + windowMs };
+            }
         }
     }
 }
@@ -111,6 +118,29 @@ export async function requireAdminSession(request?: Request): Promise<User & { r
     if (user.role !== 'admin') throw new UnauthorizedError();
     if (request) assertTrustedMutationOrigin(request);
     return user as User & { role: 'admin' };
+}
+
+function safeEquals(left: string, right: string): boolean {
+    const leftBuffer = Buffer.from(left);
+    const rightBuffer = Buffer.from(right);
+    return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+export function hasValidBearerToken(request: Request, secret: string | undefined): boolean {
+    if (!secret || secret.length < 32) return false;
+    const authorization = request.headers.get('authorization') ?? '';
+    if (!authorization.startsWith('Bearer ')) return false;
+    return safeEquals(authorization.slice('Bearer '.length), secret);
+}
+
+export function requireConfiguredBearerToken(request: Request, envName: string): void {
+    const secret = process.env[envName];
+    if (!secret || secret.length < 32) {
+        throw new Error(`${envName} must be configured and at least 32 characters long.`);
+    }
+    if (!hasValidBearerToken(request, secret)) {
+        throw new UnauthorizedError();
+    }
 }
 
 export async function readJsonObject(request: Request): Promise<Record<string, unknown>> {
@@ -218,22 +248,20 @@ export function assertTrustedMutationOrigin(request: Request): void {
             return;
         }
 
-        // Special case for Firebase Hosting: allow if both are from the same project
-        const isFirebaseDomain = (h: string) => h.includes('firebaseapp.com') || h.includes('web.app') || h.includes('a.run.app');
-        const projectMatch = (h: string) => h.includes('shopmore-1e34b');
-
-        if (isFirebaseDomain(cleanOriginHost) && cleanHost && (isFirebaseDomain(cleanHost) || projectMatch(cleanHost))) {
-             return;
-        }
-
+        // Production Hardening: REMOVE the wildcard Firebase domain whitelist.
+        // Allowing any *.firebaseapp.com domain allows CSRF from any other Firebase project.
+        // Instead, we only allow the specific production domain if it matches the Host header exactly.
+        
         throw new UnauthorizedError('Cross-site request origin is not allowed.');
     }
 }
 
 function clientFingerprint(request: Request): string {
-    const forwardedFor = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-    const realIp = request.headers.get('x-real-ip')?.trim();
-    const ip = forwardedFor || realIp || 'unknown-ip';
+    const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true';
+    const platformIp = trustProxyHeaders ? request.headers.get('x-appengine-user-ip')?.trim() : undefined;
+    const forwardedFor = trustProxyHeaders ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() : undefined;
+    const realIp = trustProxyHeaders ? request.headers.get('x-real-ip')?.trim() : undefined;
+    const ip = platformIp || forwardedFor || realIp || 'untrusted-ip';
     const userAgent = request.headers.get('user-agent')?.slice(0, 120) || 'unknown-agent';
     return `${ip}:${userAgent}`;
 }

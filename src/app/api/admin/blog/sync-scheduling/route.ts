@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getInitialServices } from '@core/container';
+import { hasValidBearerToken, jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 
 /**
  * API to trigger publishing of scheduled blog posts.
@@ -7,6 +8,9 @@ import { getInitialServices } from '@core/container';
  */
 export async function POST(req: NextRequest) {
   try {
+    if (!hasValidBearerToken(req, process.env.CRON_SECRET)) {
+      await requireAdminSession(req);
+    }
     const services = getInitialServices();
     const now = new Date();
     
@@ -37,6 +41,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     console.error('Scheduling sync failed:', err);
-    return NextResponse.json({ error: 'Failed to sync scheduled posts' }, { status: 500 });
+    return jsonError(err, 'Failed to sync scheduled posts');
   }
 }

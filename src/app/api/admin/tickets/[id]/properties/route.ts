@@ -1,4 +1,4 @@
-import { requireAdminSession, jsonError } from '@infrastructure/server/apiGuards';
+import { requireAdminSession, jsonError, readJsonObject } from '@infrastructure/server/apiGuards';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 
 export async function PATCH(
@@ -6,8 +6,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminSession();
-    const properties = await req.json();
+    await requireAdminSession(req);
+    const properties = await readJsonObject(req);
     const { id } = await params;
     
     await ticketRepository.updateTicketProperties(id, properties);

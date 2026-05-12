@@ -12,8 +12,12 @@ import {
 } from 'firebase/storage';
 import { getStorage } from '../firebase/firebase';
 import { randomUUID } from 'node:crypto';
+import { logger } from '@utils/logger';
 
 export type StorageFolder = 'products' | 'collections' | 'general' | 'digital-assets';
+
+const MAX_STORED_FILE_BYTES = 100 * 1024 * 1024;
+const MAX_DOWNLOAD_BYTES = 100 * 1024 * 1024;
 
 export interface StoredFile {
   id: string;
@@ -33,8 +37,11 @@ export class StorageService {
     filename: string,
     mimeType: string
   ): Promise<StoredFile> {
+    if (buffer.byteLength > MAX_STORED_FILE_BYTES) {
+      throw new Error('File exceeds maximum allowed size.');
+    }
+
     const id = randomUUID();
-    const extension = filename.split('.').pop() || '';
     const name = `${id.slice(0, 8)}-${filename}`;
     const storagePath = `${folder}/${name}`;
     
@@ -54,7 +61,7 @@ export class StorageService {
     return {
       id,
       name: filename,
-      path: downloadUrl,
+      path: folder === 'digital-assets' ? storagePath : downloadUrl,
       size: snapshot.metadata.size,
       mimeType: snapshot.metadata.contentType || mimeType
     };
@@ -87,28 +94,26 @@ export class StorageService {
    * Returns a Buffer.
    */
   static async readFile(storedPath: string): Promise<{ buffer: Buffer; mimeType: string; name: string }> {
-    // If it's a full URL, we need to get the reference from the URL
-    // For simplicity, we'll assume the storedPath is the path in the bucket or we can parse the URL
-    // In this implementation, we'll try to use the path directly if it's not a URL
-    
     let storageRef;
     if (storedPath.startsWith('http')) {
-      // If it's a URL, we'd ideally have the original path, but we can try to use refFromURL
-      // firebase/storage doesn't have refFromURL in the same way the old SDK did, 
-      // but we can just use the path if we stored it.
-      // For now, let's assume we store the download URL in the DB.
-      // To read back, we might need to fetch the URL or use the path.
-      // If we want to read it on the server, we can just fetch it!
-      const response = await fetch(storedPath);
-      const arrayBuffer = await response.arrayBuffer();
+      const url = new URL(storedPath);
+      const allowedDomains = ['firebasestorage.googleapis.com', 'shopmore-1e34b.firebasestorage.app'];
+      if (!allowedDomains.some(d => url.hostname.endsWith(d))) {
+        logger.warn(`[Forensic] Rejected asset read from untrusted external domain: ${url.hostname}`);
+        throw new Error('Untrusted asset source.');
+      }
+
+      const encodedPath = url.pathname.split('/o/')[1]?.split('/')[0];
+      if (!encodedPath) throw new Error('Invalid Firebase Storage URL.');
+      const objectPath = decodeURIComponent(encodedPath);
+      storageRef = ref(getStorage(), objectPath);
+      const arrayBuffer = await getBytes(storageRef, MAX_DOWNLOAD_BYTES);
       const buffer = Buffer.from(arrayBuffer);
-      const contentType = response.headers.get('content-type') || 'application/octet-stream';
-      const name = storedPath.split('/').pop()?.split('?')[0] || 'file';
-      
-      return { buffer, mimeType: contentType, name };
+      const name = objectPath.split('/').pop() || 'file';
+      return { buffer, mimeType: 'application/octet-stream', name };
     } else {
       storageRef = ref(getStorage(), storedPath);
-      const arrayBuffer = await getBytes(storageRef);
+      const arrayBuffer = await getBytes(storageRef, MAX_DOWNLOAD_BYTES);
       const buffer = Buffer.from(arrayBuffer);
       const name = storedPath.split('/').pop() || 'file';
       return { buffer, mimeType: 'application/octet-stream', name };

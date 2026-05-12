@@ -53,6 +53,7 @@ import {
   deriveEstimatedDeliveryDate,
   deriveTrackingUrl,
   assertValidOrderStatusTransition,
+  coalesceStockUpdates,
   formatCents
 } from '@domain/rules';
 import { AuditService } from './AuditService';
@@ -90,6 +91,8 @@ export class OrderService {
     { id: '2', name: 'Bulk Freight', conditions: { minWeightLbs: 10 }, preferredCarrier: 'UPS', preferredService: 'Ground', priority: 20 },
     { id: '3', name: 'High Value Security', conditions: { minValueCents: 50000 }, preferredCarrier: 'FedEx', preferredService: 'Home Delivery', priority: 30 }
   ];
+
+  private readonly RESERVATION_TTL_MS = 15 * 60 * 1000;
 
   /**
    * Automatically identifies the optimal carrier based on predefined business rules.
@@ -197,10 +200,38 @@ export class OrderService {
         const cart = await this.cartRepo.getByUserId(userId, transaction);
         if (!cart || cart.items.length === 0) throw new CartEmptyError();
         
+        // Production Hardening: Validate cart items server-side to prevent negative quantity hijacking
+        assertValidOrderItems(cart.items);
+        
         const subtotal = calculateCartTotal(cart.items);
+        
+        // 2. Production Hardening: Verify Prices (Prevent Stale Price Hijacking)
+        // We re-fetch current prices from the database within the transaction
+        // to ensure the user pays the actual current price, not a snapshotted one.
+        for (const item of cart.items) {
+          const product = await this.productRepo.getById(item.productId, transaction);
+          if (!product) throw new Error(`Product ${item.name} is no longer available.`);
+          
+          let currentPrice = product.price;
+          if (item.variantId) {
+            const variant = product.variants?.find(v => v.id === item.variantId);
+            if (!variant) throw new Error(`Variant for ${item.name} is no longer available.`);
+            currentPrice = variant.price;
+          }
+
+          if (currentPrice !== item.priceSnapshot) {
+            logger.warn('Price mismatch detected during checkout', { 
+              productId: item.productId, 
+              cartPrice: item.priceSnapshot, 
+              currentPrice 
+            });
+            throw new Error(`The price for ${item.name} has changed. Please refresh your cart.`);
+          }
+        }
+
         let discountAmount = 0, validDiscountCode: string | undefined, isFreeShipping = false;
 
-        // 2. Validate & Increment Discount (Atomic)
+        // 3. Validate & Increment Discount (Atomic)
         if (discountCode) {
           const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
           const val = await discountService.validateDiscount(discountCode, subtotal, userId, transaction);
@@ -221,7 +252,20 @@ export class OrderService {
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
-        // 4. Create Order as PENDING (Atomic via Repository Hardening)
+        const physicalItems = cart.items.filter(item => !item.isDigital);
+        const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
+          id: item.productId,
+          variantId: item.variantId,
+          delta: -item.quantity
+        })));
+
+        if (stockUpdates.length > 0) {
+          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+        }
+
+        const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
+
+        // 4. Create Order as PENDING with an atomic inventory reservation.
         // PRODUCTION HARDENING: NO payment calls inside transactions. External network I/O
         // risks transaction timeout (Firestore max ~15s). Payment is processed in Phase 2.
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -264,7 +308,12 @@ export class OrderService {
             description: 'Order received, pending payment verification.', 
             at: new Date() 
           }],
-          metadata: {}
+          metadata: {
+            inventoryReserved: stockUpdates.length > 0,
+            inventoryReservationReleased: false,
+            inventoryReservationFinalized: false,
+            inventoryReservationExpiresAt: reservationExpiresAt,
+          }
         };
 
         const createdOrder = await this.orderRepo.create(orderData, transaction);
@@ -332,6 +381,9 @@ export class OrderService {
 
   async finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
     const db = getUnifiedDb();
+    if (stripePi && stripePi.status && stripePi.status !== 'succeeded') {
+      throw new PaymentFailedError('Cannot finalize an order for a payment that has not succeeded.');
+    }
     
     try {
       // ATOMIC TRANSACTION: Check Status + Inventory + Order Status + Audit + Cart Clear
@@ -361,21 +413,19 @@ export class OrderService {
         }
 
         // 3. Deduct Inventory (Transactional) — Physical items ONLY
-        // Production Hardening: Digital items have no physical stock to deduct.
-        // Deducting stock for digital items corrupts inventory counts.
         const physicalItems = order.items.filter(item => !item.isDigital);
-        if (physicalItems.length > 0) {
-          const stockUpdates = physicalItems.map(item => ({
-            id: item.productId,
-            variantId: item.variantId,
-            delta: -item.quantity
-          }));
-          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+        const hasReservation = Boolean(order.metadata?.inventoryReserved);
+        if (physicalItems.length > 0 && !hasReservation) {
+          throw new PaymentFailedError('Cannot finalize physical order without an inventory reservation.');
         }
 
         // 4. Update Order Status & Risk Score (Transactional)
         await this.orderRepo.updateStatus(order.id, nextStatus, transaction);
         await this.orderRepo.updateRiskScore(order.id, riskScore, transaction);
+        await this.orderRepo.updateMetadata(order.id, {
+          ...(order.metadata || {}),
+          inventoryReservationFinalized: hasReservation,
+        }, transaction);
         
         // 5. Record Forensic Audit (Transactional)
         await this.audit.recordWithTransaction(transaction, {
@@ -480,6 +530,9 @@ export class OrderService {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
+    if (status === 'cancelled') {
+      await this.releaseInventoryReservation(order);
+    }
     await this.orderRepo.updateStatus(id, status);
     
     // Production Hardening: Free up discount usage if order is cancelled or refunded
@@ -538,7 +591,10 @@ export class OrderService {
     const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
     logger.info(`[OrderService] Cleaning up ${orders.length} expired pending orders (cutoff: ${expirationMinutes}m)`);
     for (const order of orders) {
-      await this.orderRepo.updateStatus(order.id, 'cancelled');
+      await this.updateOrderStatus(order.id, 'cancelled', {
+        id: 'system',
+        email: 'system@dreambees.art'
+      });
       // Production Hardening: Audit trail for automated cancellations
       await this.audit.record({
         userId: 'system',
@@ -685,5 +741,27 @@ export class OrderService {
     // Production Hardening: Return the full paginated result instead of stripping nextCursor.
     // Dropping nextCursor prevents callers from paginating to subsequent pages.
     return this.orderRepo.getByUserId(userId, options);
+  }
+
+  private async releaseInventoryReservation(order: Order): Promise<void> {
+    if (!order.metadata?.inventoryReserved || order.metadata.inventoryReservationReleased) return;
+
+    const stockUpdates = coalesceStockUpdates(order.items
+      .filter(item => !item.isDigital)
+      .map(item => ({
+        id: item.productId,
+        variantId: item.variantId,
+        delta: item.quantity
+      })));
+
+    if (stockUpdates.length > 0) {
+      await this.productRepo.batchUpdateStock(stockUpdates);
+    }
+
+    await this.orderRepo.updateMetadata(order.id, {
+      ...(order.metadata || {}),
+      inventoryReservationReleased: true,
+      inventoryReservationReleasedAt: new Date().toISOString(),
+    });
   }
 }

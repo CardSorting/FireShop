@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await requireAdminSession();
+    const session = await requireAdminSession(request);
     const body = await readJsonObject(request);
     const services = await getServerServices();
     

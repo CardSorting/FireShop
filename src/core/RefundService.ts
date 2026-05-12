@@ -8,6 +8,7 @@ import {
 } from '@domain/models';
 import { OrderNotFoundError } from '@domain/errors';
 import { assertValidOrderStatusTransition } from '@domain/rules';
+import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 import { AuditService } from './AuditService';
 import { logger } from '@utils/logger';
 
@@ -32,6 +33,9 @@ export class RefundService {
     if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error('Refund amount must be a positive number.');
     }
+    if (order.total <= 0) {
+        throw new Error('This order has no refundable balance.');
+    }
     const safeAmount = Math.min(Math.trunc(amount), order.total);
 
     // Production Hardening: Determine full vs partial refund
@@ -43,11 +47,15 @@ export class RefundService {
 
     const result = await this.payment.refundPayment(order.paymentTransactionId, safeAmount);
     if (result.success) {
-        await this.orderRepo.updateStatus(orderId, nextStatus as any);
+        // Production Hardening: Perform all post-payment state mutations ATOMICALLY 
+        // within a single Firestore transaction. This prevents partial state corruption
+        // if the server crashes mid-execution.
+        await runTransaction(getUnifiedDb(), async (transaction: any) => {
+            // 1. Update Order Status
+            await this.orderRepo.updateStatus(orderId, nextStatus as any, transaction);
 
-        // Production Hardening: Restock inventory on full refund (physical items only)
-        if (isFullRefund && this.productRepo) {
-            try {
+            // 2. Restock inventory (physical items only)
+            if (isFullRefund && this.productRepo) {
                 const restockUpdates = order.items
                     .filter(item => !item.isDigital)
                     .map(item => ({
@@ -56,33 +64,29 @@ export class RefundService {
                         delta: item.quantity // positive delta = restock
                     }));
                 if (restockUpdates.length > 0) {
-                    await this.productRepo.batchUpdateStock(restockUpdates);
-                    logger.info(`[RefundService] Restocked ${restockUpdates.length} products for order ${orderId}`);
+                    await this.productRepo.batchUpdateStock(restockUpdates, transaction);
                 }
-            } catch (restockErr) {
-                logger.error(`CRITICAL: Refund succeeded but inventory restock failed for order ${orderId}`, restockErr);
-                // Don't throw — the refund itself succeeded
             }
-        }
-        // Production Hardening: Rollback discount usage if fully refunded
-        if (isFullRefund && order.discountCode && this.discountRepo) {
-            try {
-                const discount = await this.discountRepo.getByCode(order.discountCode);
+
+            // 3. Rollback discount usage
+            if (isFullRefund && order.discountCode && this.discountRepo) {
+                const discount = await this.discountRepo.getByCode(order.discountCode, transaction);
                 if (discount) {
-                    await this.discountRepo.decrementUsage(discount.id);
-                    logger.info(`[RefundService] Decremented discount usage for ${discount.code}`);
+                    await this.discountRepo.decrementUsage(discount.id, transaction);
                 }
-            } catch (discountErr) {
-                logger.error(`CRITICAL: Failed to rollback discount usage for order ${orderId}`, discountErr);
             }
-        }
-        await this.audit.record({
-            userId: actor.id,
-            userEmail: actor.email,
-            action: 'order_refunded',
-            targetId: orderId,
-            details: { amount: safeAmount, status: nextStatus, isFullRefund }
+
+            // 4. Record Audit (Transactional)
+            await this.audit.recordWithTransaction(transaction, {
+                userId: actor.id,
+                userEmail: actor.email,
+                action: 'order_refunded',
+                targetId: orderId,
+                details: { amount: safeAmount, status: nextStatus, isFullRefund }
+            });
         });
+        
+        logger.info(`[RefundService] Refund processed and state synchronized for order ${orderId}`);
     } else {
         // Production Hardening: Audit the failed refund attempt for forensic traceability
         await this.audit.record({

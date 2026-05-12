@@ -3,6 +3,7 @@ import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, requireSessionUser, requireString } from '@infrastructure/server/apiGuards';
 import { StripeService } from '@infrastructure/services/StripeService';
 import { logger } from '@utils/logger';
+import { DomainError, OrderNotFoundError, UnauthorizedError } from '@domain/errors';
 
 /**
  * [LAYER: INTERFACE]
@@ -21,22 +22,22 @@ export async function GET(request: Request) {
     
     // 1. Fetch PI from Stripe for authoritative status
     const pi = await stripeService.getPaymentIntent(paymentIntentId);
+    const order = await services.orderRepo.getByPaymentTransactionId(paymentIntentId);
+    if (!order) throw new OrderNotFoundError(paymentIntentId);
+    if (order.userId !== user.id) throw new UnauthorizedError();
+    if (pi.metadata?.orderId && pi.metadata.orderId !== order.id) {
+      throw new DomainError('Payment intent metadata does not match this order.');
+    }
     
     if (pi.status === 'succeeded') {
         // 2. Authoritatively finalize if not already done by webhook
         // (OrderService.finalizeOrderPayment is idempotent)
-        const order = await services.orderService.finalizeOrderPayment(paymentIntentId, pi);
-        
-        // Production Hardening: Verify the calling user owns this order.
-        // Without this check, any authenticated user could verify/finalize any order.
-        if (order.userId !== user.id) {
-          return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-        }
+        const finalizedOrder = await services.orderService.finalizeOrderPayment(paymentIntentId, pi);
         
         return NextResponse.json({
             success: true,
-            orderId: order.id,
-            status: order.status
+            orderId: finalizedOrder.id,
+            status: finalizedOrder.status
         });
     }
 

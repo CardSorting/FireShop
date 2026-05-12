@@ -4,7 +4,7 @@ import { jsonError, readJsonObject, requireAdminSession, requireOrderStatus, req
 
 export async function PATCH(request: Request) {
     try {
-        const user = await requireAdminSession();
+        const user = await requireAdminSession(request);
         const body = await readJsonObject(request);
         const { ids } = body;
         const status = requireOrderStatus(body.status);

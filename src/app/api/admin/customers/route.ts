@@ -18,9 +18,9 @@ export async function GET() {
     }
 }
 
-export async function POST(_request: Request) {
+export async function POST(request: Request) {
     try {
-        await requireAdminSession();
+        await requireAdminSession(request);
         return await getCustomerSummariesResponse();
     } catch (error) {
         return jsonError(error, 'Failed to fetch customer summaries');

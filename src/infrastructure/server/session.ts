@@ -15,6 +15,7 @@ type SessionPayload = {
     version: typeof SESSION_VERSION;
     issuedAt: number;
     expiresAt: number;
+    lastVerified: number;
     user: Omit<User, 'createdAt'> & { createdAt: string };
 };
 
@@ -59,8 +60,10 @@ function isValidSessionPayload(value: unknown): value is SessionPayload {
         && candidate.version === SESSION_VERSION
         && typeof candidate.issuedAt === 'number'
         && typeof candidate.expiresAt === 'number'
+        && typeof candidate.lastVerified === 'number'
         && Number.isFinite(candidate.issuedAt)
         && Number.isFinite(candidate.expiresAt)
+        && Number.isFinite(candidate.lastVerified)
         && candidate.issuedAt > 0
         && candidate.expiresAt > candidate.issuedAt
         && candidate.issuedAt <= Date.now() + MAX_SESSION_CLOCK_SKEW_MS
@@ -80,6 +83,7 @@ function encodeSession(user: User): string {
         version: SESSION_VERSION,
         issuedAt,
         expiresAt: issuedAt + SESSION_TTL_SECONDS * 1000,
+        lastVerified: issuedAt,
         user: { ...user, createdAt: user.createdAt.toISOString() },
     } satisfies SessionPayload)).toString('base64url');
     
@@ -93,7 +97,7 @@ function encodeSession(user: User): string {
     return encoded;
 }
 
-function decodeSession(value: string): User | null {
+async function decodeSession(value: string): Promise<User | null> {
     const [payload, signature] = value.split('.');
     if (!payload || !signature) {
         logger.warn('Session cookie format invalid (missing payload or signature)');
@@ -133,6 +137,33 @@ function decodeSession(value: string): User | null {
             logger.warn('Session issued too long ago');
             return null;
         }
+
+        // Production Hardening: Re-verify user role from database if verification is stale (> 1 hour)
+        // This prevents privilege persistence for demoted admins.
+        const VERIFICATION_TTL_MS = 60 * 60 * 1000;
+        if (Date.now() - parsed.lastVerified > VERIFICATION_TTL_MS) {
+            const { adminDb } = await import('@infrastructure/firebase/admin');
+            const userSnap = await adminDb.collection('users').doc(parsed.user.id).get();
+            if (!userSnap.exists) {
+                logger.warn('Session user no longer exists in database');
+                return null;
+            }
+            const data = userSnap.data()!;
+            if (data.role !== parsed.user.role) {
+                logger.info('User role changed in database, updating session', { 
+                    userId: parsed.user.id, 
+                    oldRole: parsed.user.role, 
+                    newRole: data.role 
+                });
+                // Update the user object in the session
+                parsed.user.role = data.role;
+            }
+            parsed.lastVerified = Date.now();
+            // Note: We'd ideally re-sign the cookie here, but setSessionUser is async 
+            // and usually called from setSessionUser. We'll return the updated user 
+            // and the caller can decide whether to refresh the cookie.
+        }
+
         return { ...parsed.user, createdAt: new Date(parsed.user.createdAt) };
     } catch (e) {
         logger.error('Failed to decode session payload', e);

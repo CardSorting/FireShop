@@ -69,7 +69,7 @@ export class WishlistService {
 
   async deleteWishlist(userId: string, userEmail: string, id: string): Promise<void> {
     const wishlist = await this.wishlistRepo.getById(id);
-    if (!wishlist || wishlist.isDefault) {
+    if (!wishlist || wishlist.userId !== userId || wishlist.isDefault) {
       throw new Error('Cannot delete default wishlist or non-existent wishlist');
     }
 

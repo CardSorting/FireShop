@@ -1,18 +1,19 @@
 import { NextResponse } from 'next/server';
 import { knowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
+import { assertRateLimit, jsonError, optionalString, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
+import { DomainError } from '@domain/errors';
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { email, source } = body;
-    
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
-    }
+    await assertRateLimit(req, 'crm_subscribe', 10, 60_000);
+    const body = await readJsonObject(req);
+    if (body.website || body.companyUrl) throw new DomainError('Invalid subscription request.');
+    const email = requireString(body.email, 'email').toLowerCase();
+    const source = optionalString(body.source, 'source') || 'direct';
 
-    await knowledgebaseRepository.subscribe(email, source || 'direct');
+    await knowledgebaseRepository.subscribe(email, source);
     return NextResponse.json({ success: true });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return jsonError(err, 'Failed to subscribe');
   }
 }

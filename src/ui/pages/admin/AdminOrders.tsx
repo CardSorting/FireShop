@@ -54,6 +54,7 @@ import {
 } from '../../components/admin/AdminComponents';
 
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
+  draft: ['draft', 'pending', 'cancelled'],
   pending: ['pending', 'confirmed', 'cancelled'],
   confirmed: ['confirmed', 'processing', 'cancelled'],
   processing: ['processing', 'shipped', 'cancelled', 'ready_for_pickup', 'delivery_started'],

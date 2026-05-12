@@ -2,14 +2,22 @@ import { NextResponse } from 'next/server';
 import { getInitialServices } from '@core/container';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { assertRateLimit, hasValidBearerToken, jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+
+async function requireBlogGeneratorAccess(req: Request): Promise<void> {
+  if (hasValidBearerToken(req, process.env.CRON_SECRET)) return;
+  await requireAdminSession(req);
+}
 
 export async function POST(req: Request) {
   try {
-    const { topic, categoryId, seriesId, authorId } = await req.json();
-
-    if (!topic) {
-      return NextResponse.json({ error: 'Topic is required' }, { status: 400 });
-    }
+    await requireBlogGeneratorAccess(req);
+    await assertRateLimit(req, 'admin_blog_generate', 3, 60_000);
+    const body = await readJsonObject(req);
+    const topic = requireString(body.topic, 'topic');
+    const categoryId = typeof body.categoryId === 'string' ? body.categoryId.trim() : undefined;
+    const seriesId = typeof body.seriesId === 'string' ? body.seriesId.trim() : undefined;
+    const authorId = typeof body.authorId === 'string' ? body.authorId.trim() : undefined;
 
     const services = getInitialServices();
     let text = '';
@@ -119,7 +127,7 @@ export async function POST(req: Request) {
       title: data.title,
       slug: data.slug + '-' + Math.floor(Math.random() * 1000), // Ensure uniqueness
       excerpt: data.excerpt,
-      content: data.content,
+      content: data.content, // We will sanitize this below
       tags: data.tags,
       type: 'blog',
       status: 'draft',
@@ -135,6 +143,14 @@ export async function POST(req: Request) {
       updatedAt: new Date(),
     };
 
+    // Production Hardening: Sanitize AI-generated content before saving to DB
+    // This prevents XSS if the AI model generates malicious scripts or if 
+    // a prompt injection attack forces it to do so.
+    const { sanitizeHtml } = await import('@utils/sanitizer');
+    if (article.content) article.content = sanitizeHtml(article.content);
+    if (article.excerpt) article.excerpt = sanitizeHtml(article.excerpt);
+    if (article.title) article.title = sanitizeHtml(article.title);
+
     // Save using the repository
     await services.knowledgebaseRepository.saveArticle(article as any);
 
@@ -149,9 +165,6 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('Content Generation Error:', error);
-    return NextResponse.json({ 
-      error: error.message,
-      suggestion: error.code === 403 ? 'Ensure Vertex AI API is enabled and your account has "Vertex AI User" role, or provide GEMINI_API_KEY in .env' : undefined
-    }, { status: 500 });
+    return jsonError(error, 'Content generation failed');
   }
 }

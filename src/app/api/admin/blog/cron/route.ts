@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getInitialServices } from '@core/container';
+import { jsonError, requireConfiguredBearerToken } from '@infrastructure/server/apiGuards';
 
 /**
  * [LAYER: API]
@@ -20,15 +20,8 @@ const NICHES = [
 
 export async function GET(req: Request) {
   try {
-    // 1. Security Check: Verify Cron Secret
-    const authHeader = req.headers.get('authorization');
-    const secret = process.env.CRON_SECRET || 'dream-bees-cron-secret-2026';
-    
-    // Support both Bearer and simple header for flexibility in Scheduler
-    if (authHeader !== `Bearer ${secret}` && req.headers.get('x-cron-secret') !== secret) {
-      console.warn('[Cron] Unauthorized attempt blocked');
-      return new Response('Unauthorized', { status: 401 });
-    }
+    requireConfiguredBearerToken(req, 'CRON_SECRET');
+    const secret = process.env.CRON_SECRET!;
 
     // 2. Select Niche and Topic
     const niche = NICHES[Math.floor(Math.random() * NICHES.length)];
@@ -48,7 +41,8 @@ export async function GET(req: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // We might need to pass a bypass for auth if the generate endpoint is protected
+        Authorization: `Bearer ${secret}`,
+        Origin: new URL(baseUrl).origin,
       },
       body: JSON.stringify({
         topic: topic,
@@ -71,6 +65,6 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error('[Cron] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(error, 'Cron blog automation failed');
   }
 }

@@ -42,6 +42,7 @@ type DateWindow = '30d' | '90d' | 'all';
 const STATUS_FILTERS: StatusFilter[] = ['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'ready_for_pickup', 'delivery_started'];
 
 const STATUS_UI: Record<OrderStatus, { badge: string; dot: string; label: string }> = {
+  draft: { badge: 'bg-gray-50 text-gray-600 border-gray-100', dot: 'bg-gray-400', label: 'Draft' },
   pending: { badge: 'bg-amber-50 text-amber-700 border-amber-100', dot: 'bg-amber-500', label: 'Order placed' },
   confirmed: { badge: 'bg-blue-50 text-blue-700 border-blue-100', dot: 'bg-blue-500', label: 'Confirmed' },
   processing: { badge: 'bg-indigo-50 text-indigo-700 border-indigo-100', dot: 'bg-indigo-500', label: 'Processing' },

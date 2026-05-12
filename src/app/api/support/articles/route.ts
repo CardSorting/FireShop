@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { knowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
+import { jsonError, parseBoundedLimit, requireAdminSession } from '@infrastructure/server/apiGuards';
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
@@ -8,14 +9,19 @@ export async function GET(req: Request) {
     const categoryId = searchParams.get('categoryId');
     const queryStr = searchParams.get('query');
     const type = searchParams.get('type') as 'article' | 'blog' | null;
-    const status = searchParams.get('status') as 'published' | 'draft' | 'all' | null;
+    const requestedStatus = searchParams.get('status') as 'published' | 'draft' | 'all' | null;
+    const isAdminStatus = requestedStatus === 'draft' || requestedStatus === 'all';
+    if (isAdminStatus) {
+      await requireAdminSession();
+    }
+    const status = isAdminStatus ? requestedStatus : 'published';
 
     if (queryStr) {
       const results = await knowledgebaseRepository.searchArticles(queryStr);
       return NextResponse.json(results);
     }
 
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+    const limit = parseBoundedLimit(searchParams.get('limit'), 20, 50);
     const cursor = searchParams.get('cursor') || undefined;
 
     const result = await knowledgebaseRepository.getArticles({
@@ -27,7 +33,7 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json(result);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return jsonError(err, 'Failed to load support articles');
   }
 }

@@ -45,6 +45,7 @@ import { OrderManagementService } from './OrderManagementService';
 import { OrderQueryService } from './OrderQueryService';
 import { RefundService } from './RefundService';
 import { RateLimitService } from './RateLimitService';
+import { assertMultiStoreNotEnabled, SINGLE_STORE_ID } from './TenantContext';
 import type {
   IProductRepository,
   ICartRepository,
@@ -133,6 +134,7 @@ function createRepositories() {
  * FACTORY PATTERN: Creates fresh service instances
  */
 export function getServiceContainer() {
+  assertMultiStoreNotEnabled();
   const repos = createRepositories();
   const authProvider = new FirebaseAuthAdapter();
   const authService = new AuthService(authProvider, new AuditService());
@@ -175,6 +177,7 @@ export function getServiceContainer() {
     knowledgebaseRepository: repos.kbRepo,
     emailService: new BrevoEmailService(),
     rateLimitService: new RateLimitService(),
+    tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };
 }
 
@@ -183,6 +186,7 @@ export function getServiceContainer() {
  * SINGLETON PATTERN: Gets global cached services (Production Default)
  */
 export function getInitialServices() {
+  assertMultiStoreNotEnabled();
   const getAuditService = () => {
     if (!auditServiceInstance) auditServiceInstance = new AuditService();
     return auditServiceInstance;
@@ -300,5 +304,6 @@ export function getInitialServices() {
       if (!rateLimitServiceInstance) rateLimitServiceInstance = new RateLimitService();
       return rateLimitServiceInstance;
     })(),
+    tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };
 }

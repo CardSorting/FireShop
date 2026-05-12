@@ -12,10 +12,10 @@ const nextConfig: NextConfig = {
     reactStrictMode: true,
     poweredByHeader: false,
     typescript: {
-        ignoreBuildErrors: true,
+        ignoreBuildErrors: false,
     },
     eslint: {
-        ignoreDuringBuilds: true,
+        ignoreDuringBuilds: false,
     },
 
     experimental: {
@@ -84,4 +84,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

@@ -408,7 +408,7 @@ function AssetDetailOverlay({ asset, product, userId, onClose }: { asset: any, p
 
                <div className="flex flex-col sm:flex-row gap-4">
                   <a 
-                    href={`/api/downloads/${asset.id}?userId=${userId}`}
+                    href={`/api/downloads/${asset.id}`}
                     download
                     className="flex-1 flex items-center justify-center gap-3 py-6 bg-gray-900 text-white rounded-4xl text-sm font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-gray-200"
                   >

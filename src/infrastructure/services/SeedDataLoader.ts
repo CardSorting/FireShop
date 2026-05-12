@@ -116,10 +116,10 @@ const INITIAL_CATALOG: ProductDraft[] = [
 ];
 
 const INITIAL_CUSTOMERS = [
-  { email: 'admin@dreambees.art', password: 'Admin-Secure-Password123', displayName: 'System Admin', role: 'admin' as const },
-  { email: 'alchemist@dreambeesai.com', password: 'Admin-Secure-Password123', displayName: 'Alchemist Admin', role: 'admin' as const },
-  { email: 'ash.ketchum@palette.town', password: 'Pikapika-password123', displayName: 'Ash Ketchum', role: 'customer' as const },
-  { email: 'misty.williams@cerulean.city', password: 'Starmie-password123', displayName: 'Misty Williams', role: 'customer' as const },
+  { email: 'admin@dreambees.art', passwordEnv: 'SEED_ADMIN_PASSWORD', displayName: 'System Admin', role: 'admin' as const },
+  { email: 'alchemist@dreambeesai.com', passwordEnv: 'SEED_ALCHEMIST_PASSWORD', displayName: 'Alchemist Admin', role: 'admin' as const },
+  { email: 'ash.ketchum@palette.town', displayName: 'Ash Ketchum', role: 'customer' as const },
+  { email: 'misty.williams@cerulean.city', displayName: 'Misty Williams', role: 'customer' as const },
 ];
 
 const KB_DATA = {
@@ -345,9 +345,15 @@ export async function seedCustomers(): Promise<number> {
         uid = userRecord.uid;
       } catch (authErr: any) {
         if (authErr.code === 'getAuth()/user-not-found') {
+          const password = customer.passwordEnv
+            ? process.env[customer.passwordEnv]
+            : crypto.randomUUID() + crypto.randomUUID();
+          if (!password) {
+            throw new Error(`${customer.passwordEnv} must be set to seed admin accounts.`);
+          }
           const userRecord = await adminAuth.createUser({
             email: customer.email,
-            password: customer.password,
+            password,
             displayName: customer.displayName,
           });
           uid = userRecord.uid;
