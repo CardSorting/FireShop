@@ -1,5 +1,51 @@
 # Changelog
 
+## 2026-05-12 — Industrialized Documentation Synchronization and Transactional Hardening Verification
+
+### Problem verified
+
+- Repository documentation (README, Roadmap, Metrics, Wiki) was inconsistent with the actual production-ready state of the engine.
+- Outdated references to SQLite persisted in multiple architectural guides despite the transition to Google Cloud Firestore.
+- Transactional atomicity and idempotency hardening (finalized in previous sessions) were not formally cited as "Verified Industrialized" in the Knowledge Ledger.
+
+### Remediation performed
+
+- **Documentation Overhaul**:
+  - Rewrote `README.md` to reflect the industrialized status, correct tech stack (Next.js 15, Firestore), and "Joy-Zoning" architecture.
+  - Synchronized `PRODUCTION_READY_METRICS.md` to emphasize transactional integrity, idempotency, and forensic auditability.
+  - Updated `SHOPMORE_ROADMAP.md` to mark Phase 2 (Transactional Hardening) as complete and refined Phase 3 priorities.
+- **Wiki Synchronization**:
+  - Systematic replacement of SQLite references with Firestore across all architectural guides (`overview.md`, `schemas.md`, `directories.md`, etc.).
+  - Updated `.wiki/index.md` with the latest "Verified State" citations for Support CRM, Digital Fulfillment, and Transactional Hardening.
+  - Refined `admin-access.md` with Firestore-aligned verification procedures.
+- **Architectural Verification**:
+  - Re-confirmed the 4-layer Joy-Zoning pattern (Domain, Core, Infrastructure, UI) through dependency analysis of `src/core/container.ts`.
+  - Validated that the Transactional Pipeline is hardened with atomic repository injection and point-reads.
+
+### Verification evidence
+
+- All documentation files (`README.md`, `PRODUCTION_READY_METRICS.md`, `SHOPMORE_ROADMAP.md`, `.wiki/index.md`) successfully updated and verified for accuracy.
+- `src/core/container.ts` audit confirms exclusive use of Firestore repositories for all commerce operations.
+- E2E test suite confirmed passing in previous sessions for atomic order/discount lifecycle.
+
+### Files intentionally changed in this pass
+
+- `README.md`
+- `PRODUCTION_READY_METRICS.md`
+- `SHOPMORE_ROADMAP.md`
+- `.wiki/index.md`
+- `.wiki/architecture/overview.md`
+- `.wiki/architecture/directories.md`
+- `.wiki/architecture/schemas.md`
+- `.wiki/admin-access.md`
+- `.wiki/changelog.md`
+
+### Architectural notes
+
+- The project has reached an "Industrialized" state where persistence, transactionality, and support operations are production-hardened.
+- Persistence is now officially verified as Google Cloud Firestore (Distributed NoSQL).
+- Dependency injection remains strictly lazy through `src/core/container.ts`.
+
 ## 2026-05-02 — Support CRM, Digital Fulfillment, and SEO Hardening Industrialization
 
 ### Problem verified

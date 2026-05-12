@@ -24,6 +24,6 @@ The request lifecycle is designed to be deterministic and forensic-ready.
 
 ## Core Philosophy: Operational Sovereignty
 
-- **Data Ownership**: All transactional and customer data is stored in a sovereign SQLite database, ensuring full privacy and portability.
+- **Data Ownership**: All transactional and customer data is stored in a sovereign Firestore database, ensuring full privacy and cloud-native scalability.
 - **Aesthetic Neutrality**: The UI is designed to be a high-performance blank canvas, allowing merchants to project their branding without engine-level interference.
 - **Headless-First**: Every action in the Admin Panel is backed by a clean, documented API route, enabling future headless integrations.

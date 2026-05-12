@@ -1,6 +1,6 @@
 # Data Schemas & Contracts
 
-ShopMore utilizes a unified data model that flows from the SQLite substrate up to the React UI.
+DreamBeesArt utilizes a unified data model that flows from the Firestore substrate up to the React UI.
 
 ## Core Domain Models
 
@@ -23,17 +23,16 @@ Defined in `src/domain/models.ts`.
 - `messages`: Thread of agent and customer interactions.
 - `assigneeId`, `assigneeName`.
 
-## Persistence Layer (SQLite)
+## Persistence Layer (Firestore)
 
-Defined in `src/infrastructure/sqlite/schema.ts` and managed via Kysely.
+Firestore is used as the primary transactional database, organized into collections:
 
-### Primary Tables
-- **`products`**: Central catalog with indexes on `handle` and `sku`.
-- **`orders`**: Header-level order data.
-- **`order_items`**: Line-item details with price snapshots.
-- **`support_tickets`**: CRM ticket data.
-- **`support_messages`**: Threaded message storage.
-- **`inventory_levels`**: Location-based stock tracking.
+### Primary Collections
+- **`products`**: Central catalog with optimized queries on `handle` and `sku`.
+- **`orders`**: Transactional order data with embedded line items.
+- **`support_tickets`**: CRM ticket data with threaded messages.
+- **`inventory_levels`**: Scalable stock tracking across locations.
+- **`settings`**: Dynamic configuration and engine parameters.
 
 ## Repository Contracts
 

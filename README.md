@@ -1,6 +1,6 @@
 # DreamBeesArt: The Sovereign Commerce Engine
 
-DreamBeesArt is a neutral, high-performance, and deeply customizable e-commerce engine designed for merchants who prioritize data ownership and operational sovereignty. Built on a hardened TypeScript substrate, DreamBeesArt provides an industry-leading alternative to SaaS platforms, offering absolute control over the entire commerce lifecycle.
+DreamBeesArt is a neutral, high-performance, and deeply industrialized e-commerce engine designed for merchants who prioritize data ownership and operational sovereignty. Built on a hardened TypeScript substrate, DreamBeesArt provides an industry-leading alternative to SaaS platforms, offering absolute control over the entire commerce lifecycle.
 
 ---
 
@@ -12,8 +12,8 @@ DreamBeesArt adheres to a strict layered architecture (Clean Architecture / DDD)
 | :--- | :--- | :--- |
 | **Domain** | `src/domain/` | Pure business logic: models, rules, and repository contracts. **Zero dependencies.** |
 | **Core** | `src/core/` | Application orchestration: services coordinate domain logic and infrastructure adapters. |
-| **Infrastructure** | `src/infrastructure/` | Adapters for Firestore, API-backed services, and payment processors. |
-| **UI** | `src/ui/` | React 19 components, Next.js pages, and high-fidelity layouts. |
+| **Infrastructure** | `src/infrastructure/` | Adapters for Firestore, Stripe, and server-side utilities. |
+| **UI** | `src/ui/` | React 18 components, Next.js pages, and high-fidelity layouts. |
 | **Plumbing** | `src/utils/` | Stateless helpers, formatters, and global constants. |
 
 ---
@@ -21,40 +21,36 @@ DreamBeesArt adheres to a strict layered architecture (Clean Architecture / DDD)
 ## ✨ Industrial Features
 
 ### 🛒 Customer Experience
+- **Hardened Transaction Pipeline**: Atomic checkout and refund logic with strict inventory guards.
+- **Idempotency Guards**: Distributed order creation protected by atomic payment-intent tracking.
 - **Handle-Based Routing**: Canonical, SEO-optimized URLs for products and collections.
-- **Digital Locker**: Secure, authenticated access to purchased digital assets via ephemeral signed URLs.
-- **Support Center**: Integrated ticketing and knowledgebase for frictionless customer lifecycle management.
-- **Trusted Checkout**: Hardened payment orchestration with real Stripe integration and idempotency guards.
+- **Digital Locker**: Secure, authenticated access to purchased digital assets via signed URLs.
 
 ### 🛡 Merchant Administration
 - **Support CRM**: Full-stack interaction management with agent collision detection and "Quick Reply" macros.
-- **Digital Vault**: Memory-efficient, streaming-first ingestion for massive digital asset management.
 - **Inventory Intelligence**: Automated stock health tracking, restock recommendations, and supplier management.
-- **Bulk Operations**: High-speed spreadsheet-style editor for mass inventory, price, and metadata updates.
+- **Audit Logging**: Full traceability for all administrative status changes and high-risk operations.
+- **Bulk Operations**: High-speed spreadsheet-style editor for mass inventory and metadata updates.
 - **Sovereign Analytics**: Real-time sales, conversion, AOV, and customer LTV insights.
 
 ---
 
 ## 🚀 Quick Start
 
-Follow these steps to initialize your sovereign commerce workspace.
-
 ### 1. Prerequisites
-- **Node.js**: 20.x or higher
-- **npm**: 10.x or higher
-- **Firebase Account**: For Firestore and Authentication
+- **Node.js**: 22.x (LTS)
+- **Firebase Project**: Firestore and Authentication enabled.
+- **Stripe Account**: For payment processing.
 
-### 2. Quick Initialization
+### 2. Initialization
 ```bash
-# Install dependencies, initialize .env, and verify connections
 npm install
+# Configure your .env (see .env.example)
+npm run setup
 ```
-> [!TIP]
-> Ensure your `.env` file contains the necessary Firebase and Stripe credentials before launching.
 
-### 3. Launch Engine
+### 3. Launch
 ```bash
-# Start development server
 npm run dev
 ```
 
@@ -62,12 +58,12 @@ npm run dev
 
 ## 🛠 Tech Stack
 
-- **Framework**: Next.js 15 (App Router) + React 19
-- **Logic**: TypeScript 5+ (Strict Mode)
+- **Framework**: Next.js 15 (App Router) + React 18
+- **Logic**: TypeScript 6 (Strict Mode)
 - **Persistence**: Google Cloud Firestore (Distributed NoSQL)
 - **Styling**: Tailwind CSS 4
 - **Security**: Signed HTTP-only session cookies & Rate-limiting guards
-- **Monitoring**: PRODUCTION_READY_METRICS.md
+- **Testing**: Playwright (E2E) & Vitest (Unit/Integration)
 
 ---
 
@@ -75,13 +71,10 @@ npm run dev
 
 For deep technical dives and operational guides, refer to the internal **[Knowledge Ledger](.wiki/index.md)**:
 
-> [!TIP]
-> Use the [Architecture Overview](.wiki/architecture/overview.md) to understand the request lifecycle and [Day 2 Operations](.wiki/onboarding/day-2.md) for a guide on extending the engine.
-
-- [Support CRM Architecture](.wiki/architecture/support-crm.md)
+- [Architecture Overview](.wiki/architecture/overview.md)
+- [Support CRM Design](.wiki/architecture/support-crm.md)
 - [Digital Fulfillment Strategy](.wiki/architecture/digital-fulfillment.md)
-- [SEO & Navigation Hardening](.wiki/architecture/seo-routing.md)
-- [Admin Access Guide](.wiki/admin-access.md)
+- [Hardened SEO & Routing](.wiki/architecture/seo-routing.md)
 
 ---
 

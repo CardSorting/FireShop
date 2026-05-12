@@ -4,7 +4,7 @@ This guide provides the necessary credentials and instructions to access the Dre
 
 ## Credentials
 
-The following admin user has been created in the local SQLite database:
+The following admin user has been created in the Firestore database:
 
 | Detail | Value |
 |---|---|
@@ -41,9 +41,7 @@ Once logged in, you will have access to:
 
 ## Technical Verification
 
-To verify the admin role in the database manually, you can run:
+To verify the admin role in the database manually, you can check the Firestore `users` collection or use the Firebase CLI (if configured):
 ```bash
-sqlite3 DreamBees.db "SELECT email, role FROM users WHERE email = 'admin@dreambees.art';"
+# Example check via Firebase console or Admin SDK script
 ```
-Expected output:
-`admin@dreambees.art|admin`

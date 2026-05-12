@@ -28,8 +28,8 @@ The "Heart" of the application.
 
 ### `/infrastructure`
 The "Limbs" of the application.
-- **`sqlite/`**: Database schema, migrations, and initialization.
-- **`repositories/`**: Concrete SQLite implementations of Domain contracts.
+- **`firebase/`**: Firebase initialization and server-side admin bridge.
+- **`repositories/`**: Concrete Firestore implementations of Domain contracts.
 - **`services/`**: Adapters for Stripe, Auth, and external gateways.
 - **`server/`**: Next.js server-side helpers (Session, Guards, API response).
 

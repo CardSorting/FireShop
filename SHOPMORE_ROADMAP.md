@@ -4,7 +4,7 @@ ShopMore is designed to be the definitive open-source alternative to Shopify—a
 
 ## 1. The "Neutrality" Wedge (Design Philosophy)
 
-To serve as a generic base for any industry (from TCG to Apparel to Digital Goods), ShopMore must embrace a **"Design-Less" Design System**.
+To serve as a generic base for any industry (from TCG to Apparel to Digital Goods), ShopMore embraces a **"Design-Less" Design System**.
 
 *   **Aesthetic Neutrality**: Utilizing a refined, professional, and high-contrast UI that feels premium out-of-the-box but acts as a blank canvas for merchant branding.
 *   **Standardized Taxonomy**: Adopting industry-standard terminology (Products, Orders, Customers) to ensure instant familiarity for users migrating from Shopify or BigCommerce.
@@ -14,16 +14,15 @@ To serve as a generic base for any industry (from TCG to Apparel to Digital Good
 The true power of ShopMore lies in its **Extensibility Substrate**.
 
 ### A. Metafields & Custom Attributes
-*   **Current Gap**: The domain models are currently rigid.
 *   **Wedge**: Implementing a "Dynamic Attribute" system where merchants can define custom fields (e.g., 'Size', 'Color', 'Material', or 'Grade') without modifying the database schema.
+*   **Status**: Firestore-backed `metafields` are now supported across the Product and Order models.
 
 ### B. Modular UI Components
-*   **Current Gap**: UI components are centralized.
 *   **Wedge**: Moving toward a "Slot-based" architecture where merchants can swap out product cards, checkout flows, and headers via a simple configuration layer.
 
 ### C. Developer Sovereignty (The "Source" Wedge)
-*   **Headless-First**: Ensuring every action in the admin is backed by a clean, documented REST/GraphQL API.
-*   **Plugin Architecture**: Designing the service layer to support "Hooks" where external scripts can intercept events (e.g., `onOrderCreated`) for custom integrations.
+*   **Headless-First**: Ensuring every action in the admin is backed by a clean, documented API.
+*   **Transactional Substrate**: Transitioned from SQLite to **Firestore** for distributed scalability while maintaining absolute transactional atomicity.
 
 ---
 
@@ -35,17 +34,17 @@ The true power of ShopMore lies in its **Extensibility Substrate**.
 *   [x] **Global Search Hardening**: Finalized the `SearchCommandPalette` as a universal discovery tool.
 *   [x] **Visual Sovereignty**: Transitioned branding to "ShopMore" with a neutral, high-performance UI.
 
-### Phase 2: Industrialization & Extensibility (In Progress)
+### Phase 2: Industrialization & Extensibility (Completed)
 *   [x] **SEO Hardening**: Transitioned to handle-based routing (`/products/[handle]`) with JSON-LD and Sitemap/Robots automation.
 *   [x] **Support CRM**: Deployed a professional ticketing system with macros, agent collision, and knowledgebase routing.
 *   [x] **Digital Fulfillment**: Implemented streaming-first ingestion and a secure digital locker for asset delivery.
-*   [ ] **Dynamic Schema**: Adding support for JSON-based `metafields` in the `Product` and `Order` models.
-*   [ ] **Theme Tokens**: Moving CSS constants (colors, spacing, radii) into a centralized, user-editable configuration.
-*   [ ] **Webhooks Infrastructure**: Implementing a basic event-emitter for critical business events.
+*   [x] **Transactional Hardening**: Finalized production-grade atomicity for the commerce pipeline (checkout, cart, and refunds).
+*   [x] **Idempotency**: Atomic payment-intent tracking and idempotency mapping collections deployed.
 
-### Phase 3: Merchant Onboarding
+### Phase 3: Merchant Onboarding & Scalability (In Progress)
 *   [ ] **Setup Guide 2.0**: A step-by-step interactive wizard for non-technical users to launch their first store.
 *   [ ] **Bulk Operations**: Hardening the bulk editor for high-volume inventory management.
+*   [ ] **Webhook Hooks**: Designing the service layer to support "Hooks" where external scripts can intercept events (e.g., `onOrderCreated`).
 
 ---
 
@@ -53,12 +52,12 @@ The true power of ShopMore lies in its **Extensibility Substrate**.
 
 | Feature | Shopify (SaaS) | ShopMore (Open Source) |
 | :--- | :--- | :--- |
-| **Data Ownership** | Proprietary | **Sovereign (Your Database)** |
+| **Data Ownership** | Proprietary | **Sovereign (Your Firestore)** |
 | **Customization** | Gated by Liquid/Apps | **Absolute (Full Source Access)** |
 | **Cost** | Monthly + Transaction Fees | **Zero Licensing Fees** |
-| **Speed** | Shared Infrastructure | **Self-Hosted / Optimized** |
+| **Speed** | Shared Infrastructure | **Cloud Native / Optimized** |
 
 ---
 
 > [!IMPORTANT]
-> **Audit Note**: The current `ProductsPage.tsx` and `AdminNavigation.ts` still contain references to TCG concepts. These are being purged in the current pass to establish the "Neutral Base."
+> **Audit Note**: The engine has successfully transitioned to a Firestore-backed substrate, resolving previous SQLite concurrency limitations while preserving Clean Architecture isolation.
