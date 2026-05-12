@@ -539,13 +539,18 @@ export class OrderService {
       await this.releaseInventoryReservation(order);
     }
     await this.orderRepo.updateStatus(id, status);
-    
     // Production Hardening: Free up discount usage if order is cancelled or refunded
     if ((status === 'cancelled' || status === 'refunded') && order.discountCode) {
       const discount = await this.discountRepo.getByCode(order.discountCode);
       if (discount) {
-        await this.discountRepo.decrementUsage(discount.id).catch(e => {
-          logger.error('Failed to decrement discount usage during status update', { orderId: id, discountId: discount.id, e });
+        // Run in transaction to ensure atomic rollback
+        await runTransaction(getUnifiedDb(), async (t: any) => {
+           await this.discountRepo.decrementUsage(discount.id, t);
+           if (order.userId) {
+              await this.orderRepo.removeUserDiscountUsage(order.userId, order.discountCode!, t);
+           }
+        }).catch(e => {
+          logger.error('Failed to rollback discount usage during order cancellation', { orderId: id, error: e });
         });
       }
     }
@@ -557,11 +562,19 @@ export class OrderService {
   }
 
   async getAllOrders(options?: any): Promise<{ orders: Order[], nextCursor?: string }> {
-    return this.orderRepo.getAll(options);
+    const result = await this.orderRepo.getAll(options);
+    return {
+      ...result,
+      orders: result.orders.map(o => Sanitizer.order(o))
+    };
   }
 
   async getOrdersForCustomerView(userId: string, options?: any): Promise<{ orders: Order[], nextCursor?: string }> {
-    return this.orderRepo.getByUserId(userId, options);
+    const result = await this.orderRepo.getByUserId(userId, options);
+    return {
+      ...result,
+      orders: result.orders.map(o => Sanitizer.order(o))
+    };
   }
 
   async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: { id: string, email: string }): Promise<void> {

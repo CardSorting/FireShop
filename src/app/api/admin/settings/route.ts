@@ -2,9 +2,9 @@ import { getInitialServices } from '@core/container';
 import { jsonError, readJsonObject, requireAdminSession, requireJsonValue, requireString } from '@infrastructure/server/apiGuards';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const services = getInitialServices();
     const settings = await services.settingsService.getSettings();
     return NextResponse.json(settings);

@@ -1,6 +1,6 @@
 import { getServerServices } from '@infrastructure/server/services';
 import { logger } from '@utils/logger';
-import { jsonError } from '@infrastructure/server/apiGuards';
+import { jsonError, requireConfiguredBearerToken } from '@infrastructure/server/apiGuards';
 
 /**
  * [LAYER: SYSTEM]
@@ -8,14 +8,8 @@ import { jsonError } from '@infrastructure/server/apiGuards';
  * This prevents inventory leakage from abandoned checkouts.
  */
 export async function POST(request: Request) {
-  const authHeader = request.headers.get('Authorization');
-  const systemToken = process.env.SYSTEM_JOB_TOKEN;
-
-  if (!systemToken || authHeader !== `Bearer ${systemToken}`) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    requireConfiguredBearerToken(request, 'SYSTEM_JOB_TOKEN');
     const services = await getServerServices();
     // Default expiration is 60 minutes
     const count = await services.orderService.cleanupExpiredOrders(60);

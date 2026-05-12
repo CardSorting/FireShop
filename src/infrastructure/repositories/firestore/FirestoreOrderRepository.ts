@@ -467,12 +467,15 @@ export class FirestoreOrderRepository implements IOrderRepository {
   async recordUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<void> {
     const id = `${userId}_${discountCode}`;
     const docRef = doc(getUnifiedDb(), 'user_discount_usage', id);
-    transaction.set(docRef, {
-      userId,
-      discountCode,
-      usedAt: serverTimestamp()
-    });
+    transaction.set(docRef, { used: true, usedAt: serverTimestamp() });
   }
+  
+  async removeUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<void> {
+    const id = `${userId}_${discountCode}`;
+    const docRef = doc(getUnifiedDb(), 'user_discount_usage', id);
+    transaction.delete(docRef);
+  }
+
   async markHeartbeat(orderId: string, userId: string, email: string): Promise<void> {
     const claimId = `${orderId}_${userId}`;
     const docRef = doc(getUnifiedDb(), 'order_claims', claimId);

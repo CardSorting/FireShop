@@ -138,9 +138,9 @@ async function decodeSession(value: string): Promise<User | null> {
             return null;
         }
 
-        // Production Hardening: Re-verify user role from database if verification is stale (> 1 hour)
-        // This prevents privilege persistence for demoted admins.
-        const VERIFICATION_TTL_MS = 60 * 60 * 1000;
+        // Production Hardening: Re-verify user role from database frequently (Zero-Trust)
+        // We use 5 minutes to balance security (fast revocation) with Firestore cost/latency.
+        const VERIFICATION_TTL_MS = 5 * 60 * 1000;
         if (Date.now() - parsed.lastVerified > VERIFICATION_TTL_MS) {
             const { adminDb } = await import('@infrastructure/firebase/admin');
             const userSnap = await adminDb.collection('users').doc(parsed.user.id).get();
@@ -159,9 +159,10 @@ async function decodeSession(value: string): Promise<User | null> {
                 parsed.user.role = data.role;
             }
             parsed.lastVerified = Date.now();
-            // Note: We'd ideally re-sign the cookie here, but setSessionUser is async 
-            // and usually called from setSessionUser. We'll return the updated user 
-            // and the caller can decide whether to refresh the cookie.
+            
+            // Fix: Actually refresh the session cookie in the browser 
+            // so we don't hit the DB again on the very next request.
+            await setSessionUser({ ...parsed.user, createdAt: new Date(parsed.user.createdAt) });
         }
 
         return { ...parsed.user, createdAt: new Date(parsed.user.createdAt) };

@@ -113,10 +113,10 @@ export async function requireSessionUser(): Promise<User> {
     return user;
 }
 
-export async function requireAdminSession(request?: Request): Promise<User & { role: 'admin' }> {
+export async function requireAdminSession(request: Request): Promise<User & { role: 'admin' }> {
     const user = await requireSessionUser();
     if (user.role !== 'admin') throw new UnauthorizedError();
-    if (request) assertTrustedMutationOrigin(request);
+    assertTrustedMutationOrigin(request);
     return user as User & { role: 'admin' };
 }
 

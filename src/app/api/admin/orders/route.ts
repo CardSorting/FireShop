@@ -4,7 +4,7 @@ import { jsonError, parseBoundedLimit, parseOrderStatus, requireAdminSession } f
 
 export async function GET(request: Request) {
     try {
-        await requireAdminSession();
+        await requireAdminSession(request);
         const { searchParams } = new URL(request.url);
         const services = await getServerServices();
         return NextResponse.json(await services.orderService.getAllOrders({
