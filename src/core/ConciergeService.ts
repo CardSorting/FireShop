@@ -40,11 +40,19 @@ export interface ConciergeSession {
   ticketId?: string;
   status: 'active' | 'completed' | 'analyzed' | 'resolved' | 'failed';
   responseStatus?: 'waiting_on_store' | 'waiting_on_customer' | 'handled_by_concierge';
+  customerOutcome?: 'resolved' | 'escalated' | 'abandoned' | 'converted';
+  operatorOutcome?: 'suggestion_accepted' | 'suggestion_dismissed' | 'resolved_manually';
+  isConverted?: boolean;
   assignedOperator?: string;
   isRepeatIssue?: boolean;
   repeatFrequency?: number;
+  operatorFeedback?: Array<{
+    suggestionIndex: number;
+    feedback: 'helpful' | 'not_useful';
+    note?: string;
+  }>;
   events?: Array<{
-    type: 'joined' | 'escalated' | 'note_added' | 'resolved' | 'analyzed' | 'reopened';
+    type: 'joined' | 'escalated' | 'note_added' | 'resolved' | 'analyzed' | 'reopened' | 'outcome_tracked';
     timestamp: any;
     label: string;
     description?: string;
@@ -89,29 +97,36 @@ export class ConciergeService {
       const analysisPrompt = `
         Analyze the following ecommerce support chat transcript.${memoryPrompt}
         
+        ### ANALYSIS GUIDELINES
+        1. AMBIGUITY: If a customer mentions an order but provides no ID, or asks about availability without specifying a product variant, recommend asking a clarifying question.
+        2. HONESTY: Do not hallucinate store policy or inventory. If uncertain, recommend escalation.
+        3. CONVERSION: Identify cart hesitation (questions about shipping costs, return ease, or "is this in stock") as high-priority conversion signals.
+        4. OUTCOME: Predict if the customer was helped or if they seem abandoned.
+
         Return the result in JSON format:
         {
-          "summary": "Concise summary of the user's struggle",
+          "summary": "Concise summary of the struggle",
           "category": "order_status" | "shipping_delay" | "return_refund" | "product_question" | "inventory_question" | "checkout_issue" | "damaged_missing_item" | "complaint" | "other",
           "urgency": "low" | "medium" | "high",
           "sentiment": "positive" | "neutral" | "frustrated" | "angry",
           "customerNeed": "What the customer is trying to achieve",
-          "recommendedAction": "Clear next step for the operator",
+          "recommendedAction": "Actionable next step for operator (e.g. 'Ask for order ID', 'Confirm stock manually')",
           "escalationNeeded": boolean,
           "escalationReason": "Why this needs human attention",
           "evidenceQuotes": ["Quote 1", "Quote 2"],
           "confidence": "low" | "medium" | "high",
           "relatedProductIds": [],
           "relatedOrderIds": [],
-          "insights": ["Specific observation 1", "Specific observation 2"],
+          "insights": ["Observation 1", "Observation 2"],
           "suggestions": [
             {
               "action": "Actionable fix",
-              "why": "Specific signal",
-              "expectedOutcome": "Benefit",
+              "why": "Specific signal (e.g. 'Customer asked twice about X')",
+              "expectedOutcome": "Benefit (e.g. 'Reduces repeat questions')",
               "risk": "Low" | "Medium" | "High",
               "confidence": "Low" | "Medium" | "High",
-              "source": "Signal or quote"
+              "source": "Signal or quote",
+              "impact": "conversion" | "support_burden" | "loyalty"
             }
           ]
         }

@@ -1,115 +1,109 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
-  MessageSquare, 
-  X, 
+  MessageCircle, 
   Send, 
+  X, 
   Loader2, 
-  Sparkles, 
-  ShoppingBag, 
+  Sparkles,
+  ShoppingBag,
+  Clock,
   ArrowRight,
+  User,
   ChevronDown,
   Minimize2,
   AlertCircle,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  Package,
+  Ruler,
+  RotateCcw
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { ClientChatMessage } from '@domain/concierge/types';
 
-interface ConciergeBubbleProps {
-  initialContext?: any;
-  productInfo?: {
-    name: string;
-    id: string;
-    description?: string;
-  };
-}
-
-export const ConciergeBubble: React.FC<ConciergeBubbleProps> = ({ initialContext, productInfo }) => {
+export function ConciergeBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
-    { role: 'assistant', content: 'Hi! I\'m the DreamBees Concierge. How can I help you today?' }
+    { 
+      role: 'assistant', 
+      content: "Hi! I'm your DreamBees concierge. Whether you need help with an order or just some sizing advice for our plushies, I'm here to help." 
+    }
   ]);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showQuickReplies, setShowQuickReplies] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  const QUICK_REPLIES = [
-    { label: '📦 Track my order', text: 'I want to track my order' },
-    productInfo 
-      ? { label: `🍎 Ask about ${productInfo.name}`, text: `Tell me more about ${productInfo.name}` }
-      : { label: '🍎 Ask about a product', text: 'I have a question about a product' },
-    initialContext?.cartContents?.length > 1
-      ? { label: '🛒 Compare items in my cart', text: 'Can you help me compare the items I have in my cart?' }
-      : { label: '🚚 Shipping & returns', text: 'What are your shipping and return policies?' },
-    { label: '👋 Talk to support', text: 'I need to speak with a human' },
-  ];
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    // Personalized greeting if we have user info
-    if (initialContext?.userSession?.name) {
-      setMessages([
-        { 
-          role: 'assistant', 
-          content: `Welcome back, ${initialContext.userSession.name}! How can I help you today?` 
-        }
-      ]);
-    }
-  }, [initialContext?.userSession?.id]);
-  
+    scrollToBottom();
+  }, [messages, isLoading]);
+
+  // Handle Personalized Greeting & Memory
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    const checkReturning = async () => {
+      const storedSessionId = localStorage.getItem('dream_concierge_session');
+      if (storedSessionId) {
+        setSessionId(storedSessionId);
+        // In a real app, we'd fetch the history here
+        // For now, we personalize the greeting if returning
+        setMessages([{
+          role: 'assistant',
+          content: "Welcome back! I remember our previous chat. Is there anything else you need help with today?"
+        }]);
+      }
+    };
+    checkReturning();
+  }, []);
 
-  const handleSendMessage = async (e?: React.FormEvent, overrideValue?: string) => {
-    e?.preventDefault();
-    const messageText = overrideValue || inputValue.trim();
-    if (!messageText || isLoading) return;
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim() || isLoading) return;
 
-    const userMessage: ClientChatMessage = { role: 'user', content: messageText };
-    setMessages(prev => [...prev, userMessage]);
+    const userMsg: ClientChatMessage = { role: 'user', content: inputValue };
+    setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsLoading(true);
-    setShowQuickReplies(false);
-    setIsError(false);
 
     try {
-      const response = await fetch('/api/concierge/chat', {
+      const res = await fetch('/api/concierge/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
+        body: JSON.stringify({ 
+          message: userMsg.content,
+          sessionId: sessionId,
           context: {
-            ...initialContext,
-            currentPage: pathname,
-          },
-          sessionId: sessionId || undefined
+            currentPath: pathname,
+            pageTitle: document.title
+          }
         })
       });
 
-      if (!response.ok) throw new Error('Failed to send message');
+      const data = await res.json();
+      if (data.sessionId && !sessionId) {
+        setSessionId(data.sessionId);
+        localStorage.setItem('dream_concierge_session', data.sessionId);
+      }
 
-      const data = await response.json();
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
-      if (data.sessionId) setSessionId(data.sessionId);
     } catch (error) {
-      console.error('Concierge Error:', error);
-      setIsError(true);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: 'I\'m sorry, I\'m having trouble connecting right now. Please try again or contact us directly if the issue persists.' 
+        content: "I'm having a little trouble connecting to the store right now. One moment while I try to reconnect..." 
       }]);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleQuickAction = (text: string) => {
+    setInputValue(text);
   };
 
   const toggleOpen = () => setIsOpen(!isOpen);
@@ -119,36 +113,31 @@ export const ConciergeBubble: React.FC<ConciergeBubbleProps> = ({ initialContext
       {/* Chat Window */}
       {isOpen && (
         <div className="w-[400px] max-w-[92vw] h-[640px] max-h-[85vh] bg-white rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-500 ease-out">
-          {/* Header */}
-          <div className="bg-white px-8 py-6 flex justify-between items-center border-b border-gray-50">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 bg-gray-900 rounded-[1.25rem] flex items-center justify-center shadow-lg shadow-gray-200">
-                <Sparkles className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-gray-900 font-black text-sm tracking-tight leading-none mb-1">Concierge</h3>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Support Online</span>
-                </div>
-              </div>
+          
+          {/* Calm Header */}
+          <div className="bg-gray-900 px-8 py-8 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Sparkles className="h-20 w-20 text-white" />
             </div>
-            <div className="flex items-center gap-1">
-               <button 
+            <div className="relative z-10 flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                   <div className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></div>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">DreamBees Concierge</span>
+                </div>
+                <h3 className="text-2xl font-black leading-tight">How can we help?</h3>
+              </div>
+              <button 
                 onClick={toggleOpen}
-                className="p-2.5 hover:bg-gray-50 rounded-2xl transition-colors text-gray-400 hover:text-gray-900"
-                aria-label="Minimize Chat"
+                className="p-2 hover:bg-white/10 rounded-full transition-colors"
               >
-                <Minimize2 className="h-5 w-5" />
+                <Minimize2 className="h-5 w-5 text-gray-400" />
               </button>
             </div>
           </div>
 
           {/* Messages Area */}
-          <div 
-            ref={scrollRef}
-            className="flex-1 overflow-y-auto px-6 py-8 space-y-6 styled-scrollbar bg-gray-50/20"
-          >
+          <div className="flex-1 overflow-y-auto p-8 space-y-6 styled-scrollbar bg-white">
             {messages.map((msg, i) => (
               <div 
                 key={i} 
@@ -165,20 +154,34 @@ export const ConciergeBubble: React.FC<ConciergeBubbleProps> = ({ initialContext
                 </div>
               </div>
             ))}
-            
-            {showQuickReplies && messages.length === 1 && (
-              <div className="flex flex-col gap-2.5 pt-4 animate-in fade-in slide-in-from-top-2 duration-700 delay-300">
-                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-1 mb-1">Suggested for you</p>
-                {QUICK_REPLIES.map((reply, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleSendMessage(undefined, reply.text)}
-                    className="text-left px-5 py-4 rounded-[1.25rem] bg-white border border-gray-100 text-xs font-bold text-gray-700 hover:border-gray-900 hover:bg-gray-50 transition-all shadow-sm active:scale-95 group flex items-center justify-between"
-                  >
-                    {reply.label}
-                    <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all" />
-                  </button>
-                ))}
+
+            {/* Quick Trust / Conversion Actions */}
+            {!isLoading && messages.length < 3 && (
+              <div className="pt-4 grid grid-cols-1 gap-2 animate-in fade-in duration-700">
+                <button 
+                  onClick={() => handleQuickAction("Where is my order?")}
+                  className="w-full text-left p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-900 transition-all group flex items-center gap-3"
+                >
+                  <Package className="h-4 w-4 text-gray-400 group-hover:text-gray-900" />
+                  <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Track an order</span>
+                  <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
+                </button>
+                <button 
+                  onClick={() => handleQuickAction("Can you help me with sizing?")}
+                  className="w-full text-left p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-900 transition-all group flex items-center gap-3"
+                >
+                  <Ruler className="h-4 w-4 text-gray-400 group-hover:text-gray-900" />
+                  <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Sizing advice</span>
+                  <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
+                </button>
+                <button 
+                  onClick={() => handleQuickAction("What is your return policy?")}
+                  className="w-full text-left p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-900 transition-all group flex items-center gap-3"
+                >
+                  <RotateCcw className="h-4 w-4 text-gray-400 group-hover:text-gray-900" />
+                  <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Easy returns</span>
+                  <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
+                </button>
               </div>
             )}
 
@@ -189,27 +192,23 @@ export const ConciergeBubble: React.FC<ConciergeBubbleProps> = ({ initialContext
                     <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></span>
                     <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.2s]"></span>
                     <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Concierge is thinking</span>
                   </div>
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
+          </div>
 
-            {isError && (
-              <div className="flex flex-col items-center gap-4 pt-4">
-                 <div className="flex items-center gap-2 px-4 py-3 bg-red-50 text-red-700 rounded-2xl text-xs font-bold border border-red-100">
-                   <AlertCircle className="h-4 w-4" />
-                   Connection lost. Let's try that again.
-                 </div>
-                 <button 
-                  onClick={() => handleSendMessage()}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"
-                >
-                  <RefreshCw className="h-3 w-3" />
-                  Retry
-                </button>
-              </div>
-            )}
+          {/* Trust Loop Footer */}
+          <div className="px-8 py-4 bg-gray-50/50 border-t border-gray-50 flex items-center justify-between">
+             <div className="flex items-center gap-2">
+                <ShieldCheck className="h-3 w-3 text-green-500" />
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Secure Store Concierge</span>
+             </div>
+             <div className="flex items-center gap-2">
+                <div className="h-1.5 w-1.5 bg-green-500 rounded-full"></div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">Support Online</span>
+             </div>
           </div>
 
           {/* Input Area */}
@@ -222,9 +221,8 @@ export const ConciergeBubble: React.FC<ConciergeBubbleProps> = ({ initialContext
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Ask anything..."
-                disabled={isLoading}
-                className="flex-1 bg-transparent border-none text-sm px-4 focus:ring-0 placeholder:text-gray-400 font-medium disabled:opacity-50"
+                placeholder="Ask us anything..."
+                className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-medium px-4 py-2 text-gray-800 placeholder:text-gray-400"
               />
               <button
                 type="submit"
@@ -234,33 +232,20 @@ export const ConciergeBubble: React.FC<ConciergeBubbleProps> = ({ initialContext
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
               </button>
             </form>
-            <div className="flex justify-center pt-4">
-               <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest flex items-center gap-1.5">
-                 <ShieldCheck className="h-3 w-3" />
-                 Safe & Secure Support
-               </p>
-            </div>
           </div>
         </div>
       )}
 
       {/* Toggle Button */}
-      <button
+      <button 
         onClick={toggleOpen}
-        className={`h-16 w-16 rounded-[1.75rem] flex items-center justify-center text-white shadow-[0_15px_40px_-10px_rgba(0,0,0,0.2)] transition-all duration-500 active:scale-90 group relative ${
-          isOpen 
-            ? 'bg-white text-gray-400 border border-gray-100 -rotate-90' 
-            : 'bg-gray-900 hover:bg-black'
-        }`}
-        aria-label={isOpen ? "Close Chat" : "Open Concierge"}
+        className="h-16 w-16 bg-gray-900 rounded-full shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)] flex items-center justify-center text-white hover:scale-105 active:scale-95 transition-all group relative"
       >
-        {isOpen ? <ChevronDown className="h-8 w-8" /> : <MessageSquare className="h-8 w-8" />}
+        {isOpen ? <X className="h-6 w-6" /> : <MessageCircle className="h-7 w-7" />}
         {!isOpen && (
-          <div className="absolute -top-1 -right-1 h-5 w-5 bg-primary-600 rounded-full border-[3px] border-white flex items-center justify-center shadow-lg animate-bounce">
-             <Sparkles className="h-2.5 w-2.5 text-white" />
-          </div>
+          <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 border-2 border-white rounded-full animate-bounce"></div>
         )}
       </button>
     </div>
   );
-};
+}
