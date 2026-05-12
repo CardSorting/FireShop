@@ -204,7 +204,7 @@ export class OrderService {
         // 2. Validate & Increment Discount (Atomic)
         if (discountCode) {
           const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
-          const val = await discountService.validateDiscount(discountCode, subtotal, userId);
+          const val = await discountService.validateDiscount(discountCode, subtotal, userId, transaction);
           if (val.valid && val.discount) { 
             discountAmount = val.discountAmount || 0; 
             validDiscountCode = val.discount.code; 
@@ -295,12 +295,16 @@ export class OrderService {
             idempotencyKey: idempotencyKey || order.idempotencyKey || crypto.randomUUID()
           });
           if (paymentResult.success && paymentResult.transactionId) {
-            // Atomically update both the order and the PI mapping
+            // Atomically update order status and payment transaction ID
             await runTransaction(getUnifiedDb(), async (t: any) => {
-              await this.orderRepo.updateStatus(order.id, 'confirmed', t);
-              await this.orderRepo.updatePaymentTransactionId 
-                ? await this.orderRepo.save({ ...order, status: 'confirmed', paymentTransactionId: paymentResult.transactionId }, t)
-                : null;
+              const orderRef = await this.orderRepo.getById(order.id);
+              if (orderRef) {
+                await this.orderRepo.save({
+                  ...orderRef,
+                  status: 'confirmed',
+                  paymentTransactionId: paymentResult.transactionId
+                }, t);
+              }
             });
             return { ...order, status: 'confirmed' as OrderStatus, paymentTransactionId: paymentResult.transactionId };
           }
@@ -424,7 +428,13 @@ export class OrderService {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
     if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
-       await this.orderRepo.save({ ...order, status: 'shipped', fulfillments: [{ id: crypto.randomUUID(), orderId, items: [], trackingNumber, trackingCarrier: 'Carrier', status: 'shipped', shippedAt: new Date(), createdAt: new Date(), deliveredAt: null, trackingUrl: '' }], updatedAt: new Date() });
+       // Production Hardening: Use atomic field updates instead of full-document replace
+       await this.orderRepo.updateStatus(orderId, 'shipped');
+       await this.orderRepo.updateFulfillment(orderId, {
+         trackingNumber,
+         shippingCarrier: 'Carrier',
+         trackingUrl: deriveTrackingUrl({ ...order, trackingNumber } as Order) || ''
+       });
        await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Track: ${trackingNumber}`);
        return;
     }
@@ -484,11 +494,12 @@ export class OrderService {
   async getAnalyticsData(): Promise<AnalyticsData> {
     const stats = await this.orderRepo.getDashboardStats();
     const topProducts = await this.orderRepo.getTopProducts(5);
+    const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
     return {
       totalRevenue: stats.totalRevenue,
       dailyRevenue: stats.dailyRevenue,
       revenueGrowth: 15.5,
-      averageOrderValue: stats.totalRevenue / 100,
+      averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0,
       topProducts: topProducts.map(p => ({ ...p, growth: 10.2 }))
     };
   }

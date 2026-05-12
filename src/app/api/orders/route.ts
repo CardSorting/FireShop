@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
-import { assertRateLimit, jsonError, parseCheckoutRequest, readJsonObject, requireSessionUser } from '@infrastructure/server/apiGuards';
+import { assertRateLimit, jsonError, parseCheckoutRequest, parseOrderStatus, readJsonObject, requireSessionUser } from '@infrastructure/server/apiGuards';
 
 export async function GET(request: Request) {
     try {
@@ -14,9 +14,7 @@ export async function GET(request: Request) {
         const sort = searchParams.get('sort');
 
         const orders = await services.orderService.getOrdersForCustomerView(user.id, {
-            status: statusParam === 'all' || statusParam === 'pending' || statusParam === 'confirmed' || statusParam === 'shipped' || statusParam === 'delivered' || statusParam === 'cancelled'
-                ? statusParam
-                : undefined,
+            status: statusParam === 'all' ? undefined : parseOrderStatus(statusParam),
             query,
             from: from ? new Date(from) : undefined,
             to: to ? new Date(to) : undefined,

@@ -154,7 +154,7 @@ export function getServiceContainer() {
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
     orderQueryService: new OrderQueryService(repos.orderRepo),
-    refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService()),
+    refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService(), repos.productRepo),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
     shippingService: new ShippingService(repos.shippingRepo, new AuditService()),
@@ -244,7 +244,7 @@ export function getInitialServices() {
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
     orderQueryService: new OrderQueryService(orderRepoInstance!),
-    refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService()),
+    refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService(), productRepoInstance!),
     discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
     shippingService: (() => {

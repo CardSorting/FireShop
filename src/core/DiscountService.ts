@@ -59,8 +59,11 @@ export class DiscountService {
     return discount;
   }
 
-  async validateDiscount(code: string, cartTotal: number, userId?: string): Promise<DiscountValidationResult> {
-    const discount = await this.discountRepo.getByCode(code);
+  async validateDiscount(code: string, cartTotal: number, userId?: string, transaction?: any): Promise<DiscountValidationResult> {
+    // Production Hardening: Accept an optional transaction parameter so that when
+    // called from within a Firestore transaction (e.g., initiateCheckout), the discount
+    // lookup participates in the same transaction and prevents TOCTOU races on usage limits.
+    const discount = await this.discountRepo.getByCode(code, transaction);
     if (!discount) return { valid: false, message: 'Invalid discount code' };
     
     if (discount.status !== 'active') return { valid: false, message: 'This discount is not active' };
