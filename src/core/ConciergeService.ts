@@ -46,13 +46,15 @@ export interface ConciergeSession {
   assignedOperator?: string;
   isRepeatIssue?: boolean;
   repeatFrequency?: number;
+  followUpDate?: string;
+  isSnoozed?: boolean;
   operatorFeedback?: Array<{
     suggestionIndex: number;
     feedback: 'helpful' | 'not_useful';
     note?: string;
   }>;
   events?: Array<{
-    type: 'joined' | 'escalated' | 'note_added' | 'resolved' | 'analyzed' | 'reopened' | 'outcome_tracked';
+    type: 'joined' | 'escalated' | 'note_added' | 'resolved' | 'analyzed' | 'reopened' | 'outcome_tracked' | 'assigned' | 'reminder_set';
     timestamp: any;
     label: string;
     description?: string;
@@ -97,36 +99,39 @@ export class ConciergeService {
       const analysisPrompt = `
         Analyze the following ecommerce support chat transcript.${memoryPrompt}
         
-        ### ANALYSIS GUIDELINES
-        1. AMBIGUITY: If a customer mentions an order but provides no ID, or asks about availability without specifying a product variant, recommend asking a clarifying question.
-        2. HONESTY: Do not hallucinate store policy or inventory. If uncertain, recommend escalation.
-        3. CONVERSION: Identify cart hesitation (questions about shipping costs, return ease, or "is this in stock") as high-priority conversion signals.
-        4. OUTCOME: Predict if the customer was helped or if they seem abandoned.
+        ### OPERATIONAL GUIDELINES
+        1. FACTS vs ASSUMPTIONS: Clearly distinguish what the customer stated (Facts) vs what we are interpreting (Patterns).
+        2. AMBIGUITY: If a customer mentions "it" or "this order" without specific details, recommend asking for clarification.
+        3. HONESTY: Never guess inventory or policy. If uncertain, flag it for manual review.
+        4. CONVERSION: Identify high-intent signals like "does this run large" or "how fast is shipping to X".
+        5. TONE: Avoid "AI certainty". Use "Customers frequently mentioned..." or "A recurring pattern was detected...".
 
         Return the result in JSON format:
         {
-          "summary": "Concise summary of the struggle",
+          "summary": "Plain-language summary of the customer struggle",
           "category": "order_status" | "shipping_delay" | "return_refund" | "product_question" | "inventory_question" | "checkout_issue" | "damaged_missing_item" | "complaint" | "other",
           "urgency": "low" | "medium" | "high",
           "sentiment": "positive" | "neutral" | "frustrated" | "angry",
           "customerNeed": "What the customer is trying to achieve",
-          "recommendedAction": "Actionable next step for operator (e.g. 'Ask for order ID', 'Confirm stock manually')",
+          "recommendedAction": "A calm next step for the operator (e.g. 'Clarify order date', 'Check back-stock')",
           "escalationNeeded": boolean,
-          "escalationReason": "Why this needs human attention",
-          "evidenceQuotes": ["Quote 1", "Quote 2"],
+          "escalationReason": "The specific evidence-backed reason for human follow-up",
+          "evidenceQuotes": ["Direct customer quotes grounding this analysis"],
           "confidence": "low" | "medium" | "high",
+          "uncertaintyNote": "Explain why we might be unsure (e.g. 'Customer was vague about product ID')",
           "relatedProductIds": [],
           "relatedOrderIds": [],
-          "insights": ["Observation 1", "Observation 2"],
+          "insights": ["Observation based on evidence", "Recurring friction pattern"],
           "suggestions": [
             {
-              "action": "Actionable fix",
-              "why": "Specific signal (e.g. 'Customer asked twice about X')",
-              "expectedOutcome": "Benefit (e.g. 'Reduces repeat questions')",
+              "action": "The suggested fix",
+              "why": "The evidence-backed reason (e.g. 'Seen in 4 previous sessions')",
+              "expectedOutcome": "Benefit of the fix",
               "risk": "Low" | "Medium" | "High",
               "confidence": "Low" | "Medium" | "High",
-              "source": "Signal or quote",
-              "impact": "conversion" | "support_burden" | "loyalty"
+              "source": "Supporting signal",
+              "impact": "conversion" | "support_burden" | "loyalty",
+              "isAssumption": boolean
             }
           ]
         }
