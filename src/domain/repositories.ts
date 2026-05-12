@@ -325,4 +325,6 @@ export interface IEmailService {
     html?: string;
     from?: string;
   }): Promise<void>;
+  sendPasswordResetEmail(email: string, resetLink: string): Promise<void>;
+  sendPasswordChangedEmail(email: string): Promise<void>;
 }

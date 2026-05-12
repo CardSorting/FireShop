@@ -28,7 +28,7 @@ export type AuditAction =
   | 'product_batch_updated' | 'product_batch_deleted' | 'inventory_batch_updated'
   | 'order_placed' | 'order_status_changed' | 'order_refunded' | 'order_payment_finalized'
   | 'discount_created' | 'discount_updated' | 'discount_deleted'
-  | 'auth_signin' | 'auth_signup' | 'auth_signout' | 'auth_password_reset'
+  | 'auth_signin' | 'auth_signup' | 'auth_signout' | 'auth_password_reset' | 'auth_password_reset_requested'
   | 'staff_added' | 'staff_removed' | 'staff_role_updated'
   | 'checkout_reconciliation_required' | 'payment_received_on_cancelled_order'
   | 'purchase_order.created' | 'purchase_order.submitted' | 'purchase_order.cancelled' | 'purchase_order.closed' | 'purchase_order.items_received'
@@ -52,6 +52,7 @@ export interface AuditEntry {
   correlationId: string | null;
   createdAt: Date;
   clientCreatedAt?: string; // ISO string used for hashing
+  location?: string | null;
 }
 
 export class AuditService {
@@ -70,6 +71,7 @@ export class AuditService {
     ip?: string;
     userAgent?: string;
     correlationId?: string;
+    location?: string;
   }): Promise<void> {
     try {
       // Guard: Ensure connectivity if in browser
@@ -108,7 +110,8 @@ export class AuditService {
           ip,
           userAgent,
           now.toISOString(),
-          nodeVersion
+          nodeVersion,
+          params.location || 'Unknown'
         ].join('|');
         
         const hash = crypto.createHash('sha256').update(payload).digest('hex');
@@ -128,6 +131,7 @@ export class AuditService {
           ip,
           userAgent,
           nodeVersion,
+          location: params.location || 'Unknown',
           createdAt: serverTimestamp(),
           clientCreatedAt: now.toISOString()
         });

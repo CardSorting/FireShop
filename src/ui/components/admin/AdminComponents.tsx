@@ -1027,47 +1027,65 @@ export function AdminAuditLogs({ logs }: { logs: any[] }) {
             <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Timestamp</th>
             <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Actor</th>
             <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Action</th>
-            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Target</th>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Origin</th>
+            <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Forensics</th>
             <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Integrity</th>
             <th className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-gray-400">Details</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {logs.map((log) => (
-            <tr key={log.id} className="hover:bg-gray-50 transition">
-              <td className="px-4 py-3.5 whitespace-nowrap text-gray-500 font-medium tabular-nums">
+            <tr key={log.id} className="hover:bg-gray-50 transition group">
+              <td className="px-4 py-3.5 whitespace-nowrap text-gray-500 font-medium tabular-nums text-xs">
                 {formatRelativeTime(log.createdAt)}
               </td>
               <td className="px-4 py-3.5">
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-gray-900">{log.userEmail.split('@')[0]}</span>
-                  <span className="text-[10px] text-gray-400 uppercase font-medium">{log.userEmail}</span>
+                  <span className="text-[9px] text-gray-400 uppercase font-black tracking-tight">{log.userEmail}</span>
                 </div>
               </td>
               <td className="px-4 py-3.5">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-widest ${
-                  log.action.includes('delete') ? 'bg-red-50 text-red-600' :
-                  log.action.includes('create') ? 'bg-green-50 text-green-600' :
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest ${
+                  log.action.includes('delete') || log.action.includes('cancelled') ? 'bg-red-50 text-red-600' :
+                  log.action.includes('create') || log.action.includes('success') ? 'bg-green-50 text-green-600' :
+                  log.action.includes('auth') ? 'bg-indigo-50 text-indigo-600' :
                   'bg-blue-50 text-blue-600'
                 }`}>
                   {log.action.replace(/_/g, ' ')}
                 </span>
               </td>
-              <td className="px-4 py-3.5 font-mono text-[10px] text-gray-400">
-                {log.targetId.slice(0, 8)}...
+              <td className="px-4 py-3.5 whitespace-nowrap">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-900">{log.location?.split(',')[0] || 'Unknown'}</span>
+                  <span className="text-[9px] text-gray-400">{log.location?.split(',').slice(1).join(',') || '---'}</span>
+                </div>
               </td>
               <td className="px-4 py-3.5">
-                <div className="flex items-center gap-2">
-                  <Shield className="h-3 w-3 text-primary-500" />
-                  <span className="font-mono text-[10px] text-gray-400 uppercase tracking-tighter">
-                    {log.hash ? log.hash.slice(0, 12) : 'unsealed'}
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold text-gray-700">{log.ip || '0.0.0.0'}</span>
+                  <span className="text-[9px] text-gray-400 font-medium truncate max-w-[120px]" title={log.userAgent}>
+                    {log.userAgent || 'system/internal'}
                   </span>
                 </div>
               </td>
               <td className="px-4 py-3.5">
-                <p className="text-[10px] font-medium text-gray-500 max-w-xs truncate">
-                  {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
-                </p>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-3 w-3 text-primary-500" />
+                  <span className="font-mono text-[9px] text-gray-400 uppercase tracking-tighter">
+                    {log.hash ? log.hash.slice(0, 8) : 'UNSEALED'}
+                  </span>
+                </div>
+              </td>
+              <td className="px-4 py-3.5">
+                <div className="relative">
+                  <p className="text-[10px] font-medium text-gray-500 max-w-[180px] truncate group-hover:hidden">
+                    {typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                  </p>
+                  <button className="hidden group-hover:block text-[10px] font-black text-primary-600 hover:underline uppercase tracking-widest">
+                    Investigate
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

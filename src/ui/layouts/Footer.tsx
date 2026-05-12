@@ -131,6 +131,7 @@ export function Footer() {
               <ul className="space-y-3">
                 <li><Link href="/login" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Sign In</Link></li>
                 <li><Link href="/orders" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Order History</Link></li>
+                <li><Link href="/orders" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Track Your Order</Link></li>
                 <li><Link href="/support" className="text-sm font-semibold text-gray-600 hover:text-primary-600 transition-colors">Support Center</Link></li>
               </ul>
             </div>

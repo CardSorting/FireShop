@@ -129,6 +129,11 @@ export function LoginPage() {
               className="w-full px-3 py-2 border rounded-md text-sm focus:ring-2 focus:ring-primary-500"
             />
           </div>
+          <div className="flex justify-end">
+            <Link href="/forgot-password" className="text-xs text-primary-600 hover:text-primary-700 font-medium">
+              Forgot password?
+            </Link>
+          </div>
           <button
             type="submit"
             disabled={loading}

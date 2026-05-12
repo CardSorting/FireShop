@@ -110,6 +110,22 @@ export class AuthService {
     return user;
   }
 
+  async requestPasswordReset(email: string): Promise<void> {
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) throw new AuthError(emailValidation.message);
+    
+    // We call our internal API which uses Admin SDK + Brevo
+    const response = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to request password reset');
+    }
+  }
 
   requireAuth(user: User | null): asserts user is User {
     if (!user) throw new AuthError();

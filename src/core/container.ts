@@ -44,6 +44,7 @@ import { FulfillmentService } from './FulfillmentService';
 import { OrderManagementService } from './OrderManagementService';
 import { OrderQueryService } from './OrderQueryService';
 import { RefundService } from './RefundService';
+import { RateLimitService } from './RateLimitService';
 import type {
   IProductRepository,
   ICartRepository,
@@ -100,6 +101,7 @@ let ticketRepoInstance: ITicketRepository | null = null;
 let kbRepoInstance: IKnowledgebaseRepository | null = null;
 let shippingServiceInstance: ShippingService | null = null;
 let emailServiceInstance: IEmailService | null = null;
+let rateLimitServiceInstance: RateLimitService | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -172,6 +174,7 @@ export function getServiceContainer() {
     ticketRepository: repos.ticketRepo,
     knowledgebaseRepository: repos.kbRepo,
     emailService: new BrevoEmailService(),
+    rateLimitService: new RateLimitService(),
   };
 }
 
@@ -292,6 +295,10 @@ export function getInitialServices() {
     emailService: (() => {
       if (!emailServiceInstance) emailServiceInstance = new BrevoEmailService();
       return emailServiceInstance;
+    })(),
+    rateLimitService: (() => {
+      if (!rateLimitServiceInstance) rateLimitServiceInstance = new RateLimitService();
+      return rateLimitServiceInstance;
     })(),
   };
 }

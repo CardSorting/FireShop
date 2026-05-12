@@ -423,6 +423,8 @@ export function serverTimestamp() {
 export const Timestamp = isServer 
   ? AdminTimestamp
   : client.Timestamp;
+
+export type Timestamp = InstanceType<typeof AdminTimestamp> | client.Timestamp;
 export type DocumentData = client.DocumentData;
 export type QueryDocumentSnapshot = client.QueryDocumentSnapshot;
 export type Transaction = client.Transaction;
