@@ -78,8 +78,7 @@ export class OrderService {
     private audit: AuditService,
     private locker: ILockProvider,
     private checkoutGateway?: ICheckoutGateway,
-    private shippingRepo?: IShippingRepository,
-    private accessRepo: FirestoreDigitalAccessRepository = new FirestoreDigitalAccessRepository()
+    private shippingRepo?: IShippingRepository
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -308,6 +307,16 @@ export class OrderService {
           await this.orderRepo.updateStatus(order.id, 'cancelled').catch(e => {
             logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, e });
           });
+          
+          // Production Hardening: Rollback discount usage
+          if (order.discountCode) {
+            const discount = await this.discountRepo.getByCode(order.discountCode);
+            if (discount) {
+              await this.discountRepo.decrementUsage(discount.id).catch(e => {
+                logger.error('FATAL: Failed to rollback discount usage', { discountId: discount.id, e });
+              });
+            }
+          }
           throw paymentErr;
         }
       }
@@ -472,6 +481,16 @@ export class OrderService {
     if (!order) throw new OrderNotFoundError(id);
     assertValidOrderStatusTransition(order.status, status);
     await this.orderRepo.updateStatus(id, status);
+    
+    // Production Hardening: Free up discount usage if order is cancelled or refunded
+    if ((status === 'cancelled' || status === 'refunded') && order.discountCode) {
+      const discount = await this.discountRepo.getByCode(order.discountCode);
+      if (discount) {
+        await this.discountRepo.decrementUsage(discount.id).catch(e => {
+          logger.error('Failed to decrement discount usage during status update', { orderId: id, discountId: discount.id, e });
+        });
+      }
+    }
     await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { from: order.status, to: status } });
   }
 

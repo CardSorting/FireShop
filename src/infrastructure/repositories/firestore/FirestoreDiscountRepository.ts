@@ -108,4 +108,13 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
       await updateDoc(docRef, { usageCount: increment(1) });
     }
   }
+
+  async decrementUsage(id: string, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, id);
+    if (transaction) {
+      transaction.update(docRef, { usageCount: increment(-1) });
+    } else {
+      await updateDoc(docRef, { usageCount: increment(-1) });
+    }
+  }
 }

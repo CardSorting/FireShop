@@ -142,6 +142,7 @@ export interface IDiscountRepository {
   update(id: string, updates: DiscountUpdate): Promise<Discount>;
   delete(id: string): Promise<void>;
   incrementUsage(id: string, transaction?: any): Promise<void>;
+  decrementUsage(id: string, transaction?: any): Promise<void>;
 }
 
 export interface ITransferRepository {

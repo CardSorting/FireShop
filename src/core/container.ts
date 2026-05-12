@@ -24,7 +24,6 @@ import { FirestoreWishlistRepository } from '@infrastructure/repositories/firest
 import { FirestoreTicketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { FirestoreKnowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
 import { FirestoreShippingRepository } from '@infrastructure/repositories/firestore/FirestoreShippingRepository';
-import { FirestoreDigitalAccessRepository } from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
@@ -98,7 +97,6 @@ let wishlistServiceInstance: WishlistService | null = null;
 let ticketRepoInstance: ITicketRepository | null = null;
 let kbRepoInstance: IKnowledgebaseRepository | null = null;
 let shippingServiceInstance: ShippingService | null = null;
-let digitalAccessRepoInstance: FirestoreDigitalAccessRepository | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -148,13 +146,12 @@ export function getServiceContainer() {
       new AuditService(),
       new FirestoreLocker(),
       createCheckoutGateway(),
-      repos.shippingRepo,
-      new FirestoreDigitalAccessRepository()
+      repos.shippingRepo
     ),
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
     orderQueryService: new OrderQueryService(repos.orderRepo),
-    refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService(), repos.productRepo),
+    refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService(), repos.productRepo, repos.discountRepo),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
     shippingService: new ShippingService(repos.shippingRepo, new AuditService()),
@@ -235,16 +232,12 @@ export function getInitialServices() {
       getAuditService(),
       lockProviderInstance!,
       checkoutGatewayInstance ?? undefined,
-      shippingRepoInstance!,
-      (() => {
-        if (!digitalAccessRepoInstance) digitalAccessRepoInstance = new FirestoreDigitalAccessRepository();
-        return digitalAccessRepoInstance;
-      })()
+      shippingRepoInstance!
     ),
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
     orderQueryService: new OrderQueryService(orderRepoInstance!),
-    refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService(), productRepoInstance!),
+    refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService(), productRepoInstance!, discountRepoInstance!),
     discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
     shippingService: (() => {

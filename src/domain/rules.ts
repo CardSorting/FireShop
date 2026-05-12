@@ -360,6 +360,10 @@ export function validateCartItem(
   if (quantity <= 0) return false;
   if (quantity > MAX_CART_QUANTITY) return false;
   
+  // Production Hardening: Honor digital goods and backorder rules
+  if (product.isDigital) return true;
+  if (product.continueSellingWhenOutOfStock) return true;
+  
   if (variantId && product.variants) {
     const variant = product.variants.find(v => v.id === variantId);
     if (!variant) return false;

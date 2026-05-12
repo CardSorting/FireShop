@@ -395,6 +395,7 @@ export interface OrderItem {
 }
 
 export type OrderStatus =
+  | 'draft'
   | 'pending'
   | 'confirmed'
   | 'processing'

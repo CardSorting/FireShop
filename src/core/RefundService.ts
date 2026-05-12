@@ -16,7 +16,8 @@ export class RefundService {
     private orderRepo: IOrderRepository,
     private payment: IPaymentProcessor,
     private audit: AuditService,
-    private productRepo?: IProductRepository
+    private productRepo?: IProductRepository,
+    private discountRepo?: import('@domain/repositories').IDiscountRepository
   ) {}
 
   async processRefund(orderId: string, amount: number, actor: { id: string, email: string }): Promise<void> {
@@ -63,7 +64,18 @@ export class RefundService {
                 // Don't throw — the refund itself succeeded
             }
         }
-
+        // Production Hardening: Rollback discount usage if fully refunded
+        if (isFullRefund && order.discountCode && this.discountRepo) {
+            try {
+                const discount = await this.discountRepo.getByCode(order.discountCode);
+                if (discount) {
+                    await this.discountRepo.decrementUsage(discount.id);
+                    logger.info(`[RefundService] Decremented discount usage for ${discount.code}`);
+                }
+            } catch (discountErr) {
+                logger.error(`CRITICAL: Failed to rollback discount usage for order ${orderId}`, discountErr);
+            }
+        }
         await this.audit.record({
             userId: actor.id,
             userEmail: actor.email,
