@@ -8,20 +8,24 @@ import {
   Loader2, 
   Sparkles,
   ShoppingBag,
-  Clock,
   ArrowRight,
   User,
   ChevronDown,
   Minimize2,
   AlertCircle,
   RefreshCw,
-  ShieldCheck,
   Package,
   Ruler,
   RotateCcw,
   Zap,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck, 
+  Clock, 
+  Flame, 
+  History as HistoryIcon, 
+  Heart,
+  Image as ImageIcon
 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { ClientChatMessage } from '@domain/concierge/types';
@@ -52,6 +56,20 @@ export function ConciergeBubble() {
   const pathname = usePathname();
   const { cart, subtotal } = useCart();
   const { user } = useAuth();
+  
+  // Track Recently Viewed
+  useEffect(() => {
+    if (typeof window !== 'undefined' && document.title) {
+      const title = document.title.split('|')[0].trim();
+      if (!title.includes('Concierge') && !title.includes('Admin')) {
+        const viewed = JSON.parse(localStorage.getItem('db_recently_viewed') || '[]');
+        if (!viewed.includes(title)) {
+          const updated = [title, ...viewed].slice(0, 3);
+          localStorage.setItem('db_recently_viewed', JSON.stringify(updated));
+        }
+      }
+    }
+  }, [pathname]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -90,6 +108,19 @@ export function ConciergeBubble() {
     syncSession();
   }, []);
 
+  // Handle Personalized Greeting
+  useEffect(() => {
+    if (isOpen && messages.length === 0 && !isSyncing) {
+      const greetings = [
+        "Hi! I'm Sarah. I'm actually in the studio finishing up a few orders, but I'd love to help you find something special today!",
+        "Hello! Sarah here. I just stepped away from the workbench for a second—how can I help you find a deal?",
+        "Hi there! It's Sarah from the studio. We're busy packing up today's shipments, but I'm here if you have any questions!"
+      ];
+      const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+      setMessages([{ role: 'assistant', content: randomGreeting }]);
+    }
+  }, [isOpen, messages.length, isSyncing]);
+
   // Fetch Settings
   useEffect(() => {
     const fetchSettings = async () => {
@@ -116,11 +147,23 @@ export function ConciergeBubble() {
     if (!manualContent) setInputValue('');
     setIsLoading(true);
     
+    // Simulate a "Deliberation Pause" before the API call to mirror human thinking
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     // Set a personalized status message for bartering
+    const artisanalStatuses = [
+      'Sarah is inspecting a new piece...',
+      'Wrapping a delicate order...',
+      'Checking the daily studio budget...',
+      'Sarah is typing...',
+      'In the studio • Packing orders...'
+    ];
+    const randomStatus = artisanalStatuses[Math.floor(Math.random() * artisanalStatuses.length)];
+    
     if (content.toLowerCase().includes('offer') || content.toLowerCase().includes('deal')) {
       setStatusMessage('Checking with the shop owner...');
     } else {
-      setStatusMessage('Concierge is typing...');
+      setStatusMessage(randomStatus);
     }
 
     try {
@@ -133,6 +176,7 @@ export function ConciergeBubble() {
           context: {
             currentPage: pathname,
             pageTitle: document.title,
+            recentlyViewed: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('db_recently_viewed') || '[]') : [],
             cartValue: subtotal,
             cartContents: cart?.items || [],
             userSession: user ? {
@@ -217,30 +261,56 @@ export function ConciergeBubble() {
             <div className="absolute top-0 right-0 p-8 opacity-10">
               <Sparkles className="h-20 w-20 text-white" />
             </div>
-            <div className="relative z-10 flex justify-between items-start">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                   <div className={`h-2 w-2 rounded-full ${connStatus === 'online' ? 'bg-green-500' : 'bg-gray-300'} animate-pulse`} />
-                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
-                     {isLoading ? statusMessage : (connStatus === 'online' ? 'Concierge is online' : 'Reconnecting...')}
-                   </span>
+            <div className="relative z-10 flex flex-col">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="h-14 w-14 rounded-full bg-white flex items-center justify-center text-xl font-black text-gray-900 border-2 border-white shadow-lg overflow-hidden">
+                        <span className="relative z-10">S</span>
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary-100 to-transparent" />
+                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm animate-pulse" />
+                    </div>
+                    <div className="flex flex-col">
+                      <h3 className="text-lg font-black leading-tight text-white">Sarah</h3>
+                      <div className="flex items-center gap-1.5">
+                         <span className="text-[10px] font-black uppercase tracking-widest text-primary-400">DreamBees Artisans</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={toggleOpen}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors self-start"
+                  >
+                    <Minimize2 className="h-5 w-5 text-gray-400" />
+                  </button>
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 bg-primary-50/50 self-start px-2 py-0.5 rounded-full border border-primary-100/50">
+
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex flex-col items-center justify-center">
+                    <span className="text-[14px] font-black text-white">100%</span>
+                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Response Rate</span>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex flex-col items-center justify-center">
+                    <span className="text-[14px] font-black text-white">9-6 PM</span>
+                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Studio Hours</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 bg-primary-900/50 self-start px-2 py-1 rounded-full border border-primary-800/50">
                   <div className="h-1 w-1 bg-primary-400 rounded-full animate-ping" />
-                  <span className="text-[8px] font-black text-primary-700 uppercase tracking-tighter">3 people looking at this item</span>
+                  <span className="text-[8px] font-black text-primary-300 uppercase tracking-tighter">
+                    {new Date().getHours() > 18 || new Date().getHours() < 9 ? '🌙 After hours • Replies soon' : '🎨 In the studio • Packing orders'}
+                  </span>
                 </div>
-                <h3 className="text-2xl font-black leading-tight mt-1">Helpful Support</h3>
-                <div className="flex items-center gap-2 mt-2">
-                  <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center text-[10px] font-black text-primary-600 border border-primary-200">S</div>
-                  <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Managed by Sarah • Replies in minutes</span>
-                </div>
-              </div>
-              <button 
-                onClick={toggleOpen}
-                className="p-2 hover:bg-white/10 rounded-full transition-colors"
-              >
-                <Minimize2 className="h-5 w-5 text-gray-400" />
-              </button>
+                
+                {/* Sarah's Pick Badge */}
+                {document.title.toLowerCase().includes('sarah') && (
+                  <div className="flex items-center gap-1.5 mt-2 bg-amber-400/20 self-start px-2 py-1 rounded-full border border-amber-400/40 animate-in zoom-in duration-700 delay-1000">
+                    <Heart className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
+                    <span className="text-[8px] font-black text-amber-200 uppercase tracking-tighter italic">Sarah's Personal Favorite 💖</span>
+                  </div>
+                )}
             </div>
           </div>
 
@@ -275,12 +345,20 @@ export function ConciergeBubble() {
                   </div>
                   <h4 className="text-xl font-black text-gray-900 mb-2">It's a Deal!</h4>
                   <p className="text-xs font-bold text-gray-500 mb-6">You've unlocked a {agreedPercentage}% "Neighbor Discount". We're excited to get this piece out to you!</p>
-                  <button 
-                    onClick={() => setIsDealReached(false)}
-                    className="w-full py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
-                  >
-                    Thanks, neighbor!
-                  </button>
+                  <div className="space-y-2">
+                    <button 
+                      onClick={() => window.location.href = '/checkout'}
+                      className="w-full py-4 bg-primary-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-700 shadow-xl shadow-primary-100 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      Check out now <ArrowRight className="h-3 w-3" />
+                    </button>
+                    <button 
+                      onClick={() => setIsDealReached(false)}
+                      className="w-full py-3 text-gray-400 text-[9px] font-black uppercase tracking-widest hover:text-gray-900 transition-all"
+                    >
+                      Maybe later, neighbor
+                    </button>
+                  </div>
                </div>
             </div>
           )}
@@ -314,8 +392,54 @@ export function ConciergeBubble() {
                         }`}>
                           {msg.content.includes('[FINAL_OFFER]') ? 'Best & Final Offer' : 'New Offer Received'}
                         </div>
-                        <div className="text-3xl font-black text-gray-900">
-                          {msg.content.match(/\[OFFER:\s*(.*?)\s*,/)?.[1] || '---'}
+                        
+                        {/* High Interest Scarcity Badge */}
+                        <div className="flex items-center justify-center gap-1.5 bg-amber-50 px-3 py-1 rounded-full border border-amber-100 self-center animate-pulse">
+                          <Flame className="h-2.5 w-2.5 text-amber-500" />
+                          <span className="text-[8px] font-black text-amber-600 uppercase tracking-tighter">High Interest • Only a few left</span>
+                        </div>
+
+                        <div className="flex flex-col items-center">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 line-through mb-1">
+                            ${(subtotal / 100).toFixed(2)}
+                          </div>
+                          <div className="text-3xl font-black text-gray-900">
+                            {msg.content.match(/\[OFFER:\s*(.*?)\s*,/)?.[1] || '---'}
+                          </div>
+                          {/* Quality Seal */}
+                          <div className="flex items-center gap-1 mt-1 text-[8px] font-black text-green-600 uppercase tracking-tighter">
+                            <ShieldCheck className="h-2.5 w-2.5" /> Quality Guaranteed
+                          </div>
+                          {/* Deal Confidence Meter */}
+                          <div className="w-full mt-4 space-y-1">
+                            <div className="flex justify-between items-center px-1">
+                              <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">Deal Confidence</span>
+                              <span className="text-[7px] font-black uppercase tracking-widest text-primary-600">
+                                {messages.filter(m => m.content.includes('[OFFER:')).length > 2 ? 'High' : 'Closing the gap'}
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-50">
+                              <div 
+                                className="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-1000"
+                                style={{ width: `${Math.min(30 + (messages.filter(m => m.content.includes('[OFFER:')).length * 20), 100)}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Offer History Path */}
+                          {messages.filter(m => m.content.includes('[OFFER:')).length > 1 && (
+                            <div className="flex items-center gap-1 mt-2 text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+                              <HistoryIcon className="h-2.5 w-2.5" />
+                              {messages
+                                .filter(m => m.content.includes('[OFFER:'))
+                                .map(m => m.content.match(/\[OFFER:\s*(.*?)\s*,/)?.[1])
+                                .slice(-3, -1)
+                                .join(' → ')} → This
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-primary-400 bg-white/50 self-center px-2 py-1 rounded-full border border-primary-100/30">
+                           <Clock className="h-2.5 w-2.5" /> Expires in 24 hours
                         </div>
                         <div className="text-[11px] font-bold text-gray-500 italic">
                           {msg.content.replace(/\[OFFER:.*?\]/g, '').replace('[FINAL_OFFER]', '').trim() || "What do you think?"}
@@ -353,6 +477,16 @@ export function ConciergeBubble() {
                     ) : (
                       msg.content
                     )}
+                    
+                    {msg.role === 'user' && (
+                      <div className="flex justify-end gap-1 mt-1">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest italic">Read</span>
+                        <div className="flex -space-x-1">
+                          <div className="h-2 w-2 text-primary-500">✓</div>
+                          <div className="h-2 w-2 text-primary-500">✓</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -380,14 +514,24 @@ export function ConciergeBubble() {
                     <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
                   </button>
                   {settings?.isBarteringEnabled && (
-                    <button 
-                      onClick={() => setIsOffering(true)}
-                      className="w-full text-left p-4 rounded-2xl bg-primary-50 border border-primary-100 hover:border-primary-600 transition-all group flex items-center gap-3"
-                    >
-                      <Sparkles className="h-4 w-4 text-primary-400 group-hover:text-primary-600" />
-                      <span className="text-xs font-bold text-primary-600 group-hover:text-primary-700">Make an offer (Barter)</span>
-                      <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
-                    </button>
+                    <>
+                      <button 
+                        onClick={() => handleSendMessage(null, "Can you show me more photos of this item? I want to see the details.")}
+                        className="w-full text-left p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-900 transition-all group flex items-center gap-3"
+                      >
+                        <ImageIcon className="h-4 w-4 text-gray-400 group-hover:text-gray-900" />
+                        <span className="text-xs font-bold text-gray-600 group-hover:text-gray-900">Ask for more photos</span>
+                        <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all" />
+                      </button>
+                      <button 
+                        onClick={() => setIsOffering(true)}
+                        className="w-full text-left p-4 rounded-2xl bg-primary-50 border border-primary-100 hover:border-primary-600 transition-all group flex items-center gap-3"
+                      >
+                        <Sparkles className="h-4 w-4 text-primary-400 group-hover:text-primary-600" />
+                        <span className="text-xs font-bold text-primary-600 group-hover:text-primary-700">Make an offer (Barter)</span>
+                        <ArrowRight className="h-3 w-3 ml-auto opacity-0 group-hover:opacity-100 transition-all text-primary-600" />
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -426,7 +570,24 @@ export function ConciergeBubble() {
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Make your offer</span>
-                    <span className="text-[9px] font-bold text-primary-500 italic mt-0.5">Tip: Offers within 15% are most likely to be accepted.</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full transition-all duration-500 ${
+                            !offerValue ? 'w-0' : 
+                            parseFloat(offerValue) < (subtotal / 200) ? 'w-1/3 bg-red-400' :
+                            parseFloat(offerValue) < (subtotal / 150) ? 'w-2/3 bg-amber-400' :
+                            'w-full bg-green-400'
+                          }`}
+                        />
+                      </div>
+                      <span className="text-[7px] font-black uppercase tracking-widest text-gray-400">
+                        {!offerValue ? 'Pending' : 
+                         parseFloat(offerValue) < (subtotal / 200) ? 'Lowball' :
+                         parseFloat(offerValue) < (subtotal / 150) ? 'Fair' :
+                         'Strong'}
+                      </span>
+                    </div>
                   </div>
                   <button onClick={() => setIsOffering(false)} className="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors">Cancel</button>
                 </div>

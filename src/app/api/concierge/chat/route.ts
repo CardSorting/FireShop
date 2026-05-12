@@ -30,6 +30,7 @@ const ChatSchema = z.object({
     inventoryState: z.any().optional(),
     activePromotions: z.array(z.any()).optional(),
     pageTitle: z.string().optional(),
+    recentlyViewed: z.array(z.string()).optional(),
   }).optional(),
 });
 
@@ -77,6 +78,13 @@ export async function POST(req: NextRequest) {
 
     // Prepare context string for the AI
     let contextString = `Session ID: ${activeSessionId}\n`;
+    
+    // Atmospheric Context
+    const now = new Date();
+    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const timeOfDay = now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening';
+    contextString += `Atmospheric Context: It is a ${dayName} ${timeOfDay} at the DreamBees Studio.\n`;
+    
     if (context) {
       if (context.currentPage) contextString += `Current Page: ${context.currentPage}\n`;
       if (context.cartContents && context.cartContents.length > 0) {
@@ -84,6 +92,10 @@ export async function POST(req: NextRequest) {
       }
       if (context.userSession) {
         contextString += `Customer: ${context.userSession.name || context.userSession.email} (${context.userSession.id})\n`;
+      }
+      if (context.recentlyViewed && context.recentlyViewed.length > 1) {
+        contextString += `Recently Viewed: ${context.recentlyViewed.filter((t: string) => t !== (context.pageTitle || '')).join(', ')}\n`;
+        contextString += `HINT: Mention these other items if they seem hesitant or want to bundle.\n`;
       }
       if (context.activePromotions && context.activePromotions.length > 0) {
         contextString += `Active Promotions: ${JSON.stringify(context.activePromotions)}\n`;
@@ -110,6 +122,21 @@ export async function POST(req: NextRequest) {
             contextString += `Current Product Stock: ${product.stock} units remaining.\n`;
             if (product.stock < 5) {
               contextString += `PRESSURE: This item is in LOW STOCK. Use this to maintain price or push for immediate conversion.\n`;
+            }
+
+            if (product.tags?.some(t => t.toLowerCase().includes('limited') || t.toLowerCase().includes('rare'))) {
+              contextString += `EXCLUSIVITY: This is a LIMITED EDITION item. Maintain price firmness as these are highly collectible.\n`;
+            }
+            
+            // Related Items for Bundle Leverage
+            const { products: related } = await productService.getProducts({ 
+              category: product.category, 
+              limit: 3 
+            });
+            const bundleItems = related.filter(p => p.id !== product.id);
+            if (bundleItems.length > 0) {
+              contextString += `AVAILABLE FOR BUNDLING: ${bundleItems.map(p => `${p.name} ($${p.price / 100})`).join(', ')}\n`;
+              contextString += `HINT: If they want a steeper discount, offer a bundle deal using these specific items.\n`;
             }
           }
         } catch (err) {
