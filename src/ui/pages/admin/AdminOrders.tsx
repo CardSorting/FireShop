@@ -21,7 +21,7 @@ import {
   Truck,
   PackageSearch,
   Printer,
-  RotateCcw,
+  RefreshCcw,
   X,
   MapPin,
   CreditCard,
@@ -73,13 +73,6 @@ const FULFILLMENT_TABS = [
   { label: 'Unpaid', value: 'pending', icon: DollarSign },
   { label: 'Open', value: 'processing', icon: RefreshCcw },
   { label: 'Shipped', value: 'shipped', icon: Truck },
-];
-// Old tabs removed:
-  { label: 'All', value: 'all', icon: PackageCheck },
-  { label: 'To review', value: 'pending', icon: Clock },
-  { label: 'Ready to ship', value: 'confirmed', icon: PackageCheck },
-  { label: 'In transit', value: 'shipped', icon: Truck },
-  { label: 'Completed', value: 'delivered', icon: CheckCircle2 },
 ];
 
 export function AdminOrders() {
