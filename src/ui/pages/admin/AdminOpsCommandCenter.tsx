@@ -67,6 +67,27 @@ function riskCopy(riskLevel: string) {
   return 'Low risk. This is mainly a prioritization or cleanup recommendation.';
 }
 
+function sourcesForTarget(target: string) {
+  const sources: Record<string, string> = {
+    procurement: 'inventory levels, reorder points, product stock status',
+    inventory: 'inventory levels, stock health, product setup data',
+    discounts: 'inventory health, margin constraints, product setup health',
+    storefront: 'inventory health, product readiness, promotion constraints',
+    catalog: 'product setup health, missing SKU/cost/photo signals',
+    fulfillment: 'active orders, fulfillment buckets, ready-to-ship queue',
+    orders: 'active orders, fulfillment buckets, order status counts',
+    settings: 'store setup checklist, payment/shipping/domain status',
+    audit: 'store health snapshot and recent operational signals',
+  };
+  return sources[target] ?? 'store health snapshot';
+}
+
+function confidenceForRisk(riskLevel: string) {
+  if (riskLevel === 'low') return 'High';
+  if (riskLevel === 'medium') return 'Medium';
+  return 'Low';
+}
+
 export function AdminOpsCommandCenter() {
   useAdminPageTitle('Planning');
   const { toast } = useToast();
@@ -256,6 +277,10 @@ export function AdminOpsCommandCenter() {
                           <p className="font-black uppercase tracking-widest text-gray-400">What risk am I accepting?</p>
                           <p className="mt-1 font-semibold text-gray-700">{riskCopy(operation.riskLevel)} {approvalCopy(operation.requiresApproval)}</p>
                         </div>
+                      </div>
+                      <div className="mt-4 flex flex-col gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+                        <span>Based on: {sourcesForTarget(operation.target)}</span>
+                        <span>Confidence: {confidenceForRisk(operation.riskLevel)}</span>
                       </div>
                     </div>
                   ))}
