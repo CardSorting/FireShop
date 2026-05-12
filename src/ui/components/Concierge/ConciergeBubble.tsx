@@ -44,6 +44,7 @@ export function ConciergeBubble() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showActivityToast, setShowActivityToast] = useState(false);
   const [connStatus, setConnStatus] = useState<'online' | 'reconnecting' | 'offline'>('online');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [settings, setSettings] = useState<ConciergeSettings | null>(null);
@@ -52,6 +53,7 @@ export function ConciergeBubble() {
   const [isOffering, setIsOffering] = useState(false);
   const [offerValue, setOfferValue] = useState('');
   const [statusMessage, setStatusMessage] = useState('Concierge is online');
+  const [inventoryState, setInventoryState] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { cart, subtotal } = useCart();
@@ -68,6 +70,19 @@ export function ConciergeBubble() {
           localStorage.setItem('db_recently_viewed', JSON.stringify(updated));
         }
       }
+      
+      // Fetch current inventory pressure for banner
+      const fetchStock = async () => {
+        try {
+          const title = document.title.split('|')[0].trim();
+          const res = await fetch(`/api/products?query=${encodeURIComponent(title)}&limit=1`);
+          if (res.ok) {
+            const { products } = await res.json();
+            if (products.length > 0) setInventoryState(products[0]);
+          }
+        } catch (err) {}
+      };
+      fetchStock();
     }
   }, [pathname]);
 
@@ -111,6 +126,10 @@ export function ConciergeBubble() {
   // Handle Personalized Greeting
   useEffect(() => {
     if (isOpen && messages.length === 0 && !isSyncing) {
+      // Show activity toast
+      setTimeout(() => setShowActivityToast(true), 1000);
+      setTimeout(() => setShowActivityToast(false), 5000);
+
       const greetings = [
         "Hi! I'm Sarah. I'm actually in the studio finishing up a few orders, but I'd love to help you find something special today!",
         "Hello! Sarah here. I just stepped away from the workbench for a second—how can I help you find a deal?",
@@ -254,7 +273,20 @@ export function ConciergeBubble() {
     <div className="fixed bottom-6 right-6 z-9999 flex flex-col items-end gap-4 font-sans antialiased">
       {/* Chat Window */}
       {isOpen && (
-        <div className="w-[400px] max-w-[92vw] h-[640px] max-h-[85vh] bg-white rounded-4xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-500 ease-out">
+        <div className="w-[400px] max-w-[92vw] h-[640px] max-h-[85vh] bg-white rounded-4xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] border border-gray-100 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-500 ease-out relative">
+          
+          {/* Activity Toast */}
+          {showActivityToast && (
+            <div className="absolute top-32 left-1/2 -translate-x-1/2 z-100 w-[280px] bg-white rounded-3xl p-4 shadow-2xl border border-primary-50 animate-in slide-in-from-top-4 fade-in duration-500 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-primary-100 flex items-center justify-center text-primary-600 shrink-0">
+                <ShoppingBag className="h-5 w-5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-gray-900 leading-none mb-1">Recent Studio Sale</span>
+                <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest leading-none italic">A neighbor just bought a Bumble Bee Plushie!</span>
+              </div>
+            </div>
+          )}
           
           {/* Calm Header */}
           <div className="bg-gray-900 px-8 py-8 text-white relative overflow-hidden">
@@ -267,7 +299,7 @@ export function ConciergeBubble() {
                     <div className="relative">
                       <div className="h-14 w-14 rounded-full bg-white flex items-center justify-center text-xl font-black text-gray-900 border-2 border-white shadow-lg overflow-hidden">
                         <span className="relative z-10">S</span>
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary-100 to-transparent" />
+                        <div className="absolute inset-0 bg-linear-to-br from-primary-100 to-transparent" />
                       </div>
                       <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 bg-green-500 rounded-full border-2 border-gray-900 shadow-sm animate-pulse" />
                     </div>
@@ -312,7 +344,19 @@ export function ConciergeBubble() {
                   </div>
                 )}
             </div>
+            {/* Workbench Texture Overlay */}
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/wood-pattern.png')] grayscale invert" />
           </div>
+
+          {/* High Interest Scarcity Banner */}
+          {inventoryState?.stock < 5 && (
+            <div className="bg-amber-500/10 border-y border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2 animate-pulse">
+              <Zap className="h-3 w-3 text-amber-600 fill-amber-600" />
+              <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest">
+                High Demand • {inventoryState?.stock} neighbors are watching this item
+              </span>
+            </div>
+          )}
 
           {/* Syncing Overlay */}
           {isSyncing && (
@@ -420,7 +464,7 @@ export function ConciergeBubble() {
                             </div>
                             <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden border border-gray-50">
                               <div 
-                                className="h-full bg-gradient-to-r from-primary-400 to-primary-600 transition-all duration-1000"
+                                className="h-full bg-linear-to-r from-primary-400 to-primary-600 transition-all duration-1000"
                                 style={{ width: `${Math.min(30 + (messages.filter(m => m.content.includes('[OFFER:')).length * 20), 100)}%` }}
                               />
                             </div>
@@ -537,12 +581,22 @@ export function ConciergeBubble() {
               )}
 
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-white px-5 py-4 rounded-3xl rounded-tl-none shadow-sm border border-gray-100">
-                    <div className="flex gap-1.5 items-center">
-                      <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></span>
-                      <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  <div className="flex justify-start">
+                    <div className="bg-gray-50/50 px-4 py-2 rounded-2xl border border-dashed border-gray-200">
+                      <div className="flex items-center gap-2">
+                         <Loader2 className="h-2.5 w-2.5 text-primary-400 animate-spin" />
+                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{statusMessage}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-start">
+                    <div className="bg-white px-5 py-4 rounded-3xl rounded-tl-none shadow-sm border border-gray-100">
+                      <div className="flex gap-1.5 items-center">
+                        <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                        <span className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
