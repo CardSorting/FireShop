@@ -26,9 +26,21 @@ lerna-debug.log*
 
 # Credentials
 *-service-account.json
+*-key.json
+*-credentials.json
 dreambees-alchemist-*.json
 service-account.json
+firebase-adminsdk-*.json
 *.json.key
+secrets.json
+
+# Temporary Debug & Scratch Files
+scratch_*.js
+scratch_*.cjs
+*_debug_env.*
+policy.json
+new_policy.json
+update_policy.cjs
 
 # Database
 *.db

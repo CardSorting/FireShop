@@ -88,14 +88,26 @@ function getAdminApp() {
       _app = apps[0];
     } else {
       try {
-        if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-          const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+        const saJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+        if (saJson && saJson !== 'undefined' && saJson.trim() !== '') {
+          const serviceAccount = JSON.parse(saJson);
+          
+          // Fix PEM formatting: some environments escape newlines
+          if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+          }
+
           _app = initializeApp({
             credential: cert(serviceAccount),
-            projectId,
+            // IMPORTANT: Force the project ID to the one where the data actually resides.
+            // Your service account already has 'Firebase Admin' roles in shopmore-1e34b.
+            projectId: projectId,
             storageBucket: `${projectId}.firebasestorage.app`
           });
         } else {
+          // Fallback to Application Default Credentials (ADC)
+          // Use this for local development by running:
+          // gcloud auth application-default login
           _app = initializeApp({
             projectId,
             storageBucket: `${projectId}.firebasestorage.app`
