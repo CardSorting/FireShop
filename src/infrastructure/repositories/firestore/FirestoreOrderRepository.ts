@@ -75,6 +75,11 @@ export class FirestoreOrderRepository implements IOrderRepository {
         t.set(idempRef, { orderId: id, createdAt: serverTimestamp() });
       }
 
+      if (order.paymentTransactionId) {
+        const payRef = doc(db, 'order_payment_intent_map', order.paymentTransactionId);
+        t.set(payRef, { orderId: id, createdAt: serverTimestamp() });
+      }
+
       return {
         ...order,
         id,
@@ -124,6 +129,20 @@ export class FirestoreOrderRepository implements IOrderRepository {
     const snapshot = await getDocs(q);
     if (snapshot.empty) return null;
     return this.mapDocToOrder(snapshot.docs[0].id, snapshot.docs[0].data());
+  }
+
+  async getByPaymentTransactionIdTransactional(id: string, transaction: any): Promise<Order | null> {
+    const mapRef = doc(getUnifiedDb(), 'order_payment_intent_map', id);
+    const mapSnap = await transaction.get(mapRef);
+    
+    if (!mapSnap.exists()) return null;
+    
+    const { orderId } = mapSnap.data();
+    const orderRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const orderSnap = await transaction.get(orderRef);
+    
+    if (!orderSnap.exists()) return null;
+    return this.mapDocToOrder(orderSnap.id, orderSnap.data());
   }
 
   async getByUserId(userId: string, options?: {
@@ -246,32 +265,32 @@ export class FirestoreOrderRepository implements IOrderRepository {
     });
   }
 
-  async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[]): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
-      notes, 
-      updatedAt: serverTimestamp() 
-    });
+  async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[], transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const data = { notes, updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, data);
+    else await updateDoc(docRef, data);
   }
 
-  async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
-      ...data, 
-      updatedAt: serverTimestamp() 
-    });
+  async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const updateData = { ...data, updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, updateData);
+    else await updateDoc(docRef, updateData);
   }
 
-  async updateRiskScore(orderId: string, score: number): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), { 
-      riskScore: score, 
-      updatedAt: serverTimestamp() 
-    });
+  async updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const data = { riskScore: score, updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, data);
+    else await updateDoc(docRef, data);
   }
 
-  async addFulfillmentEvent(orderId: string, event: import('@domain/models').OrderFulfillmentEvent): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, orderId), {
-      fulfillmentEvents: arrayUnion(event),
-      updatedAt: serverTimestamp()
-    });
+  async addFulfillmentEvent(orderId: string, event: import('@domain/models').OrderFulfillmentEvent, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const data = { fulfillmentEvents: arrayUnion(event), updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, data);
+    else await updateDoc(docRef, data);
   }
 
   async getDashboardStats(): Promise<{

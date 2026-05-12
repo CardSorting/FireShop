@@ -176,7 +176,7 @@ export class OrderService {
   // CORE OPERATIONS (HIGH-VELOCITY)
   // ────────────────────────────────────────────────────────────────────────────
 
-  async initiateCheckout(userId: string, shippingAddress: Address, userEmail?: string, userName?: string, discountCode?: string, idempotencyKey?: string, paymentIntentId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
+  async initiateCheckout(userId: string, shippingAddress: Address, userEmail?: string, userName?: string, discountCode?: string, idempotencyKey?: string, paymentMethodId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_lock:${userId}`;
     const acquired = await this.locker.acquireLock(lockId, userId, 45000);
@@ -212,7 +212,26 @@ export class OrderService {
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
-        // 4. Create Order (Atomic via Repository Hardening)
+        // 4. Process Payment (Synchronous for Trusted Flow)
+        let paymentIntentId: string | null = null;
+        if (paymentMethodId) {
+          try {
+            const paymentResult = await this.payment.processPayment({
+              amount: total,
+              orderId: 'pending', // Temporary ID since we haven't generated it yet
+              paymentMethodId,
+              idempotencyKey: idempotencyKey || crypto.randomUUID()
+            });
+            if (paymentResult.success) {
+              paymentIntentId = paymentResult.transactionId;
+            }
+          } catch (paymentErr: any) {
+            logger.error('Payment processing failed during checkout initiation', { userId, paymentErr });
+            throw paymentErr; // Re-throw to abort transaction
+          }
+        }
+
+        // 5. Create Order (Atomic via Repository Hardening)
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
           userId,
           items: cart.items.map(i => ({ 
@@ -234,11 +253,11 @@ export class OrderService {
           discountAmount: discountAmount,
           discountCode: validDiscountCode,
           total,
-          status: 'pending',
+          status: paymentIntentId ? 'confirmed' : 'pending', // Immediate confirmation if PI succeeded
           shippingAddress,
           customerEmail: userEmail,
           customerName: userName,
-          paymentTransactionId: paymentIntentId || null,
+          paymentTransactionId: paymentIntentId,
           idempotencyKey: idempotencyKey || crypto.randomUUID(),
           fulfillmentMethod,
           fulfillmentLocationId: 'primary',
@@ -250,7 +269,7 @@ export class OrderService {
             id: crypto.randomUUID(), 
             type: 'order_placed', 
             label: 'Order Received', 
-            description: 'Payment verified, preparing for fulfillment.', 
+            description: paymentIntentId ? 'Payment verified and secured.' : 'Order received, pending payment verification.', 
             at: new Date() 
           }],
           metadata: {
@@ -261,8 +280,8 @@ export class OrderService {
 
         const order = await this.orderRepo.create(orderData, transaction);
 
-        // 5. Clear Cart (Atomic)
-        await this.cartRepo.clear(userId);
+        // 6. Clear Cart (Transactional)
+        await this.cartRepo.clear(userId, transaction);
 
         // 6. Record Audit (Transactional)
         await this.audit.recordWithTransaction(transaction, {
@@ -284,24 +303,36 @@ export class OrderService {
   }
 
   async finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
-    const order = await this.orderRepo.getByPaymentTransactionId(paymentIntentId);
-    if (!order || order.status !== 'pending') return order as any;
+    const db = getUnifiedDb();
     
-    const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
-    
-    // Production Hardening: Deterministic status derivation based on risk and fulfillment method
-    let nextStatus: OrderStatus = 'confirmed';
-    if (riskScore < 75) {
-       if (order.items.every(i => i.isDigital)) nextStatus = 'delivered';
-       else if (order.fulfillmentMethod === 'shipping') nextStatus = 'processing';
-       else if (order.fulfillmentMethod === 'pickup') nextStatus = 'ready_for_pickup';
-       else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
-    }
-
     try {
-      // ATOMIC TRANSACTION: Inventory + Order Status + Audit + Cart Clear
-      await runTransaction(getUnifiedDb(), async (transaction: any) => {
-        // 1. Deduct Inventory
+      // ATOMIC TRANSACTION: Check Status + Inventory + Order Status + Audit + Cart Clear
+      const finalizedOrder = await runTransaction(db, async (transaction: any) => {
+        // 1. Fetch Order within Transaction (using point-read lookup map)
+        const order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
+        if (!order) {
+           logger.error('CRITICAL: Payment finalized for non-existent order mapping', { paymentIntentId });
+           throw new OrderNotFoundError(paymentIntentId);
+        }
+
+        // Idempotency: If already processed, return existing order
+        if (order.status !== 'pending') {
+          logger.info('Order already finalized, returning existing state', { orderId: order.id, status: order.status });
+          return order;
+        }
+
+        const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
+        
+        // 2. Deterministic Status Derivation
+        let nextStatus: OrderStatus = 'confirmed';
+        if (riskScore < 75) {
+           if (order.items.every(i => i.isDigital)) nextStatus = 'delivered';
+           else if (order.fulfillmentMethod === 'shipping') nextStatus = 'processing';
+           else if (order.fulfillmentMethod === 'pickup') nextStatus = 'ready_for_pickup';
+           else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
+        }
+
+        // 3. Deduct Inventory (Transactional)
         const stockUpdates = order.items.map(item => ({
           id: item.productId,
           variantId: item.variantId,
@@ -309,11 +340,11 @@ export class OrderService {
         }));
         await this.productRepo.batchUpdateStock(stockUpdates, transaction);
 
-        // 2. Update Order Status & Metadata
+        // 4. Update Order Status & Risk Score (Transactional)
         await this.orderRepo.updateStatus(order.id, nextStatus, transaction);
-        await this.orderRepo.updateRiskScore(order.id, riskScore); // Internal repo call, might need transaction support too if we want full atomicity
+        await this.orderRepo.updateRiskScore(order.id, riskScore, transaction);
         
-        // 3. Record Forensic Audit (Transactional)
+        // 5. Record Forensic Audit (Transactional)
         await this.audit.recordWithTransaction(transaction, {
           userId: 'system',
           userEmail: 'system@dreambees.art',
@@ -327,18 +358,20 @@ export class OrderService {
           }
         });
 
-        // 4. Clear Cart (Atomic)
-        await this.cartRepo.clear(order.userId);
+        // 6. Clear Cart (Transactional)
+        await this.cartRepo.clear(order.userId, transaction);
+
+        // 7. Return the finalized state
+        return { ...order, status: nextStatus, riskScore };
       });
 
       // Post-transaction notifications/background tasks
-      await this.recordFulfillmentEvent(order.id, 'payment_confirmed', 'Payment Verified', 'Inventory secured and order queued for logistics.');
+      await this.recordFulfillmentEvent(finalizedOrder.id, 'payment_confirmed', 'Payment Verified', 'Inventory secured and order queued for logistics.');
       
-      logger.info(`[OrderService] Payment finalized for order ${order.id}`, { nextStatus, riskScore });
-      return { ...order, status: nextStatus, riskScore };
+      logger.info(`[OrderService] Payment finalized for order ${finalizedOrder.id}`);
+      return finalizedOrder;
     } catch (err) {
       logger.error('CRITICAL: Failed to finalize order payment. System may be out of sync.', { 
-        orderId: order.id, 
         paymentIntentId, 
         err 
       });

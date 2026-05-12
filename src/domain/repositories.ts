@@ -48,7 +48,7 @@ export interface IProductRepository {
 export interface ICartRepository {
   getByUserId(userId: string, transaction?: any): Promise<Cart | null>;
   save(cart: Cart, transaction?: any): Promise<void>;
-  clear(userId: string): Promise<void>;
+  clear(userId: string, transaction?: any): Promise<void>;
 }
 
 export interface IOrderRepository {
@@ -56,6 +56,7 @@ export interface IOrderRepository {
   getById(id: string): Promise<Order | null>;
   getByIdempotencyKey(key: string): Promise<Order | null>;
   getByPaymentTransactionId(id: string): Promise<Order | null>;
+  getByPaymentTransactionIdTransactional(id: string, transaction: any): Promise<Order | null>;
   getByUserId(userId: string, options?: {
     status?: OrderStatus | 'all';
     limit?: number;
@@ -75,10 +76,10 @@ export interface IOrderRepository {
   updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void>;
   updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void>;
   batchUpdateStatus?(ids: string[], status: OrderStatus): Promise<void>;
-  updateNotes(orderId: string, notes: import('./models').OrderNote[]): Promise<void>;
-  updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }): Promise<void>;
-  updateRiskScore(orderId: string, score: number): Promise<void>;
-  addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent): Promise<void>;
+  updateNotes(orderId: string, notes: import('./models').OrderNote[], transaction?: any): Promise<void>;
+  updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;
+  updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void>;
+  addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
   getDashboardStats(): Promise<{
     totalRevenue: number;
     dailyRevenue: number[]; // Last 7 days, index 0 is 6 days ago, index 6 is today

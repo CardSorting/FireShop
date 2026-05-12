@@ -30,9 +30,11 @@ describe('OrderService Concurrency', () => {
 
   beforeEach(() => {
     mockOrderRepo = {
-      save: vi.fn().mockImplementation(async (o) => ({ ...o, id: 'o1', createdAt: new Date(), updatedAt: new Date() })),
+      create: vi.fn().mockImplementation(async (o) => ({ ...o, id: 'o1', createdAt: new Date(), updatedAt: new Date() })),
+      save: vi.fn(),
       getById: vi.fn(),
       getByPaymentTransactionId: vi.fn(),
+      getByPaymentTransactionIdTransactional: vi.fn(),
     };
     mockProductRepo = {
       batchUpdateStock: vi.fn(),
@@ -76,7 +78,10 @@ describe('OrderService Concurrency', () => {
       mockDiscountRepo,
       mockPayment,
       mockAudit,
-      mockLocker
+      mockLocker,
+      undefined,
+      undefined,
+      undefined
     );
   });
 

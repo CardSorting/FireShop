@@ -40,7 +40,6 @@ import { CollectionService } from './CollectionService';
 import { TaxonomyService } from './TaxonomyService';
 import { WishlistService } from './WishlistService';
 import { AuditService } from './AuditService';
-import { CheckoutService } from './CheckoutService';
 import { FulfillmentService } from './FulfillmentService';
 import { OrderManagementService } from './OrderManagementService';
 import { OrderQueryService } from './OrderQueryService';
@@ -152,16 +151,6 @@ export function getServiceContainer() {
       repos.shippingRepo,
       new FirestoreDigitalAccessRepository()
     ),
-    checkoutService: new CheckoutService(
-      repos.orderRepo,
-      repos.productRepo,
-      repos.cartRepo,
-      repos.discountRepo,
-      new StripePaymentProcessor(),
-      new AuditService(),
-      new FirestoreLocker(),
-      createCheckoutGateway()
-    ),
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
     orderQueryService: new OrderQueryService(repos.orderRepo),
@@ -251,16 +240,6 @@ export function getInitialServices() {
         if (!digitalAccessRepoInstance) digitalAccessRepoInstance = new FirestoreDigitalAccessRepository();
         return digitalAccessRepoInstance;
       })()
-    ),
-    checkoutService: new CheckoutService(
-      orderRepoInstance!,
-      productRepoInstance!,
-      cartRepoInstance!,
-      discountRepoInstance!,
-      paymentProcessorInstance!,
-      getAuditService(),
-      lockProviderInstance!,
-      checkoutGatewayInstance ?? undefined
     ),
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),

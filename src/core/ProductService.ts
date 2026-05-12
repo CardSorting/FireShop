@@ -394,28 +394,26 @@ export class ProductService {
   }
 
   async batchUpdateInventory(updates: { id: string; variantId?: string; stock: number }[], actor: { id: string, email: string }): Promise<void> {
-    if (this.repo.batchSetInventory) {
-      await this.repo.batchSetInventory(updates);
-    } else {
-      // Fallback for repositories that don't support batch absolute updates
-      for (const update of updates) {
-        const product = await this.repo.getById(update.id);
-        if (!product) continue;
-        
-        let currentStock = product.stock;
-        if (update.variantId) {
-          const variant = product.variants?.find(v => v.id === update.variantId);
-          if (variant) currentStock = variant.stock;
-        }
-        
-        const delta = update.stock - currentStock;
-        if (update.variantId) {
-          await this.repo.updateVariantStock(update.variantId, delta);
-        } else {
-          await this.repo.updateStock(update.id, delta);
-        }
+    // Production Hardening: Use transactional batch updates for absolute consistency
+    const stockUpdates = await Promise.all(updates.map(async (update) => {
+      const product = await this.repo.getById(update.id);
+      if (!product) throw new ProductNotFoundError(update.id);
+      
+      let currentStock = product.stock;
+      if (update.variantId) {
+        const variant = product.variants?.find(v => v.id === update.variantId);
+        if (!variant) throw new Error(`Variant ${update.variantId} not found in product ${update.id}`);
+        currentStock = variant.stock;
       }
-    }
+      
+      return {
+        id: update.id,
+        variantId: update.variantId,
+        delta: update.stock - currentStock
+      };
+    }));
+
+    await this.repo.batchUpdateStock(stockUpdates);
 
     await this.audit.record({
       userId: actor.id,

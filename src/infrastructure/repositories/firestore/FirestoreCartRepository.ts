@@ -77,9 +77,14 @@ export class FirestoreCartRepository implements ICartRepository {
     }
   }
 
-  async clear(userId: string): Promise<void> {
+  async clear(userId: string, transaction?: any): Promise<void> {
     try {
-      await deleteDoc(doc(getUnifiedDb(), this.collectionName, userId));
+      const docRef = doc(getUnifiedDb(), this.collectionName, userId);
+      if (transaction) {
+        transaction.delete(docRef);
+      } else {
+        await deleteDoc(docRef);
+      }
     } catch (err) {
       logger.error('Failed to clear cart', { userId, err });
       throw err;

@@ -29,6 +29,7 @@ describe('OrderService', () => {
       save: vi.fn(),
       getById: vi.fn(),
       getByPaymentTransactionId: vi.fn(),
+      getByPaymentTransactionIdTransactional: vi.fn(),
       updateStatus: vi.fn(),
       updateRiskScore: vi.fn(),
     };
@@ -62,7 +63,10 @@ describe('OrderService', () => {
       mockDiscountRepo,
       mockPayment,
       mockAudit,
-      mockLocker
+      mockLocker,
+      undefined, // checkoutGateway
+      undefined, // shippingRepo
+      undefined  // accessRepo
     );
   });
 
@@ -105,7 +109,7 @@ describe('OrderService', () => {
         fulfillmentMethod: 'shipping',
         items: [{ productId: 'p1', quantity: 2 }]
       };
-      mockOrderRepo.getByPaymentTransactionId.mockResolvedValue(mockOrder);
+      mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValue(mockOrder);
 
       const result = await orderService.finalizeOrderPayment('pi_123', { charges: { data: [{ outcome: { risk_score: 10 } }] } });
 
@@ -116,7 +120,7 @@ describe('OrderService', () => {
 
     it('should return existing order if already finalized', async () => {
       const mockOrder = { id: 'o1', status: 'confirmed' };
-      mockOrderRepo.getByPaymentTransactionId.mockResolvedValue(mockOrder);
+      mockOrderRepo.getByPaymentTransactionIdTransactional.mockResolvedValue(mockOrder);
 
       const result = await orderService.finalizeOrderPayment('pi_123');
       expect(result.status).toBe('confirmed');
