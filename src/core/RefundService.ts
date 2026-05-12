@@ -27,18 +27,24 @@ export class RefundService {
         throw new Error('Cannot refund order without a payment transaction ID.');
     }
 
+    // Production Hardening: Validate refund amount is positive and does not exceed order total
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Refund amount must be a positive number.');
+    }
+    const safeAmount = Math.min(Math.trunc(amount), order.total);
+
     // Production Hardening: Determine full vs partial refund
-    const isFullRefund = amount >= order.total;
+    const isFullRefund = safeAmount >= order.total;
     const nextStatus = isFullRefund ? 'refunded' : 'partially_refunded';
 
     // Validate status transition before processing payment
     assertValidOrderStatusTransition(order.status, nextStatus as any);
 
-    const result = await this.payment.refundPayment(order.paymentTransactionId, amount);
+    const result = await this.payment.refundPayment(order.paymentTransactionId, safeAmount);
     if (result.success) {
         await this.orderRepo.updateStatus(orderId, nextStatus as any);
 
-        // Production Hardening: Restock inventory on full refund
+        // Production Hardening: Restock inventory on full refund (physical items only)
         if (isFullRefund && this.productRepo) {
             try {
                 const restockUpdates = order.items
@@ -63,9 +69,17 @@ export class RefundService {
             userEmail: actor.email,
             action: 'order_refunded',
             targetId: orderId,
-            details: { amount, status: nextStatus, isFullRefund }
+            details: { amount: safeAmount, status: nextStatus, isFullRefund }
         });
     } else {
+        // Production Hardening: Audit the failed refund attempt for forensic traceability
+        await this.audit.record({
+            userId: actor.id,
+            userEmail: actor.email,
+            action: 'order_refunded',
+            targetId: orderId,
+            details: { amount: safeAmount, status: 'failed', isFullRefund, error: 'Payment processor rejected refund' }
+        }).catch(() => {}); // swallow audit failure — don't mask the primary error
         throw new Error('Payment processor failed to issue refund.');
     }
   }

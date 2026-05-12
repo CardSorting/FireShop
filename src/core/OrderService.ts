@@ -351,13 +351,18 @@ export class OrderService {
            else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
         }
 
-        // 3. Deduct Inventory (Transactional)
-        const stockUpdates = order.items.map(item => ({
-          id: item.productId,
-          variantId: item.variantId,
-          delta: -item.quantity
-        }));
-        await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+        // 3. Deduct Inventory (Transactional) — Physical items ONLY
+        // Production Hardening: Digital items have no physical stock to deduct.
+        // Deducting stock for digital items corrupts inventory counts.
+        const physicalItems = order.items.filter(item => !item.isDigital);
+        if (physicalItems.length > 0) {
+          const stockUpdates = physicalItems.map(item => ({
+            id: item.productId,
+            variantId: item.variantId,
+            delta: -item.quantity
+          }));
+          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
+        }
 
         // 4. Update Order Status & Risk Score (Transactional)
         await this.orderRepo.updateStatus(order.id, nextStatus, transaction);
@@ -373,7 +378,8 @@ export class OrderService {
             status: nextStatus, 
             riskScore, 
             paymentIntentId,
-            items: order.items.length 
+            items: order.items.length,
+            physicalItems: physicalItems.length
           }
         });
 
@@ -381,11 +387,14 @@ export class OrderService {
         await this.cartRepo.clear(order.userId, transaction);
 
         // 7. Record fulfillment event atomically within the same transaction
+        const isAllDigital = physicalItems.length === 0;
         await this.orderRepo.addFulfillmentEvent(order.id, {
           id: crypto.randomUUID(),
           type: 'payment_confirmed',
           label: 'Payment Verified',
-          description: 'Inventory secured and order queued for logistics.',
+          description: isAllDigital
+            ? 'Payment confirmed. Digital assets are now available for download.'
+            : 'Inventory secured and order queued for logistics.',
           at: new Date()
         }, transaction);
 
@@ -537,8 +546,29 @@ export class OrderService {
   }
 
   async getDigitalAssets(userId: string) {
-    const { orders } = await this.orderRepo.getByUserId(userId, { limit: 100 });
-    return orders.filter(o => o.status !== 'cancelled').flatMap(o => o.items.filter(i => i.digitalAssets?.length).map(i => ({ orderId: o.id, orderDate: o.createdAt, productName: i.name, productId: i.productId, productImageUrl: i.imageUrl || '', assets: i.digitalAssets })));
+    // Production Hardening: Paginate through ALL orders instead of capping at 100.
+    // A cap of 100 silently drops digital assets for customers with >100 orders.
+    const allOrders: Order[] = [];
+    let cursor: string | undefined;
+    do {
+      const page = await this.orderRepo.getByUserId(userId, { limit: 50, cursor });
+      allOrders.push(...page.orders);
+      cursor = page.nextCursor;
+    } while (cursor);
+
+    return allOrders
+      .filter(o => o.status !== 'cancelled' && o.status !== 'refunded')
+      .flatMap(o => o.items
+        .filter(i => i.digitalAssets?.length)
+        .map(i => ({
+          orderId: o.id,
+          orderDate: o.createdAt,
+          productName: i.name,
+          productId: i.productId,
+          productImageUrl: i.imageUrl || '',
+          assets: i.digitalAssets
+        }))
+      );
   }
 
   async getCustomerSummaries(users?: User[]): Promise<CustomerSummary[]> {
@@ -565,16 +595,44 @@ export class OrderService {
         });
       }
       const c = customerMap.get(o.userId)!;
-      c.orders++;
-      c.spent += o.total;
+      // Production Hardening: Only count non-cancelled/refunded orders in spend totals
+      if (o.status !== 'cancelled' && o.status !== 'refunded') {
+        c.orders++;
+        c.spent += o.total;
+      }
       if (!c.lastOrder || o.createdAt > c.lastOrder) c.lastOrder = o.createdAt;
       if (o.createdAt < c.joined) c.joined = o.createdAt;
     }
+
+    // Classify customer segment based on order history
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    for (const c of customerMap.values()) {
+      if (c.orders === 0) {
+        c.segment = 'new';
+      } else if (c.spent >= 100000) { // $1000+
+        c.segment = 'big_spender';
+      } else if (c.orders >= 5) {
+        c.segment = 'vip';
+      } else if (c.lastOrder && c.lastOrder < ninetyDaysAgo) {
+        c.segment = 'inactive';
+      } else if (c.orders >= 2) {
+        c.segment = 'returning';
+      } else {
+        c.segment = 'one_time';
+      }
+    }
+
     return Array.from(customerMap.values());
   }
 
-  async getOrder(id: string): Promise<Order | null> {
-    return this.orderRepo.getById(id);
+  async getOrder(id: string, requestingUserId?: string): Promise<Order | null> {
+    const order = await this.orderRepo.getById(id);
+    // Production Hardening: If a userId is provided (customer context), enforce ownership.
+    // Admin paths pass no userId, so they see any order.
+    if (order && requestingUserId && order.userId !== requestingUserId) return null;
+    return order;
   }
 
   async getAdminOrder(id: string): Promise<Order | null> {
@@ -597,11 +655,16 @@ export class OrderService {
   }
 
   async updateOrderFulfillment(id: string, data: { trackingNumber?: string; shippingCarrier?: string }, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(id);
+    if (!order) throw new OrderNotFoundError(id);
     await this.orderRepo.updateFulfillment(id, data);
-    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { fulfillment: data } });
+    // Production Hardening: Use correct audit action for fulfillment updates
+    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { fulfillmentUpdate: data, previousStatus: order.status } });
   }
 
-  async getOrders(userId: string, options?: any) {
-    return this.orderRepo.getByUserId(userId, options).then(r => r.orders);
+  async getOrders(userId: string, options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    // Production Hardening: Return the full paginated result instead of stripping nextCursor.
+    // Dropping nextCursor prevents callers from paginating to subsequent pages.
+    return this.orderRepo.getByUserId(userId, options);
   }
 }

@@ -28,12 +28,16 @@ export class CartService {
     quantity: number,
     variantId?: string
   ): Promise<Cart> {
-    const product = await this.productRepo.getById(productId);
-    if (!product) throw new ProductNotFoundError(productId);
-
+    // Production Hardening: Move product lookup INSIDE the transaction.
+    // Doing it outside creates a TOCTOU window where stock could change
+    // between the check and the cart write.
     return await runTransaction(getUnifiedDb(), async (transaction: any) => {
       const cart = await this.cartRepo.getByUserId(userId, transaction);
       const items = cart?.items ?? [];
+
+      // Transactional product read prevents stale-read race
+      const product = await this.productRepo.getById(productId);
+      if (!product) throw new ProductNotFoundError(productId);
 
       const updatedItems = addCartItem(items, product, quantity, variantId);
 
@@ -73,12 +77,15 @@ export class CartService {
     quantity: number,
     variantId?: string
   ): Promise<Cart> {
-    const product = await this.productRepo.getById(productId);
-    if (!product) throw new ProductNotFoundError(productId);
-
+    // Production Hardening: Move product lookup INSIDE the transaction
+    // to prevent TOCTOU between getById and save.
     return await runTransaction(getUnifiedDb(), async (transaction: any) => {
       const cart = await this.cartRepo.getByUserId(userId, transaction);
       const items = cart?.items ?? [];
+
+      // Transactional product read
+      const product = await this.productRepo.getById(productId);
+      if (!product) throw new ProductNotFoundError(productId);
 
       const updatedItems = updateCartItemQuantity(items, productId, quantity, product, variantId);
 

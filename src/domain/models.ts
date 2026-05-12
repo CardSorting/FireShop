@@ -662,7 +662,7 @@ export interface CustomerSummary {
   spent: number;
   lastOrder: Date | null;
   joined: Date;
-  segment: 'new' | 'active' | 'inactive' | 'big_spender';
+  segment: 'new' | 'active' | 'inactive' | 'big_spender' | 'one_time' | 'returning' | 'vip';
 }
 
 export interface AnalyticsTopProduct {

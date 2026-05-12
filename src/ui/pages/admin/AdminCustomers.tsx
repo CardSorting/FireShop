@@ -44,6 +44,9 @@ import {
 const SEGMENT_TABS = [
   { label: 'All', value: 'all', icon: Users },
   { label: 'Big Spenders', value: 'big_spender', icon: Star },
+  { label: 'VIP', value: 'vip', icon: Star },
+  { label: 'Returning', value: 'returning', icon: Clock },
+  { label: 'One-time', value: 'one_time', icon: User },
   { label: 'New', value: 'new', icon: UserPlus },
   { label: 'Inactive', value: 'inactive', icon: Clock },
 ];
@@ -254,15 +257,15 @@ export function AdminCustomers() {
                       </td>
                       <td className="px-4 py-3.5">
                         <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                          customer.segment === 'big_spender' ? 'bg-purple-100 text-purple-700' :
-                          customer.segment === 'active' ? 'bg-green-100 text-green-700' :
-                          customer.segment === 'new' ? 'bg-blue-100 text-blue-700' :
+                          customer.segment === 'vip' || customer.segment === 'big_spender' ? 'bg-purple-100 text-purple-700' :
+                          customer.segment === 'returning' || customer.segment === 'active' ? 'bg-green-100 text-green-700' :
+                          customer.segment === 'one_time' || customer.segment === 'new' ? 'bg-blue-100 text-blue-700' :
                           'bg-gray-100 text-gray-600'
                         }`}>
                           <div className={`h-1 w-1 rounded-full ${
-                            customer.segment === 'big_spender' ? 'bg-purple-500' :
-                            customer.segment === 'active' ? 'bg-green-500' :
-                            customer.segment === 'new' ? 'bg-blue-500' : 'bg-gray-400'
+                            customer.segment === 'vip' || customer.segment === 'big_spender' ? 'bg-purple-500' :
+                            customer.segment === 'returning' || customer.segment === 'active' ? 'bg-green-500' :
+                            customer.segment === 'one_time' || customer.segment === 'new' ? 'bg-blue-500' : 'bg-gray-400'
                           }`} />
                           {customer.segment.replace('_', ' ')}
                         </span>

@@ -44,19 +44,26 @@ export class FirestoreDiscountRepository implements IDiscountRepository {
   }
 
   async getByCode(code: string, transaction?: any): Promise<Discount | null> {
+    // Production Hardening: We must do a non-transactional query to resolve doc ID,
+    // then re-read the same doc transactionally. This is a known Firestore SDK limitation
+    // (queries cannot be run inside transactions). The window between the query and the
+    // transactional get is small, but we accept this as a documented constraint.
+    // The discount usage limit is enforced by a separate transactional incrementUsage call
+    // which is the true atomicity guard.
     const q = query(collection(getUnifiedDb(), this.collectionName), where('code', '==', code.toUpperCase()), limit(1));
-    const db = getUnifiedDb();
-    
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+
+    const docId = snapshot.docs[0].id;
+    const docRef = doc(getUnifiedDb(), this.collectionName, docId);
+
     if (transaction) {
-      const snapshot = await getDocs(q); // getDocs still works for query building, but we want the doc from the transaction for consistency
-      if (snapshot.empty) return null;
-      const docRef = doc(db, this.collectionName, snapshot.docs[0].id);
+      // Re-read the exact same document transactionally to get the freshest state.
+      // This ensures usageCount and status are read within the transaction boundary.
       const docSnap = await transaction.get(docRef);
       if (!docSnap.exists()) return null;
       return this.mapDocToDiscount(docSnap.id, docSnap.data() as any);
     } else {
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
       return this.mapDocToDiscount(snapshot.docs[0].id, snapshot.docs[0].data() as any);
     }
   }
