@@ -72,7 +72,7 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
   const { user } = useAuth();
   const [reordering, setReordering] = useState(false);
   const subtotal = order.items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const shipping = Math.max(0, order.total - subtotal);
+  const shipping = order.shippingAmount ?? 0;
   const displayEmail = order.customerEmail || userEmail;
   const orderNumber = order.id.toUpperCase().slice(0, 12);
   const digitalItems = order.items.filter(item => item.digitalAssets && item.digitalAssets.length > 0);
@@ -311,6 +311,9 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                     <span>Discount {order.discountCode ? `(${order.discountCode})` : ''}</span>
                     <span>-{formatMoney(order.discountAmount)}</span>
                   </div>
+                )}
+                {order.taxAmount > 0 && (
+                  <SummaryRow label="Tax" value={formatMoney(order.taxAmount)} />
                 )}
                 <div className="flex items-end justify-between border-t border-gray-100 pt-8 mt-4">
                   <span className="text-lg font-black text-gray-900">Total Paid</span>

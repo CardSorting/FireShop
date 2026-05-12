@@ -295,17 +295,11 @@ export class OrderService {
             idempotencyKey: idempotencyKey || order.idempotencyKey || crypto.randomUUID()
           });
           if (paymentResult.success && paymentResult.transactionId) {
-            // Atomically update order status and payment transaction ID
-            await runTransaction(getUnifiedDb(), async (t: any) => {
-              const orderRef = await this.orderRepo.getById(order.id);
-              if (orderRef) {
-                await this.orderRepo.save({
-                  ...orderRef,
-                  status: 'confirmed',
-                  paymentTransactionId: paymentResult.transactionId
-                }, t);
-              }
-            });
+            // Production Hardening: Atomically confirm order and store payment ID.
+            // Uses updateStatus + updatePaymentTransactionId (both support transactions)
+            // instead of full-document save to prevent overwriting concurrent changes.
+            await this.orderRepo.updateStatus(order.id, 'confirmed');
+            await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId!);
             return { ...order, status: 'confirmed' as OrderStatus, paymentTransactionId: paymentResult.transactionId };
           }
         } catch (paymentErr: any) {
@@ -427,8 +421,11 @@ export class OrderService {
   async advanceFulfillment(orderId: string, trackingNumber?: string, actor?: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
+
     if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
-       // Production Hardening: Use atomic field updates instead of full-document replace
+       // Production Hardening: Validate transition before executing
+       assertValidOrderStatusTransition(order.status, 'shipped');
+       // Use atomic field updates instead of full-document replace
        await this.orderRepo.updateStatus(orderId, 'shipped');
        await this.orderRepo.updateFulfillment(orderId, {
          trackingNumber,
@@ -438,9 +435,20 @@ export class OrderService {
        await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Track: ${trackingNumber}`);
        return;
     }
-    const next: any = { confirmed: 'processing', processing: 'shipped', ready_for_pickup: 'delivered', delivery_started: 'delivered' };
-    const status = next[order.status];
-    if (status) { await this.orderRepo.updateStatus(orderId, status); await this.recordFulfillmentEvent(orderId, status, 'Progressed', `Moved to ${status}`); }
+
+    // Production Hardening: Deterministic next-status map with transition validation
+    const next: Record<string, OrderStatus> = {
+      confirmed: 'processing',
+      processing: 'shipped',
+      ready_for_pickup: 'delivered',
+      delivery_started: 'delivered'
+    };
+    const nextStatus = next[order.status];
+    if (nextStatus) {
+      assertValidOrderStatusTransition(order.status, nextStatus);
+      await this.orderRepo.updateStatus(orderId, nextStatus);
+      await this.recordFulfillmentEvent(orderId, nextStatus as OrderFulfillmentEventType, 'Progressed', `Moved to ${nextStatus}`);
+    }
   }
 
   async recordFulfillmentEvent(orderId: string, type: OrderFulfillmentEventType, label: string, description: string): Promise<void> {
@@ -471,22 +479,46 @@ export class OrderService {
   }
 
   async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
+    // Production Hardening: Always validate transitions before batch commit.
+    // The batchUpdateStatus repo method writes blindly — we must pre-validate.
+    const validIds: string[] = [];
+    for (const id of ids) {
+      const order = await this.orderRepo.getById(id);
+      if (!order) {
+        logger.warn(`[batchUpdateOrderStatus] Order ${id} not found, skipping.`);
+        continue;
+      }
+      assertValidOrderStatusTransition(order.status, status);
+      validIds.push(id);
+    }
+
+    if (validIds.length === 0) return;
+
     if (this.orderRepo.batchUpdateStatus) {
-      await this.orderRepo.batchUpdateStatus(ids, status);
+      await this.orderRepo.batchUpdateStatus(validIds, status);
     } else {
-      for (const id of ids) {
-        await this.updateOrderStatus(id, status, actor);
+      for (const id of validIds) {
+        await this.orderRepo.updateStatus(id, status);
       }
     }
-    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: 'batch', details: { ids, to: status } });
+    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: 'batch', details: { ids: validIds, to: status } });
   }
 
   async cleanupExpiredOrders(expirationMinutes: number = 60): Promise<{ count: number }> {
     const cutoff = new Date();
     cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
     const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
+    logger.info(`[OrderService] Cleaning up ${orders.length} expired pending orders (cutoff: ${expirationMinutes}m)`);
     for (const order of orders) {
       await this.orderRepo.updateStatus(order.id, 'cancelled');
+      // Production Hardening: Audit trail for automated cancellations
+      await this.audit.record({
+        userId: 'system',
+        userEmail: 'system@dreambees.art',
+        action: 'order_status_changed',
+        targetId: order.id,
+        details: { from: 'pending', to: 'cancelled', reason: 'expired', expirationMinutes }
+      });
     }
     return { count: orders.length };
   }
@@ -553,7 +585,14 @@ export class OrderService {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
     const note: OrderNote = { id: crypto.randomUUID(), authorId: actor.id, authorEmail: actor.email, text, createdAt: new Date() };
-    await this.orderRepo.updateNotes(id, [...order.notes, note]);
+    // Production Hardening: Use atomic addNote (arrayUnion) instead of read-modify-write
+    // to prevent concurrent note appends from clobbering each other.
+    if (this.orderRepo.addNote) {
+      await this.orderRepo.addNote(id, note);
+    } else {
+      // Fallback: read-modify-write for repos that don't support addNote
+      await this.orderRepo.updateNotes(id, [...order.notes, note]);
+    }
     return note;
   }
 

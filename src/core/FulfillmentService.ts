@@ -102,16 +102,28 @@ export class FulfillmentService {
   async advanceFulfillment(orderId: string, trackingNumber?: string): Promise<void> {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
+
     if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
-       await this.orderRepo.save({ ...order, status: 'shipped', fulfillments: [{ id: crypto.randomUUID(), orderId, items: [], trackingNumber, trackingCarrier: 'Carrier', status: 'shipped', shippedAt: new Date(), createdAt: new Date(), deliveredAt: null, trackingUrl: '' }], updatedAt: new Date() });
+       // Production Hardening: Use atomic field updates instead of full-document replace
+       await this.orderRepo.updateStatus(orderId, 'shipped');
+       await this.orderRepo.updateFulfillment(orderId, {
+         trackingNumber,
+         shippingCarrier: 'Carrier',
+       });
        await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Track: ${trackingNumber}`);
        return;
     }
-    const next: any = { confirmed: 'processing', processing: 'shipped', ready_for_pickup: 'delivered', delivery_started: 'delivered' };
+
+    const next: Record<string, OrderStatus> = {
+      confirmed: 'processing',
+      processing: 'shipped',
+      ready_for_pickup: 'delivered',
+      delivery_started: 'delivered'
+    };
     const status = next[order.status];
     if (status) { 
       await this.orderRepo.updateStatus(orderId, status); 
-      await this.recordFulfillmentEvent(orderId, status, 'Progressed', `Moved to ${status}`); 
+      await this.recordFulfillmentEvent(orderId, status as any, 'Progressed', `Moved to ${status}`); 
     }
   }
 

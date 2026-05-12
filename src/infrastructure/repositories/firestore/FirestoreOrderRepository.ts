@@ -262,9 +262,18 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void> {
-    await updateDoc(doc(getUnifiedDb(), this.collectionName, id), { 
-      paymentTransactionId, 
-      updatedAt: serverTimestamp() 
+    const db = getUnifiedDb();
+    // Production Hardening: Atomically update both the order doc AND the PI→Order lookup map.
+    // Without the map write, finalizeOrderPayment (called by webhook) cannot resolve the order
+    // via getByPaymentTransactionIdTransactional.
+    await runTransaction(db, async (t: any) => {
+      const orderRef = doc(db, this.collectionName, id);
+      t.update(orderRef, { 
+        paymentTransactionId, 
+        updatedAt: serverTimestamp() 
+      });
+      const mapRef = doc(db, 'order_payment_intent_map', paymentTransactionId);
+      t.set(mapRef, { orderId: id, createdAt: serverTimestamp() });
     });
   }
 
@@ -296,6 +305,13 @@ export class FirestoreOrderRepository implements IOrderRepository {
     else await updateDoc(docRef, data);
   }
 
+  async addNote(orderId: string, note: import('@domain/models').OrderNote, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const data = { notes: arrayUnion(note), updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, data);
+    else await updateDoc(docRef, data);
+  }
+
   async getDashboardStats(): Promise<{
     totalRevenue: number;
     dailyRevenue: number[];
@@ -305,7 +321,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     const ordersCol = collection(db, this.collectionName);
 
     // 1. Get status counts using atomic aggregations (High Performance)
-    const statuses: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const statuses: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'partially_refunded', 'ready_for_pickup', 'delivery_started'];
     const countPromises = statuses.map(async (status) => {
       const count = await getCount(query(ordersCol, where('status', '==', status)));
       return { status, count };
@@ -413,14 +429,20 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async hasUsedDiscount(userId: string, discountCode: string): Promise<boolean> {
+    // Production Hardening: Exclude cancelled/refunded orders from usage check.
+    // A customer whose order was cancelled should be able to reuse the discount code.
     const q = query(
       collection(getUnifiedDb(), this.collectionName),
       where('userId', '==', userId),
       where('discountCode', '==', discountCode),
-      limit(1)
+      limit(10)
     );
     const snapshot = await getDocs(q);
-    return !snapshot.empty;
+    // Filter out cancelled/refunded orders — those shouldn't count as "used"
+    return snapshot.docs.some((d: QueryDocumentSnapshot) => {
+      const status = d.data().status;
+      return status !== 'cancelled' && status !== 'refunded';
+    });
   }
   async markHeartbeat(orderId: string, userId: string, email: string): Promise<void> {
     const claimId = `${orderId}_${userId}`;

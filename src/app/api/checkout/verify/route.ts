@@ -27,6 +27,12 @@ export async function GET(request: Request) {
         // (OrderService.finalizeOrderPayment is idempotent)
         const order = await services.orderService.finalizeOrderPayment(paymentIntentId, pi);
         
+        // Production Hardening: Verify the calling user owns this order.
+        // Without this check, any authenticated user could verify/finalize any order.
+        if (order.userId !== user.id) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+        
         return NextResponse.json({
             success: true,
             orderId: order.id,

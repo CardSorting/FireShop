@@ -80,6 +80,7 @@ export interface IOrderRepository {
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;
   updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
+  addNote?(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
   getDashboardStats(): Promise<{
     totalRevenue: number;
     dailyRevenue: number[]; // Last 7 days, index 0 is 6 days ago, index 6 is today
