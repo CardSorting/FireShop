@@ -1,7 +1,9 @@
 import { logger } from './logger';
 
 export async function getGeoLocation(ip: string): Promise<string> {
-  if (!ip || ip === '0.0.0.0' || ip === '127.0.0.1' || ip === '::1') {
+  // Production Hardening: Strict IP Validation (Prevent SSRF/Injection)
+  const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$|^([a-fA-F0-9:]+)$/;
+  if (!ip || !ipPattern.test(ip) || ip === '0.0.0.0' || ip === '127.0.0.1' || ip === '::1') {
     return 'Local/Internal';
   }
 

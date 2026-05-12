@@ -16,6 +16,10 @@ type SessionPayload = {
     issuedAt: number;
     expiresAt: number;
     lastVerified: number;
+    user: User;
+};
+
+type RawSessionPayload = Omit<SessionPayload, 'user'> & {
     user: Omit<User, 'createdAt'> & { createdAt: string };
 };
 
@@ -52,7 +56,7 @@ function signPayload(payload: string, secret: string): string {
     return createHmac('sha256', secret).update(payload).digest('base64url');
 }
 
-function isValidSessionPayload(value: unknown): value is SessionPayload {
+function isValidSessionPayload(value: unknown): value is RawSessionPayload {
     if (!value || typeof value !== 'object') return false;
     const candidate = value as Partial<SessionPayload>;
     const user = candidate.user as Partial<SessionPayload['user']> | undefined;
@@ -85,7 +89,7 @@ function encodeSession(user: User): string {
         expiresAt: issuedAt + SESSION_TTL_SECONDS * 1000,
         lastVerified: issuedAt,
         user: { ...user, createdAt: user.createdAt.toISOString() },
-    } satisfies SessionPayload)).toString('base64url');
+    } satisfies RawSessionPayload)).toString('base64url');
     
     // Always sign with the primary (first) secret
     const primarySecret = getSessionSecrets()[0];
@@ -97,7 +101,7 @@ function encodeSession(user: User): string {
     return encoded;
 }
 
-async function decodeSession(value: string): Promise<User | null> {
+async function decodeSession(value: string): Promise<SessionPayload | null> {
     const [payload, signature] = value.split('.');
     if (!payload || !signature) {
         logger.warn('Session cookie format invalid (missing payload or signature)');
@@ -165,18 +169,30 @@ async function decodeSession(value: string): Promise<User | null> {
             await setSessionUser({ ...parsed.user, createdAt: new Date(parsed.user.createdAt) });
         }
 
-        return { ...parsed.user, createdAt: new Date(parsed.user.createdAt) };
+        const transformed: SessionPayload = {
+            ...parsed,
+            user: { ...parsed.user, createdAt: new Date(parsed.user.createdAt) }
+        };
+        return transformed;
     } catch (e) {
         logger.error('Failed to decode session payload', e);
         return null;
     }
 }
 
+export async function getSessionPayload(): Promise<SessionPayload | null> {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(COOKIE_NAME);
+    if (!sessionCookie) return null;
+    return decodeSession(sessionCookie.value);
+}
+
 export async function getSessionUser(): Promise<User | null> {
     const value = (await cookies()).get(COOKIE_NAME)?.value;
     if (!value) return null;
     try {
-        return decodeSession(value);
+        const payload = await decodeSession(value);
+        return payload ? payload.user : null;
     } catch {
         return null;
     }

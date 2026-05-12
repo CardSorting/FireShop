@@ -79,6 +79,7 @@ export interface IOrderRepository {
   updateNotes(orderId: string, notes: import('./models').OrderNote[], transaction?: any): Promise<void>;
   updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void>;
   updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void>;
+  markForReconciliation(orderId: string, notes: string[]): Promise<void>;
   updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
   addNote?(orderId: string, note: import('./models').OrderNote, transaction?: any): Promise<void>;
@@ -120,7 +121,7 @@ export interface IPaymentProcessor {
     paymentMethodId?: string;
     idempotencyKey: string;
   }): Promise<{ success: boolean; transactionId: string | null }>;
-  refundPayment(transactionId: string, amount: number): Promise<{ success: boolean }>;
+  refundPayment(transactionId: string, amount: number, idempotencyKey: string): Promise<{ success: boolean }>;
 }
 
 export interface ICheckoutGateway {
@@ -134,8 +135,8 @@ export interface ICheckoutGateway {
 }
 
 export interface ILockProvider {
-  acquireLock(resourceId: string, owner: string, ttlMs?: number): Promise<boolean>;
-  releaseLock(resourceId: string, owner: string): Promise<void>;
+  acquireLock(resourceId: string, owner: string, ttlMs?: number): Promise<{ success: boolean; fencingToken: number | null }>;
+  releaseLock(resourceId: string, owner: string, fencingToken?: number): Promise<void>;
 }
 
 export interface IDiscountRepository {
@@ -328,7 +329,8 @@ export interface IEmailService {
     text?: string;
     html?: string;
     from?: string;
+    idempotencyKey?: string;
   }): Promise<void>;
-  sendPasswordResetEmail(email: string, resetLink: string): Promise<void>;
-  sendPasswordChangedEmail(email: string): Promise<void>;
+  sendPasswordResetEmail(email: string, resetLink: string, idempotencyKey?: string): Promise<void>;
+  sendPasswordChangedEmail(email: string, idempotencyKey?: string): Promise<void>;
 }

@@ -76,7 +76,15 @@ export class DiscountService {
       return { valid: false, message: 'This discount has reached its global usage limit' };
     }
 
-    // Production Hardening: Check for per-customer usage limits
+    /**
+     * [SECURITY: IDENTITY ASSUMPTION]
+     * Identity currently means: Unique User ID (Authenticated).
+     * 
+     * Fraud/Abuse Considerations:
+     * - Guest Checkout: Not currently supported for once-per-customer (fails closed).
+     * - Duplicate Accounts: High-risk (Mitigated by email verification requirement).
+     * - Future Identity Pins: email, shipping_address, payment_fingerprint.
+     */
     if (discount.oncePerCustomer && userId && this.orderRepo) {
       const hasUsed = transaction 
         ? await this.orderRepo.checkUserDiscountUsage(userId, discount.code, transaction)

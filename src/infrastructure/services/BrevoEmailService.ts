@@ -22,9 +22,19 @@ export class BrevoEmailService implements IEmailService {
     text?: string;
     html?: string;
     from?: string;
+    idempotencyKey?: string;
   }): Promise<void> {
     const fromEmail = params.from || process.env.BREVO_FROM_EMAIL || 'notsosuper68@gmail.com';
     const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
+
+    // Point 9: Email Idempotency
+    if (params.idempotencyKey) {
+      const alreadySent = await this.checkEmailIdempotency(params.idempotencyKey);
+      if (alreadySent) {
+        console.log(`Email with idempotency key ${params.idempotencyKey} already sent. Skipping.`);
+        return;
+      }
+    }
 
     try {
       const result = await this.client.transactionalEmails.sendTransacEmail({
@@ -35,6 +45,10 @@ export class BrevoEmailService implements IEmailService {
         to: [{ email: params.to }],
       });
       
+      if (params.idempotencyKey) {
+        await this.markEmailSent(params.idempotencyKey, params.to, params.subject);
+      }
+      
       console.log('Email sent successfully via Brevo API:', result);
     } catch (error: any) {
       console.error('Failed to send email via Brevo API:', error.message);
@@ -42,9 +56,28 @@ export class BrevoEmailService implements IEmailService {
     }
   }
 
-  async sendPasswordResetEmail(email: string, resetLink: string): Promise<void> {
+  private async checkEmailIdempotency(key: string): Promise<boolean> {
+    const { adminDb } = await import('@infrastructure/firebase/admin');
+    const doc = await adminDb.collection('sent_emails').doc(key).get();
+    return doc.exists;
+  }
+
+  private async markEmailSent(key: string, to: string, subject: string): Promise<void> {
+    const { adminDb, FieldValue } = await import('@infrastructure/firebase/admin');
+    await adminDb.collection('sent_emails').doc(key).set({
+      to,
+      subject,
+      sentAt: FieldValue.serverTimestamp()
+    });
+  }
+
+  async sendPasswordResetEmail(email: string, resetLink: string, idempotencyKey?: string): Promise<void> {
     const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@dreambeesart.com';
     const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
+
+    if (idempotencyKey) {
+      if (await this.checkEmailIdempotency(idempotencyKey)) return;
+    }
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -152,6 +185,7 @@ export class BrevoEmailService implements IEmailService {
         sender: { name: fromName, email: fromEmail },
         to: [{ email }],
       });
+      if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Reset');
       console.log(`Password reset email sent to ${email}`);
     } catch (error: any) {
       console.error('Failed to send password reset email via Brevo API:', error.message);
@@ -159,9 +193,13 @@ export class BrevoEmailService implements IEmailService {
     }
   }
 
-  async sendPasswordChangedEmail(email: string): Promise<void> {
+  async sendPasswordChangedEmail(email: string, idempotencyKey?: string): Promise<void> {
     const fromEmail = process.env.BREVO_FROM_EMAIL || 'no-reply@dreambeesart.com';
     const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
+
+    if (idempotencyKey) {
+      if (await this.checkEmailIdempotency(idempotencyKey)) return;
+    }
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -200,6 +238,7 @@ export class BrevoEmailService implements IEmailService {
         sender: { name: fromName, email: fromEmail },
         to: [{ email }],
       });
+      if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Changed');
       console.log(`Password change confirmation sent to ${email}`);
     } catch (error: any) {
       console.error('Failed to send password changed confirmation:', error.message);

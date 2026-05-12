@@ -120,6 +120,26 @@ export async function requireAdminSession(request: Request): Promise<User & { ro
     return user as User & { role: 'admin' };
 }
 
+/**
+ * [SECURITY: STEP-UP AUTH]
+ * Destructive or payment-sensitive administrative actions MUST require 
+ * a "fresh" verification (e.g. re-auth within the last 2 minutes).
+ */
+export async function requireStepUpAdminSession(request: Request): Promise<User & { role: 'admin' }> {
+    const user = await requireAdminSession(request);
+    
+    // We need to re-decode the session to check lastVerified (since requireSessionUser only returns User)
+    const { getSessionPayload } = await import('./session');
+    const payload = await getSessionPayload();
+    
+    if (!payload || (Date.now() - payload.lastVerified > 2 * 60 * 1000)) {
+        logger.warn('Step-up authorization required for destructive action', { userId: user.id });
+        throw new UnauthorizedError('Fresh authorization required for this action. Please re-authenticate.');
+    }
+    
+    return user as User & { role: 'admin' };
+}
+
 function safeEquals(left: string, right: string): boolean {
     const leftBuffer = Buffer.from(left);
     const rightBuffer = Buffer.from(right);

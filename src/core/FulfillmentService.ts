@@ -103,6 +103,14 @@ export class FulfillmentService {
     const order = await this.orderRepo.getById(orderId);
     if (!order) throw new OrderNotFoundError(orderId);
 
+    // Point 1 & 8: Fulfillment Idempotency & Reconciliation Blocking
+    if (order.reconciliationRequired || order.status === 'reconciling') {
+        throw new Error('Order requires reconciliation and cannot be fulfilled.');
+    }
+    if (order.status === 'cancelled' || order.status === 'refunded') {
+        throw new Error(`Order is ${order.status} and cannot be fulfilled.`);
+    }
+
     if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
        // Production Hardening: Use atomic field updates instead of full-document replace
        await this.orderRepo.updateStatus(orderId, 'shipped');

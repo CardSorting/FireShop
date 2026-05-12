@@ -79,7 +79,7 @@ For deep technical dives and operational guides, refer to the internal **[Knowle
 ---
 
 > [!NOTE]
-> **Industrial Neutrality**: DreamBeesArt is designed to be industry-agnostic. While the current workspace includes TCG-focused mock data, the underlying models and services are ready for any vertical (Apparel, Digital Goods, etc.).
+> **Adversarial Reliability**: Known critical findings are mitigated and regression-protected under current threat assumptions. The system has been hardened against Negative Price Hijacking, Stale Price Hijacking, and CSRF/Origin bypasses. Next validation target is adversarial reliability, chaos testing, and formal external review.
 
 ---
 

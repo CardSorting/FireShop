@@ -317,6 +317,8 @@ export interface Order {
   fulfillmentLocationId: string | null;
   fulfillmentMethod: 'shipping' | 'pickup' | 'delivery';
   fulfillments: Fulfillment[];
+  reconciliationRequired?: boolean;
+  reconciliationNotes?: string[];
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;
@@ -405,7 +407,8 @@ export type OrderStatus =
   | 'refunded'
   | 'partially_refunded'
   | 'ready_for_pickup'
-  | 'delivery_started';
+  | 'delivery_started'
+  | 'reconciling';
 
 export interface Address {
   street: string;

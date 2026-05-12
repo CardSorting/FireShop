@@ -298,6 +298,15 @@ export class FirestoreOrderRepository implements IOrderRepository {
     else await updateDoc(docRef, data);
   }
 
+  async markForReconciliation(orderId: string, notes: string[]): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    await updateDoc(docRef, {
+      reconciliationRequired: true,
+      reconciliationNotes: arrayUnion(...notes),
+      updatedAt: serverTimestamp()
+    });
+  }
+
   async updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
     const data = { metadata, updatedAt: serverTimestamp() };

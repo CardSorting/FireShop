@@ -58,6 +58,7 @@ export async function POST(request: Request) {
             orderId: order.id,
             userId: user.id,
             checkoutKey: idempotencyKey || 'none',
+            fencingToken: order.metadata?.fencingToken?.toString() || '0'
           }
         });
 

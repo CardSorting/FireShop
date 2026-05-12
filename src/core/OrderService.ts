@@ -181,8 +181,8 @@ export class OrderService {
   async initiateCheckout(userId: string, shippingAddress: Address, userEmail?: string, userName?: string, discountCode?: string, idempotencyKey?: string, paymentMethodId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
     assertValidShippingAddress(shippingAddress);
     const lockId = `checkout_lock:${userId}`;
-    const acquired = await this.locker.acquireLock(lockId, userId, 45000);
-    if (!acquired) throw new CheckoutInProgressError();
+    const { success, fencingToken } = await this.locker.acquireLock(lockId, userId, 45000);
+    if (!success) throw new CheckoutInProgressError();
 
     try {
       // Production Hardening: Check idempotency BEFORE entering heavy logic
@@ -318,6 +318,7 @@ export class OrderService {
             inventoryReservationReleased: false,
             inventoryReservationFinalized: false,
             inventoryReservationExpiresAt: reservationExpiresAt,
+            fencingToken: fencingToken,
           }
         };
 
@@ -380,7 +381,7 @@ export class OrderService {
       logger.error('Failed to initiate checkout', { userId, err });
       throw err;
     } finally {
-      await this.locker.releaseLock(lockId, userId);
+      await this.locker.releaseLock(lockId, userId, fencingToken ?? undefined);
     }
   }
 
@@ -404,6 +405,21 @@ export class OrderService {
         if (order.status !== 'pending') {
           logger.info('Order already finalized, returning existing state', { orderId: order.id, status: order.status });
           return order;
+        }
+
+        // Point 3: Fencing Token Enforcement
+        const expectedToken = Number(stripePi?.metadata?.fencingToken || 0);
+        const currentToken = Number(order.metadata?.fencingToken || 0);
+        
+        if (expectedToken < currentToken) {
+           logger.warn('Fencing token superseded, marking order for reconciliation', { 
+             orderId: order.id, expectedToken, currentToken 
+           });
+           await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
+           await this.orderRepo.markForReconciliation(order.id, [
+             `Fencing token mismatch: Payment token ${expectedToken} is older than Order token ${currentToken}.`
+           ]);
+           return order;
         }
 
         const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
@@ -534,6 +550,11 @@ export class OrderService {
   async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
+    
+    // Point 1: Reconciliation State Blocking
+    if (order.reconciliationRequired) {
+        throw new Error('Order requires manual reconciliation and is locked for mutations.');
+    }
     assertValidOrderStatusTransition(order.status, status);
     if (status === 'cancelled') {
       await this.releaseInventoryReservation(order);
