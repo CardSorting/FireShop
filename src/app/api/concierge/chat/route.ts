@@ -9,7 +9,7 @@ import { DEFAULT_CONCIERGE_SETTINGS } from '@domain/concierge/settings';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion, getDoc } from '@infrastructure/firebase/bridge';
+import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion, getDoc, runTransaction } from '@infrastructure/firebase/bridge';
 // import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { getInitialServices } from '@core/container';
 
@@ -56,34 +56,57 @@ export async function POST(req: NextRequest) {
 
     // Persist session to Firestore
     const db = getUnifiedDb();
-    let activeSessionId = sessionId;
-    let mergedContext = context || {};
+    // Input Sanitization: Strip internal tokens from context to prevent injection
+    const sanitizeContext = (c: any) => {
+      if (!c) return c;
+      const clean = (s: string) => s.replace(/\[/g, '').replace(/\]/g, '');
+      return {
+        ...c,
+        currentPage: c.currentPage ? clean(c.currentPage) : undefined,
+        pageTitle: c.pageTitle ? clean(c.pageTitle) : undefined
+      };
+    };
 
-    if (!activeSessionId) {
-      const sessionRef = await addDoc(collection(db, 'conciergeSessions'), {
-        userId: context?.userSession?.id || 'anonymous',
-        customerEmail: context?.userSession?.email || 'anonymous',
-        customerName: context?.userSession?.name || 'Anonymous User',
-        context: mergedContext,
-        transcript: sanitizedMessages,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      activeSessionId = sessionRef.id;
-    } else {
-      const sessionRef = doc(db, 'conciergeSessions', activeSessionId);
-      const sessionSnap = await getDoc(sessionRef);
-      if (sessionSnap.exists()) {
-        const sessionData = sessionSnap.data();
-        mergedContext = { ...(sessionData.context || {}), ...mergedContext };
+    let mergedContext = sanitizeContext(context || {});
+
+    const ip = req.headers.get('x-forwarded-for') || '0.0.0.0';
+    const userAgent = req.headers.get('user-agent') || 'unknown';
+
+    // Forensic Hardening: Atomic Session Merging via Transaction
+    const { activeSessionId, finalizedContext } = await runTransaction(db, async (transaction: any) => {
+      let currentSessionId = sessionId;
+      let currentContext = mergedContext;
+
+      if (!currentSessionId) {
+        // Use a random UUID for auto-ID creation within the transaction
+        const newId = crypto.randomUUID();
+        const sessionRef = doc(db, 'conciergeSessions', newId);
+        transaction.set(sessionRef, {
+          userId: context?.userSession?.id || 'anonymous',
+          customerEmail: context?.userSession?.email || 'anonymous',
+          customerName: context?.userSession?.name || 'Anonymous User',
+          context: mergedContext,
+          transcript: sanitizedMessages,
+          status: 'active',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        return { activeSessionId: sessionRef.id, finalizedContext: mergedContext };
+      } else {
+        const sessionRef = doc(db, 'conciergeSessions', currentSessionId);
+        const sessionSnap = await transaction.get(sessionRef);
+        if (sessionSnap.exists()) {
+          const sessionData = sessionSnap.data();
+          currentContext = { ...(sessionData.context || {}), ...mergedContext };
+        }
+        transaction.update(sessionRef, {
+          transcript: sanitizedMessages,
+          context: currentContext,
+          updatedAt: serverTimestamp(),
+        });
+        return { activeSessionId: currentSessionId, finalizedContext: currentContext };
       }
-      await updateDoc(sessionRef, {
-        transcript: sanitizedMessages,
-        context: mergedContext,
-        updatedAt: serverTimestamp(),
-      });
-    }
+    });
 
     // Prepare context string for the AI
     let contextString = `Session ID: ${activeSessionId}\n`;
@@ -94,25 +117,29 @@ export async function POST(req: NextRequest) {
     const timeOfDay = now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'evening';
     contextString += `Atmospheric Context: It is a ${dayName} ${timeOfDay} at the DreamBees Studio.\n`;
     
-    if (mergedContext) {
-      if (mergedContext.currentPage) contextString += `Current Page: ${mergedContext.currentPage}\n`;
-      if (mergedContext.cartContents && mergedContext.cartContents.length > 0) {
-        contextString += `Cart Contents: ${JSON.stringify(mergedContext.cartContents)}\n`;
+    if (finalizedContext) {
+      if (finalizedContext.currentPage) contextString += `Current Page: ${finalizedContext.currentPage}\n`;
+      if (finalizedContext.cartContents && finalizedContext.cartContents.length > 0) {
+        contextString += `Cart Contents: ${JSON.stringify(finalizedContext.cartContents)}\n`;
       }
-      if (mergedContext.userSession) {
-        contextString += `Customer: ${mergedContext.userSession.name || mergedContext.userSession.email} (${mergedContext.userSession.id})\n`;
+      if (finalizedContext.userSession) {
+        contextString += `Customer: ${finalizedContext.userSession.name || finalizedContext.userSession.email} (${finalizedContext.userSession.id})\n`;
       }
-      if (mergedContext.recentlyViewed && mergedContext.recentlyViewed.length > 1) {
-        contextString += `Recently Viewed: ${mergedContext.recentlyViewed.filter((t: string) => t !== (mergedContext.pageTitle || '')).join(', ')}\n`;
+      if (finalizedContext.recentlyViewed && finalizedContext.recentlyViewed.length > 1) {
+        contextString += `Recently Viewed: ${finalizedContext.recentlyViewed.filter((t: string) => t !== (finalizedContext.pageTitle || '')).join(', ')}\n`;
         contextString += `HINT: Mention these other items if they seem hesitant or want to bundle.\n`;
       }
-      if (mergedContext.activePromotions && mergedContext.activePromotions.length > 0) {
-        contextString += `Active Promotions: ${JSON.stringify(mergedContext.activePromotions)}\n`;
+      if (finalizedContext.activePromotions && finalizedContext.activePromotions.length > 0) {
+        contextString += `Active Promotions: ${JSON.stringify(finalizedContext.activePromotions)}\n`;
       }
       // Inject fetched order details if any
-      if (mergedContext.fetchedOrders) {
+      if (finalizedContext.fetchedOrders) {
         contextString += `\n### FETCHED ORDER DETAILS\n`;
-        contextString += `${JSON.stringify(mergedContext.fetchedOrders)}\n`;
+        contextString += `${JSON.stringify(finalizedContext.fetchedOrders)}\n`;
+      }
+      // Forensic Hardening: Inject system alerts about previous turn failures
+      if (finalizedContext.lastActionStatus === 'failed') {
+        contextString += `\n### SYSTEM ALERT: Your previous administrative action failed. Reason: ${finalizedContext.lastActionError || 'Unauthorized'}. Please inform the customer you had technical trouble accessing those specific details.\n`;
       }
     }
 
@@ -161,13 +188,13 @@ export async function POST(req: NextRequest) {
 
     logger.info('Initiating Concierge chat stream', { 
       userId: context?.userSession?.id,
-      sessionId: activeSessionId
+      sessionId: activeSessionId,
+      correlationId: crypto.randomUUID()
     });
 
     const hermesRes = await createHermesChatCompletionStream(sanitizedMessages, undefined, contextString);
 
     // Create a transform stream to detect barter success tokens
-    const { discountService } = getInitialServices();
     let fullResponse = '';
     
     const transformer = new TransformStream({
@@ -177,10 +204,16 @@ export async function POST(req: NextRequest) {
         controller.enqueue(chunk);
       },
       async flush(controller) {
-        const { discountService, orderService, ticketRepository } = getInitialServices();
+        const flushStart = Date.now();
+        const { discountService, orderService, ticketRepository, auditService } = getInitialServices();
         const db = getUnifiedDb();
         const sessionRef = activeSessionId ? doc(db, 'conciergeSessions', activeSessionId) : null;
         if (!sessionRef) return;
+
+        const sessionSnap = await getDoc(sessionRef);
+        const sessionData = sessionSnap.exists() ? sessionSnap.data() : {};
+        const existingEvents = sessionData.events || [];
+        const ticketCount = existingEvents.filter((e: any) => e.label === 'IT Ticket Opened').length;
 
         const sessionUpdates: any = {
           events: [],
@@ -188,11 +221,26 @@ export async function POST(req: NextRequest) {
         };
 
         const userId = context?.userSession?.id || 'anonymous';
+        const userEmail = context?.userSession?.email || 'anonymous';
+        const correlationId = crypto.randomUUID();
+
+        // Payload Sanitization Helpers
+        const cleanPayload = (s: string, max: number) => s.trim().slice(0, max).replace(/[<>]/g, '');
+
+        // Forensic Hardening: Deduplicate tokens to prevent redundant execution
+        const tokens = {
+          barter: Array.from(fullResponse.matchAll(/\[BARTER_SUCCESS:\s*(\d+)%\]/g)),
+          openTicket: Array.from(fullResponse.matchAll(/\[OPEN_TICKET:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          closeTicket: Array.from(fullResponse.matchAll(/\[CLOSE_TICKET:\s*"([^"]+)"\]/g)),
+          fetchOrder: Array.from(fullResponse.matchAll(/\[FETCH_ORDER_DETAILS:\s*"([^"]+)"\]/g)),
+          addNote: Array.from(fullResponse.matchAll(/\[ADD_ORDER_NOTE:\s*"([^"]+)",\s*"([^"]+)"\]/g))
+        };
 
         // 1. Handle Barter Success
-        const barterMatch = fullResponse.match(/\[BARTER_SUCCESS:\s*(\d+)%\]/);
-        if (barterMatch) {
-          const percentage = parseInt(barterMatch[1]);
+        if (tokens.barter.length > 0) {
+          const tStart = Date.now();
+          const match = tokens.barter[0];
+          const percentage = parseInt(match[1]);
           try {
             const discount = await discountService.createBarterDiscount(percentage, activeSessionId!);
             sessionUpdates.status = 'analyzed';
@@ -208,6 +256,15 @@ export async function POST(req: NextRequest) {
               role: 'assistant', 
               content: `Perfect! I've generated your unique code: ${discount.code}. You can use this at checkout. It expires in 24 hours.` 
             });
+
+            await auditService.record({
+              userId, userEmail,
+              action: 'barter_discount_created',
+              targetId: activeSessionId!,
+              correlationId,
+              ip, userAgent,
+              details: { percentage, discountCode: discount.code, durationMs: Date.now() - tStart }
+            });
           } catch (err) {
             logger.error('Failed to fulfill barter', err);
             sessionUpdates.events.push({
@@ -219,118 +276,144 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 2. Handle IT Support: Open Ticket
-        const openTicketMatch = fullResponse.match(/\[OPEN_TICKET:\s*"([^"]+)",\s*"([^"]+)"\]/);
-        if (openTicketMatch) {
-          const subject = openTicketMatch[1];
-          const description = openTicketMatch[2];
-          try {
-            const ticketId = crypto.randomUUID();
-            await ticketRepository.createTicket({
-              id: ticketId,
-              userId: userId,
-              customerEmail: context?.userSession?.email || 'anonymous',
-              customerName: context?.userSession?.name || 'Anonymous User',
-              subject,
-              status: 'new',
-              priority: 'medium',
-              type: 'incident',
-              tags: ['concierge_it_support'],
-              messages: [
-                {
-                  id: crypto.randomUUID(),
-                  ticketId,
-                  senderId: 'concierge',
-                  senderType: 'system',
-                  visibility: 'public',
-                  content: description,
-                  createdAt: new Date()
-                }
-              ],
-              createdAt: new Date(),
-              updatedAt: new Date()
-            } as any);
+        // 2. Handle IT Support: Open Ticket (Quota enforced)
+        if (tokens.openTicket.length > 0) {
+          const tStart = Date.now();
+          for (const rawToken of tokens.openTicket.slice(0, 1)) {
+            const subject = cleanPayload(rawToken[1], 100);
+            const description = cleanPayload(rawToken[2], 1000);
 
-            sessionUpdates.events.push({
-              type: 'escalated',
-              timestamp: new Date().toISOString(),
-              label: 'IT Ticket Opened',
-              description: `Ticket #${ticketId} created: ${subject}`
-            });
-          } catch (err) {
-            logger.error('Failed to open ticket from concierge', err);
-            sessionUpdates.events.push({
-              type: 'note_added',
-              timestamp: new Date().toISOString(),
-              label: 'Ticket Creation Failed',
-              description: `Failed to create ticket: ${subject}`
-            });
+            if (ticketCount >= 3) {
+              logger.warn('Concierge ticket quota exceeded', { sessionId: activeSessionId });
+              sessionUpdates.events.push({
+                type: 'note_added',
+                timestamp: new Date().toISOString(),
+                label: 'Ticket Blocked',
+                description: 'Support ticket quota (3) exceeded for this session.'
+              });
+              continue;
+            }
+
+            try {
+              const { conciergeService } = getInitialServices();
+              const ticketId = await conciergeService.escalateToTicket(
+                userId, userEmail,
+                context?.userSession?.name || 'Anonymous User',
+                subject,
+                [{ role: 'assistant', content: description }],
+                'incident',
+                'medium',
+                `AI-Triggered Support Admin Action: ${description}`
+              );
+
+              sessionUpdates.events.push({
+                type: 'escalated',
+                timestamp: new Date().toISOString(),
+                label: 'IT Ticket Opened',
+                description: `Ticket #${ticketId} created: ${subject}`
+              });
+
+              await auditService.record({
+                userId, userEmail,
+                action: 'concierge_escalated',
+                targetId: ticketId,
+                correlationId,
+                ip, userAgent,
+                details: { subject, description, sessionId: activeSessionId, durationMs: Date.now() - tStart }
+              });
+            } catch (err) {
+              logger.error('Failed to open ticket from concierge', { err, correlationId, sessionId: activeSessionId });
+              sessionUpdates['context.lastActionStatus'] = 'failed';
+              sessionUpdates['context.lastActionError'] = 'Ticket Creation Limit or System Error';
+              sessionUpdates.events.push({
+                type: 'note_added',
+                timestamp: new Date().toISOString(),
+                label: 'Ticket Creation Failed',
+                description: `Failed to create ticket: ${subject}`
+              });
+            }
           }
         }
 
         // 3. Handle IT Support: Close Ticket
-        const closeTicketMatch = fullResponse.match(/\[CLOSE_TICKET:\s*"([^"]+)"\]/);
-        if (closeTicketMatch) {
-          const ticketId = closeTicketMatch[1];
+        const uniqueCloseRequests = Array.from(new Set(tokens.closeTicket.map(m => m[1])));
+        for (const ticketId of uniqueCloseRequests) {
+          const tStart = Date.now();
           try {
-            // Security Hardening: Verify ticket belongs to user before closing
             const ticket = await ticketRepository.getTicketById(ticketId);
             if (ticket && ticket.userId === userId) {
               await ticketRepository.updateTicketStatus(ticketId, 'closed');
+              sessionUpdates['context.lastActionStatus'] = 'success';
               sessionUpdates.events.push({
                 type: 'resolved',
                 timestamp: new Date().toISOString(),
                 label: 'Ticket Closed',
                 description: `Ticket #${ticketId} marked as resolved by Concierge.`
               });
+              await auditService.record({
+                userId, userEmail,
+                action: 'order_status_changed',
+                targetId: ticketId,
+                correlationId,
+                ip, userAgent,
+                details: { status: 'closed', sessionId: activeSessionId, durationMs: Date.now() - tStart }
+              });
             } else {
-              throw new Error('Unauthorized or ticket not found');
+              throw new Error('Unauthorized');
             }
           } catch (err) {
-            logger.error('Failed to close ticket from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Unauthorized to close Ticket #${ticketId}`;
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
               label: 'Ticket Closure Failed',
-              description: `Ticket #${ticketId} could not be closed (Unauthorized).`
+              description: `Ticket #${ticketId} closure unauthorized.`
             });
           }
         }
 
         // 4. Handle IT Support: Fetch Order Details
-        const fetchOrderMatch = fullResponse.match(/\[FETCH_ORDER_DETAILS:\s*"([^"]+)"\]/);
-        if (fetchOrderMatch) {
-          const orderId = fetchOrderMatch[1];
+        const uniqueFetchRequests = Array.from(new Set(tokens.fetchOrder.map(m => m[1])));
+        for (const orderId of uniqueFetchRequests.slice(0, 5)) {
+          const tStart = Date.now();
           try {
-            // Forensic Hardening: Enforce ownership on fetch
             const order = await orderService.getOrder(orderId, userId === 'anonymous' ? undefined : userId);
             if (order) {
-              // Context Hardening: Strip sensitive forensics before re-injecting to AI context
               const sanitizedOrder = {
                 id: order.id,
                 status: order.status,
                 total: order.total,
                 createdAt: order.createdAt,
                 items: order.items.map(i => ({ name: i.name, quantity: i.quantity })),
-                shippingStatus: order.status, // Fallback
-                estimatedDelivery: order.estimatedDeliveryDate,
                 trackingNumber: order.fulfillments?.[0]?.trackingNumber,
                 shippingCity: order.shippingAddress.city,
                 shippingState: order.shippingAddress.state
               };
 
               sessionUpdates[`context.fetchedOrders.${orderId}`] = sanitizedOrder;
+              sessionUpdates['context.lastActionStatus'] = 'success';
               sessionUpdates.events.push({
                 type: 'note_added',
                 timestamp: new Date().toISOString(),
                 label: 'Order Details Fetched',
                 description: `Order #${orderId} details retrieved for concierge context.`
               });
+              
+              await auditService.record({
+                userId, userEmail,
+                action: 'concierge_analyzed',
+                targetId: orderId,
+                correlationId,
+                ip, userAgent,
+                details: { action: 'fetch_details', sessionId: activeSessionId, durationMs: Date.now() - tStart }
+              });
             } else {
               throw new Error('Order not found or unauthorized');
             }
           } catch (err) {
-            logger.error('Failed to fetch order details for concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Unauthorized attempt to access Order #${orderId}`;
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -341,12 +424,11 @@ export async function POST(req: NextRequest) {
         }
 
         // 5. Handle IT Support: Add Order Note
-        const addNoteMatch = fullResponse.match(/\[ADD_ORDER_NOTE:\s*"([^"]+)",\s*"([^"]+)"\]/);
-        if (addNoteMatch) {
-          const orderId = addNoteMatch[1];
-          const noteText = addNoteMatch[2];
+        for (const m of tokens.addNote) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const noteText = cleanPayload(m[2], 500);
           try {
-            // Security Hardening: Ensure user owns the order before allowing a note
             const order = await orderService.getOrder(orderId, userId === 'anonymous' ? undefined : userId);
             if (order) {
               await orderService.addOrderNote(orderId, noteText, {
@@ -359,28 +441,34 @@ export async function POST(req: NextRequest) {
                 label: 'Order Note Added',
                 description: `Administrative note added to Order #${orderId}`
               });
+              await auditService.record({
+                userId, userEmail,
+                action: 'order_status_changed',
+                targetId: orderId,
+                correlationId,
+                ip, userAgent,
+                details: { note: noteText, sessionId: activeSessionId, durationMs: Date.now() - tStart }
+              });
             }
           } catch (err) {
             logger.error('Failed to add order note from concierge', err);
           }
         }
 
-        // Production Hardening: Atomic multi-field update
+        // Atomic multi-field update
         const finalUpdates: any = { updatedAt: serverTimestamp() };
         if (sessionUpdates.status) finalUpdates.status = sessionUpdates.status;
         if (sessionUpdates.customerOutcome) finalUpdates.customerOutcome = sessionUpdates.customerOutcome;
         if (sessionUpdates.isConverted !== undefined) finalUpdates.isConverted = sessionUpdates.isConverted;
-        
-        // Append events and transcript if they exist
         if (sessionUpdates.events.length > 0) finalUpdates.events = arrayUnion(...sessionUpdates.events);
         if (sessionUpdates.transcript.length > 0) finalUpdates.transcript = arrayUnion(...sessionUpdates.transcript);
         
-        // Add any specific dynamic context updates
         Object.entries(sessionUpdates).forEach(([key, val]) => {
           if (key.startsWith('context.')) finalUpdates[key] = val;
         });
 
         await updateDoc(sessionRef, finalUpdates);
+        logger.info('Concierge stream flush complete', { sessionId: activeSessionId, totalDurationMs: Date.now() - flushStart });
       }
     });
 

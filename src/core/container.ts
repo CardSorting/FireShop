@@ -104,6 +104,7 @@ let kbRepoInstance: IKnowledgebaseRepository | null = null;
 let shippingServiceInstance: ShippingService | null = null;
 let emailServiceInstance: IEmailService | null = null;
 let rateLimitServiceInstance: RateLimitService | null = null;
+let conciergeServiceInstance: any | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -321,6 +322,11 @@ export function getInitialServices() {
       new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
       getAuditService()
     ),
+    conciergeService: (() => {
+      const { ConciergeService } = require('./ConciergeService');
+      if (!conciergeServiceInstance) conciergeServiceInstance = new ConciergeService(getAuditService());
+      return conciergeServiceInstance;
+    })(),
     tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };
 }
