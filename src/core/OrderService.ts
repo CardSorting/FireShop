@@ -10,9 +10,6 @@ import type {
   IShippingRepository,
 } from '@domain/repositories';
 import { 
-  FirestoreDigitalAccessRepository 
-} from '@infrastructure/repositories/firestore/FirestoreDigitalAccessRepository';
-import { 
   Order, 
   Address, 
   OrderItem, 
@@ -20,9 +17,6 @@ import {
   Fulfillment, 
   OrderFulfillmentEvent, 
   OrderFulfillmentEventType,
-  AdminDashboardSummary,
-  AnalyticsData,
-  CustomerSummary,
   User,
   OrderNote,
   Weight,
@@ -500,19 +494,6 @@ export class OrderService {
     }
   }
 
-  async getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
-    const stats = await this.orderRepo.getDashboardStats();
-    const { orders: recent } = await this.orderRepo.getAll({ limit: 10 });
-    const activeTasks: AdministrativeTask[] = [
-      { id: 'ship', label: 'Pick & Pack', count: stats.orderCountsByStatus.processing || 0, priority: 'high', category: 'fulfillment' },
-      { id: 'pickup', label: 'In-Store Pickups', count: stats.orderCountsByStatus.ready_for_pickup || 0, priority: 'medium', category: 'fulfillment' }
-    ];
-    return {
-      productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: (() => { const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0); return totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0; })(), dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
-            fulfillmentCounts: { to_review: stats.orderCountsByStatus.pending, ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), completed: stats.orderCountsByStatus.delivered, cancelled: stats.orderCountsByStatus.cancelled },
-      activeTasks, attentionItems: [], recentOrders: recent, lowStockProducts: []
-    };
-  }
 
   async advanceFulfillment(orderId: string, trackingNumber?: string, actor?: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(orderId);
@@ -694,23 +675,6 @@ export class OrderService {
     return { count: orders.length };
   }
 
-  async getAnalyticsData(): Promise<AnalyticsData> {
-    const stats = await this.orderRepo.getDashboardStats();
-    const topProducts = await this.orderRepo.getTopProducts(5);
-    const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
-    
-    // Real Growth Calculation (comparing last 7 days vs previous 7 days)
-    const currentWeek = stats.dailyRevenue.reduce((sum, r) => sum + r, 0);
-    const revenueGrowth = 0; // Placeholder for more complex windowing if needed, but closer to real
-    
-    return {
-      totalRevenue: stats.totalRevenue,
-      dailyRevenue: stats.dailyRevenue,
-      revenueGrowth,
-      averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0,
-      topProducts: topProducts.map(p => ({ ...p, growth: 0 }))
-    };
-  }
 
   async getDigitalAssets(userId: string) {
     // Production Hardening: Paginate through ALL orders instead of capping at 100.
@@ -738,61 +702,6 @@ export class OrderService {
       );
   }
 
-  async getCustomerSummaries(users?: User[]): Promise<CustomerSummary[]> {
-    const { orders } = await this.orderRepo.getAll({ limit: 1000 });
-    const customerMap = new Map<string, CustomerSummary>();
-    
-    if (users) {
-       for (const u of users) {
-          customerMap.set(u.id, { id: u.id, name: u.displayName || 'Anonymous', email: u.email, orders: 0, spent: 0, joined: u.createdAt || new Date(), lastOrder: null, segment: 'new' });
-       }
-    }
-
-    for (const o of orders) {
-      if (!customerMap.has(o.userId)) {
-        customerMap.set(o.userId, {
-          id: o.userId,
-          name: o.customerName || 'Anonymous',
-          email: o.customerEmail || '',
-          orders: 0,
-          spent: 0,
-          lastOrder: o.createdAt,
-          joined: o.createdAt,
-          segment: 'new'
-        });
-      }
-      const c = customerMap.get(o.userId)!;
-      // Production Hardening: Only count non-cancelled/refunded orders in spend totals
-      if (o.status !== 'cancelled' && o.status !== 'refunded') {
-        c.orders++;
-        c.spent += o.total;
-      }
-      if (!c.lastOrder || o.createdAt > c.lastOrder) c.lastOrder = o.createdAt;
-      if (o.createdAt < c.joined) c.joined = o.createdAt;
-    }
-
-    // Classify customer segment based on order history
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-    for (const c of customerMap.values()) {
-      if (c.orders === 0) {
-        c.segment = 'new';
-      } else if (c.spent >= 100000) { // $1000+
-        c.segment = 'big_spender';
-      } else if (c.orders >= 5) {
-        c.segment = 'vip';
-      } else if (c.lastOrder && c.lastOrder < ninetyDaysAgo) {
-        c.segment = 'inactive';
-      } else if (c.orders >= 2) {
-        c.segment = 'returning';
-      } else {
-        c.segment = 'one_time';
-      }
-    }
-
-    return Array.from(customerMap.values());
-  }
 
   async getOrder(id: string, requestingUserId?: string): Promise<Order | null> {
     const order = await this.orderRepo.getById(id);

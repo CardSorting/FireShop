@@ -9,7 +9,7 @@ export class BrevoEmailService implements IEmailService {
     const apiKey = process.env.BREVO_API_KEY || process.env.BREVO_SMTP_KEY;
 
     if (!apiKey) {
-      console.warn('Brevo API key not found. Email service will not be able to send emails.');
+      logger.warn('Brevo API key not found. Email service will not be able to send emails.');
     }
 
     this.client = new BrevoClient({
@@ -25,7 +25,7 @@ export class BrevoEmailService implements IEmailService {
     from?: string;
     idempotencyKey?: string;
   }): Promise<void> {
-    const fromEmail = params.from || process.env.BREVO_FROM_EMAIL || 'notsosuper68@gmail.com';
+    const fromEmail = params.from || process.env.BREVO_FROM_EMAIL || 'support@dreambeesart.com';
     const fromName = process.env.BREVO_FROM_NAME || 'Dream Bees Art';
 
     // Point 9: Email Idempotency
@@ -50,9 +50,9 @@ export class BrevoEmailService implements IEmailService {
         await this.markEmailSent(params.idempotencyKey, params.to, params.subject);
       }
       
-      logger.info('Email sent successfully via Brevo API:', result);
+      logger.info('Email sent successfully via Brevo API', { to: params.to, subject: params.subject });
     } catch (error: any) {
-      console.error('Failed to send email via Brevo API:', error.message);
+      logger.error('Failed to send email via Brevo API', { error: error.message, to: params.to });
       throw new Error('Email delivery failed');
     }
   }
@@ -191,7 +191,7 @@ export class BrevoEmailService implements IEmailService {
       if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Reset');
       logger.info(`Password reset email sent to ${email}`);
     } catch (error: any) {
-      console.error('Failed to send password reset email via Brevo API:', error.message);
+      logger.error('Failed to send password reset email via Brevo API', { error: error.message, email });
       throw new Error('Failed to send reset email');
     }
   }
@@ -244,7 +244,7 @@ export class BrevoEmailService implements IEmailService {
       if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Changed');
       logger.info(`Password change confirmation sent to ${email}`);
     } catch (error: any) {
-      console.error('Failed to send password changed confirmation:', error.message);
+      logger.error('Failed to send password changed confirmation', { error: error.message, email });
     }
   }
 }

@@ -756,7 +756,7 @@ export function AdminNotificationBell() {
 
   async function loadNotifications() {
     try {
-      const summary: AdminDashboardSummary = await services.orderService.getAdminDashboardSummary();
+      const summary: AdminDashboardSummary = await services.orderQueryService.getAdminDashboardSummary();
       const items = [
         ...summary.lowStockProducts.map((p: Product) => ({
           id: `stock-${p.id}`,

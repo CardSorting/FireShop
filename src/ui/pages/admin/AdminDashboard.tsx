@@ -70,7 +70,7 @@ export function AdminDashboard() {
     setError(null);
     try {
       const [dashSummary, users, progress, mediaRes] = await Promise.all([
-        services.orderService.getAdminDashboardSummary(controller.signal),
+        services.orderQueryService.getAdminDashboardSummary(controller.signal),
         services.authService.getAllUsers(controller.signal),
         services.settingsService.getSetupProgress(controller.signal),
         fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json())

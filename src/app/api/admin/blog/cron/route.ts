@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jsonError, requireConfiguredBearerToken } from '@infrastructure/server/apiGuards';
+import { logger } from '@utils/logger';
 
 /**
  * [LAYER: API]
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
     const niche = NICHES[Math.floor(Math.random() * NICHES.length)];
     const topic = niche.topics[Math.floor(Math.random() * niche.topics.length)];
 
-    console.log(`[Cron] Triggering automation for Niche: ${niche.name}, Topic: ${topic}`);
+    logger.info('Triggering blog automation cron', { niche: niche.name, topic });
 
     // 3. Trigger Generation via Internal Logic
     // We call the same logic as the /api/admin/blog/generate endpoint
@@ -64,7 +65,7 @@ export async function GET(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('[Cron] Error:', error);
+    logger.error('Cron blog automation failed', { error: error.message, stack: error.stack });
     return jsonError(error, 'Cron blog automation failed');
   }
 }

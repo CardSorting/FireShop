@@ -11,7 +11,8 @@ import {
   AdminDashboardSummary,
   AnalyticsData,
   CustomerSummary,
-  AdministrativeTask
+  AdministrativeTask,
+  User
 } from '@domain/models';
 import { Sanitizer } from '@utils/sanitizer';
 
@@ -59,19 +60,46 @@ export class OrderQueryService {
     const stats = await this.orderRepo.getDashboardStats();
     const topProducts = await this.orderRepo.getTopProducts(5);
     const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
+    
+    // Industrialized Growth Calculation (W/W)
+    // stats.dailyRevenue is 7 days: [D-6, D-5, D-4, D-3, D-2, D-1, D-0]
+    const currentPeriod = stats.dailyRevenue.slice(-3).reduce((a, b) => a + b, 0);
+    const previousPeriod = stats.dailyRevenue.slice(0, 3).reduce((a, b) => a + b, 0);
+    const revenueGrowth = previousPeriod > 0 
+      ? Math.round(((currentPeriod - previousPeriod) / previousPeriod) * 1000) / 10 
+      : 0;
+
     return {
       totalRevenue: stats.totalRevenue,
       dailyRevenue: stats.dailyRevenue,
-      revenueGrowth: 15.5, // Simulated
+      revenueGrowth,
       averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0,
-      topProducts: topProducts.map(p => ({ ...p, growth: 10.2 }))
+      topProducts: topProducts.map(p => ({ 
+        ...p, 
+        growth: 0 // In high-velocity production, growth is calculated via time-series analysis (e.g. InfluxDB/Prometheus)
+      }))
     };
   }
 
-  async getCustomerSummaries(): Promise<CustomerSummary[]> {
+  async getCustomerSummaries(users?: User[]): Promise<CustomerSummary[]> {
     const { orders } = await this.orderRepo.getAll({ limit: 1000 });
     const customerMap = new Map<string, CustomerSummary>();
     
+    if (users) {
+      for (const u of users) {
+        customerMap.set(u.id, { 
+          id: u.id, 
+          name: u.displayName || 'Anonymous', 
+          email: u.email, 
+          orders: 0, 
+          spent: 0, 
+          joined: u.createdAt || new Date(), 
+          lastOrder: null, 
+          segment: 'new' 
+        });
+      }
+    }
+
     for (const o of orders) {
       if (!customerMap.has(o.userId)) {
         customerMap.set(o.userId, {
@@ -86,10 +114,33 @@ export class OrderQueryService {
         });
       }
       const c = customerMap.get(o.userId)!;
-      c.orders++;
-      c.spent += o.total;
-      if (o.createdAt > c.lastOrder!) c.lastOrder = o.createdAt;
+      // Industrialized Total Spent (Excludes cancelled/refunded)
+      if (o.status !== 'cancelled' && o.status !== 'refunded') {
+        c.orders++;
+        c.spent += o.total;
+      }
+      if (!c.lastOrder || o.createdAt > c.lastOrder) c.lastOrder = o.createdAt;
       if (o.createdAt < c.joined) c.joined = o.createdAt;
+    }
+
+    // Industrialized Segmentation
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    for (const c of customerMap.values()) {
+      if (c.orders === 0) {
+        c.segment = 'new';
+      } else if (c.spent >= 100000) { // $1000+
+        c.segment = 'big_spender';
+      } else if (c.orders >= 5) {
+        c.segment = 'vip';
+      } else if (c.lastOrder && c.lastOrder < ninetyDaysAgo) {
+        c.segment = 'inactive';
+      } else if (c.orders >= 2) {
+        c.segment = 'returning';
+      } else {
+        c.segment = 'one_time';
+      }
     }
     
     return Array.from(customerMap.values());

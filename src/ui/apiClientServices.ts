@@ -176,8 +176,12 @@ export function createApiClientServices() {
             clearCart: (userId: string) => (sessionScoped(userId), request<void>('/api/cart', { method: 'DELETE' })),
             getCartTotal: (items: { priceSnapshot: number; quantity: number }[]) => items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0),
         },
-        orderService: {
+        orderQueryService: {
             getAdminDashboardSummary: (signal?: AbortSignal) => request<AdminDashboardSummary>('/api/admin/dashboard', { signal }),
+            getAnalyticsData: (signal?: AbortSignal) => request<any>('/api/admin/analytics', { signal }),
+            getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
+        },
+        orderService: {
             finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             placeOrder: (userId: string, shippingAddress: Address, paymentMethodId?: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
             getOrders: (userId: string, options?: {
@@ -216,7 +220,6 @@ export function createApiClientServices() {
                     body: JSON.stringify({ resolutionAction, reason, evidence }),
                 }),
             batchUpdateOrderStatus: (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => request<void>('/api/admin/orders/batch', { method: 'PATCH', body: JSON.stringify({ ids, status }) }),
-            getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
             getDigitalAssets: (userId: string) => (sessionScoped(userId), request<any[]>(`/api/account/vault?userId=${userId}`)),
         },
         discountService: {

@@ -76,7 +76,7 @@ export function AdminCustomers() {
     setLoading(true);
     try {
       const users = await services.authService.getAllUsers(controller.signal);
-      const summaries = await services.orderService.getCustomerSummaries(users);
+      const summaries = await services.orderQueryService.getCustomerSummaries(users);
       if (isMounted.current && !controller.signal.aborted) {
         setCustomers(summaries);
       }

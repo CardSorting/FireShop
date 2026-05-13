@@ -179,17 +179,7 @@ export function getServiceContainer() {
     emailService: new BrevoEmailService(),
     rateLimitService: new RateLimitService(),
     operationsRuntimeService: new OperationsRuntimeService(
-      new OrderService(
-        repos.orderRepo,
-        repos.productRepo,
-        repos.cartRepo,
-        repos.discountRepo,
-        new StripePaymentProcessor(),
-        new AuditService(),
-        new FirestoreLocker(),
-        createCheckoutGateway(),
-        repos.shippingRepo
-      ),
+      new OrderQueryService(repos.orderRepo),
       new ProductService(repos.productRepo, new AuditService()),
       new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
       new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
@@ -325,17 +315,7 @@ export function getInitialServices() {
       return rateLimitServiceInstance;
     })(),
     operationsRuntimeService: new OperationsRuntimeService(
-      new OrderService(
-        orderRepoInstance!,
-        productRepoInstance!,
-        cartRepoInstance!,
-        discountRepoInstance!,
-        paymentProcessorInstance!,
-        getAuditService(),
-        lockProviderInstance!,
-        checkoutGatewayInstance ?? undefined,
-        shippingRepoInstance!
-      ),
+      new OrderQueryService(orderRepoInstance!),
       new ProductService(productRepoInstance!, getAuditService()),
       getPurchaseOrderService(),
       new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),

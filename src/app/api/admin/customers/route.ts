@@ -5,13 +5,13 @@ import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards
 async function getCustomerSummariesResponse() {
     const services = await getServerServices();
     const users = await services.authService.getAllUsers();
-    const summaries = await services.orderService.getCustomerSummaries(users);
+    const summaries = await services.orderQueryService.getCustomerSummaries(users);
     return NextResponse.json(summaries);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
-        await requireAdminSession();
+        await requireAdminSession(request);
         return await getCustomerSummariesResponse();
     } catch (error) {
         return jsonError(error, 'Failed to fetch customer summaries');

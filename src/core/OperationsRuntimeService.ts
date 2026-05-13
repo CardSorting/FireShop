@@ -5,7 +5,7 @@
 import type { OperationalActor, OperationalIntentType, OperationalPlan, OperationalStateSnapshot } from '@domain/ops/types';
 import { buildDefaultDesiredState, OPERATIONAL_INTENT_CARDS } from '@domain/ops/intents';
 import type { ProductService } from './ProductService';
-import type { OrderService } from './OrderService';
+import type { OrderQueryService } from './OrderQueryService';
 import type { PurchaseOrderService } from './PurchaseOrderService';
 import type { SettingsService } from './SettingsService';
 import { AuditService } from './AuditService';
@@ -13,7 +13,7 @@ import { OperationalPlannerService } from './OperationalPlannerService';
 
 export class OperationsRuntimeService {
   constructor(
-    private orderService: OrderService,
+    private orderQueryService: OrderQueryService,
     private productService: ProductService,
     private purchaseOrderService: PurchaseOrderService,
     private settingsService: SettingsService,
@@ -55,7 +55,7 @@ export class OperationsRuntimeService {
 
   private async captureState(): Promise<OperationalStateSnapshot> {
     const [dashboard, productManagement, inventory, purchaseOrders, setupProgress] = await Promise.all([
-      this.orderService.getAdminDashboardSummary(),
+      this.orderQueryService.getAdminDashboardSummary(),
       this.productService.getProductManagementOverview(),
       this.productService.getInventoryOverview(),
       this.purchaseOrderService.getPurchaseOrderWorkspace(),

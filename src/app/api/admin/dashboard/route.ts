@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { getServerServices } from '@infrastructure/server/services';
 import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
-        await requireAdminSession();
+        await requireAdminSession(req);
         const services = await getServerServices();
-        return NextResponse.json(await services.orderService.getAdminDashboardSummary());
+        return NextResponse.json(await services.orderQueryService.getAdminDashboardSummary());
     } catch (error) {
         return jsonError(error, 'Failed to load admin dashboard');
     }
