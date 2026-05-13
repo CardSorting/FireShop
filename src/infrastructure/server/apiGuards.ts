@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID, timingSafeEqual, createHmac } from 'node:crypto';
 import type { Address, JsonValue, OrderStatus, ProductStatus, ProductDraft, ProductUpdate, User, ProductSalesChannel, ProductMedia } from '@domain/models';
 import { AuthError, DomainError, OrderNotFoundError, ProductNotFoundError, UnauthorizedError } from '@domain/errors';
 import { getSessionUser } from './session';
@@ -107,16 +107,17 @@ class RateLimitError extends Error {
     }
 }
 
-export async function requireSessionUser(): Promise<User> {
-    const user = await getSessionUser();
+export async function requireSessionUser(request?: Request): Promise<User> {
+    const fp = request ? clientFingerprint(request) : undefined;
+    const user = await getSessionUser(fp);
     if (!user) throw new AuthError();
     return user;
 }
 
-export async function requireAdminSession(request?: Request): Promise<User & { role: 'admin' }> {
-    const user = await requireSessionUser();
+export async function requireAdminSession(request: Request): Promise<User & { role: 'admin' }> {
+    const user = await requireSessionUser(request);
     if (user.role !== 'admin') throw new UnauthorizedError();
-    if (request) assertTrustedMutationOrigin(request);
+    assertTrustedMutationOrigin(request);
     return user as User & { role: 'admin' };
 }
 
@@ -130,7 +131,8 @@ export async function requireStepUpAdminSession(request: Request): Promise<User 
     
     // We need to re-decode the session to check lastVerified (since requireSessionUser only returns User)
     const { getSessionPayload } = await import('./session');
-    const payload = await getSessionPayload();
+    const fp = clientFingerprint(request);
+    const payload = await getSessionPayload(fp);
     
     if (!payload || (Date.now() - payload.lastVerified > 2 * 60 * 1000)) {
         logger.warn('Step-up authorization required for destructive action', { userId: user.id });
@@ -276,14 +278,18 @@ export function assertTrustedMutationOrigin(request: Request): void {
     }
 }
 
-function clientFingerprint(request: Request): string {
+export function clientFingerprint(request: Request): string {
     const trustProxyHeaders = process.env.TRUST_PROXY_HEADERS === 'true';
     const platformIp = trustProxyHeaders ? request.headers.get('x-appengine-user-ip')?.trim() : undefined;
     const forwardedFor = trustProxyHeaders ? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() : undefined;
     const realIp = trustProxyHeaders ? request.headers.get('x-real-ip')?.trim() : undefined;
     const ip = platformIp || forwardedFor || realIp || 'untrusted-ip';
     const userAgent = request.headers.get('user-agent')?.slice(0, 120) || 'unknown-agent';
-    return `${ip}:${userAgent}`;
+    
+    // [HARDENING] Use HMAC to prevent fingerprint tampering if it's ever exposed
+    return createHmac('sha256', process.env.SESSION_SECRET || 'dev-fp-secret')
+        .update(`${ip}:${userAgent}`)
+        .digest('hex');
 }
 
 export async function assertRateLimit(request: Request, scope: string, maxAttempts: number, windowMs: number): Promise<void> {

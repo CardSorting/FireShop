@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { setSessionUser } from '@infrastructure/server/session';
-import { assertRateLimit, jsonError, readJsonObject, requireString } from '@infrastructure/server/apiGuards';
+import { assertRateLimit, jsonError, readJsonObject, requireString, clientFingerprint } from '@infrastructure/server/apiGuards';
 import { userFromVerifiedIdToken } from '@infrastructure/server/firebaseSession';
 
 export async function POST(request: Request) {
@@ -9,7 +9,8 @@ export async function POST(request: Request) {
         const body = await readJsonObject(request);
         const idToken = requireString(body.idToken, 'idToken');
         const user = await userFromVerifiedIdToken(idToken);
-        await setSessionUser(user);
+        const fp = clientFingerprint(request);
+        await setSessionUser(user, fp);
 
         return NextResponse.json(user);
     } catch (error) {
