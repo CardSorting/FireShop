@@ -46,6 +46,7 @@ import { OrderQueryService } from './OrderQueryService';
 import { RefundService } from './RefundService';
 import { RateLimitService } from './RateLimitService';
 import { OperationsRuntimeService } from './OperationsRuntimeService';
+import { ConciergeService } from './ConciergeService';
 import { assertMultiStoreNotEnabled, SINGLE_STORE_ID } from './TenantContext';
 import type {
   IProductRepository,
@@ -326,7 +327,6 @@ export function getInitialServices() {
       getAuditService()
     ),
     conciergeService: (() => {
-      const { ConciergeService } = require('./ConciergeService');
       if (!conciergeServiceInstance) conciergeServiceInstance = new ConciergeService(getAuditService());
       return conciergeServiceInstance;
     })(),

@@ -11,7 +11,6 @@ import {
   Users, 
   Globe, 
   Mail, 
-  ArrowUp, 
   CreditCard, 
   ShieldCheck, 
   ChevronDown,
@@ -30,36 +29,14 @@ import { BeeLogo } from '../components/Logo';
 
 export function Footer() {
   const [currentYear, setCurrentYear] = useState<number | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
   useEffect(() => {
     setCurrentYear(new Date().getFullYear());
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 400);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   return (
     <footer className="bg-white pt-24 pb-8 relative overflow-hidden">
       {/* Decorative Gradient Top Border */}
       <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-primary-500/30 to-transparent"></div>
-
-      {/* Back to Top Button - Redesigned */}
-      <button
-        onClick={scrollToTop}
-        className={`fixed bottom-10 right-10 z-50 p-4 bg-primary-600 text-white rounded-2xl shadow-2xl hover:bg-primary-700 transition-all duration-500 transform hover:scale-110 active:scale-95 group ${
-          showScrollTop ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0 pointer-events-none'
-        }`}
-        aria-label="Back to top"
-      >
-        <ArrowUp className="w-5 h-5 group-hover:-translate-y-1 transition-transform" />
-      </button>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Trust Bar - Social Proof & Security */}

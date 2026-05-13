@@ -96,7 +96,7 @@ export class FulfillmentService {
     let fulfilledCount = 0;
     let onTimeCount = 0;
     let shippingRevenue = 0;
-    let estimatedCost = 0;
+    const estimatedCost = 0;
 
     const carrierStats: Record<string, { totalTransitDays: number; count: number; breaches: number }> = {};
 

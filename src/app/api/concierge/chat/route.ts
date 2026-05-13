@@ -95,13 +95,13 @@ export async function POST(req: NextRequest) {
       return c;
     };
 
-    let mergedContext = sanitizeContext(context || {});
+    const mergedContext = sanitizeContext(context || {});
 
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
     // Forensic Hardening: Atomic Session Merging via Transaction
     const { activeSessionId, finalizedContext } = await runTransaction(db, async (transaction: any) => {
-      let currentSessionId = sessionId;
+      const currentSessionId = sessionId;
       let currentContext = mergedContext;
 
       if (!currentSessionId) {
