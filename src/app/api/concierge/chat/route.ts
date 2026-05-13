@@ -45,7 +45,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid request payload', details: result.error.format() }, { status: 400 });
     }
 
+    // Production Hardening: Request Origin Validation
+    const origin = req.headers.get('origin');
+    const referer = req.headers.get('referer');
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'https://dreambees.art'];
+    
+    if (origin && !allowedOrigins.some(o => origin.startsWith(o))) {
+      logger.warn('Security Alert: Unauthorized Origin detected', { origin, sessionId: body.sessionId });
+      return NextResponse.json({ error: 'Unauthorized origin' }, { status: 403 });
+    }
+
     const { messages, context, sessionId } = result.data;
+    
+    // Production Hardening: IP-based Rate Limiting
+    const ip = req.headers.get('x-forwarded-for') || '0.0.0.0';
+    const { rateLimitService } = getInitialServices();
+    const rateLimit = await rateLimitService.isAllowed(`concierge_chat_${ip}`, 30, 60 * 1000); // 30 requests per minute
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const sanitizedMessages = sanitizeClientMessages(messages);
 
     if (sanitizedMessages.length === 0) {
@@ -56,20 +75,28 @@ export async function POST(req: NextRequest) {
 
     // Persist session to Firestore
     const db = getUnifiedDb();
-    // Input Sanitization: Strip internal tokens from context to prevent injection
-    const sanitizeContext = (c: any) => {
+    // Forensic Hardening: Deep sanitization of context to prevent tool-token injection
+    const sanitizeContext = (c: any): any => {
       if (!c) return c;
-      const clean = (s: string) => s.replace(/\[/g, '').replace(/\]/g, '');
-      return {
-        ...c,
-        currentPage: c.currentPage ? clean(c.currentPage) : undefined,
-        pageTitle: c.pageTitle ? clean(c.pageTitle) : undefined
-      };
+      if (typeof c === 'string') {
+        // Strip [ and ] and replace with lookalikes to neutralize tool tokens while preserving meaning
+        return c.replace(/\[/g, '【').replace(/\]/g, '】').trim();
+      }
+      if (Array.isArray(c)) {
+        return c.map(item => sanitizeContext(item));
+      }
+      if (typeof c === 'object') {
+        const cleaned: any = {};
+        for (const [key, value] of Object.entries(c)) {
+          cleaned[key] = sanitizeContext(value);
+        }
+        return cleaned;
+      }
+      return c;
     };
 
     let mergedContext = sanitizeContext(context || {});
 
-    const ip = req.headers.get('x-forwarded-for') || '0.0.0.0';
     const userAgent = req.headers.get('user-agent') || 'unknown';
 
     // Forensic Hardening: Atomic Session Merging via Transaction
@@ -186,22 +213,79 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const securityNonce = crypto.randomBytes(8).toString('hex');
+
     logger.info('Initiating Concierge chat stream', { 
       userId: context?.userSession?.id,
       sessionId: activeSessionId,
-      correlationId: crypto.randomUUID()
+      correlationId: crypto.randomUUID(),
+      securityNonce
     });
 
-    const hermesRes = await createHermesChatCompletionStream(sanitizedMessages, undefined, contextString);
+    // Production Hardening: Context Volume Guarding
+    if (contextString.length > 15000) {
+      logger.warn('Security Alert: Context budget exceeded', { length: contextString.length, sessionId: activeSessionId });
+      contextString = contextString.slice(0, 15000) + '\n[CONTEXT_TRUNCATED]';
+    }
+
+    const hermesRes = await createHermesChatCompletionStream(sanitizedMessages, undefined, contextString, securityNonce);
 
     // Create a transform stream to detect barter success tokens
     let fullResponse = '';
+
+    // Forensic Hardening: Output Leak Detection Markers
+    const forbiddenMarkers = [
+      '### SECURITY PROTOCOL', 
+      '### CURRENT CONTEXT', 
+      `[CONTEXT_START_${securityNonce}]`,
+      `[CONTEXT_END_${securityNonce}]`,
+      'You are a large language model',
+      'As an AI assistant',
+      'developed by',
+      'Ignore all previous instructions'
+    ];
     
     const transformer = new TransformStream({
       async transform(chunk, controller) {
         const text = new TextDecoder().decode(chunk);
+        
+        // Forensic Hardening: Output Leak Detection
+        // If the AI starts echoing its system prompt or raw context delimiters, redact it.
+        let filteredText = text;
+        for (const marker of forbiddenMarkers) {
+          if (fullResponse.includes(marker) || filteredText.includes(marker)) {
+             filteredText = '[REDACTED_SYSTEM_SENSITIVE_INFO]';
+             logger.warn('Security Alert: System Prompt Leak Detected', { sessionId: activeSessionId });
+             break;
+          }
+        }
+        
+        // Honeypot Detection (Dynamic Nonce-based)
+        const currentHoneypot = `DB-ADMIN-${securityNonce.slice(0, 4).toUpperCase()}`;
+        if (filteredText.includes(currentHoneypot) || fullResponse.includes(currentHoneypot)) {
+          logger.warn('Security Alert: Honeypot Triggered - User attempting bypass', { sessionId: activeSessionId });
+        }
+
+        // Production Hardening: Identity Hijack Detection
+        // If the AI starts outputting injection patterns itself, it's a sign of a successful hijack.
+        const hijackMarkers = ['Ignore all previous', 'System prompt:', 'Developer Mode:'];
+        for (const marker of hijackMarkers) {
+          if (filteredText.includes(marker)) {
+            filteredText = '[REDACTED_IDENTITY_COMPROMISE]';
+            logger.warn('Security Alert: AI Identity Hijack Detected', { sessionId: activeSessionId });
+            break;
+          }
+        }
+
+        // Production Hardening: Stream Length Limit (Prevent Infinite Output attacks)
+        if (fullResponse.length > 8000) {
+          logger.warn('Security Alert: Stream length limit exceeded', { sessionId: activeSessionId });
+          controller.terminate();
+          return;
+        }
+
         fullResponse += text;
-        controller.enqueue(chunk);
+        controller.enqueue(new TextEncoder().encode(filteredText));
       },
       async flush(controller) {
         const flushStart = Date.now();
@@ -213,13 +297,26 @@ export async function POST(req: NextRequest) {
         const sessionSnap = await getDoc(sessionRef);
         const sessionData = sessionSnap.exists() ? sessionSnap.data() : {};
         const existingEvents = sessionData.events || [];
+        const existingTranscript = sessionData.transcript || [];
         const ticketCount = existingEvents.filter((e: any) => e.label === 'IT Ticket Opened').length;
 
         const sessionUpdates: any = {
           events: [],
           transcript: [],
-          actionResults: [] // Production Hardening: Traceable log of all tool executions
+          actionResults: [], // Production Hardening: Traceable log of all tool executions
+          securityAlerts: [] // Forensic Hardening: Dedicated log for blocked injection/bypass attempts
         };
+
+        // Production Hardening: Session Turn Limit
+        if (existingTranscript.length > 50) {
+          logger.warn('Security Alert: Excessive Session Turns Detected', { sessionId: activeSessionId, turnCount: existingTranscript.length });
+          sessionUpdates.securityAlerts.push({
+            type: 'excessive_turns',
+            timestamp: new Date().toISOString(),
+            label: 'Session turn count exceeded safe threshold (50)',
+            severity: 'medium'
+          });
+        }
 
         const userId = context?.userSession?.id || 'anonymous';
         const userEmail = context?.userSession?.email || 'anonymous';
@@ -231,8 +328,50 @@ export async function POST(req: NextRequest) {
         const MAX_CONCIERGE_DISCOUNT_PERCENT = 20;
         const isUserAuthenticated = userId && userId !== 'anonymous';
 
-        // Payload Sanitization Helpers
-        const cleanPayload = (s: string, max: number) => s.trim().slice(0, max).replace(/[<>]/g, '');
+        // Forensic Hardening: Recursive Tool Result Sanitization
+        const sanitizeToolResult = (res: any): any => {
+          if (!res) return res;
+          if (typeof res === 'string') return res.replace(/\[/g, '【').replace(/\]/g, '】').trim();
+          if (Array.isArray(res)) return res.map(sanitizeToolResult);
+          if (typeof res === 'object') {
+            const cleaned: any = {};
+            for (const [k, v] of Object.entries(res)) {
+              cleaned[k] = sanitizeToolResult(v);
+            }
+            return cleaned;
+          }
+          return res;
+        };
+
+        // Payload Sanitization Helpers: Strictly strip any character that could be used for injection
+        const cleanPayload = (s: string, max: number) => {
+          if (!s) return '';
+          return s.trim()
+            .slice(0, max)
+            .replace(/[<>]/g, '') // Strip HTML tags
+            .replace(/\[/g, '【') // Neutralize potential nested tool tokens
+            .replace(/\]/g, '】')
+            .replace(/\\/g, ''); // Strip backslashes
+        };
+
+        // Forensic Hardening: Dedicated Security Scan on the final response
+        const securityViolations = forbiddenMarkers.filter((m: string) => fullResponse.includes(m));
+        if (securityViolations.length > 0) {
+          sessionUpdates.securityAlerts.push({
+            type: 'output_leak_prevented',
+            timestamp: new Date().toISOString(),
+            violation: securityViolations[0],
+            severity: 'high'
+          });
+        }
+        if (fullResponse.includes('DB-ADMIN-99X')) {
+          sessionUpdates.securityAlerts.push({
+            type: 'honeypot_triggered',
+            timestamp: new Date().toISOString(),
+            label: 'User attempted bypass via Security Override Code',
+            severity: 'critical'
+          });
+        }
 
         // Forensic Hardening: Deduplicate tokens to prevent redundant execution
         const tokens = {
@@ -292,6 +431,52 @@ export async function POST(req: NextRequest) {
           return;
         }
         sessionUpdates['toolExecutionCount'] = totalSessionTools + turnToolCount;
+
+        // Forensic Hardening: Pre-execution validation guard with context awareness
+        const validateToolCall = (toolName: string, params: any, currentContext: any): boolean => {
+          // Rule 1: No negative numbers for financial operations
+          if (params.amount && params.amount < 0) {
+            logger.warn('Security Alert: Negative amount detected in tool call', { toolName, params, sessionId: activeSessionId });
+            return false;
+          }
+          
+          // Rule 2: ID Verification - IDs must be present in context to be actionable
+          const idFields = ['orderId', 'ticketId', 'userId', 'productId'];
+          for (const field of idFields) {
+            const val = params[field];
+            if (val) {
+              if (typeof val !== 'string' || val.length > 50) return false;
+              
+              // Check if ID exists in any known context field
+              const knownIds = new Set<string>();
+              if (currentContext?.userSession?.id) knownIds.add(currentContext.userSession.id);
+              if (currentContext?.fetchedOrders) {
+                Object.keys(currentContext.fetchedOrders).forEach(k => knownIds.add(k));
+              }
+              if (currentContext?.orderHistory) {
+                currentContext.orderHistory.forEach((o: any) => knownIds.add(o.id));
+              }
+              if (currentContext?.recentlyViewed) {
+                currentContext.recentlyViewed.forEach((id: string) => knownIds.add(id));
+              }
+              
+              // Special case: tool fetches its own context (like FETCH_ORDER_DETAILS)
+              // In this case, we allow the ID if it matches a pattern or we trust the model's logic for searching.
+              // However, for destructive actions (REFUND, CANCEL), we require context presence.
+              const destructiveTools = ['processRefund', 'cancelOrder', 'updateAddress', 'swapItem'];
+              if (destructiveTools.includes(toolName) && !knownIds.has(val)) {
+                logger.warn('Security Alert: Destructive tool called on unknown ID', { toolName, idField: field, val, sessionId: activeSessionId });
+                return false;
+              }
+            }
+          }
+          
+          // Rule 3: Parameter Complexity Guard
+          if (toolName === 'kbSearch' && (params.query?.length > 100 || params.query?.includes('{'))) return false;
+          if (toolName === 'reportBug' && params.description?.length > 500) return false;
+
+          return true;
+        };
         if (tokens.barter.length > 0) {
           const tStart = Date.now();
           const match = tokens.barter[0];
@@ -394,6 +579,7 @@ export async function POST(req: NextRequest) {
         const uniqueCloseRequests = Array.from(new Set(tokens.closeTicket.map(m => m[1])));
         for (const ticketId of uniqueCloseRequests) {
           const tStart = Date.now();
+          if (!validateToolCall('closeTicket', { ticketId }, sessionData.context)) continue;
           try {
             const ticket = await ticketRepository.getTicketById(ticketId);
             if (ticket && ticket.userId === userId) {
@@ -432,6 +618,7 @@ export async function POST(req: NextRequest) {
         const uniqueFetchRequests = Array.from(new Set(tokens.fetchOrder.map(m => m[1])));
         for (const orderId of uniqueFetchRequests.slice(0, 5)) {
           const tStart = Date.now();
+          if (!validateToolCall('fetchOrder', { orderId }, sessionData.context)) continue;
           try {
             const order = await orderService.getOrder(orderId, userId === 'anonymous' ? undefined : userId);
             if (order) {
@@ -440,10 +627,15 @@ export async function POST(req: NextRequest) {
                 status: order.status,
                 total: order.total,
                 createdAt: order.createdAt,
-                items: order.items.map(i => ({ name: i.name, quantity: i.quantity })),
+                items: order.items.map(i => ({ name: cleanPayload(i.name, 50), quantity: i.quantity })),
                 trackingNumber: order.fulfillments?.[0]?.trackingNumber,
                 shippingCity: order.shippingAddress.city,
-                shippingState: order.shippingAddress.state
+                shippingState: order.shippingAddress.state,
+                // Indirect Injection Hardening: Sanitize fetched notes
+                notes: sanitizeToolResult((order.notes || []).map((n: any) => ({
+                  text: n.text,
+                  createdAt: n.createdAt
+                })).slice(0, 5))
               };
 
               sessionUpdates[`context.fetchedOrders.${orderId}`] = sanitizedOrder;
@@ -514,6 +706,7 @@ export async function POST(req: NextRequest) {
         for (const m of tokens.cancelOrder) {
           const tStart = Date.now();
           const orderId = m[1];
+          if (!validateToolCall('cancelOrder', { orderId }, sessionData.context)) continue;
           try {
             const { orderManagementService } = getInitialServices();
             await orderManagementService.updateOrderStatus(orderId, 'cancelled', {
@@ -546,6 +739,7 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const orderId = m[1];
           const amount = parseInt(m[2]);
+          if (!validateToolCall('processRefund', { orderId, amount }, sessionData.context)) continue;
           try {
             // Production Hardening: Refund Authorization Gate
             if (!isUserAuthenticated) throw new Error('Customer must be logged in for refund processing.');
@@ -589,11 +783,11 @@ export async function POST(req: NextRequest) {
           try {
             const { knowledgebaseRepository } = getInitialServices();
             const articles = await knowledgebaseRepository.searchArticles(query);
-            sessionUpdates['context.kbResults'] = articles.map(a => ({
+            sessionUpdates['context.kbResults'] = sanitizeToolResult(articles.map(a => ({
               title: a.title,
               snippet: a.content.slice(0, 500) + '...',
               slug: a.slug
-            }));
+            })));
             sessionUpdates.events.push({
               type: 'note_added',
               timestamp: new Date().toISOString(),
@@ -1098,6 +1292,10 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const desc = m[1];
           try {
+            // Production Hardening: Bug Report Rate Limiting
+            const bugCount = existingEvents.filter((e: any) => e.label === 'Bug Report Filed').length;
+            if (bugCount >= 2) continue;
+
             const { ticketRepository } = getInitialServices();
             await ticketRepository.createTicket({
               userId: 'system',
@@ -1356,6 +1554,7 @@ export async function POST(req: NextRequest) {
         if (sessionUpdates.events.length > 0) finalUpdates.events = arrayUnion(...sessionUpdates.events);
         if (sessionUpdates.transcript.length > 0) finalUpdates.transcript = arrayUnion(...sessionUpdates.transcript);
         if (sessionUpdates.actionResults.length > 0) finalUpdates.actionResults = arrayUnion(...sessionUpdates.actionResults);
+        if (sessionUpdates.securityAlerts.length > 0) finalUpdates.securityAlerts = arrayUnion(...sessionUpdates.securityAlerts);
         if (sessionUpdates.toolExecutionCount !== undefined) finalUpdates.toolExecutionCount = sessionUpdates.toolExecutionCount;
         
         Object.entries(sessionUpdates).forEach(([key, val]) => {

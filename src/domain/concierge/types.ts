@@ -45,8 +45,27 @@ export interface ConciergeEscalation {
 export const sanitizeClientMessages = (messages: any[]): ClientChatMessage[] => {
   return messages
     .filter(m => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim().length > 0)
-    .map(m => ({
-      role: m.role as 'user' | 'assistant',
-      content: m.content.trim(),
-    }));
+    .map(m => {
+      let content = m.content.trim();
+      // Security Hardening: Strip internal tool-calling tokens from user messages
+      // to prevent "Instruction Injection" where a user tries to pre-signal a tool.
+      if (m.role === 'user') {
+        content = content.replace(/\[/g, '【').replace(/\]/g, '】');
+        // Prevent common injection keywords
+        const forbiddenPatterns = [
+          /ignore (all )?previous instructions/gi,
+          /system prompt/gi,
+          /you are now/gi,
+          /new role/gi,
+          /developer mode/gi
+        ];
+        forbiddenPatterns.forEach(pattern => {
+          content = content.replace(pattern, '[REDACTED_INJECTION_ATTEMPT]');
+        });
+      }
+      return {
+        role: m.role as 'user' | 'assistant',
+        content,
+      };
+    });
 };
