@@ -21,6 +21,7 @@ import {
 import { AdminBreadcrumb, ToastProvider, ShortcutsHelp, AdminNotificationBell } from '../components/admin/AdminComponents';
 import { CommandPalette } from '../components/admin/CommandPalette';
 import { ADMIN_NAV_GROUPS, ADMIN_QUICK_ACTIONS, ADMIN_UTILITY_NAV } from '../navigation/adminNavigation';
+import { useRecentPages } from '../hooks/useRecentPages';
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -30,6 +31,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     return localStorage.getItem('admin-sidebar-collapsed') === 'true';
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const recentPages = useRecentPages();
   const [showShortcuts, setShowShortcuts] = useState(false);
   const chordRef = useRef<string | null>(null);
   const chordTimeoutRef = useRef<number | null>(null);
@@ -79,6 +81,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         if (key === 'o') router.push('/admin/orders');
         if (key === 'p') router.push('/admin/products');
         if (key === 'i') router.push('/admin/inventory');
+        if (key === 's') router.push('/admin/suppliers'); // Partners
+        if (key === 'c') router.push('/admin/customers');
+        if (key === 'd') router.push('/admin/discounts');
       }
     }
     window.addEventListener('keydown', onKey);
@@ -205,6 +210,25 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               </div>
 
               <div className="space-y-6">
+                {/* Recent Pages Section */}
+                {!collapsed && recentPages.length > 0 && (
+                  <div className="px-1">
+                    <h4 className="mb-2 px-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">Recently Viewed</h4>
+                    <div className="space-y-0.5">
+                      {recentPages.map((page) => (
+                        <Link 
+                          key={page.id} 
+                          href={page.href} 
+                          className="flex items-center gap-2 rounded-lg px-2 py-1 text-xs text-gray-500 hover:bg-gray-200 transition-colors"
+                        >
+                          <div className="h-1.5 w-1.5 rounded-full bg-gray-300" />
+                          <span className="flex-1 truncate">{page.label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {ADMIN_NAV_GROUPS.map((group) => (
                   <div key={group.id}>
                     {group.label && !collapsed && (
@@ -213,7 +237,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                       </h4>
                     )}
                     <div className="space-y-0.5">
-                      {group.items.map(({ id, href, label, description, icon: Icon }) => {
+                      {group.items.map(({ id, href, label, description, icon: Icon, shortcut }) => {
                         const active = isActive(href);
                           return (
                             <Link
@@ -228,11 +252,19 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                               }
                               ${collapsed ? 'justify-center px-0' : ''}
                             `}
-                          >
-                            <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-700'}`} />
-                            {!collapsed && <span>{label}</span>}
-                          </Link>
-                        );
+                            >
+                              <Icon className={`h-[18px] w-[18px] shrink-0 ${active ? 'text-primary-600' : 'text-gray-500 group-hover:text-gray-700'}`} />
+                              {!collapsed && <span className="flex-1">{label}</span>}
+                              {!collapsed && shortcut && (
+                                <span className="hidden group-hover:inline-flex items-center gap-0.5 text-[9px] font-bold text-gray-400 uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {shortcut}
+                                </span>
+                              )}
+                              {!collapsed && id === 'orders' && (
+                                <OrderBadge />
+                              )}
+                            </Link>
+                          );
                       })}
                     </div>
                   </div>
@@ -316,13 +348,27 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           {/* ── Main Content Area ── */}
           <div className="flex-1 flex flex-col min-h-screen min-w-0">
             {/* Dynamic Breadcrumbs / Desktop Top Bar */}
-            <header className="hidden lg:flex h-12 shrink-0 items-center justify-between border-b bg-white/50 px-8 backdrop-blur-sm">
-              <AdminBreadcrumb />
-              <div className="flex items-center gap-6">
+            <header className="hidden lg:flex h-14 shrink-0 items-center justify-between border-b bg-white/50 px-8 backdrop-blur-sm">
+              <div className="flex items-center gap-8 flex-1">
+                <AdminBreadcrumb />
+                <button 
+                  onClick={openSearch}
+                  className="flex max-w-md flex-1 items-center gap-2.5 rounded-xl border bg-gray-50/50 px-4 py-2 text-sm text-gray-400 transition-all hover:bg-white hover:border-gray-300 hover:shadow-sm"
+                >
+                  <Search className="h-4 w-4" />
+                  <span className="flex-1 text-left text-xs font-medium">Search products, orders, and more...</span>
+                  <div className="flex items-center gap-1">
+                    <kbd className="rounded border bg-white px-1.5 py-0.5 text-[9px] font-bold shadow-xs">⌘</kbd>
+                    <kbd className="rounded border bg-white px-1.5 py-0.5 text-[9px] font-bold shadow-xs">K</kbd>
+                  </div>
+                </button>
+              </div>
+              <div className="flex items-center gap-6 ml-4">
                 <AdminNotificationBell />
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                <div className="h-8 w-px bg-gray-200" />
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                   <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                  Store is live
+                  Live
                 </div>
               </div>
             </header>
@@ -340,3 +386,34 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     </ToastProvider>
   );
 }
+
+function OrderBadge() {
+  const services = useServices();
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const overview = await services.orderService.getOverview();
+        // We show the count of orders that are paid but not yet fulfilled
+        setCount(overview.pendingCount);
+      } catch (e) {
+        console.error('Failed to fetch order badge count', e);
+      }
+    };
+    fetchCount();
+    // Poll every 2 minutes for new orders
+    const interval = setInterval(fetchCount, 120000);
+    return () => clearInterval(interval);
+  }, [services.orderService]);
+
+  if (count === null || count === 0) return null;
+
+  return (
+    <span className="flex h-5 items-center rounded-full bg-primary-100 px-1.5 text-[10px] font-bold text-primary-700 ring-1 ring-inset ring-primary-600/20 animate-in zoom-in duration-300">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
+
+import { useServices } from '../hooks/useServices';

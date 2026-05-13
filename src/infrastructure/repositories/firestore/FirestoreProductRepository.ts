@@ -211,6 +211,48 @@ export class FirestoreProductRepository implements IProductRepository {
     });
   }
 
+  async batchCreate(products: ProductDraft[]): Promise<Product[]> {
+    const db = getUnifiedDb();
+    const results: Product[] = [];
+    const now = serverTimestamp();
+
+    // Industrialization: Batch creation with transaction safety
+    return await runTransaction(db, async (transaction: Transaction) => {
+      for (const draft of products) {
+        const id = crypto.randomUUID();
+        const baseHandle = draft.handle || draft.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const handle = await this.ensureUniqueHandle(baseHandle, undefined);
+        
+        const variants = draft.variants?.map(v => ({ 
+          ...v, 
+          id: v.id || crypto.randomUUID(), 
+          createdAt: now, 
+          updatedAt: now 
+        })) || [];
+
+        const productData = {
+          ...draft,
+          createdAt: now,
+          updatedAt: now,
+          variants,
+          variantIds: variants.map(v => v.id),
+          options: draft.options?.map(o => ({ ...o, id: o.id || crypto.randomUUID() })) || [],
+          media: draft.media?.map(m => ({ ...m, id: m.id || crypto.randomUUID(), createdAt: now })) || [],
+          handle,
+          searchKeywords: this.generateSearchKeywords(draft.name, handle, draft.sku),
+          inventoryHealth: classifyInventoryHealth(draft.stock),
+          setupStatus: classifyProductSetupStatus(draft as Product),
+          setupIssues: getProductSetupIssues(draft as Product),
+          marginHealth: classifyMarginHealth(draft as Product),
+        };
+
+        transaction.set(doc(db, this.collectionName, id), productData);
+        results.push({ ...productData, id, createdAt: new Date(), updatedAt: new Date() } as any as Product);
+      }
+      return results;
+    });
+  }
+
   async update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product> {
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
     const db = getUnifiedDb();

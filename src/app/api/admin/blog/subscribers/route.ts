@@ -7,8 +7,9 @@ export async function GET(req: Request) {
     await requireAdminSession(req);
     const services = getInitialServices();
     const subscribers = await services.knowledgebaseRepository.getSubscribers();
+    
     return NextResponse.json(subscribers);
   } catch (err) {
-    return jsonError(err, 'Failed to load subscribers');
+    return jsonError(err, 'Failed to fetch subscribers');
   }
 }

@@ -578,4 +578,24 @@ export class PurchaseOrderService {
       recentOrders,
     };
   }
+
+  async getSupplierMetrics(supplierName: string): Promise<{
+    activeOrders: number;
+    totalOrders: number;
+    totalSpent: number;
+    lastOrderAt?: Date;
+  }> {
+    const orders = await this.purchaseOrderRepo.findAll({ supplier: supplierName });
+    
+    const activeOrders = orders.filter(o => o.status === 'ordered' || o.status === 'partially_received').length;
+    const totalSpent = orders.reduce((sum, o) => sum + o.totalCost, 0);
+    const lastOrderAt = orders.length > 0 ? [...orders].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0].createdAt : undefined;
+
+    return {
+      activeOrders,
+      totalOrders: orders.length,
+      totalSpent,
+      lastOrderAt,
+    };
+  }
 }

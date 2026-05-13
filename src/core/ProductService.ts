@@ -24,6 +24,7 @@ import { AuditService } from './AuditService';
 import { ProductNotFoundError } from '@domain/errors';
 import { logger } from '@utils/logger';
 import { Sanitizer } from '@utils/sanitizer';
+import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 import {
   assertValidProductDraft,
   assertValidProductUpdate,
@@ -428,6 +429,39 @@ export class ProductService {
       action: 'product_batch_deleted',
       targetId: 'multiple',
       details: { count: ids.length, ids }
+    });
+  }
+
+  async batchCreateProducts(products: ProductDraft[], actor: { id: string, email: string }): Promise<Product[]> {
+    products.forEach(p => assertValidProductDraft(p));
+    
+    return await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      let created: Product[];
+      
+      // 1. Create the products within the repository context (passing the transaction)
+      if (this.repo.batchCreate) {
+        created = await this.repo.batchCreate(products);
+      } else {
+        // Fallback if the repo doesn't support batchCreate directly in transaction
+        // (though FirestoreProductRepository does)
+        created = await Promise.all(products.map(p => this.repo.create(p)));
+      }
+
+      // 2. Record the forensic audit entry WITHIN the same transaction
+      // This ensures the audit chain remains unbroken even if the process crashes midway.
+      await this.audit.recordWithTransaction(transaction, {
+        userId: actor.id,
+        userEmail: actor.email,
+        action: 'product_batch_created',
+        targetId: 'batch',
+        details: { 
+          count: products.length, 
+          names: products.map(p => p.name).slice(0, 5),
+          isPartial: products.length > 5 
+        }
+      });
+
+      return created;
     });
   }
 

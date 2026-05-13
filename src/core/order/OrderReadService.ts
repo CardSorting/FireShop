@@ -63,4 +63,19 @@ export class OrderReadService {
   async getAdminOrder(orderId: string): Promise<Order | null> {
     return this.orderRepo.getById(orderId);
   }
+
+  async getAdminOverview(): Promise<{
+    totalCount: number;
+    pendingCount: number;
+    fulfillmentCount: number;
+    reconcilingCount: number;
+  }> {
+    const orders = await this.orderRepo.getAll({ limit: 1000 }); // Simple implementation
+    return {
+      totalCount: orders.orders.length,
+      pendingCount: orders.orders.filter(o => o.status === 'confirmed').length,
+      fulfillmentCount: orders.orders.filter(o => o.status === 'processing').length,
+      reconcilingCount: orders.orders.filter(o => o.status === 'reconciling').length,
+    };
+  }
 }

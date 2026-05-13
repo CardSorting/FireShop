@@ -18,6 +18,9 @@ import { ActionCenter } from './components/ActionCenter';
 
 // Views
 import { EditorialView } from './views/EditorialView';
+import { AudienceHub } from './views/AudienceHub';
+import { InsightsView } from './views/InsightsView';
+import { SettingsView } from './views/SettingsView';
 
 export default function BlogDashboard() {
   const services = useServices();
@@ -272,39 +275,15 @@ export default function BlogDashboard() {
         )}
 
         {activeView === 'insights' && (
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="h-24 w-24 rounded-4xl bg-primary-50 text-primary-600 flex items-center justify-center mx-auto">
-              <BarChart3 className="h-10 w-10" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-gray-900">Advanced Analytics</h2>
-              <p className="text-gray-500 max-w-md mx-auto mt-2">Deep dive into content performance and SEO health metrics is being industrialized. Check back soon for velocity charts and heatmaps.</p>
-            </div>
-          </div>
+          <InsightsView posts={posts} />
         )}
-
+ 
         {activeView === 'audience' && (
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="h-24 w-24 rounded-4xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto">
-              <Users className="h-10 w-10" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-gray-900">Audience Hub</h2>
-              <p className="text-gray-500 max-w-md mx-auto mt-2">Managing subscribers, segmenting lists, and analyzing open rates will be centralized here.</p>
-            </div>
-          </div>
+          <AudienceHub />
         )}
-
+ 
         {activeView === 'settings' && (
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 p-12 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="h-24 w-24 rounded-4xl bg-gray-50 text-gray-600 flex items-center justify-center mx-auto">
-              <SettingsIcon className="h-10 w-10" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-gray-900">Blog Configuration</h2>
-              <p className="text-gray-500 max-w-md mx-auto mt-2">Manage authors, categories, tags, and SEO defaults for your entire blogging engine.</p>
-            </div>
-          </div>
+          <SettingsView />
         )}
 
         <BulkActionBar 

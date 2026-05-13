@@ -45,7 +45,8 @@ import {
   AlertCircle,
   Camera,
   Target,
-  SearchCode
+  SearchCode,
+  Upload
 } from 'lucide-react';
 import { formatCurrency, humanizeCategory } from '@utils/formatters';
 import {
@@ -61,6 +62,8 @@ import {
   AdminTab,
 } from '../../components/admin/AdminComponents';
 import { AdminFilterPanel } from '../../components/admin/AdminFilterPanel';
+import { AdminImportDialog } from '../../components/admin/AdminImportDialog';
+import type { ProductDraft } from '@domain/models';
 
 const PRODUCT_CATEGORIES: Array<string | 'all'> = [
   'all',
@@ -224,6 +227,7 @@ export function AdminProducts() {
   const [deleting, setDeleting] = useState(false);
   const [savingBulk, setSavingBulk] = useState(false);
   const [bulkPatch, setBulkPatch] = useState<BulkPatch>(EMPTY_BULK_PATCH);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
 
@@ -444,6 +448,36 @@ export function AdminProducts() {
     }
   }
 
+  async function handleImport(data: any[]) {
+    try {
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+
+      const productsToCreate: ProductDraft[] = data.map(row => ({
+        name: row.name || 'Unnamed Product',
+        description: row.description || '',
+        price: Math.round(Number(row.price || 0) * 100),
+        category: (row.category || 'other') as any,
+        productType: row.type || row.producttype || 'Other',
+        stock: Number(row.stock || 0),
+        status: (row.status || 'draft') as any,
+        imageUrl: row.imageurl || row.image || '',
+        media: [],
+        sku: row.sku || '',
+        vendor: row.vendor || '',
+        handle: row.handle || undefined,
+        tags: row.tags ? row.tags.split(',').map((t: string) => t.trim()) : [],
+        trackQuantity: true,
+        physicalItem: true,
+      }));
+
+      await services.productService.batchCreateProducts(productsToCreate, actor);
+      await loadProducts();
+    } catch (err) {
+      throw err;
+    }
+  }
+
   const isSelectionMode = selectedIds.size > 0;
 
   return (
@@ -453,6 +487,12 @@ export function AdminProducts() {
         subtitle="Manage listings, saved views, setup issues, margins, and bulk catalog operations"
         actions={
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setIsImportOpen(true)}
+              className="hidden rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 sm:inline-flex active:scale-95"
+            >
+              Import
+            </button>
             <Link href="/admin/products/bulk-edit" className="hidden rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 sm:inline-flex active:scale-95">
               Bulk editor
             </Link>
@@ -681,12 +721,35 @@ export function AdminProducts() {
           )}
 
           {!loading && products.length === 0 && (
-            <AdminEmptyState 
-              title="No products found" 
-              description="We couldn't find any products matching your current filters or search term. Try expanding your search or clearing filters." 
-              icon={SearchCode} 
-              action={<button onClick={clearAllFilters} className="rounded-xl bg-gray-900 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-gray-800">Clear all filters</button>}
-            />
+            <div className="py-20">
+              {query || hasAnyFilters ? (
+                <AdminEmptyState 
+                  title="No products found" 
+                  description="We couldn't find any products matching your current filters or search term. Try expanding your search or clearing filters." 
+                  icon={SearchCode} 
+                  action={<button onClick={clearAllFilters} className="rounded-xl bg-gray-900 px-6 py-2.5 text-xs font-bold text-white shadow-lg transition hover:bg-gray-800 active:scale-95">Clear all filters</button>}
+                />
+              ) : (
+                <AdminEmptyState 
+                  title="Start your product catalog" 
+                  description="You haven't added any products yet. Start by creating your first listing or importing your inventory from a CSV file." 
+                  icon={Package} 
+                  action={
+                    <Link href="/admin/products/new" className="rounded-xl bg-primary-600 px-6 py-2.5 text-xs font-bold text-white shadow-lg shadow-primary-500/20 transition hover:bg-primary-700 active:scale-95 flex items-center gap-2">
+                      <Plus className="h-4 w-4" /> Add your first product
+                    </Link>
+                  }
+                  secondaryAction={
+                    <button 
+                      onClick={() => setIsImportOpen(true)}
+                      className="rounded-xl border bg-white px-6 py-2.5 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95 flex items-center gap-2"
+                    >
+                      <Upload className="h-4 w-4" /> Import from CSV
+                    </button>
+                  }
+                />
+              )}
+            </div>
           )}
         </div>
 
@@ -724,6 +787,15 @@ export function AdminProducts() {
 
       <AdminConfirmDialog open={!!deleteCandidate} onClose={() => setDeleteCandidate(null)} onConfirm={confirmDelete} title="Delete product?" description={`"${deleteCandidate?.name}" will be permanently removed from your catalog. This cannot be undone.`} confirmLabel="Delete" loading={deleting} variant="danger" />
       
+      <AdminImportDialog 
+        open={isImportOpen} 
+        onClose={() => setIsImportOpen(false)} 
+        onImport={handleImport} 
+        title="Import Products" 
+        templateUrl="/templates/product_import_template.csv"
+        description="Upload a CSV with name, price, stock, sku, category, etc. Prices should be in dollars."
+      />
+
       {/* Bulk Action Context (Optional additional bar at bottom if needed, but we now have the integrated table header) */}
       <BulkActionBar
         selectedCount={selectedIds.size}

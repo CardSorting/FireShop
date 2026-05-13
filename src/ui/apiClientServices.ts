@@ -162,6 +162,7 @@ export function createApiClientServices() {
                 return request<ProductSavedViewResult>(`/api/admin/products/views/${view}?${qs}`, { signal: options?.signal });
             },
             createProduct: (data: ProductDraft, _actor: { id: string; email: string }) => request<Product>('/api/products', { method: 'POST', body: JSON.stringify(data) }),
+            batchCreateProducts: (products: ProductDraft[], _actor: { id: string; email: string }) => request<Product[]>('/api/admin/products/batch/create', { method: 'POST', body: JSON.stringify({ products }) }),
             updateProduct: (id: string, data: ProductUpdate, _actor: { id: string; email: string }) => request<Product>(`/api/products/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
             deleteProduct: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
             batchUpdateProducts: (updates: { id: string; updates: ProductUpdate }[], _actor: { id: string; email: string }) => request<Product[]>('/api/admin/products/batch', { method: 'POST', body: JSON.stringify({ updates }) }),
@@ -203,6 +204,7 @@ export function createApiClientServices() {
                 return request<Order[]>(`/api/orders?${qs}`, { signal: options?.signal });
             },
             getOrder: (id: string, signal?: AbortSignal) => request<Order>(`/api/orders/${id}`, { signal }),
+            getOverview: (signal?: AbortSignal) => request<{ totalCount: number; pendingCount: number; fulfillmentCount: number; reconcilingCount: number }>('/api/admin/orders?overview=true', { signal }),
             getAllOrders: (options?: { status?: OrderStatus; limit?: number; cursor?: string; query?: string; signal?: AbortSignal }) => {
                 const qs = new URLSearchParams();
                 if (options?.status) qs.set('status', options.status);
@@ -276,6 +278,7 @@ export function createApiClientServices() {
             cancel: (id: string) => request<PurchaseOrder>(`/api/admin/purchase-orders/${id}`, { method: 'POST', body: JSON.stringify({ action: 'cancel' }) }),
             close: (id: string, data: any) => request<PurchaseOrder>(`/api/admin/purchase-orders/${id}`, { method: 'POST', body: JSON.stringify({ action: 'close', ...data }) }),
             receive: (id: string, data: any) => request<any>(`/api/admin/purchase-orders/${id}`, { method: 'POST', body: JSON.stringify({ action: 'receive', ...data }) }),
+            getSupplierMetrics: (supplierName: string) => request<{ activeOrders: number; totalOrders: number; totalSpent: number; lastOrderAt?: Date }>(`/api/admin/purchase-orders?supplierMetrics=${encodeURIComponent(supplierName)}`),
         },
         inventoryService: {
             getLocations: () => request<InventoryLocation[]>('/api/admin/locations'),
@@ -421,6 +424,7 @@ export function createApiClientServices() {
                     method: 'DELETE', 
                     body: JSON.stringify({ ids }) 
                 }),
+            getSubscribers: (signal?: AbortSignal) => request<import('@domain/models').Subscriber[]>('/api/admin/blog/subscribers', { signal }),
         },
         shippingService: {
             getAllClasses: (signal?: AbortSignal) => request<ShippingClass[]>('/api/admin/shipping/classes', { signal }),

@@ -565,22 +565,43 @@ export function CheckoutPage() {
                           />
                         </Suspense>
                       ) : (
-                        <div className="text-center py-8">
-                          <AlertCircle className="mx-auto mb-6 h-12 w-12 text-amber-500" />
-                          <p className="mt-2 text-sm font-medium text-gray-500 mb-8">
-                            {process.env.NODE_ENV === 'production' 
-                              ? 'Checkout is temporarily unavailable. Please contact support.' 
-                              : 'This is a simulation. Click below to generate a test order.'}
-                          </p>
-                          {process.env.NODE_ENV !== 'production' && (
-                            <button 
-                              onClick={() => handleSuccess('mock_payment_method')}
-                              data-testid="mock-checkout-button"
-                              className="w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:scale-[1.02]"
-                            >
-                              Complete Test Purchase
-                            </button>
-                          )}
+                        <div className="space-y-8">
+                          <div className="flex items-start gap-4 rounded-2xl border-2 border-amber-100 bg-amber-50/50 p-6">
+                            <Info className="h-6 w-6 shrink-0 text-amber-600" />
+                            <div>
+                              <h3 className="text-sm font-black text-amber-900">Direct Bank Transfer</h3>
+                              <p className="mt-1 text-xs font-medium text-amber-700 leading-relaxed">
+                                Make your payment directly into our bank account. Please use your Order ID as the payment reference. Your order will not be shipped until the funds have cleared in our account.
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="rounded-2xl border bg-gray-50 p-6 space-y-4">
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              <span>Bank Name</span>
+                              <span className="text-gray-900">International Merchant Bank</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              <span>Account Number</span>
+                              <span className="text-gray-900">•••• 8642</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-gray-400">
+                              <span>Routing / Swift</span>
+                              <span className="text-gray-900">HERM2026X</span>
+                            </div>
+                          </div>
+
+                          <button 
+                            onClick={() => handleSuccess('offline_bank_transfer')}
+                            data-testid="offline-checkout-button"
+                            className="group relative w-full overflow-hidden rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:-translate-y-1 active:translate-y-0"
+                          >
+                            <span className="relative z-10 flex items-center justify-center gap-2">
+                              Confirm Offline Order
+                              <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                            </span>
+                            <div className="absolute inset-0 z-0 bg-linear-to-r from-amber-500 to-orange-600 opacity-0 transition-opacity group-hover:opacity-100" />
+                          </button>
                         </div>
                       )}
                     </div>

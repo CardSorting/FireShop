@@ -7,7 +7,7 @@ import { jsonError, requireAdminSession, readJsonObject } from '@infrastructure/
 
 export async function GET(request: Request) {
   try {
-    await requireAdminSession();
+    await requireAdminSession(request);
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
     const supplier = searchParams.get('supplier') || undefined;
@@ -24,6 +24,11 @@ export async function GET(request: Request) {
 
     if (overview) {
       return NextResponse.json(await services.purchaseOrderService.getPurchaseOrderOverview());
+    }
+
+    const supplierMetrics = searchParams.get('supplierMetrics');
+    if (supplierMetrics) {
+      return NextResponse.json(await services.purchaseOrderService.getSupplierMetrics(supplierMetrics));
     }
 
     return NextResponse.json(

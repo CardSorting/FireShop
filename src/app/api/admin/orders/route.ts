@@ -7,6 +7,11 @@ export async function GET(request: Request) {
         await requireAdminSession(request);
         const { searchParams } = new URL(request.url);
         const services = await getServerServices();
+        
+        if (searchParams.get('overview') === 'true') {
+            return NextResponse.json(await services.orderService.getAdminOverview());
+        }
+
         return NextResponse.json(await services.orderService.getAllOrders({
             status: parseOrderStatus(searchParams.get('status')),
             limit: parseBoundedLimit(searchParams.get('limit')),

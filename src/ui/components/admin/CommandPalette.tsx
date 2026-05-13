@@ -13,6 +13,9 @@ import {
   Package,
   ArrowRight,
   User,
+  RefreshCw,
+  BrainCircuit,
+  NotebookPen,
   type LucideIcon,
 } from 'lucide-react';
 import { useServices } from '../../hooks/useServices';
@@ -32,15 +35,26 @@ interface PaletteItem {
 }
 
 const STATIC_ITEMS: PaletteItem[] = [
-  ...ADMIN_ALL_NAV_ITEMS.map((item) => ({
-    id: item.id,
-    label: item.label,
-    description: item.description,
-    icon: item.icon,
-    href: item.href,
-    group: 'Navigate',
-    keywords: item.aliases,
-  })),
+  ...ADMIN_ALL_NAV_ITEMS.flatMap((item) => [
+    {
+      id: item.id,
+      label: item.label,
+      description: item.description,
+      icon: item.icon,
+      href: item.href,
+      group: 'Navigate',
+      keywords: item.aliases,
+    },
+    ...(item.contextualActions?.map(ca => ({
+      id: `${item.id}-ctx-${ca.label.toLowerCase().replace(/\s+/g, '-')}`,
+      label: `${ca.label} in ${item.label}`,
+      description: `Quick action for ${item.label}`,
+      icon: ca.icon,
+      href: ca.href,
+      group: 'Shortcuts',
+      keywords: [...item.aliases, ca.label.toLowerCase()]
+    })) || [])
+  ]),
   ...ADMIN_QUICK_ACTIONS.map((action) => ({
     id: action.id,
     label: action.label,
@@ -186,6 +200,36 @@ export function CommandPalette() {
   
   if (!needle && recentItems.length > 0) {
     grouped['Recent'] = recentItems.slice(0, 3);
+  }
+
+  // If no query, add Suggested Actions to grouped
+  if (!needle) {
+    grouped['Suggested for you'] = [
+      {
+        id: 'suggest-import',
+        label: 'Import products from CSV',
+        description: 'Bulk update your catalog',
+        icon: RefreshCw,
+        href: '/admin/products',
+        group: 'Suggested for you'
+      },
+      {
+        id: 'suggest-planning',
+        label: 'View today’s operational plan',
+        description: 'Review AI-suggested actions',
+        icon: BrainCircuit,
+        href: '/admin/ops',
+        group: 'Suggested for you'
+      },
+      {
+        id: 'doc-csv-guide',
+        label: 'Documentation: CSV Import Guide',
+        description: 'Learn how to format your product data',
+        icon: NotebookPen,
+        href: '/admin/docs/csv-import',
+        group: 'Help & Docs'
+      }
+    ];
   }
 
   filtered.forEach(item => {

@@ -69,6 +69,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   orders: 'Orders',
   products: 'Products',
   inventory: 'Inventory',
+  suppliers: 'Partners',
   settings: 'Settings',
   new: 'New',
   edit: 'Edit',
@@ -283,17 +284,23 @@ interface AdminEmptyStateProps {
   description: string;
   icon: LucideIcon;
   action?: ReactNode;
+  secondaryAction?: ReactNode;
 }
 
-export function AdminEmptyState({ title, description, icon: Icon, action }: AdminEmptyStateProps) {
+export function AdminEmptyState({ title, description, icon: Icon, action, secondaryAction }: AdminEmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-16 text-center">
-      <div className="rounded-2xl bg-white p-4 shadow-sm">
+    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-12 text-center animate-in fade-in zoom-in-95 duration-500">
+      <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
         <Icon className="h-8 w-8 text-gray-400" />
       </div>
-      <h3 className="mt-4 text-base font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-gray-500">{description}</p>
-      {action && <div className="mt-6">{action}</div>}
+      <h3 className="mt-6 text-lg font-bold text-gray-900">{title}</h3>
+      <p className="mt-2 max-w-sm text-sm text-gray-500 leading-relaxed">{description}</p>
+      {(action || secondaryAction) && (
+        <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
+          {action}
+          {secondaryAction}
+        </div>
+      )}
     </div>
   );
 }

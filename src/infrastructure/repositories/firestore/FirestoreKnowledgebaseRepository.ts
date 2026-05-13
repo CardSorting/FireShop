@@ -271,16 +271,35 @@ export class FirestoreKnowledgebaseRepository {
       throw new Error('Article ID and slug are required for persistence');
     }
     
-    const data = {
-      ...article,
-      slug: article.slug.toLowerCase().trim(),
-      createdAt: article.createdAt ? Timestamp.fromDate(new Date(article.createdAt)) : serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      publishedAt: article.status === 'published' 
-        ? (article.publishedAt ? Timestamp.fromDate(new Date(article.publishedAt)) : serverTimestamp()) 
-        : null,
-    };
-    await setDoc(doc(getUnifiedDb(), this.articleCollection, article.id), data);
+    const db = getUnifiedDb();
+    const articleRef = doc(db, this.articleCollection, article.id);
+    const slug = article.slug.toLowerCase().trim();
+
+    return await runTransaction(db, async (transaction) => {
+      // 1. Check for slug collisions (excluding the current article ID)
+      const collisionQuery = query(
+        collection(db, this.articleCollection),
+        where('slug', '==', slug),
+        limit(1)
+      );
+      const snapshot = await getDocs(collisionQuery);
+      
+      if (!snapshot.empty && snapshot.docs[0].id !== article.id) {
+        throw new Error(`The slug "${slug}" is already claimed by another article (ID: ${snapshot.docs[0].id}).`);
+      }
+
+      const data = {
+        ...article,
+        slug,
+        createdAt: article.createdAt ? Timestamp.fromDate(new Date(article.createdAt)) : serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        publishedAt: article.status === 'published' 
+          ? (article.publishedAt ? Timestamp.fromDate(new Date(article.publishedAt)) : serverTimestamp()) 
+          : null,
+      };
+
+      transaction.set(articleRef, data);
+    });
   }
 
   async deleteArticle(id: string): Promise<void> {

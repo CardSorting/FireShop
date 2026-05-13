@@ -22,6 +22,7 @@ import {
   Package,
   Plus,
   RefreshCw,
+  Search,
   Settings,
   Shield,
   Tag,
@@ -42,7 +43,9 @@ export interface AdminNavItem {
   description: string;
   icon: LucideIcon;
   aliases: string[];
-  badge?: 'orders';
+  badge?: 'orders' | 'tickets' | 'stock' | 'none';
+  contextualActions?: { label: string; href: string; icon: LucideIcon }[];
+  shortcut?: string;
 }
 
 export interface AdminNavGroup {
@@ -72,6 +75,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         description: 'Today’s priorities, sales, and setup progress',
         icon: LayoutDashboard,
         aliases: ['dashboard', 'overview', 'start', 'today'],
+        shortcut: 'G H',
       },
       {
         id: 'ops',
@@ -80,6 +84,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         description: 'Turn store signals into suggested next actions',
         icon: BrainCircuit,
         aliases: ['operations', 'ops', 'planning', 'suggested actions', 'next steps', 'command center'],
+        shortcut: 'G O',
       },
     ],
   },
@@ -95,6 +100,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         icon: ClipboardList,
         aliases: ['sales', 'fulfillment', 'shipping', 'purchases', 'transactions', 'billing'],
         badge: 'orders',
+        shortcut: 'G R',
       },
     ],
   },
@@ -108,6 +114,12 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         description: 'Manage inventory listings and pricing',
         icon: Package,
         aliases: ['catalog', 'items', 'listings', 'inventory', 'merchandise'],
+        shortcut: 'G P',
+        contextualActions: [
+          { label: 'Add product', href: '/admin/products/new', icon: Plus },
+          { label: 'Import CSV', href: '/admin/products', icon: RefreshCw },
+          { label: 'Bulk edit', href: '/admin/products/bulk-edit', icon: Tag }
+        ]
       },
       {
         id: 'collections',
@@ -128,10 +140,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       {
         id: 'taxonomy',
         href: '/admin/taxonomy',
-        label: 'Organization',
+        label: 'Taxonomy & Organization',
         description: 'Manage categories and product types',
         icon: ListTree,
-        aliases: ['taxonomy', 'categories', 'types', 'structure', 'classification'],
+        aliases: ['taxonomy', 'categories', 'types', 'structure', 'classification', 'organization', 'hierarchy'],
       },
     ],
   },
@@ -166,7 +178,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     id: 'procurement',
-    label: 'Inventory intake',
+    label: 'Purchasing & Sourcing',
     items: [
       {
         id: 'purchase-orders',
@@ -179,16 +191,20 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       {
         id: 'suppliers',
         href: '/admin/suppliers',
-        label: 'Suppliers',
-        description: 'Manage wholesale vendors',
+        label: 'Partners',
+        description: 'Manage wholesale vendors and manufacturing partners',
         icon: Building2,
-        aliases: ['vendors', 'wholesalers', 'manufacturers'],
+        aliases: ['partners', 'vendors', 'wholesalers', 'manufacturers', 'suppliers'],
+        contextualActions: [
+          { label: 'Add partner', href: '/admin/suppliers/new', icon: Plus },
+          { label: 'Browse directory', href: '/admin/suppliers', icon: Search }
+        ]
       },
     ],
   },
   {
     id: 'content',
-    label: 'Content',
+    label: 'Content & Media',
     items: [
       {
         id: 'pages',
@@ -196,15 +212,15 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         label: 'Pages',
         description: 'Manage custom content pages',
         icon: ClipboardCheck,
-        aliases: ['content', 'blog', 'about', 'contact'],
+        aliases: ['content', 'about', 'contact', 'legal', 'policy', 'tos', 'privacy'],
       },
       {
         id: 'blog',
         href: '/admin/blog',
-        label: 'Journal',
-        description: 'Manage blog posts and articles',
+        label: 'Blog',
+        description: 'Manage articles and store updates',
         icon: NotebookPen,
-        aliases: ['blog', 'posts', 'authors'],
+        aliases: ['blog', 'posts', 'authors', 'articles', 'news', 'journal', 'writing'],
       },
       {
         id: 'files',
@@ -212,13 +228,13 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         label: 'Files',
         description: 'Upload and manage media assets',
         icon: ImageIcon,
-        aliases: ['images', 'media', 'uploads', 'assets', 'documents'],
+        aliases: ['images', 'media', 'uploads', 'assets', 'documents', 'pictures', 'videos', 'storage'],
       },
     ],
   },
   {
     id: 'marketing',
-    label: 'Marketing',
+    label: 'Marketing & Growth',
     items: [
       {
         id: 'discounts',
@@ -226,18 +242,18 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
         label: 'Discounts',
         description: 'Coupons and promotions',
         icon: Tag,
-        aliases: ['coupons', 'promo codes', 'promotions', 'offers', 'campaigns'],
+        aliases: ['coupons', 'promo codes', 'promotions', 'offers', 'campaigns', 'sales', 'marketing'],
       },
     ],
   },
   {
     id: 'insights',
-    label: 'Insights',
+    label: 'Intelligence',
     items: [
       {
         id: 'concierge-insights',
         href: '/admin/concierge',
-        label: 'Concierge Insights',
+        label: 'Concierge AI',
         description: 'Customer struggles and support intelligence',
         icon: Sparkles,
         aliases: ['concierge', 'intelligence', 'suggestions', 'struggles', 'chat insights'],
@@ -313,6 +329,15 @@ export const ADMIN_QUICK_ACTIONS: AdminQuickAction[] = [
     description: 'Update product status, pricing, and inventory',
     icon: Tag,
     aliases: ['bulk editor', 'spreadsheet', 'mass update', 'edit many products'],
+    group: 'Create',
+  },
+  {
+    id: 'import-products',
+    href: '/admin/products',
+    label: 'Import products',
+    description: 'Bulk upload products from CSV',
+    icon: Plus,
+    aliases: ['csv import', 'bulk upload', 'seed products'],
     group: 'Create',
   },
   {

@@ -252,4 +252,8 @@ export class OrderService {
   getAdminOrder(orderId: string): Promise<Order | null> {
     return this.readService.getAdminOrder(orderId);
   }
+
+  getAdminOverview() {
+    return this.readService.getAdminOverview();
+  }
 }

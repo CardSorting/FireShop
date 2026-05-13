@@ -32,6 +32,7 @@ export interface IProductRepository {
   batchSetInventory?(updates: { id: string; variantId?: string; stock: number }[]): Promise<void>;
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
+  batchCreate?(products: ProductDraft[]): Promise<Product[]>;
   getStats(): Promise<{
     totalProducts: number;
     totalUnits: number;
