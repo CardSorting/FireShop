@@ -1,1065 +1,243 @@
 import * as crypto from 'node:crypto';
-import type { 
-  IOrderRepository, 
-  IProductRepository, 
-  ICartRepository, 
-  IDiscountRepository, 
-  IPaymentProcessor, 
-  ILockProvider, 
+import type {
+  ICartRepository,
   ICheckoutGateway,
+  IDiscountRepository,
+  ILockProvider,
+  IOrderRepository,
+  IPaymentProcessor,
+  IProductRepository,
   IShippingRepository,
 } from '@domain/repositories';
-import { 
-  Order, 
-  Address, 
-  OrderItem, 
-  OrderStatus, 
-  Fulfillment, 
-  OrderFulfillmentEvent, 
-  OrderFulfillmentEventType,
-  User,
-  OrderNote,
-  Weight,
-  Dimensions,
-  AdministrativeTask,
-  FulfillmentMilestone,
-  ShippingRateCard,
-  OrderLogisticsAudit,
-  ShippingMargin,
-  ShippingLabel,
+import type {
+  Address,
   CarrierManifest,
-  ShippingRule,
-  LogisticsPerformance
+  LogisticsPerformance,
+  Order,
+  OrderFulfillmentEventType,
+  OrderNote,
+  OrderStatus,
+  ShippingLabel,
 } from '@domain/models';
-import { 
-  OrderNotFoundError, 
-  ProductNotFoundError, 
-  CartEmptyError,
-  PaymentFailedError,
-  CheckoutInProgressError
-} from '@domain/errors';
-import { 
-  assertValidShippingAddress, 
-  assertValidOrderItems, 
-  calculateCartTotal, 
-  calculateShipping, 
-  calculateTax,
-  deriveEstimatedDeliveryDate,
-  calculateShippingCost,
-  deriveTrackingUrl,
-  assertValidOrderStatusTransition,
-  coalesceStockUpdates,
-  formatCents
-} from '@domain/rules';
 import { AuditService } from './AuditService';
-import { DiscountService } from './DiscountService';
-import { Sanitizer } from '@utils/sanitizer';
-import { StorageService } from '@infrastructure/services/StorageService';
-import { logger } from '@utils/logger';
-import { runTransaction, getUnifiedDb, doc, serverTimestamp } from '@infrastructure/firebase/bridge';
+import { OrderAdminService } from './order/OrderAdminService';
+import { OrderCheckoutService } from './order/OrderCheckoutService';
+import { OrderFulfillmentWorkflowService } from './order/OrderFulfillmentWorkflowService';
+import { OrderLogisticsService } from './order/OrderLogisticsService';
+import { OrderReadService } from './order/OrderReadService';
+import type { FulfillmentMethod, OrderActor } from './order/types';
 
 /**
  * [LAYER: CORE]
- * 
- * Autonomous Logistics & Strategy-Driven OrderService.
- * Implements Automated Shipping Rules, Performance Monitoring, and Carrier Manifesting.
- * Engineered for non-technical administrators to master world-class warehouse operations with zero decision fatigue.
+ *
+ * Compatibility facade for order operations. The implementation is split by
+ * concern under `src/core/order/` so checkout, logistics, fulfillment, reads,
+ * and admin mutations can evolve independently.
  */
 export class OrderService {
+  private readonly checkoutService: OrderCheckoutService;
+  private readonly logisticsService: OrderLogisticsService;
+  private readonly fulfillmentWorkflowService: OrderFulfillmentWorkflowService;
+  private readonly readService: OrderReadService;
+  private readonly adminService: OrderAdminService;
+
   constructor(
-    private orderRepo: IOrderRepository,
-    private productRepo: IProductRepository,
-    private cartRepo: ICartRepository,
-    private discountRepo: IDiscountRepository,
-    private payment: IPaymentProcessor,
-    private audit: AuditService,
-    private locker: ILockProvider,
+    orderRepo: IOrderRepository,
+    productRepo: IProductRepository,
+    cartRepo: ICartRepository,
+    discountRepo: IDiscountRepository,
+    payment: IPaymentProcessor,
+    audit: AuditService,
+    locker: ILockProvider,
     private checkoutGateway?: ICheckoutGateway,
-    private shippingRepo?: IShippingRepository
-  ) {}
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // AUTOMATION RULES (STRATEGIC LOGISTICS)
-  // ────────────────────────────────────────────────────────────────────────────
-
-  private readonly DEFAULT_RULES: ShippingRule[] = [
-    { id: '1', name: 'Standard Post', conditions: { maxWeightLbs: 1 }, preferredCarrier: 'USPS', preferredService: 'Ground Advantage', priority: 10 },
-    { id: '2', name: 'Bulk Freight', conditions: { minWeightLbs: 10 }, preferredCarrier: 'UPS', preferredService: 'Ground', priority: 20 },
-    { id: '3', name: 'High Value Security', conditions: { minValueCents: 50000 }, preferredCarrier: 'FedEx', preferredService: 'Home Delivery', priority: 30 }
-  ];
-
-  private readonly RESERVATION_TTL_MS = 15 * 60 * 1000;
-
-  /**
-   * Automatically identifies the optimal carrier based on predefined business rules.
-   * Eliminates decision fatigue for warehouse staff.
-   */
-  async autoAssignShippingMethod(orderId: string): Promise<{ carrier: string; service: string }> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    
-    const weightLbs = order.items.reduce((sum, i) => sum + (i.quantity * 0.5), 0);
-    const value = order.total;
-
-    // Evaluate rules by priority
-    const rules = [...this.DEFAULT_RULES].sort((a, b) => b.priority - a.priority);
-    for (const rule of rules) {
-       const wMatch = (!rule.conditions.minWeightLbs || weightLbs >= rule.conditions.minWeightLbs) && (!rule.conditions.maxWeightLbs || weightLbs <= rule.conditions.maxWeightLbs);
-       const vMatch = (!rule.conditions.minValueCents || value >= rule.conditions.minValueCents) && (!rule.conditions.maxValueCents || value <= rule.conditions.maxValueCents);
-       
-       if (wMatch && vMatch) return { carrier: rule.preferredCarrier, service: rule.preferredService };
-    }
-
-    return { carrier: 'USPS', service: 'Ground Advantage' }; // Default
+    shippingRepo?: IShippingRepository
+  ) {
+    this.checkoutService = new OrderCheckoutService(
+      orderRepo,
+      productRepo,
+      cartRepo,
+      discountRepo,
+      payment,
+      audit,
+      locker,
+      shippingRepo
+    );
+    this.logisticsService = new OrderLogisticsService(orderRepo);
+    this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(orderRepo);
+    this.readService = new OrderReadService(orderRepo);
+    this.adminService = new OrderAdminService(orderRepo, productRepo, discountRepo, audit);
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // CARRIER & LABEL OPS (AUTONOMOUS)
-  // ────────────────────────────────────────────────────────────────────────────
-
-  async prepareBatchLabels(orderIds: string[]): Promise<ShippingLabel[]> {
-    const labels: ShippingLabel[] = [];
-    for (const id of orderIds) {
-       const order = await this.orderRepo.getById(id);
-       if (!order) continue;
-       
-       const { carrier, service } = await this.autoAssignShippingMethod(id);
-       const weightLbs = order.items.reduce((sum, i) => sum + (i.quantity * 0.5), 0); // Assuming 0.5lb per item if not specified
-       
-       const label: ShippingLabel = {
-          id: crypto.randomUUID(),
-          fulfillmentId: crypto.randomUUID(),
-          carrier,
-          service,
-          trackingNumber: `${carrier === 'UPS' ? '1Z' : 'DB'}${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
-          labelUrl: `https://labels.dreambees.art/${id}.pdf`,
-          cost: calculateShippingCost(weightLbs, carrier, service),
-          format: 'pdf',
-          createdAt: new Date()
-       };
-       labels.push(label);
-    }
-    return labels;
+  autoAssignShippingMethod(orderId: string): Promise<{ carrier: string; service: string }> {
+    return this.logisticsService.autoAssignShippingMethod(orderId);
   }
 
-  async createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {
-    const orders = (await Promise.all(orderIds.map(id => this.orderRepo.getById(id)))).filter(Boolean) as Order[];
-    const fulfillmentIds = orders.flatMap(o => o.fulfillments.filter(f => f.trackingCarrier === carrier).map(f => f.id));
-    const totalWeightLbs = orders.reduce((sum, o) => sum + o.items.reduce((iSum, i) => iSum + (i.quantity * 0.5), 0), 0);
-    
-    return {
-      id: crypto.randomUUID(),
-      carrier,
-      fulfillmentIds,
-      totalLabels: fulfillmentIds.length,
-      totalWeightLbs,
-      status: 'draft',
-      createdAt: new Date()
-    };
+  prepareBatchLabels(orderIds: string[]): Promise<ShippingLabel[]> {
+    return this.logisticsService.prepareBatchLabels(orderIds);
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // PERFORMANCE MONITORING (LOGISTICAL HEALTH)
-  // ────────────────────────────────────────────────────────────────────────────
-
-  async getLogisticsPerformanceReport(): Promise<LogisticsPerformance> {
-    const stats = await this.orderRepo.getLogisticsStats();
-    return {
-      avgFulfillmentTimeHours: stats.avgFulfillmentTimeHours,
-      onTimeDeliveryRate: stats.onTimeDeliveryRate,
-      carrierPerformance: stats.carrierPerformance,
-      shippingProfitability: stats.shippingProfitability
-    };
+  createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {
+    return this.logisticsService.createCarrierManifest(carrier, orderIds);
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // CORE OPERATIONS (HIGH-VELOCITY)
-  // ────────────────────────────────────────────────────────────────────────────
+  getLogisticsPerformanceReport(): Promise<LogisticsPerformance> {
+    return this.logisticsService.getLogisticsPerformanceReport();
+  }
 
-  async initiateCheckout(userId: string, shippingAddress: Address, userEmail?: string, userName?: string, discountCode?: string, idempotencyKey?: string, paymentMethodId?: string, fulfillmentMethod: 'shipping' | 'pickup' | 'delivery' = 'shipping'): Promise<Order> {
-    assertValidShippingAddress(shippingAddress);
-    const lockId = `checkout_lock:${userId}`;
-    const { success, fencingToken } = await this.locker.acquireLock(lockId, userId, 45000);
-    if (!success) throw new CheckoutInProgressError();
+  initiateCheckout(
+    userId: string,
+    shippingAddress: Address,
+    userEmail?: string,
+    userName?: string,
+    discountCode?: string,
+    idempotencyKey?: string,
+    paymentMethodId?: string,
+    fulfillmentMethod: FulfillmentMethod = 'shipping'
+  ): Promise<Order> {
+    return this.checkoutService.initiateCheckout(
+      userId,
+      shippingAddress,
+      userEmail,
+      userName,
+      discountCode,
+      idempotencyKey,
+      paymentMethodId,
+      fulfillmentMethod
+    );
+  }
 
-    try {
-      // Production Hardening: Check idempotency BEFORE entering heavy logic
-      if (idempotencyKey) {
-        const existing = await this.orderRepo.getByIdempotencyKey(idempotencyKey);
-        if (existing) {
-          logger.info('Duplicate checkout attempt, returning existing order', { userId, idempotencyKey });
-          return existing;
-        }
-      }
+  finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
+    return this.checkoutService.finalizeOrderPayment(paymentIntentId, stripePi);
+  }
 
-      // Phase 1: Create PENDING order atomically (NO external network calls inside transaction)
-      const order = await runTransaction(getUnifiedDb(), async (transaction: any) => {
-        // 1. Fetch Cart (Atomic)
-        const cart = await this.cartRepo.getByUserId(userId, transaction);
-        if (!cart || cart.items.length === 0) throw new CartEmptyError();
-        
-        // Production Hardening: Validate cart items server-side to prevent negative quantity hijacking
-        assertValidOrderItems(cart.items);
-        
-        const subtotal = calculateCartTotal(cart.items);
-        
-        const productMap = new Map<string, any>();
-        for (const item of cart.items) {
-          const product = await this.productRepo.getById(item.productId, transaction);
-          if (!product) throw new Error(`Product ${item.name} is no longer available.`);
-          productMap.set(item.productId, product);
-          
-          let currentPrice = product.price;
-          if (item.variantId) {
-            const variant = product.variants?.find(v => v.id === item.variantId);
-            if (!variant) throw new Error(`Variant for ${item.name} is no longer available.`);
-            currentPrice = variant.price;
-          }
-
-          if (currentPrice !== item.priceSnapshot) {
-            logger.warn('Price mismatch detected during checkout', { 
-              productId: item.productId, 
-              cartPrice: item.priceSnapshot, 
-              currentPrice 
-            });
-            throw new Error(`The price for ${item.name} has changed. Please refresh your cart.`);
-          }
-        }
-
-        let discountAmount = 0, validDiscountCode: string | undefined, isFreeShipping = false;
-
-        // 3. Validate & Increment Discount (Atomic)
-        if (discountCode) {
-          const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
-          const val = await discountService.validateDiscount(discountCode, subtotal, userId, transaction);
-          if (val.valid && val.discount) { 
-            discountAmount = val.discountAmount || 0; 
-            validDiscountCode = val.discount.code; 
-            isFreeShipping = !!val.isFreeShipping;
-            
-            // Critical: Increment usage within the same transaction
-            await this.discountRepo.incrementUsage(val.discount.id, transaction);
-            
-            // Production Hardening: Record user-specific usage for once-per-customer enforcement
-            if (val.discount.oncePerCustomer) {
-              await this.orderRepo.recordUserDiscountUsage(userId, val.discount.code, transaction);
-            }
-          } else if (discountCode && !val.valid) {
-             logger.warn('Checkout attempted with invalid discount code', { userId, discountCode, reason: val.message });
-          }
-        }
-
-        // 3. Calculate Final Logistics
-        const [allRates, allZones] = this.shippingRepo 
-          ? await Promise.all([this.shippingRepo.getAllRates(), this.shippingRepo.getAllZones()])
-          : [[], []];
-
-        const shippingResult = calculateShipping(cart.items, shippingAddress, allRates, allZones);
-        const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : shippingResult.amount;
-        const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
-        const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
-
-        const physicalItems = cart.items.filter(item => !item.isDigital);
-        const stockUpdates = coalesceStockUpdates(physicalItems.map(item => ({
-          id: item.productId,
-          variantId: item.variantId,
-          delta: -item.quantity
-        })));
-
-        if (stockUpdates.length > 0) {
-          await this.productRepo.batchUpdateStock(stockUpdates, transaction);
-        }
-
-        const reservationExpiresAt = new Date(Date.now() + this.RESERVATION_TTL_MS).toISOString();
-
-        // 4. Create Order as PENDING with an atomic inventory reservation.
-        // PRODUCTION HARDENING: NO payment calls inside transactions. External network I/O
-        // risks transaction timeout (Firestore max ~15s). Payment is processed in Phase 2.
-        const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
-          userId,
-          items: cart.items.map(i => {
-            const product = productMap.get(i.productId);
-            return { 
-              productId: i.productId,
-              variantId: i.variantId,
-              variantTitle: i.variantTitle,
-              productHandle: i.productHandle,
-              name: i.name,
-              quantity: i.quantity,
-              unitPrice: i.priceSnapshot,
-              imageUrl: i.imageUrl,
-              isDigital: i.isDigital,
-              digitalAssets: i.isDigital ? (product?.digitalAssets || []) : [],
-              shippingClassId: i.shippingClassId,
-              fulfilledQty: 0, 
-              at: new Date() 
-            };
-          }) as any,
-          shippingAmount: shipping,
-          taxAmount: taxAmount,
-          discountAmount: discountAmount,
-          discountCode: validDiscountCode,
-          total,
-          status: 'pending',
-          shippingAddress,
-          shippingClassId: shippingResult.shippingClassId,
-          shippingCarrier: shippingResult.carrier,
-          customerEmail: userEmail,
-          customerName: userName,
-          paymentTransactionId: null,
-          idempotencyKey: idempotencyKey || crypto.randomUUID(),
-          fulfillmentMethod,
-          fulfillmentLocationId: 'primary',
-          fulfillments: [],
-          notes: [],
-          metadata: {
-            shippingRateName: shippingResult.rateName,
-            shippingServiceCode: shippingResult.serviceCode,
-            inventoryReserved: stockUpdates.length > 0,
-            inventoryReservationReleased: false,
-            inventoryReservationFinalized: false,
-            inventoryReservationExpiresAt: reservationExpiresAt,
-            fencingToken: fencingToken,
-          },
-          riskScore: 0,
-          estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
-          fulfillmentEvents: [{ 
-            id: crypto.randomUUID(), 
-            type: 'order_placed', 
-            label: 'Order Received', 
-            description: 'Order received, pending payment verification.', 
-            at: new Date() 
-          }],
-        };
-
-        const createdOrder = await this.orderRepo.create(orderData, transaction);
-
-        // 5. Clear Cart (Transactional)
-        await this.cartRepo.clear(userId, transaction);
-
-        // 6. Record Audit (Transactional)
-        await this.audit.recordWithTransaction(transaction, {
-          userId,
-          userEmail: userEmail || 'unknown@dreambees.art',
-          action: 'order_placed',
-          targetId: createdOrder.id,
-          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode },
-          correlationId: idempotencyKey || undefined
-        });
-
-        return createdOrder;
+  finalizeTrustedCheckout(
+    userId: string,
+    shippingAddress: Address,
+    paymentMethodId: string,
+    idempotencyKey?: string,
+    discountCode?: string
+  ): Promise<Order> {
+    if (this.checkoutGateway) {
+      return this.checkoutGateway.finalizeCheckout({
+        userId,
+        shippingAddress,
+        paymentMethodId,
+        idempotencyKey: idempotencyKey || crypto.randomUUID(),
+        discountCode
       });
-
-      // Phase 2: Process Payment OUTSIDE the transaction (safe from timeout)
-      if (paymentMethodId) {
-        try {
-          const paymentResult = await this.payment.processPayment({
-            amount: order.total,
-            orderId: order.id,
-            paymentMethodId,
-            idempotencyKey: idempotencyKey || order.idempotencyKey || crypto.randomUUID()
-          });
-          if (paymentResult.success && paymentResult.transactionId) {
-            // Production Hardening: Atomically confirm order and store payment ID.
-            // Uses updateStatus + updatePaymentTransactionId (both support transactions)
-            // instead of full-document save to prevent overwriting concurrent changes.
-            await this.orderRepo.updateStatus(order.id, 'confirmed');
-            await this.orderRepo.updatePaymentTransactionId(order.id, paymentResult.transactionId!);
-            return { ...order, status: 'confirmed' as OrderStatus, paymentTransactionId: paymentResult.transactionId };
-          }
-        } catch (paymentErr: any) {
-          logger.error('Payment processing failed, cancelling pending order', { userId, orderId: order.id, paymentErr });
-          // Rollback: Cancel the pending order since payment failed
-          await this.orderRepo.updateStatus(order.id, 'cancelled').catch(e => {
-            logger.error('FATAL: Rollback failed for order after payment failure', { orderId: order.id, e });
-          });
-          
-          // Production Hardening: Rollback discount usage
-          if (order.discountCode) {
-            const discount = await this.discountRepo.getByCode(order.discountCode);
-            if (discount) {
-              await this.discountRepo.decrementUsage(discount.id).catch(e => {
-                logger.error('FATAL: Failed to rollback discount usage', { discountId: discount.id, e });
-              });
-            }
-          }
-          throw paymentErr;
-        }
-      }
-
-      return order;
-    } catch (err) {
-      logger.error('Failed to initiate checkout', { userId, err });
-      throw err;
-    } finally {
-      await this.locker.releaseLock(lockId, userId, fencingToken ?? undefined);
     }
+
+    return this.placeOrder(userId, shippingAddress, paymentMethodId, idempotencyKey, discountCode);
   }
 
-  async finalizeOrderPayment(paymentIntentId: string, stripePi?: any): Promise<Order> {
-    const db = getUnifiedDb();
-    if (stripePi && stripePi.status && stripePi.status !== 'succeeded') {
-      throw new PaymentFailedError('Cannot finalize an order for a payment that has not succeeded.');
-    }
-    
-    try {
-      // ATOMIC TRANSACTION: Check Status + Inventory + Order Status + Audit + Cart Clear
-      const finalizedOrder = await runTransaction(db, async (transaction: any) => {
-        // 1. Fetch Order within Transaction (using point-read lookup map)
-        const order = await this.orderRepo.getByPaymentTransactionIdTransactional(paymentIntentId, transaction);
-        if (!order) {
-           logger.error('CRITICAL: Payment finalized for non-existent order mapping', { paymentIntentId });
-           throw new OrderNotFoundError(paymentIntentId);
-        }
-
-        // Idempotency: If already processed, return existing order
-        if (order.status !== 'pending') {
-          logger.info('Order already finalized, returning existing state', { orderId: order.id, status: order.status });
-          return order;
-        }
-
-        // Point 3: Fencing Token Enforcement (Strict Canonical Authority)
-        const expectedToken = Number(stripePi?.metadata?.fencingToken || 0);
-        const currentToken = Number(order.metadata?.fencingToken || 0);
-        
-        // Finalization MUST happen under the authority of the exact token that initiated it.
-        // If currentToken > expectedToken, a newer lock was acquired (e.g. manual cancel).
-        // If currentToken < expectedToken, this PI has a token from the "future" (Impossible state).
-        if (expectedToken !== currentToken) {
-           logger.warn('Fencing token mismatch detected', { 
-             orderId: order.id, expectedToken, currentToken 
-           });
-           await this.orderRepo.updateStatus(order.id, 'reconciling', transaction);
-           await this.orderRepo.markForReconciliation(order.id, [
-             `Fencing token mismatch: Stripe PI token ${expectedToken} does not match Order token ${currentToken}.`,
-             `This suggests a race condition or manual intervention superseded the checkout lease.`
-           ]);
-           return order;
-        }
-
-        const riskScore = stripePi?.charges?.data?.[0]?.outcome?.risk_score || 0;
-        
-        // 2. Deterministic Status Derivation
-        let nextStatus: OrderStatus = 'confirmed';
-        if (riskScore < 75) {
-           if (order.items.every(i => i.isDigital)) nextStatus = 'delivered';
-           else if (order.fulfillmentMethod === 'shipping') nextStatus = 'processing';
-           else if (order.fulfillmentMethod === 'pickup') nextStatus = 'ready_for_pickup';
-           else if (order.fulfillmentMethod === 'delivery') nextStatus = 'delivery_started';
-        }
-
-        // 3. Deduct Inventory (Transactional) — Physical items ONLY
-        const physicalItems = order.items.filter(item => !item.isDigital);
-        const hasReservation = Boolean(order.metadata?.inventoryReserved);
-        if (physicalItems.length > 0 && !hasReservation) {
-          throw new PaymentFailedError('Cannot finalize physical order without an inventory reservation.');
-        }
-
-        // 4. Update Order Status & Risk Score (Transactional)
-        await this.orderRepo.updateStatus(order.id, nextStatus, transaction);
-        await this.orderRepo.updateRiskScore(order.id, riskScore, transaction);
-        await this.orderRepo.updateMetadata(order.id, {
-          ...(order.metadata || {}),
-          inventoryReservationFinalized: hasReservation,
-        }, transaction);
-        
-        // 5. Record Forensic Audit (Transactional)
-        await this.audit.recordWithTransaction(transaction, {
-          userId: 'system',
-          userEmail: 'system@dreambees.art',
-          action: 'order_payment_finalized',
-          targetId: order.id,
-          details: { 
-            status: nextStatus, 
-            riskScore, 
-            paymentIntentId,
-            items: order.items.length,
-            physicalItems: physicalItems.length
-          },
-          correlationId: (stripePi?.metadata?.correlationId as string) || paymentIntentId
-        });
-
-        // 6. Clear Cart (Transactional)
-        await this.cartRepo.clear(order.userId, transaction);
-
-        // 7. Record fulfillment event atomically within the same transaction
-        const isAllDigital = physicalItems.length === 0;
-        await this.orderRepo.addFulfillmentEvent(order.id, {
-          id: crypto.randomUUID(),
-          type: 'payment_confirmed',
-          label: 'Payment Verified',
-          description: isAllDigital
-            ? 'Payment confirmed. Digital assets are now available for download.'
-            : 'Inventory secured and order queued for logistics.',
-          at: new Date()
-        }, transaction);
-
-        // 8. Return the finalized state
-        return { ...order, status: nextStatus, riskScore };
-      });
-      
-      logger.info(`[OrderService] Payment finalized for order ${finalizedOrder.id}`);
-      return finalizedOrder;
-    } catch (err) {
-      logger.error('CRITICAL: Failed to finalize order payment. System may be out of sync.', { 
-        paymentIntentId, 
-        err 
-      });
-      throw err;
-    }
+  advanceFulfillment(orderId: string, trackingNumber?: string, actor?: OrderActor): Promise<void> {
+    return this.fulfillmentWorkflowService.advanceFulfillment(orderId, trackingNumber, actor);
   }
 
-
-  async advanceFulfillment(orderId: string, trackingNumber?: string, actor?: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-
-    if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
-       // Production Hardening: Validate transition before executing
-       assertValidOrderStatusTransition(order.status, 'shipped');
-       // Use atomic field updates instead of full-document replace
-       await this.orderRepo.updateStatus(orderId, 'shipped');
-       await this.orderRepo.updateFulfillment(orderId, {
-         trackingNumber,
-         shippingCarrier: 'Carrier',
-         trackingUrl: deriveTrackingUrl({ ...order, trackingNumber } as Order) || ''
-       });
-       await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Track: ${trackingNumber}`);
-       return;
-    }
-
-    // Production Hardening: Deterministic next-status map with transition validation
-    const next: Record<string, OrderStatus> = {
-      confirmed: 'processing',
-      processing: 'shipped',
-      ready_for_pickup: 'delivered',
-      delivery_started: 'delivered'
-    };
-    const nextStatus = next[order.status];
-    if (nextStatus) {
-      assertValidOrderStatusTransition(order.status, nextStatus);
-      await this.orderRepo.updateStatus(orderId, nextStatus);
-      await this.recordFulfillmentEvent(orderId, nextStatus as OrderFulfillmentEventType, 'Progressed', `Moved to ${nextStatus}`);
-    }
+  recordFulfillmentEvent(
+    orderId: string,
+    type: OrderFulfillmentEventType,
+    label: string,
+    description: string
+  ): Promise<void> {
+    return this.fulfillmentWorkflowService.recordFulfillmentEvent(orderId, type, label, description);
   }
 
-  async recordFulfillmentEvent(orderId: string, type: OrderFulfillmentEventType, label: string, description: string): Promise<void> {
-    // Production Hardening: Use atomic addFulfillmentEvent instead of read-modify-write
-    // to prevent concurrent write clobbering.
-    const event: OrderFulfillmentEvent = { id: crypto.randomUUID(), type, label, description, at: new Date() };
-    await this.orderRepo.addFulfillmentEvent(orderId, event);
+  resolveReconciliation(
+    id: string,
+    resolutionAction: OrderStatus,
+    reason: string,
+    evidence: string,
+    actor: OrderActor
+  ): Promise<void> {
+    return this.adminService.resolveReconciliation(id, resolutionAction, reason, evidence, actor);
   }
 
-  async resolveReconciliation(id: string, resolutionAction: OrderStatus, reason: string, evidence: string, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(id);
-    if (!order) throw new OrderNotFoundError(id);
-    if (!order.reconciliationRequired) throw new Error('Order is not in a reconciliation state.');
-
-    // Service-level enforcement: reason and evidence are mandatory (defence-in-depth below route layer)
-    if (!reason?.trim()) throw new Error('A resolution reason is required.');
-    if (!evidence?.trim()) throw new Error('Supporting evidence is required.');
-
-    // Atomically clear the lock and set the resolution status
-    await runTransaction(getUnifiedDb(), async (transaction: any) => {
-        // 1. Clear the hard lock and transition to the resolution status
-        await this.orderRepo.clearReconciliationFlag(id, transaction);
-        await this.orderRepo.updateStatus(id, resolutionAction, transaction);
-
-        // 2. Record resolution metadata
-        await this.orderRepo.updateMetadata(id, {
-            ...order.metadata,
-            reconciliationResolvedAt: new Date().toISOString(),
-            reconciliationResolvedBy: actor.id
-        }, transaction);
-    });
-
-    // 3. Append resolution note AFTER commit (appendOnly=true so we don't re-lock the order)
-    const resolutionNote = `RECONCILIATION RESOLVED: Action=${resolutionAction}, Reason=${reason}, Evidence=${evidence}, By=${actor.email}`;
-    await this.orderRepo.markForReconciliation(id, [resolutionNote], true);
-
-    await this.audit.record({ 
-        userId: actor.id, 
-        userEmail: actor.email, 
-        action: 'order_status_changed', 
-        targetId: id, 
-        details: { 
-            resolution: true, 
-            action: resolutionAction, 
-            reason, 
-            evidence 
-        } 
-    });
+  updateOrderStatus(
+    id: string,
+    status: OrderStatus,
+    actor: OrderActor = { id: 'system', email: 'system@dreambees.art' }
+  ): Promise<void> {
+    return this.adminService.updateOrderStatus(id, status, actor);
   }
 
-  async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(id);
-    if (!order) throw new OrderNotFoundError(id);
-    
-    // Point 1: Reconciliation State Blocking
-    if (order.reconciliationRequired) {
-        throw new Error('Order requires manual reconciliation and is locked for mutations.');
-    }
-    assertValidOrderStatusTransition(order.status, status);
-    if (status === 'cancelled') {
-      await this.releaseInventoryReservation(order);
-    }
-    await this.orderRepo.updateStatus(id, status);
-    // Production Hardening: Free up discount usage if order is cancelled or refunded
-    if ((status === 'cancelled' || status === 'refunded') && order.discountCode) {
-      const discount = await this.discountRepo.getByCode(order.discountCode);
-      if (discount) {
-        // Run in transaction to ensure atomic rollback
-        await runTransaction(getUnifiedDb(), async (t: any) => {
-           await this.discountRepo.decrementUsage(discount.id, t);
-           if (order.userId) {
-              await this.orderRepo.removeUserDiscountUsage(order.userId, order.discountCode!, t);
-           }
-        }).catch(e => {
-          logger.error('Failed to rollback discount usage during order cancellation', { orderId: id, error: e });
-        });
-      }
-    }
-    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { from: order.status, to: status } });
-  }
-
-  async placeOrder(userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string, userEmail?: string, userName?: string): Promise<Order> {
+  placeOrder(
+    userId: string,
+    shippingAddress: Address,
+    paymentMethodId: string,
+    idempotencyKey?: string,
+    discountCode?: string,
+    userEmail?: string,
+    userName?: string
+  ): Promise<Order> {
     return this.initiateCheckout(userId, shippingAddress, userEmail, userName, discountCode, idempotencyKey, paymentMethodId);
   }
 
-  async getAllOrders(options?: any): Promise<{ orders: Order[], nextCursor?: string }> {
-    const result = await this.orderRepo.getAll(options);
-    return {
-      ...result,
-      orders: result.orders.map(o => Sanitizer.order(o))
-    };
+  getAllOrders(options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    return this.readService.getAllOrders(options);
   }
 
-  async getOrdersForCustomerView(userId: string, options?: any): Promise<{ orders: Order[], nextCursor?: string }> {
-    const result = await this.orderRepo.getByUserId(userId, options);
-    return {
-      ...result,
-      orders: result.orders.map(o => Sanitizer.order(o))
-    };
+  getOrdersForCustomerView(userId: string, options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    return this.readService.getOrdersForCustomerView(userId, options);
   }
 
-  async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
-    // Production Hardening: Always validate transitions before batch commit.
-    // The batchUpdateStatus repo method writes blindly — we must pre-validate.
-    const validIds: string[] = [];
-    for (const id of ids) {
-      const order = await this.orderRepo.getById(id);
-      if (!order) {
-        logger.warn(`[batchUpdateOrderStatus] Order ${id} not found, skipping.`);
-        continue;
-      }
-      assertValidOrderStatusTransition(order.status, status);
-      validIds.push(id);
-    }
-
-    if (validIds.length === 0) return;
-
-    if (this.orderRepo.batchUpdateStatus) {
-      await this.orderRepo.batchUpdateStatus(validIds, status);
-    } else {
-      for (const id of validIds) {
-        await this.orderRepo.updateStatus(id, status);
-      }
-    }
-    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: 'batch', details: { ids: validIds, to: status } });
+  batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<void> {
+    return this.adminService.batchUpdateOrderStatus(ids, status, actor);
   }
 
-  async cleanupExpiredOrders(expirationMinutes: number = 60): Promise<{ count: number }> {
-    const cutoff = new Date();
-    cutoff.setMinutes(cutoff.getMinutes() - expirationMinutes);
-    const { orders } = await this.orderRepo.getAll({ status: 'pending', to: cutoff });
-    logger.info(`[OrderService] Cleaning up ${orders.length} expired pending orders (cutoff: ${expirationMinutes}m)`);
-    for (const order of orders) {
-      await this.updateOrderStatus(order.id, 'cancelled', {
-        id: 'system',
-        email: 'system@dreambees.art'
-      });
-      // Production Hardening: Audit trail for automated cancellations
-      await this.audit.record({
-        userId: 'system',
-        userEmail: 'system@dreambees.art',
-        action: 'order_status_changed',
-        targetId: order.id,
-        details: { from: 'pending', to: 'cancelled', reason: 'expired', expirationMinutes }
-      });
-    }
-    return { count: orders.length };
+  cleanupExpiredOrders(expirationMinutes = 60): Promise<{ count: number }> {
+    return this.adminService.cleanupExpiredOrders(expirationMinutes);
   }
 
-
-  async getDigitalAssets(userId: string) {
-    // Production Hardening: Paginate through ALL orders instead of capping at 100.
-    // A cap of 100 silently drops digital assets for customers with >100 orders.
-    const allOrders: Order[] = [];
-    let cursor: string | undefined;
-    do {
-      const page = await this.orderRepo.getByUserId(userId, { limit: 50, cursor });
-      allOrders.push(...page.orders);
-      cursor = page.nextCursor;
-    } while (cursor);
-
-    const digitalItems = allOrders
-      .filter(o => o.status !== 'cancelled' && o.status !== 'refunded')
-      .flatMap(o => o.items
-        .filter(i => i.digitalAssets?.length)
-        .map(i => ({
-          orderId: o.id,
-          orderDate: o.createdAt,
-          productName: i.name,
-          productId: i.productId,
-          productImageUrl: i.imageUrl || '',
-          assets: i.digitalAssets
-        }))
-      );
-
-    // Industrialized: Generate signed URLs for all assets
-    const withSignedUrls = await Promise.all(digitalItems.map(async (item) => {
-      const signedAssets = await Promise.all((item.assets || []).map(async (asset: any) => {
-        try {
-          const urlToSign = typeof asset === 'string' ? asset : asset.url;
-          return await StorageService.getSignedUrl(urlToSign, 1440); // 24-hour window
-        } catch (err) {
-          logger.error(`[Forensic] Digital asset signing failed for ${asset}`, { err });
-          return typeof asset === 'string' ? asset : asset.url; // Fallback to original
-        }
-      }));
-      return { ...item, assets: signedAssets };
-    }));
-
-    return withSignedUrls;
+  getDigitalAssets(userId: string) {
+    return this.readService.getDigitalAssets(userId);
   }
 
-
-  async getOrder(id: string, requestingUserId?: string): Promise<Order | null> {
-    const order = await this.orderRepo.getById(id);
-    // Production Hardening: If a userId is provided (customer context), enforce ownership.
-    // Admin paths pass no userId, so they see any order.
-    if (order && requestingUserId && order.userId !== requestingUserId) return null;
-    return order;
+  getOrder(id: string, requestingUserId?: string): Promise<Order | null> {
+    return this.readService.getOrder(id, requestingUserId);
   }
 
-  async applyDiscountToOrder(orderId: string, code: string, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    if (order.discountCode) throw new Error('Order already has a discount applied.');
-    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
-      throw new Error(`Cannot apply discount to order in status: ${order.status}`);
-    }
-
-    const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
-    const val = await discountService.validateDiscount(code, order.total + (order.discountAmount || 0), order.userId);
-    
-    if (!val.valid || !val.discount) {
-      throw new Error(`Invalid discount: ${val.message}`);
-    }
-
-    const discountAmount = val.discountAmount || 0;
-    const newTotal = Math.max(0, order.total - discountAmount);
-
-    await runTransaction(getUnifiedDb(), async (t: any) => {
-      await this.orderRepo.updateMetadata(orderId, {
-        ...(order.metadata || {}),
-        manualDiscountAppliedAt: new Date().toISOString(),
-        manualDiscountAppliedBy: actor.email,
-        originalTotal: order.total
-      }, t);
-      
-      // Update order fields
-      await t.update(doc(getUnifiedDb(), 'orders', orderId), {
-        discountCode: code,
-        discountAmount: (order.discountAmount || 0) + discountAmount,
-        total: newTotal,
-        updatedAt: serverTimestamp()
-      });
-
-      await this.discountRepo.incrementUsage(val.discount!.id, t);
-    });
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: orderId,
-      details: { action: 'manual_discount', code, amount: discountAmount }
-    });
+  applyDiscountToOrder(orderId: string, code: string, actor: OrderActor): Promise<void> {
+    return this.adminService.applyDiscountToOrder(orderId, code, actor);
   }
 
-  async updateShippingAddress(orderId: string, address: Address, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    if (order.status === 'shipped' || order.status === 'delivered') {
-      throw new Error('Cannot update address for an order that has already shipped.');
-    }
-
-    await runTransaction(getUnifiedDb(), async (t: any) => {
-      await t.update(doc(getUnifiedDb(), 'orders', orderId), {
-        shippingAddress: address,
-        updatedAt: serverTimestamp()
-      });
-      
-      if (this.orderRepo.addNote) {
-        await this.orderRepo.addNote(orderId, {
-          id: crypto.randomUUID(),
-          authorId: actor.id,
-          authorEmail: actor.email,
-          text: `Shipping address updated by support to: ${address.street}, ${address.city}, ${address.state} ${address.zip}, ${address.country}`,
-          createdAt: new Date()
-        }, t);
-      }
-    });
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: orderId,
-      details: { action: 'address_update', newAddress: address }
-    });
+  updateShippingAddress(orderId: string, address: Address, actor: OrderActor): Promise<void> {
+    return this.adminService.updateShippingAddress(orderId, address, actor);
   }
 
-  async swapOrderItem(orderId: string, oldProductId: string, newProductId: string, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
-      throw new Error('Order is in a status that cannot be modified.');
-    }
-
-    const oldItem = order.items.find(i => i.productId === oldProductId);
-    if (!oldItem) throw new Error('Item not found in order.');
-
-    const newProduct = await this.productRepo.getById(newProductId);
-    if (!newProduct) throw new ProductNotFoundError(newProductId);
-    if (newProduct.stock < oldItem.quantity) throw new Error('New product does not have sufficient stock.');
-
-    await runTransaction(getUnifiedDb(), async (t: any) => {
-      // 1. Return stock for old item
-      if (!oldItem.isDigital) {
-        await this.productRepo.updateStock(oldProductId, oldItem.quantity, t);
-      }
-
-      // 2. Deduct stock for new item
-      if (!newProduct.isDigital) {
-        await this.productRepo.updateStock(newProductId, -oldItem.quantity, t);
-      }
-
-      // 3. Update order item
-      const newItems = order.items.map(i => {
-        if (i.productId === oldProductId) {
-          return {
-            ...i,
-            productId: newProductId,
-            name: newProduct.name,
-            imageUrl: newProduct.imageUrl,
-            unitPrice: newProduct.price,
-            productHandle: newProduct.handle,
-            at: new Date()
-          };
-        }
-        return i;
-      });
-
-      const subtotal = newItems.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
-      
-      // Production Hardening: Recalculate shipping/tax for fiscal integrity
-      // We use the existing rules engine to ensure the swap doesn't create a tax/shipping leak.
-      const hasPhysicalItems = newItems.some(i => !i.isDigital);
-      const newShippingAmount = hasPhysicalItems ? order.shippingAmount : 0;
-      const newTaxAmount = calculateTax({
-        subtotal,
-        shipping: newShippingAmount,
-        discount: order.discountAmount || 0,
-        address: order.shippingAddress
-      });
-      const newTotal = subtotal + newShippingAmount + newTaxAmount - (order.discountAmount || 0);
-
-      await t.update(doc(getUnifiedDb(), 'orders', orderId), {
-        items: newItems,
-        shippingAmount: newShippingAmount,
-        taxAmount: newTaxAmount,
-        total: Math.max(0, newTotal),
-        updatedAt: serverTimestamp()
-      });
-      
-      if (this.orderRepo.addNote) {
-        await this.orderRepo.addNote(orderId, {
-          id: crypto.randomUUID(),
-          authorId: actor.id,
-          authorEmail: actor.email,
-          text: `Swapped item: ${oldItem.name} -> ${newProduct.name}`,
-          createdAt: new Date()
-        }, t);
-      }
-    });
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: orderId,
-      details: { action: 'item_swap', old: oldProductId, new: newProductId }
-    });
+  swapOrderItem(orderId: string, oldProductId: string, newProductId: string, actor: OrderActor): Promise<void> {
+    return this.adminService.swapOrderItem(orderId, oldProductId, newProductId, actor);
   }
 
-  async upgradeShipping(orderId: string, carrier: string, service: string, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
-      throw new Error('Order is already shipped or delivered.');
-    }
-
-    await this.orderRepo.updateFulfillment(orderId, {
-      shippingCarrier: carrier,
-    });
-    
-    await this.orderRepo.updateMetadata(orderId, {
-      ...(order.metadata || {}),
-      shippingServiceUpgrade: service,
-      upgradedBy: actor.email,
-      upgradedAt: new Date().toISOString()
-    });
-
-    if (this.orderRepo.addNote) {
-      await this.orderRepo.addNote(orderId, {
-        id: crypto.randomUUID(),
-        authorId: actor.id,
-        authorEmail: actor.email,
-        text: `Shipping upgraded to ${carrier} ${service} (Cost waived)`,
-        createdAt: new Date()
-      });
-    }
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: orderId,
-      details: { action: 'shipping_upgrade', carrier, service }
-    });
+  upgradeShipping(orderId: string, carrier: string, service: string, actor: OrderActor): Promise<void> {
+    return this.adminService.upgradeShipping(orderId, carrier, service, actor);
   }
 
-  async setOrderHold(orderId: string, reason: string, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
-      throw new Error('Only unfulfilled orders can be placed on hold.');
-    }
-
-    await this.orderRepo.updateMetadata(orderId, {
-      ...(order.metadata || {}),
-      onHold: true,
-      holdReason: reason,
-      heldBy: actor.email,
-      heldAt: new Date().toISOString()
-    });
-
-    if (this.orderRepo.addNote) {
-      await this.orderRepo.addNote(orderId, {
-        id: crypto.randomUUID(),
-        authorId: actor.id,
-        authorEmail: actor.email,
-        text: `Order placed on HOLD: ${reason}`,
-        createdAt: new Date()
-      });
-    }
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: orderId,
-      details: { action: 'hold', reason }
-    });
+  setOrderHold(orderId: string, reason: string, actor: OrderActor): Promise<void> {
+    return this.adminService.setOrderHold(orderId, reason, actor);
   }
 
-  async releaseOrderHold(orderId: string, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(orderId);
-    if (!order) throw new OrderNotFoundError(orderId);
-
-    const metadata = { ...(order.metadata || {}) };
-    delete metadata.onHold;
-    delete metadata.holdReason;
-    delete metadata.heldBy;
-    delete metadata.heldAt;
-
-    await this.orderRepo.updateMetadata(orderId, metadata);
-
-    if (this.orderRepo.addNote) {
-      await this.orderRepo.addNote(orderId, {
-        id: crypto.randomUUID(),
-        authorId: actor.id,
-        authorEmail: actor.email,
-        text: `Order hold RELEASED. Fulfillment can resume.`,
-        createdAt: new Date()
-      });
-    }
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: orderId,
-      details: { action: 'release_hold' }
-    });
+  releaseOrderHold(orderId: string, actor: OrderActor): Promise<void> {
+    return this.adminService.releaseOrderHold(orderId, actor);
   }
 
-
-  async addOrderNote(id: string, text: string, actor: { id: string, email: string }): Promise<OrderNote> {
-    const order = await this.orderRepo.getById(id);
-    if (!order) throw new OrderNotFoundError(id);
-    const note: OrderNote = { id: crypto.randomUUID(), authorId: actor.id, authorEmail: actor.email, text, createdAt: new Date() };
-    // Production Hardening: Use atomic addNote (arrayUnion) instead of read-modify-write
-    // to prevent concurrent note appends from clobbering each other.
-    if (this.orderRepo.addNote) {
-      await this.orderRepo.addNote(id, note);
-    } else {
-      // Fallback: read-modify-write for repos that don't support addNote
-      await this.orderRepo.updateNotes(id, [...order.notes, note]);
-    }
-    return note;
+  addOrderNote(id: string, text: string, actor: OrderActor): Promise<OrderNote> {
+    return this.adminService.addOrderNote(id, text, actor);
   }
 
-  async updateOrderFulfillment(id: string, data: { trackingNumber?: string; shippingCarrier?: string }, actor: { id: string, email: string }): Promise<void> {
-    const order = await this.orderRepo.getById(id);
-    if (!order) throw new OrderNotFoundError(id);
-    await this.orderRepo.updateFulfillment(id, data);
-    // Production Hardening: Use correct audit action for fulfillment updates
-    await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { fulfillmentUpdate: data, previousStatus: order.status } });
+  updateOrderFulfillment(
+    id: string,
+    data: { trackingNumber?: string; shippingCarrier?: string },
+    actor: OrderActor
+  ): Promise<void> {
+    return this.adminService.updateOrderFulfillment(id, data, actor);
   }
 
-  async getOrders(userId: string, options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
-    // Production Hardening: Return the full paginated result instead of stripping nextCursor.
-    // Dropping nextCursor prevents callers from paginating to subsequent pages.
-    return this.orderRepo.getByUserId(userId, options);
+  getOrders(userId: string, options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    return this.readService.getOrders(userId, options);
   }
 
-  async getAdminOrder(orderId: string): Promise<Order | null> {
-    // Forensic: Direct point-read bypass for concierge diagnostic depth.
-    return this.orderRepo.getById(orderId);
-  }
-
-  private async releaseInventoryReservation(order: Order): Promise<void> {
-    if (!order.metadata?.inventoryReserved || order.metadata.inventoryReservationReleased) return;
-
-    const stockUpdates = coalesceStockUpdates(order.items
-      .filter(item => !item.isDigital)
-      .map(item => ({
-        id: item.productId,
-        variantId: item.variantId,
-        delta: item.quantity
-      })));
-
-    if (stockUpdates.length > 0) {
-      await this.productRepo.batchUpdateStock(stockUpdates);
-    }
-
-    await this.orderRepo.updateMetadata(order.id, {
-      ...(order.metadata || {}),
-      inventoryReservationReleased: true,
-      inventoryReservationReleasedAt: new Date().toISOString(),
-    });
+  getAdminOrder(orderId: string): Promise<Order | null> {
+    return this.readService.getAdminOrder(orderId);
   }
 }

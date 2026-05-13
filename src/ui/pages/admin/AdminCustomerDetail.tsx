@@ -69,8 +69,8 @@ export function AdminCustomerDetail({ id }: AdminCustomerDetailProps) {
     setLoading(true);
     try {
       const users = await services.authService.getAllUsers();
-      const summaries = await services.orderService.getCustomerSummaries(users);
-      const found = summaries.find(c => c.id === id);
+      const summaries = await services.orderQueryService.getCustomerSummaries(users);
+      const found = summaries.find((c: any) => c.id === id);
       const foundUser = users.find(u => u.id === id);
       if (found) {
         const orders = await loadCustomerOrdersByUserId(id);

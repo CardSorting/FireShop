@@ -56,7 +56,7 @@ describe('Security Hardening Proofs', () => {
       mockCartRepo = {
         getByUserId: vi.fn().mockResolvedValue({
           userId: 'u1',
-          items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1' }]
+          items: [{ productId: 'p1', quantity: 1, priceSnapshot: 1000, name: 'P1', imageUrl: '/p1.png' }]
         }),
         clear: vi.fn(),
       };
@@ -92,20 +92,19 @@ describe('Security Hardening Proofs', () => {
     });
 
     it('PROVE: Checkout consumes once-per-customer discount and records usage', async () => {
-      await orderService.initiateCheckout('u1', {} as any, 'u@e.com', 'U', 'ONCE');
+      await orderService.initiateCheckout('u1', {
+        street: '123 Test St',
+        city: 'Denver',
+        state: 'CO',
+        zip: '80202',
+        country: 'US',
+      }, 'u@e.com', 'U', 'ONCE');
       
       expect(mockDiscountRepo.incrementUsage).toHaveBeenCalled();
       expect(mockOrderRepo.recordUserDiscountUsage).toHaveBeenCalledWith('u1', 'ONCE', expect.anything());
     });
 
     it('PROVE: Cancelled order transactionally releases discount usage', async () => {
-      const order = { id: 'o1', userId: 'u1', discountCode: 'ONCE', status: 'pending' };
-      mockOrderRepo.updateStatus.mockImplementation(async (id, status) => {
-          // Trigger the cleanup logic in Service
-          await orderService.updateOrderStatus(id, status);
-      });
-      
-      // Simulate cancellation
       await orderService.updateOrderStatus('o1', 'cancelled');
       
       expect(mockDiscountRepo.decrementUsage).toHaveBeenCalled();

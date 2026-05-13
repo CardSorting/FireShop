@@ -217,7 +217,8 @@ export async function POST(req: NextRequest) {
 
         const sessionUpdates: any = {
           events: [],
-          transcript: []
+          transcript: [],
+          actionResults: [] // Production Hardening: Traceable log of all tool executions
         };
 
         const userId = context?.userSession?.id || 'anonymous';
@@ -277,7 +278,20 @@ export async function POST(req: NextRequest) {
           searchResolutions: Array.from(fullResponse.matchAll(/\[SEARCH_SIMILAR_RESOLUTIONS:\s*"([^"]+)"\]/g))
         };
 
-        // 1. Handle Barter Success
+        // Production Hardening: Systemic Rate Limiting to prevent infinite tool loops
+        const turnToolCount = Object.values(tokens).reduce((acc, t) => acc + (t as any[]).length, 0);
+        const totalSessionTools = sessionData.toolExecutionCount || 0;
+        if (totalSessionTools + turnToolCount > 100) {
+          logger.warn('Concierge tool execution budget exhausted', { sessionId: activeSessionId, total: totalSessionTools });
+          sessionUpdates.events.push({
+            type: 'note_added',
+            timestamp: new Date().toISOString(),
+            label: 'Tool Budget Exhausted',
+            description: 'The Concierge has performed too many automated actions and requires human review.'
+          });
+          return;
+        }
+        sessionUpdates['toolExecutionCount'] = totalSessionTools + turnToolCount;
         if (tokens.barter.length > 0) {
           const tStart = Date.now();
           const match = tokens.barter[0];
@@ -1341,9 +1355,13 @@ export async function POST(req: NextRequest) {
         if (sessionUpdates.isConverted !== undefined) finalUpdates.isConverted = sessionUpdates.isConverted;
         if (sessionUpdates.events.length > 0) finalUpdates.events = arrayUnion(...sessionUpdates.events);
         if (sessionUpdates.transcript.length > 0) finalUpdates.transcript = arrayUnion(...sessionUpdates.transcript);
+        if (sessionUpdates.actionResults.length > 0) finalUpdates.actionResults = arrayUnion(...sessionUpdates.actionResults);
+        if (sessionUpdates.toolExecutionCount !== undefined) finalUpdates.toolExecutionCount = sessionUpdates.toolExecutionCount;
         
         Object.entries(sessionUpdates).forEach(([key, val]) => {
           if (key.startsWith('context.')) finalUpdates[key] = val;
+          if (key === 'sentiment') finalUpdates[key] = val; // Direct field
+          if (key === 'toolExecutionCount') finalUpdates[key] = val;
         });
 
         await updateDoc(sessionRef, finalUpdates);

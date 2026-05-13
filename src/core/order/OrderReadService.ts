@@ -1,0 +1,78 @@
+import type { IOrderRepository } from '@domain/repositories';
+import type { Order } from '@domain/models';
+import { StorageService } from '@infrastructure/services/StorageService';
+import { Sanitizer } from '@utils/sanitizer';
+import { logger } from '@utils/logger';
+
+export class OrderReadService {
+  constructor(private orderRepo: IOrderRepository) {}
+
+  async getAllOrders(options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    const result = await this.orderRepo.getAll(options);
+    return {
+      ...result,
+      orders: result.orders.map(order => Sanitizer.order(order))
+    };
+  }
+
+  async getOrdersForCustomerView(userId: string, options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    const result = await this.orderRepo.getByUserId(userId, options);
+    return {
+      ...result,
+      orders: result.orders.map(order => Sanitizer.order(order))
+    };
+  }
+
+  async getDigitalAssets(userId: string) {
+    const allOrders: Order[] = [];
+    let cursor: string | undefined;
+
+    do {
+      const page = await this.orderRepo.getByUserId(userId, { limit: 50, cursor });
+      allOrders.push(...page.orders);
+      cursor = page.nextCursor;
+    } while (cursor);
+
+    const digitalItems = allOrders
+      .filter(order => order.status !== 'cancelled' && order.status !== 'refunded')
+      .flatMap(order => order.items
+        .filter(item => item.digitalAssets?.length)
+        .map(item => ({
+          orderId: order.id,
+          orderDate: order.createdAt,
+          productName: item.name,
+          productId: item.productId,
+          productImageUrl: item.imageUrl || '',
+          assets: item.digitalAssets
+        }))
+      );
+
+    return Promise.all(digitalItems.map(async item => {
+      const signedAssets = await Promise.all((item.assets || []).map(async (asset: any) => {
+        try {
+          const urlToSign = typeof asset === 'string' ? asset : asset.url;
+          return await StorageService.getSignedUrl(urlToSign, 1440);
+        } catch (err) {
+          logger.error(`[Forensic] Digital asset signing failed for ${asset}`, { err });
+          return typeof asset === 'string' ? asset : asset.url;
+        }
+      }));
+
+      return { ...item, assets: signedAssets };
+    }));
+  }
+
+  async getOrder(id: string, requestingUserId?: string): Promise<Order | null> {
+    const order = await this.orderRepo.getById(id);
+    if (order && requestingUserId && order.userId !== requestingUserId) return null;
+    return order;
+  }
+
+  async getOrders(userId: string, options?: any): Promise<{ orders: Order[]; nextCursor?: string }> {
+    return this.orderRepo.getByUserId(userId, options);
+  }
+
+  async getAdminOrder(orderId: string): Promise<Order | null> {
+    return this.orderRepo.getById(orderId);
+  }
+}
