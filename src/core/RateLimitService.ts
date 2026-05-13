@@ -31,7 +31,12 @@ export class RateLimitService {
    * @param windowMs Time window in milliseconds
    */
   async isAllowed(key: string, limit: number, windowMs: number): Promise<{ allowed: boolean; remaining: number; resetTime?: Date }> {
-    const id = `limit_${key.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    // PRODUCTION HARDENING: Anonymize the key (IP/User ID) via SHA-256 before storage
+    // to prevent PII leakage (GDPR/CCPA) in the persistent rate-limit ledger.
+    const crypto = await import('crypto');
+    const hashedKey = crypto.createHash('sha256').update(key).digest('hex');
+    const id = `limit_${hashedKey.slice(0, 32)}`;
+    
     const db = getUnifiedDb();
     const docRef = doc(db, this.collectionName, id);
 
@@ -71,9 +76,9 @@ export class RateLimitService {
           await this.audit.record({
             userId: 'system',
             userEmail: 'security-alerts@dreambees.art',
-            action: 'settings_updated', // We need a more appropriate action or just a generic one
-            targetId: key,
-            details: { type: 'rate_limit_breach', key, attempts: data.attempts, limit }
+            action: 'security_alert',
+            targetId: hashedKey,
+            details: { type: 'rate_limit_breach', limit }
           });
           return { allowed: false, remaining: 0, resetTime: expiresAt };
         }

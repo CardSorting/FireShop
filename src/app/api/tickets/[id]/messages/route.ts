@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { jsonError, readJsonObject, requireSessionUser } from '@infrastructure/server/apiGuards';
 import { DomainError, UnauthorizedError } from '@domain/errors';
+import { sanitizeHtml } from '@utils/sanitizer';
 
 function requireMessageContent(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) throw new DomainError('content is required.');
@@ -29,7 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       senderId: user.id,
       senderType: isAdmin ? 'agent' as const : 'customer' as const,
       visibility: isAdmin ? requestedVisibility : 'public',
-      content: requireMessageContent(data.content),
+      content: sanitizeHtml(requireMessageContent(data.content)),
       createdAt: new Date(),
     };
     await ticketRepository.addMessage(message);

@@ -24,7 +24,8 @@ import {
   CreditCard,
   MapPin,
   Clock,
-  Truck
+  Truck,
+  Download
 } from 'lucide-react';
 import { formatCurrency, formatShortDate, humanizeOrderStatus, formatRelativeTime } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
@@ -190,13 +191,39 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
           title={`Order #${order.id.slice(0, 8).toUpperCase()}`}
           subtitle={`Placed on ${formatShortDate(order.createdAt)}`}
           actions={
-            <button 
-              onClick={() => toast('info', 'Generating packing slip...')}
-              className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95"
-            >
-              <Printer className="h-4 w-4" />
-              Print Packing Slip
-            </button>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={async () => {
+                  try {
+                    const csv = await services.orderService.exportOrdersToPirateShipCsv([order.id]);
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `pirate_ship_export_${order.id.slice(0, 8)}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    toast('success', 'Ready to upload to Pirate Ship');
+                  } catch (err) {
+                    toast('error', 'Export failed');
+                  }
+                }}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-indigo-700 active:scale-95"
+              >
+                <Truck className="h-4 w-4" />
+                Ship with Pirate Ship
+              </button>
+              <div className="h-8 w-px bg-gray-200" />
+              <button 
+                onClick={() => toast('info', 'Generating packing slip...')}
+                className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-95"
+              >
+                <Printer className="h-4 w-4 text-gray-400" />
+                Print Packing Slip
+              </button>
+            </div>
           }
         />
       </div>

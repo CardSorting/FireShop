@@ -378,26 +378,33 @@ export class ProductService {
   }
 
   async batchUpdateInventory(updates: { id: string; variantId?: string; stock: number }[], actor: { id: string, email: string }): Promise<void> {
-    // Production Hardening: Use transactional batch updates for absolute consistency
-    const stockUpdates = await Promise.all(updates.map(async (update) => {
-      const product = await this.repo.getById(update.id);
-      if (!product) throw new ProductNotFoundError(update.id);
-      
-      let currentStock = product.stock;
+    // Production Hardening: Use transactional batch updates to set absolute stock levels.
+    // This eliminates the race condition where calculating deltas outside a transaction
+    // could overwrite concurrent order deductions.
+    const productUpdates = updates.map(update => {
       if (update.variantId) {
-        const variant = product.variants?.find(v => v.id === update.variantId);
-        if (!variant) throw new Error(`Variant ${update.variantId} not found in product ${update.id}`);
-        currentStock = variant.stock;
+        // For variant updates, we need to find the product and update its variant array.
+        // batchUpdate handles this transactionally by re-fetching the product.
+        // We'll perform a manual variant merge here, which batchUpdate will then
+        // apply within its transaction substrate.
+        return {
+          id: update.id,
+          updates: { 
+            _variantStockUpdate: { variantId: update.variantId, stock: update.stock } 
+          } as any
+        };
       }
-      
       return {
         id: update.id,
-        variantId: update.variantId,
-        delta: update.stock - currentStock
+        updates: { stock: update.stock }
       };
-    }));
+    });
 
-    await this.repo.batchUpdateStock(stockUpdates);
+    if (this.repo.batchUpdate) {
+      await this.repo.batchUpdate(productUpdates as any);
+    } else {
+      await Promise.all(productUpdates.map(u => this.repo.update(u.id, u.updates as any)));
+    }
 
     await this.audit.record({
       userId: actor.id,

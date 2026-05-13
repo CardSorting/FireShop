@@ -1,9 +1,16 @@
-import { JSDOM } from 'jsdom';
 import DOMPurify from 'dompurify';
 import type { Order, Product, User } from '@domain/models';
 
-const window = new JSDOM('').window;
-const purify = DOMPurify(window as any);
+const isServer = typeof window === 'undefined';
+let purify: any;
+
+if (isServer) {
+  const { JSDOM } = require('jsdom');
+  const window = new JSDOM('').window;
+  purify = DOMPurify(window as any);
+} else {
+  purify = DOMPurify;
+}
 
 /**
  * Sanitizes HTML to prevent XSS attacks.
@@ -32,14 +39,23 @@ export class Sanitizer {
     delete sanitized.digitalAssets;
     delete sanitized.reorderPoint;
     delete sanitized.reorderQuantity;
+    delete sanitized.manufacturerSku;
+    delete sanitized.supplier;
+    delete sanitized.manufacturer;
     return sanitized;
   }
 
   static order(order: Order): Order {
     const sanitized = { ...order } as any;
+    
+    // PRODUCTION HARDENING: Explicitly exclude administrative and forensic metadata
     delete sanitized.riskScore;
     delete sanitized.paymentTransactionId;
     delete sanitized.idempotencyKey;
+    delete sanitized.reconciliationRequired;
+    delete sanitized.reconciliationNotes;
+    delete sanitized.metadata;
+    delete sanitized.fulfillmentLocationId;
 
     const isPaid = ['confirmed', 'processing', 'shipped', 'delivered', 'ready_for_pickup', 'delivery_started', 'partially_refunded'].includes(order.status);
     sanitized.items = order.items.map((item) => {

@@ -62,7 +62,7 @@ export class OrderService {
       locker,
       shippingRepo
     );
-    this.logisticsService = new OrderLogisticsService(orderRepo);
+    this.logisticsService = new OrderLogisticsService(orderRepo, productRepo);
     this.fulfillmentWorkflowService = new OrderFulfillmentWorkflowService(orderRepo);
     this.readService = new OrderReadService(orderRepo);
     this.adminService = new OrderAdminService(orderRepo, productRepo, discountRepo, audit);
@@ -72,8 +72,20 @@ export class OrderService {
     return this.logisticsService.autoAssignShippingMethod(orderId);
   }
 
+  // RETIRED: Labels cannot be created directly in the backend. 
+  // Use exportOrdersToPirateShipCsv instead.
+  /*
   prepareBatchLabels(orderIds: string[]): Promise<ShippingLabel[]> {
     return this.logisticsService.prepareBatchLabels(orderIds);
+  }
+  */
+
+  exportOrdersToPirateShipCsv(
+    orderIds: string[],
+    packageDimensions?: { length: string; width: string; height: string },
+    tareWeightLbs?: number
+  ): Promise<string> {
+    return this.logisticsService.exportOrdersToPirateShipCsv(orderIds, packageDimensions, tareWeightLbs);
   }
 
   createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {

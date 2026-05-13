@@ -12,12 +12,12 @@ export async function GET(req: Request) {
     const requestedStatus = searchParams.get('status') as 'published' | 'draft' | 'all' | null;
     const isAdminStatus = requestedStatus === 'draft' || requestedStatus === 'all';
     if (isAdminStatus) {
-      await requireAdminSession();
+      await requireAdminSession(req);
     }
     const status = isAdminStatus ? requestedStatus : 'published';
 
     if (queryStr) {
-      const results = await knowledgebaseRepository.searchArticles(queryStr);
+      const results = await knowledgebaseRepository.searchArticles(queryStr, 20, status);
       return NextResponse.json(results);
     }
 

@@ -71,10 +71,17 @@ const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
 /* Enhanced Triage Tabs */
 const FULFILLMENT_TABS = [
   { label: 'All Orders', value: 'all', icon: PackageCheck },
-  { label: 'Unfulfilled', value: 'confirmed', icon: Clock },
+  { label: 'Ready to Ship', value: 'confirmed', icon: Clock },
   { label: 'Unpaid', value: 'pending', icon: DollarSign },
-  { label: 'Open', value: 'processing', icon: RefreshCcw },
+  { label: 'In Fulfillment', value: 'processing', icon: RefreshCcw },
   { label: 'Shipped', value: 'shipped', icon: Truck },
+];
+
+const SHIPPING_PROFILES = [
+  { id: 'bubble_mailer', label: 'Bubble Mailer (6x4x1)', dimensions: { length: '6', width: '4', height: '1' }, tare: 0.1 },
+  { id: 'small_box', label: 'Small Box (8x6x4)', dimensions: { length: '8', width: '6', height: '4' }, tare: 0.2 },
+  { id: 'medium_box', label: 'Medium Box (12x10x6)', dimensions: { length: '12', width: '10', height: '6' }, tare: 0.4 },
+  { id: 'large_box', label: 'Large Box (16x12x8)', dimensions: { length: '16', width: '12', height: '8' }, tare: 0.8 },
 ];
 
 export function AdminOrders() {
@@ -94,6 +101,7 @@ export function AdminOrders() {
   const [batchUpdating, setBatchUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(SHIPPING_PROFILES[0].id);
   const [copied, setCopied] = useState(false);
   const [internalNotes, setInternalNotes] = useState<Record<string, { id: string; text: string; date: Date }[]>>({});
   const [noteInput, setNoteInput] = useState('');
@@ -250,6 +258,104 @@ export function AdminOrders() {
     }
   }
 
+  async function handlePirateShipExport() {
+    if (selectedIds.size === 0) return;
+    
+    const count = selectedIds.size;
+    const profile = SHIPPING_PROFILES.find(p => p.id === selectedProfileId);
+    const confirmed = window.confirm(`Ready to ship ${count} orders?\n\nPackaging: ${profile?.label}\n\nThis will download the Pirate Ship CSV and optionally update these orders to "In Fulfillment" so you can track your progress.`);
+    
+    if (!confirmed) return;
+
+    try {
+      setBatchUpdating(true);
+      const csv = await services.orderService.exportOrdersToPirateShipCsv(
+        Array.from(selectedIds), 
+        profile?.dimensions, 
+        profile?.tare
+      );
+      
+      // Industrialized Download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pirate_ship_export_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      // Post-Export Workflow: Auto-advance status for unfulfilled orders
+      const user = await services.authService.getCurrentUser();
+      const actor = { id: user?.id || 'unknown', email: user?.email || 'system' };
+      
+      const toUpdate = orders
+        .filter(o => selectedIds.has(o.id) && (o.status === 'pending' || o.status === 'confirmed'))
+        .map(o => o.id);
+      
+      if (toUpdate.length > 0) {
+        await services.orderService.batchUpdateOrderStatus(toUpdate, 'processing', actor);
+        toast('success', `Exported ${count} orders and moved ${toUpdate.length} to Processing`);
+        await loadOrders(); // Refresh list
+      } else {
+        toast('success', `Exported ${count} orders for Pirate Ship`);
+      }
+      
+      setSelectedIds(new Set());
+    } catch (err) {
+      toast('error', 'Fulfillment wizard failed');
+    } finally {
+      setBatchUpdating(false);
+    }
+  }
+
+  function handlePrintPackingSlips() {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds).join(',');
+    window.open(`/admin/print/packing-slips?ids=${ids}`, '_blank');
+  }
+
+  async function handleImportTracking(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      try {
+        setBatchUpdating(true);
+        // Simple CSV parser for Tracking CSV (Order ID, Tracking Number)
+        const lines = text.split('\n');
+        const rows: any[] = [];
+        
+        // Skip header, parse lines
+        for (let i = 1; i < lines.length; i++) {
+          const parts = lines[i].split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+          if (parts.length >= 2) {
+             // Heuristic: Find columns that look like IDs and Tracking
+             // Pirate Ship exports often have "Order ID" in column 0 and "Tracking Number" in column 1
+             rows.push({ orderId: parts[0], trackingNumber: parts[1], carrier: parts[2] || 'USPS' });
+          }
+        }
+
+        if (rows.length === 0) throw new Error('No valid rows found');
+
+        const result = await services.orderService.importTrackingNumbers(rows);
+        toast('success', `Successfully imported ${result.successCount} tracking numbers`);
+        await loadOrders();
+      } catch (err) {
+        toast('error', 'Tracking import failed. Check CSV format.');
+      } finally {
+        setBatchUpdating(false);
+        e.target.value = ''; // Reset input
+      }
+    };
+    reader.readAsText(file);
+  }
+
   const filteredOrders = useMemo(() => {
     let result = orders;
     const needle = normalizeSearch(query);
@@ -294,17 +400,73 @@ export function AdminOrders() {
         title="Orders"
         subtitle="High-velocity fulfillment and collector management console"
         actions={
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 active:scale-95"
-          >
-            <Download className="h-4 w-4" />
-            Export
-          </button>
+          <div className="flex items-center gap-3">
+             <div className="hidden xl:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gray-50 border ring-1 ring-black/5">
+                <PackageSearch className="h-3.5 w-3.5 text-gray-400" />
+                <select 
+                  value={selectedProfileId}
+                  onChange={(e) => setSelectedProfileId(e.target.value)}
+                  className="bg-transparent text-[10px] font-black uppercase tracking-widest text-gray-500 outline-none cursor-pointer"
+                >
+                  {SHIPPING_PROFILES.map(p => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+             </div>
+            <label className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-95 cursor-pointer">
+              <RefreshCcw className={`h-4 w-4 text-gray-400 ${batchUpdating ? 'animate-spin' : ''}`} />
+              Import Tracking
+              <input type="file" accept=".csv" onChange={handleImportTracking} className="hidden" disabled={batchUpdating} />
+            </label>
+            <button 
+              onClick={handleExport}
+              className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-95"
+            >
+              <Download className="h-4 w-4 text-gray-400" />
+              Export Records
+            </button>
+            <button 
+              onClick={handlePrintPackingSlips}
+              className="flex items-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-xs font-bold text-gray-700 shadow-xs transition hover:bg-gray-50 active:scale-95"
+            >
+              <Printer className="h-4 w-4 text-gray-400" />
+              Packing Slips
+            </button>
+            <div className="h-8 w-px bg-gray-200 mx-1" />
+            <button 
+              onClick={handlePirateShipExport}
+              disabled={selectedIds.size === 0}
+              className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:bg-indigo-700 active:scale-95 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed"
+            >
+              <Truck className="h-4 w-4" />
+              Ship with Pirate Ship ({selectedIds.size})
+            </button>
+          </div>
         }
       />
 
       <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+        {/* ── Logistics Health Banner (Industry Standard) ── */}
+        {selectedIds.size > 0 && (() => {
+          const selectedOrders = orders.filter(o => selectedIds.has(o.id));
+          const missingPhone = selectedOrders.filter(o => !o.shippingAddress.phone && !o.metadata?.phone);
+          const international = selectedOrders.filter(o => o.shippingAddress.country !== 'US');
+          
+          if (missingPhone.length > 0 || international.length > 0) {
+            return (
+              <div className="bg-amber-50 border-b border-amber-100 p-3 flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <div className="flex-1 text-sm text-amber-900">
+                  <span className="font-bold">Logistics Alert:</span> {missingPhone.length > 0 && `${missingPhone.length} orders missing phone numbers. `}
+                  {international.length > 0 && `${international.length} international shipments require manual customs verification.`}
+                </div>
+                <button onClick={() => toast('info', 'Check metadata or contact customer')} className="text-xs font-bold text-amber-700 underline">Resolve</button>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* ── Tabs ── */}
         <div className="flex items-center border-b px-2 overflow-x-auto scrollbar-hide">
           {FULFILLMENT_TABS.map((tab) => (
@@ -438,10 +600,18 @@ export function AdminOrders() {
         selectedCount={selectedIds.size}
         onClear={() => setSelectedIds(new Set())}
         actions={
-          <>
-            <button onClick={() => bulkUpdateStatus('confirmed')} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition">Confirm</button>
-            <button onClick={() => bulkUpdateStatus('shipped')} className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition">Ship</button>
-          </>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handlePirateShipExport} 
+              className="flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-xs font-black text-white hover:bg-white/30 transition active:scale-95"
+            >
+              <Truck className="h-4 w-4" />
+              Generate Pirate Ship CSV
+            </button>
+            <div className="h-4 w-px bg-white/20 mx-1" />
+            <button onClick={() => bulkUpdateStatus('confirmed')} className="rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition">Mark as Confirmed</button>
+            <button onClick={() => bulkUpdateStatus('shipped')} className="rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-white hover:bg-white/20 transition">Mark as Shipped</button>
+          </div>
         }
       />
     </div>

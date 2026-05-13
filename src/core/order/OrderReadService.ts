@@ -34,7 +34,7 @@ export class OrderReadService {
     } while (cursor);
 
     const digitalItems = allOrders
-      .filter(order => order.status !== 'cancelled' && order.status !== 'refunded')
+      .filter(order => order.status !== 'cancelled' && order.status !== 'refunded' && order.status !== 'reconciling')
       .flatMap(order => order.items
         .filter(item => item.digitalAssets?.length)
         .map(item => ({
@@ -47,19 +47,7 @@ export class OrderReadService {
         }))
       );
 
-    return Promise.all(digitalItems.map(async item => {
-      const signedAssets = await Promise.all((item.assets || []).map(async (asset: any) => {
-        try {
-          const urlToSign = typeof asset === 'string' ? asset : asset.url;
-          return await StorageService.getSignedUrl(urlToSign, 1440);
-        } catch (err) {
-          logger.error(`[Forensic] Digital asset signing failed for ${asset}`, { err });
-          return typeof asset === 'string' ? asset : asset.url;
-        }
-      }));
-
-      return { ...item, assets: signedAssets };
-    }));
+    return digitalItems;
   }
 
   async getOrder(id: string, requestingUserId?: string): Promise<Order | null> {

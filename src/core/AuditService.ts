@@ -40,6 +40,8 @@ export type AuditAction =
   | 'settings_updated'
   | 'ops_plan_generated'
   | 'concierge_analyzed' | 'concierge_escalated'
+  | 'security_alert'
+  | 'ticket_updated' | 'ticket_status_changed' | 'ticket_batch_updated'
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted';
 
 export interface AuditEntry {
@@ -109,7 +111,7 @@ export class AuditService {
           userAgent,
           now.toISOString(),
           nodeVersion,
-          params.location || 'Unknown'
+          params.location || 'unknown'
         ].join('|');
         
         const hash = crypto.createHash('sha256').update(payload).digest('hex');
@@ -243,12 +245,13 @@ export class AuditService {
           log.action,
           log.targetId,
           log.details,
-          log.previousHash,
-          log.correlationId || '',
+          expectedPreviousHash,
+          log.correlationId,
           ip,
           userAgent,
           createdAtStr,
-          nodeVersion
+          nodeVersion,
+          log.location || 'unknown'
         ].join('|');
         
         const actualHash = crypto.createHash('sha256').update(payload).digest('hex');
@@ -286,6 +289,7 @@ export class AuditService {
     ip?: string;
     userAgent?: string;
     correlationId?: string;
+    location?: string;
   }): Promise<void> {
     const id = crypto.randomUUID();
     const detailsStr = JSON.stringify(params.details || {});
@@ -298,7 +302,6 @@ export class AuditService {
     const tailSnap = await transaction.get(tailRef);
     const lastEntry = tailSnap.exists() ? tailSnap.data() : null;
     const previousHash = lastEntry?.hash || '0'.repeat(64);
-    
     const payload = [
       id,
       params.action,
@@ -309,7 +312,8 @@ export class AuditService {
       ip,
       userAgent,
       now.toISOString(),
-      nodeVersion
+      nodeVersion,
+      params.location || 'unknown'
     ].join('|');
     
     const hash = crypto.createHash('sha256').update(payload).digest('hex');
@@ -326,8 +330,8 @@ export class AuditService {
       previousHash,
       correlationId,
       ip,
-      userAgent,
       nodeVersion,
+      location: params.location || 'unknown',
       createdAt: serverTimestamp(),
       clientCreatedAt: now.toISOString()
     });

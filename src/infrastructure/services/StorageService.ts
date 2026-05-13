@@ -57,12 +57,14 @@ export class StorageService {
     };
 
     const snapshot = await uploadBytes(storageRef, buffer, metadata);
-    const downloadUrl = await getDownloadURL(storageRef);
+    
+    // [HARDENING] Private assets MUST NOT have public download URLs
+    const path = folder === 'digital-assets' ? storagePath : await getDownloadURL(storageRef);
 
     return {
       id,
       name: filename,
-      path: folder === 'digital-assets' ? storagePath : downloadUrl,
+      path,
       size: snapshot.metadata.size,
       mimeType: snapshot.metadata.contentType || mimeType
     };
@@ -80,14 +82,58 @@ export class StorageService {
     filename: string,
     mimeType: string
   ): Promise<StoredFile> {
-    // Convert stream to Buffer
-    const chunks = [];
-    for await (const chunk of stream as any) {
-      chunks.push(chunk);
-    }
-    const buffer = Buffer.concat(chunks);
+    const id = randomUUID();
+    const name = `${id.slice(0, 8)}-${filename}`;
+    const storagePath = `${folder}/${name}`;
+
+    // [HARDENING] Use Admin SDK for TRUE streaming to avoid memory exhaustion (DoS)
+    const bucket = adminStorage.bucket();
+    const file = bucket.file(storagePath);
     
-    return this.saveFile(buffer, folder, filename, mimeType);
+    const writeStream = file.createWriteStream({
+      metadata: {
+        contentType: mimeType,
+        metadata: {
+          originalName: filename,
+          id: id
+        }
+      }
+    });
+
+    const nodeStream = stream instanceof ReadableStream 
+      ? (require('node:stream/web').ReadableStream.toWeb ? stream : (stream as any)) // Helper for different environments
+      : stream;
+
+    // We use a helper to pipe Web Stream or AsyncIterable to Node WriteStream
+    if (stream instanceof ReadableStream) {
+        const reader = stream.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            writeStream.write(value);
+        }
+        writeStream.end();
+    } else {
+        for await (const chunk of stream as any) {
+            writeStream.write(chunk);
+        }
+        writeStream.end();
+    }
+
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    const [metadata] = await file.getMetadata();
+
+    return {
+      id,
+      name: filename,
+      path: storagePath, // Always internal path for streamed assets
+      size: Number(metadata.size),
+      mimeType: metadata.contentType || mimeType
+    };
   }
 
   /**

@@ -20,6 +20,7 @@ import {
   runTransaction,
   serverTimestamp,
   arrayUnion,
+  increment,
   getCount,
   type DocumentData,
   type QueryDocumentSnapshot
@@ -277,12 +278,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     });
   }
 
-  async updateNotes(orderId: string, notes: import('@domain/models').OrderNote[], transaction?: any): Promise<void> {
-    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
-    const data = { notes, updatedAt: serverTimestamp() };
-    if (transaction) transaction.update(docRef, data);
-    else await updateDoc(docRef, data);
-  }
+
 
   async updateFulfillment(orderId: string, data: { trackingNumber?: string; shippingCarrier?: string; trackingUrl?: string | null }, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
@@ -294,6 +290,16 @@ export class FirestoreOrderRepository implements IOrderRepository {
   async updateRiskScore(orderId: string, score: number, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
     const data = { riskScore: score, updatedAt: serverTimestamp() };
+    if (transaction) transaction.update(docRef, data);
+    else await updateDoc(docRef, data);
+  }
+
+  async recordRefund(orderId: string, amount: number, transaction?: any): Promise<void> {
+    const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
+    const data = { 
+      refundedAmount: increment(amount), 
+      updatedAt: serverTimestamp() 
+    };
     if (transaction) transaction.update(docRef, data);
     else await updateDoc(docRef, data);
   }
@@ -321,9 +327,19 @@ export class FirestoreOrderRepository implements IOrderRepository {
 
   async updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void> {
     const docRef = doc(getUnifiedDb(), this.collectionName, orderId);
-    const data = { metadata, updatedAt: serverTimestamp() };
-    if (transaction) transaction.update(docRef, data);
-    else await updateDoc(docRef, data);
+    
+    // PRODUCTION HARDENING: Transform the metadata object into dot-notation updates
+    // to prevent overwriting the entire metadata map. This ensures atomic property updates.
+    const updates: Record<string, any> = {
+      updatedAt: serverTimestamp()
+    };
+    
+    Object.entries(metadata).forEach(([key, value]) => {
+      updates[`metadata.${key}`] = value;
+    });
+
+    if (transaction) transaction.update(docRef, updates);
+    else await updateDoc(docRef, updates);
   }
 
   async addFulfillmentEvent(orderId: string, event: import('@domain/models').OrderFulfillmentEvent, transaction?: any): Promise<void> {

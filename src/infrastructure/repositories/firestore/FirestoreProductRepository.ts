@@ -219,24 +219,41 @@ export class FirestoreProductRepository implements IProductRepository {
 
     const operation = async (t: any) => {
       let current: Product | null = null;
-      if (updates.name || updates.sku || updates.handle || updates.status || updates.stock !== undefined) {
-        const docSnap = await t.get(docRef);
-        if (docSnap.exists()) {
-          current = this.mapDocToProduct(docSnap.id, docSnap.data());
-          const merged = { ...current, ...updates } as Product;
-          
-          if (updates.name || updates.sku || updates.handle) {
-            firestoreUpdates.searchKeywords = this.generateSearchKeywords(
-              merged.name,
-              merged.handle || '',
-              merged.sku
-            );
-          }
-          firestoreUpdates.inventoryHealth = classifyInventoryHealth(merged.stock);
-          firestoreUpdates.setupStatus = classifyProductSetupStatus(merged);
-          firestoreUpdates.setupIssues = getProductSetupIssues(merged);
-          firestoreUpdates.marginHealth = classifyMarginHealth(merged);
+      const docSnap = await t.get(docRef);
+      if (!docSnap.exists()) throw new ProductNotFoundError(id);
+      
+      current = this.mapDocToProduct(docSnap.id, docSnap.data());
+      const currentData = docSnap.data() as any;
+      let merged = { ...current, ...updates } as Product;
+      
+      // PRODUCTION HARDENING: Handle internal variant stock update signal
+      const variantUpdate = (updates as any)._variantStockUpdate;
+      if (variantUpdate) {
+        const variants = [...(currentData.variants || [])];
+        const vIdx = variants.findIndex((v: any) => v.id === variantUpdate.variantId);
+        if (vIdx !== -1) {
+          variants[vIdx].stock = variantUpdate.stock;
+          variants[vIdx].updatedAt = serverTimestamp();
+          (merged as any).variants = variants;
+          (merged as any).stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
+          firestoreUpdates.variants = variants;
+          firestoreUpdates.stock = (merged as any).stock;
         }
+        delete (firestoreUpdates as any)._variantStockUpdate;
+      }
+
+      if (updates.name || updates.sku || updates.handle || updates.status || updates.stock !== undefined || variantUpdate) {
+        if (updates.name || updates.sku || updates.handle) {
+          firestoreUpdates.searchKeywords = this.generateSearchKeywords(
+            merged.name,
+            merged.handle || '',
+            merged.sku
+          );
+        }
+        firestoreUpdates.inventoryHealth = classifyInventoryHealth(merged.stock);
+        firestoreUpdates.setupStatus = classifyProductSetupStatus(merged);
+        firestoreUpdates.setupIssues = getProductSetupIssues(merged);
+        firestoreUpdates.marginHealth = classifyMarginHealth(merged);
       }
 
       if (updates.handle) {
@@ -251,7 +268,7 @@ export class FirestoreProductRepository implements IProductRepository {
         }));
       }
 
-      if (updates.variants) {
+      if (updates.variants && !variantUpdate) {
         firestoreUpdates.variants = updates.variants.map(v => ({
           ...v,
           id: v.id || crypto.randomUUID(),
@@ -415,8 +432,23 @@ export class FirestoreProductRepository implements IProductRepository {
         const docSnap = await t.get(docRef);
         if (!docSnap.exists()) continue;
 
-        const currentData = docSnap.data();
-        const mergedData = { ...currentData, ...update.updates, id: update.id, updatedAt: serverTimestamp() };
+        const currentData = docSnap.data() as any;
+        let mergedData = { ...currentData, ...update.updates, id: update.id, updatedAt: serverTimestamp() };
+        
+        // PRODUCTION HARDENING: Handle internal variant stock update signal
+        const variantUpdate = (update.updates as any)._variantStockUpdate;
+        if (variantUpdate) {
+          const variants = [...(currentData.variants || [])];
+          const vIdx = variants.findIndex((v: any) => v.id === variantUpdate.variantId);
+          if (vIdx !== -1) {
+            variants[vIdx].stock = variantUpdate.stock;
+            variants[vIdx].updatedAt = serverTimestamp();
+            mergedData.variants = variants;
+            mergedData.stock = variants.reduce((sum: number, v: any) => sum + (v.stock || 0), 0);
+          }
+          delete (mergedData as any)._variantStockUpdate;
+        }
+
         const enriched = this.applyDerivedFields(mergedData);
         
         t.update(docRef, enriched);

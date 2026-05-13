@@ -51,14 +51,10 @@ export async function GET(
       console.error('Failed to log digital access:', logErr);
     }
 
-    const { buffer, mimeType, name } = await StorageService.readFile(assetPath);
+    const signedUrl = await StorageService.getSignedUrl(assetPath, 5);
 
-    return new NextResponse(new Uint8Array(buffer), {
-      headers: {
-        'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${safeDownloadName(name)}"`,
-        'Cache-Control': 'no-store, max-age=0',
-      },
+    return NextResponse.redirect(signedUrl, {
+      status: 307, // Temporary Redirect
     });
   } catch (error: any) {
     console.error('Download error:', error);

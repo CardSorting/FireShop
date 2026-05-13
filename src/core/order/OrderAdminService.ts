@@ -90,33 +90,48 @@ export class OrderAdminService {
   }
 
   async batchUpdateOrderStatus(ids: string[], status: OrderStatus, actor: OrderActor): Promise<void> {
-    const validIds: string[] = [];
-    for (const id of ids) {
-      const order = await this.orderRepo.getById(id);
-      if (!order) {
-        logger.warn(`[batchUpdateOrderStatus] Order ${id} not found, skipping.`);
-        continue;
+    if (!ids.length) return;
+
+    await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      const validIds: string[] = [];
+      
+      for (const id of ids) {
+        const order = await (this.orderRepo.getById as any)(id, transaction) as Order | null;
+        if (!order) {
+          logger.warn(`[batchUpdateOrderStatus] Order ${id} not found, skipping.`);
+          continue;
+        }
+        
+        // Point 7: Reconciliation Abuse Block
+        if (order.reconciliationRequired) {
+          logger.warn(`[batchUpdateOrderStatus] Order ${id} is locked for reconciliation, skipping.`);
+          continue;
+        }
+
+        // Production Hardening: Verify status transition safety WITHIN the transaction
+        try {
+          assertValidOrderStatusTransition(order.status, status);
+          validIds.push(id);
+          
+          await this.orderRepo.updateStatus(id, status, transaction);
+          
+          // Points 1 & 7: Audit each individual status change within the same transaction substrate
+          // Note: We record a single batch audit event below for high-level visibility, 
+          // but the state change is now transactionally sound for each order.
+        } catch (e) {
+          logger.warn(`[batchUpdateOrderStatus] Invalid transition for order ${id}: ${order.status} -> ${status}. Skipping.`);
+        }
       }
-      assertValidOrderStatusTransition(order.status, status);
-      validIds.push(id);
-    }
 
-    if (validIds.length === 0) return;
-
-    if (this.orderRepo.batchUpdateStatus) {
-      await this.orderRepo.batchUpdateStatus(validIds, status);
-    } else {
-      for (const id of validIds) {
-        await this.orderRepo.updateStatus(id, status);
+      if (validIds.length > 0) {
+        await this.audit.recordWithTransaction(transaction, {
+          userId: actor.id,
+          userEmail: actor.email,
+          action: 'order_status_changed',
+          targetId: 'batch',
+          details: { ids: validIds, to: status, count: validIds.length }
+        });
       }
-    }
-
-    await this.audit.record({
-      userId: actor.id,
-      userEmail: actor.email,
-      action: 'order_status_changed',
-      targetId: 'batch',
-      details: { ids: validIds, to: status }
     });
   }
 
@@ -168,10 +183,19 @@ export class OrderAdminService {
         originalTotal: order.total
       }, transaction);
 
+      const newTaxAmount = calculateTax({
+        subtotal: order.total + (order.discountAmount || 0) - discountAmount,
+        shipping: order.shippingAmount,
+        discount: 0, // Discount already subtracted from subtotal for calculateTax
+        address: order.shippingAddress
+      });
+      const finalTotal = Math.max(0, (order.total + (order.discountAmount || 0)) + order.shippingAmount + newTaxAmount - ((order.discountAmount || 0) + discountAmount));
+
       await transaction.update(doc(getUnifiedDb(), 'orders', orderId), {
         discountCode: code,
         discountAmount: (order.discountAmount || 0) + discountAmount,
-        total: newTotal,
+        taxAmount: newTaxAmount,
+        total: finalTotal,
         updatedAt: serverTimestamp()
       });
 
@@ -224,6 +248,11 @@ export class OrderAdminService {
     const changed = await runTransaction(getUnifiedDb(), async (transaction: any) => {
       const order = await (this.orderRepo.getById as any)(orderId, transaction) as Order | null;
       if (!order) throw new OrderNotFoundError(orderId);
+
+      // PRODUCTION HARDENING: Lock items once fulfillment has started or order is under investigation
+      if (['shipped', 'delivered', 'reconciling'].includes(order.status)) {
+        throw new Error(`Cannot swap items in order with status: ${order.status}`);
+      }
 
       const oldItem = order.items.find(item => item.productId === oldProductId);
       const alreadySwapped = order.items.find(item => item.productId === newProductId);
@@ -418,11 +447,7 @@ export class OrderAdminService {
       createdAt: new Date()
     };
 
-    if (this.orderRepo.addNote) {
-      await this.orderRepo.addNote(id, note);
-    } else {
-      await this.orderRepo.updateNotes(id, [...order.notes, note]);
-    }
+    await this.orderRepo.addNote(id, note);
 
     return note;
   }

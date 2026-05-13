@@ -50,25 +50,13 @@ export class FulfillmentService {
     return { carrier: 'USPS', service: 'Ground Advantage' };
   }
 
+  // RETIRED: Labels cannot be created directly in the backend. 
+  // Use Pirate Ship CSV export instead.
+  /*
   async prepareBatchLabels(orderIds: string[]): Promise<ShippingLabel[]> {
-    const labels: ShippingLabel[] = [];
-    for (const id of orderIds) {
-       const { carrier, service } = await this.autoAssignShippingMethod(id);
-       const label: ShippingLabel = {
-          id: crypto.randomUUID(),
-          fulfillmentId: crypto.randomUUID(),
-          carrier,
-          service,
-          trackingNumber: `${carrier === 'UPS' ? '1Z' : 'DB'}${crypto.randomBytes(6).toString('hex').toUpperCase()}`,
-          labelUrl: `https://labels.dreambees.art/${id}.pdf`,
-          cost: 850,
-          format: 'pdf',
-          createdAt: new Date()
-       };
-       labels.push(label);
-    }
-    return labels;
+    ...
   }
+  */
 
   async createCarrierManifest(carrier: string, orderIds: string[]): Promise<CarrierManifest> {
     const orders = await Promise.all(orderIds.map(id => this.orderRepo.getById(id)));

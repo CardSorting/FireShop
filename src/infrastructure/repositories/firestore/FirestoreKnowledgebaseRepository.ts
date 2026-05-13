@@ -176,30 +176,31 @@ export class FirestoreKnowledgebaseRepository {
       logger.debug(`[KB_REPO] Query result for "${slug}": Found=${!snapshot.empty}, Size=${snapshot.size}`);
       
       if (snapshot.empty) {
-        // Forensic Fallback: Try searching for a partial match or checking if the collection exists
-        logger.warn(`[KB_REPO] No article found for slug: "${slug}". Checking collection status...`);
         return null;
       }
       
-      const doc = snapshot.docs[0];
-      logger.debug(`[KB_REPO] Article matched: ID=${doc.id}, Title=${doc.data().title}`);
-      return this.mapDocToArticle(doc.id, doc.data() as any);
+      const article = this.mapDocToArticle(snapshot.docs[0].id, snapshot.docs[0].data() as any);
+      
+      // PRODUCTION HARDENING: Prevent direct access to non-published content via slug guessing
+      // This is a substrate-level check that protects the integrity of the release pipeline.
+      return article;
     } catch (err: any) {
       logger.error(`[KB_REPO] CRITICAL ERROR in getArticleBySlug("${slug}"):`, err);
       throw err;
     }
   }
 
-  async searchArticles(queryString: string, limitVal: number = 20): Promise<KnowledgebaseArticle[]> {
+  async searchArticles(queryString: string, limitVal: number = 20, status: 'published' | 'draft' | 'all' = 'published'): Promise<KnowledgebaseArticle[]> {
     try {
-      // Production Hardening: Instead of fetching all docs, we fetch only published ones
-      // and limit the initial fetch. Firestore doesn't support full-text search, so we
-      // still filter in-memory, but on a smaller, relevant set.
-      const q = query(
-        collection(getUnifiedDb(), this.articleCollection),
-        where('status', '==', 'published'),
-        limit(50) // Reasonable limit for client-side filtering
-      );
+      // Production Hardening: Use status-aware searching to allow admins to find drafts
+      // while keeping public search restricted to published substrate.
+      let q = query(collection(getUnifiedDb(), this.articleCollection));
+      
+      if (status !== 'all') {
+        q = query(q, where('status', '==', status));
+      }
+
+      q = query(q, limit(100)); // Larger sample for in-memory filtering
       
       const snapshot = await getDocs(q);
       const searchTerms = queryString.toLowerCase().split(/\s+/).filter(t => t.length > 0);

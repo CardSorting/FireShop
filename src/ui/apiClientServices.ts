@@ -221,6 +221,26 @@ export function createApiClientServices() {
                     body: JSON.stringify({ resolutionAction, reason, evidence }),
                 }),
             batchUpdateOrderStatus: (ids: string[], status: OrderStatus, _actor: { id: string; email: string }) => request<void>('/api/admin/orders/batch', { method: 'PATCH', body: JSON.stringify({ ids, status }) }),
+            importTrackingNumbers: (rows: { orderId: string; trackingNumber: string; carrier?: string }[]) => {
+                return fetch('/api/admin/orders/import/tracking', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows }),
+                }).then(res => {
+                    if (!res.ok) throw new Error('Import failed');
+                    return res.json();
+                });
+            },
+            exportOrdersToPirateShipCsv: (ids: string[], packageDimensions?: any, tareWeight?: number) => {
+                return fetch('/api/admin/orders/export/pirate-ship', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids, packageDimensions, tareWeight }),
+                }).then(res => {
+                    if (!res.ok) throw new Error('Export failed');
+                    return res.text();
+                });
+            },
             getDigitalAssets: (userId: string) => (sessionScoped(userId), request<any[]>(`/api/account/vault?userId=${userId}`)),
         },
         discountService: {

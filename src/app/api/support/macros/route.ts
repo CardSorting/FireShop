@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ticketRepository } from '@infrastructure/repositories/firestore/FirestoreTicketRepository';
 import { jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+import { sanitizeHtml } from '@utils/sanitizer';
 
 export async function GET(req: Request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     const data = await readJsonObject(req);
     await ticketRepository.addMacro({
       name: requireString(data.name, 'name'),
-      content: requireString(data.content, 'content'),
+      content: sanitizeHtml(requireString(data.content, 'content')),
       category: requireString(data.category, 'category'),
       slug: typeof data.slug === 'string' && data.slug.trim() ? data.slug.trim() : undefined,
     });

@@ -319,6 +319,7 @@ export interface Order {
   fulfillments: Fulfillment[];
   reconciliationRequired?: boolean;
   reconciliationNotes?: string[];
+  refundedAmount?: number; // cents (Atomic tracking to prevent overflow)
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;

@@ -1,3 +1,4 @@
+import * as crypto from 'node:crypto';
 /**
  * [LAYER: CORE]
  */
@@ -59,7 +60,13 @@ export class DiscountService {
     return discount;
   }
 
-  async validateDiscount(code: string, cartTotal: number, userId?: string, transaction?: any): Promise<DiscountValidationResult> {
+  async validateDiscount(
+    code: string, 
+    cartTotal: number, 
+    userId?: string, 
+    transaction?: any, 
+    appliedDiscounts: Discount[] = []
+  ): Promise<DiscountValidationResult> {
     // Production Hardening: Accept an optional transaction parameter so that when
     // called from within a Firestore transaction (e.g., initiateCheckout), the discount
     // lookup participates in the same transaction and prevents TOCTOU races on usage limits.
@@ -95,6 +102,25 @@ export class DiscountService {
       }
     }
 
+    // PRODUCTION HARDENING: Discount Combination Enforcement (Fiscal Sovereignty)
+    // Prevents "Stacked Discount" exploits by checking if the new discount is allowed 
+    // to combine with existing applied discounts.
+    for (const applied of appliedDiscounts) {
+      const isNewOrderDiscount = discount.type === 'percentage' || discount.type === 'fixed';
+      const isNewShippingDiscount = discount.type === 'free_shipping';
+      
+      const appliedIsOrderDiscount = applied.type === 'percentage' || applied.type === 'fixed';
+      const appliedIsShippingDiscount = applied.type === 'free_shipping';
+
+      if (appliedIsOrderDiscount && isNewOrderDiscount && !discount.combinesWith.orderDiscounts) {
+        return { valid: false, message: 'This discount cannot be combined with other order discounts.' };
+      }
+      if (appliedIsShippingDiscount && isNewShippingDiscount && !discount.combinesWith.shippingDiscounts) {
+        return { valid: false, message: 'This discount cannot be combined with other shipping discounts.' };
+      }
+      // Product discounts check would go here if/when product-level discounts are implemented.
+    }
+
     if (discount.minimumRequirementType === 'minimum_amount' && discount.minimumAmount !== null) {
       if (cartTotal < discount.minimumAmount) {
         return { 
@@ -126,9 +152,18 @@ export class DiscountService {
 
   /**
    * Generates a unique, single-use barter discount code.
+   * Hardened with fiscal safety caps and CSPRNG seeds.
    */
   async createBarterDiscount(percentage: number, sessionId: string) {
-    const code = `BARTER-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    // PRODUCTION HARDENING: Mandatory Fiscal Safety Boundary
+    // Prevents LLM halluncination or prompt injection from creating 100% off codes.
+    const MAX_BARTER_PERCENTAGE = 50;
+    const safePercentage = Math.max(0, Math.min(percentage, MAX_BARTER_PERCENTAGE));
+
+    // PRODUCTION HARDENING: Cryptographically-secure code generation
+    const entropy = crypto.randomBytes(4).toString('hex').toUpperCase();
+    const code = `BARTER-${entropy}`;
+    
     const now = new Date();
     const endsAt = new Date();
     endsAt.setHours(endsAt.getHours() + 24); // Barter deals expire in 24h
@@ -136,7 +171,7 @@ export class DiscountService {
     const draft: DiscountDraft = {
       code,
       type: 'percentage',
-      value: percentage,
+      value: safePercentage,
       status: 'active',
       isAutomatic: false,
       selectionType: 'all_products',
@@ -165,7 +200,7 @@ export class DiscountService {
       userEmail: 'concierge@dreambees.art',
       action: 'barter_discount_created',
       targetId: discount.id,
-      details: { code, sessionId, percentage }
+      details: { code, sessionId, percentage: safePercentage, requestedPercentage: percentage }
     });
 
     return discount;

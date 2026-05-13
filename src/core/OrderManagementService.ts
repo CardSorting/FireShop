@@ -22,6 +22,9 @@ export class OrderManagementService {
   async updateOrderStatus(id: string, status: OrderStatus, actor: { id: string, email: string }): Promise<void> {
     const order = await this.orderRepo.getById(id);
     if (!order) throw new OrderNotFoundError(id);
+    if (order.reconciliationRequired) {
+      throw new Error('Order requires manual reconciliation and is locked.');
+    }
     assertValidOrderStatusTransition(order.status, status);
     await this.orderRepo.updateStatus(id, status);
     await this.audit.record({ userId: actor.id, userEmail: actor.email, action: 'order_status_changed', targetId: id, details: { from: order.status, to: status } });

@@ -45,17 +45,22 @@ export class RefundService {
         throw new Error('Cannot refund order without a payment transaction ID.');
       }
 
-      // Production Hardening: Validate refund amount is positive and does not exceed order total
+      // Production Hardening: Validate refund amount against current refundable balance
+      // This prevents the "Double-Partial Refund" exploit.
+      const alreadyRefunded = order.refundedAmount || 0;
+      const refundableBalance = order.total - alreadyRefunded;
+
       if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error('Refund amount must be a positive number.');
       }
-      if (order.total <= 0) {
-        throw new Error('This order has no refundable balance.');
+      if (refundableBalance <= 0) {
+        throw new Error('This order has no refundable balance remaining.');
       }
-      const safeAmount = Math.min(Math.trunc(amount), order.total);
+      
+      const safeAmount = Math.min(Math.trunc(amount), refundableBalance);
 
-      // Production Hardening: Determine full vs partial refund
-      const isFullRefund = safeAmount >= order.total;
+      // Production Hardening: Determine full vs partial refund based on REMAINDER
+      const isFullRefund = (alreadyRefunded + safeAmount) >= order.total;
       const nextStatus = isFullRefund ? 'refunded' : 'partially_refunded';
 
       // Validate status transition before processing payment
@@ -72,8 +77,9 @@ export class RefundService {
         try {
           // Production Hardening: Perform all post-payment state mutations ATOMICALLY 
           await runTransaction(getUnifiedDb(), async (transaction: any) => {
-            // 1. Update Order Status
+            // 1. Update Order Status and Atomic Refund Amount
             await this.orderRepo.updateStatus(orderId, nextStatus as any, transaction);
+            await (this.orderRepo as any).recordRefund(orderId, safeAmount, transaction);
 
             // 2. Restock inventory (physical items only)
             if (isFullRefund && this.productRepo) {
