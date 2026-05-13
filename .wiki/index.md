@@ -22,6 +22,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - [Digital Fulfillment](./architecture/digital-fulfillment.md) — Streaming-first ingestion, digital locker, and secure asset delivery.
 - [SEO & Navigation](./architecture/seo-routing.md) — Canonical handles, JSON-LD, and crawler optimization.
 - [Concierge & Support Operations](./architecture/concierge-system.md) — Intelligent support workspace, outcome tracking, and operational digests.
+- [Concierge Lifecycle Marketing & Campaign Automation](./architecture/lifecycle-marketing-concierge.md) — Autonomous recapture playbooks, lifecycle strategy, customer investigation, and campaign governance.
 - [Admin Access](./admin-access.md) — credentials and instructions for local access.
 
 ### Agent
@@ -40,6 +41,7 @@ Definitive architectural bridge for humans and autonomous agents working in `/Us
 - **Digital Fulfillment Pipeline Verified**: Memory-efficient, streaming-first ingestion architecture deployed. Digital Locker UI implemented in `DigitalLibraryPage.tsx` for secure, authenticated asset access.
 - **SEO & Navigation Hardening Verified**: Canonical handle-based routing active for `/products/[handle]` and `/collections/[slug]`. Automated `sitemap.ts` and `robots.ts` orchestration implemented. JSON-LD structured data injected.
 - **Concierge & Operational Intelligence Verified**: Production-grade support desk with triage intelligence and outcome tracking. Automated "Operational Digest" generates natural-language business insights. Team collaboration (assignment, activity feed) and customer continuity (session syncing) are fully functional and ground-truth verified.
+- **Concierge Lifecycle Marketing Verified**: Autonomous lifecycle campaign strategy documented for welcome, cart recovery, browse assist, post-purchase care, review/referral, replenishment, win-back, VIP loyalty, and sunset suppression. Concierge tools now support customer investigation, lifecycle planning, playbook drafting, activation, optimization, enrollment, and suppression governance.
 - **Framework/Runtime Stack**: Next.js `15.0.5`, React `18.3.1`, TypeScript `6.0.2`, ESLint `10.2.1`, Tailwind CSS `4.2.4`.
 - **Persistence Layer**: Google Cloud Firestore (Distributed NoSQL).
 - **Security Configuration**: Signed HTTP-only session cookies with HMAC-SHA256 signatures and production `SESSION_SECRET` length enforcement.

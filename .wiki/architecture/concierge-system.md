@@ -47,6 +47,23 @@ The "Digest" tab translates support volume into business intelligence:
 - **Sentiment Velocity**: Tracks whether support friction is increasing or decreasing over time.
 - **Impact Assessment**: Measures the predicted business impact (Conversion, Loyalty) of suggested fixes.
 
+### 3.4 Lifecycle Marketing & Recapture
+The Concierge is integrated with the autonomous lifecycle marketing engine documented in [Concierge Lifecycle Marketing & Campaign Automation](./lifecycle-marketing-concierge.md).
+
+From the admin support workspace, operators can use the **Recovery Funnels** tab to inspect lifecycle coverage, create missing campaign drafts, activate or pause playbooks, run an automation pulse, and optimize the full campaign strategy.
+
+From chat tool execution, the Concierge can:
+- inspect the lifecycle strategy
+- deep-investigate a customer lifecycle
+- plan a customer-specific lifecycle decision
+- create lifecycle playbook drafts
+- activate or pause playbooks
+- run lifecycle automation
+- enroll eligible customers
+- suppress risky marketing outreach
+
+The Concierge must run customer investigation and lifecycle planning before recommending enrollment. Marketing is suppressed for active support risk, angry sentiment, unsubscribe intent, missing consent, active sequence conflicts, or over-frequency.
+
 ---
 
 ## 4. Data Model (Firestore)
@@ -57,6 +74,7 @@ The "Digest" tab translates support volume into business intelligence:
 - `assignedOperator`: String (ID or name)
 - `isRepeatIssue`: Boolean
 - `isSnoozed`: Boolean
+- `recaptureOpportunities`: Lifecycle/campaign opportunities detected during session analysis.
 - `operatorFeedback`: Array of helpful/not_useful signals
 - `events`: Array of activity feed events
 - `transcript`: Array of role/content messages

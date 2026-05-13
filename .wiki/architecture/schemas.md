@@ -23,6 +23,27 @@ Defined in `src/domain/models.ts`.
 - `messages`: Thread of agent and customer interactions.
 - `assigneeId`, `assigneeName`.
 
+### Marketing Campaign
+- `id`, `name`, `description`, `type`, `status`
+- `channels`: email, sms, concierge push, or store notice.
+- `triggerType`, `triggerConfig`: event, segment, or schedule behavior.
+- `lifecycleStage`: reach, acquisition, intent capture, consideration, conversion, retention, win-back, loyalty, or sunset.
+- `offerStrategy`: none, social proof, help-first, free shipping, tiered discount, bundle value, or VIP access.
+- `suppressionRules`: consent, active ticket, recent purchase, and recent campaign suppression.
+- `steps`: multi-touch campaign sequence with delay, objective, channel, offer strategy, templates, and split-test variants.
+- `frequencyCapDays`, `priority`, `dynamicIncentivesEnabled`, `incentiveRules`.
+- `sentCount`, `clickCount`, `conversionCount`, `revenueGenerated`.
+
+### Campaign Event
+- `id`, `campaignId`, `userId`, `customerEmail`, `channel`, `status`.
+- `stepIndex`, `variantId`, `nextStepDueAt`: sequence state.
+- `subject`, `body`, `personalizedMetadata`: send snapshot.
+- `relatedOrderId`, `conversionValue`, `sentAt`, `clickedAt`, `convertedAt`.
+
+### Customer Segment
+- `id`, `name`, `description`, `queryType`, `rules`, `customerCount`.
+- Used as the repository-backed segment substrate for lifecycle marketing expansion.
+
 ## Persistence Layer (Firestore)
 
 Firestore is used as the primary transactional database, organized into collections:
@@ -32,6 +53,9 @@ Firestore is used as the primary transactional database, organized into collecti
 - **`orders`**: Transactional order data with embedded line items.
 - **`support_tickets`**: CRM ticket data with threaded messages.
 - **`inventory_levels`**: Scalable stock tracking across locations.
+- **`marketingCampaigns`**: Concierge lifecycle campaign definitions, playbooks, governance, and performance counters.
+- **`campaignEvents`**: Campaign execution snapshots, sequence scheduling state, and conversion attribution.
+- **`customerSegments`**: Dynamic or manual marketing segment definitions.
 - **`settings`**: Dynamic configuration and engine parameters.
 
 ## Repository Contracts
@@ -44,3 +68,8 @@ Every repository must implement a predictable interface, ensuring the persistenc
 - `IOrderRepository`: `findById`, `findByUserId`, `save`.
 - `ICartRepository`: Session-scoped cart persistence.
 - `ITicketRepository`: CRM operations.
+- `ICampaignRepository`: Lifecycle campaign persistence, metric increments, and marketing overview.
+- `ICampaignEventRepository`: Send events, scheduled sequence steps, and conversion attribution.
+- `ICustomerSegmentRepository`: Segment definition persistence.
+
+See [Concierge Lifecycle Marketing & Campaign Automation](./lifecycle-marketing-concierge.md) for the full marketing and Concierge integration contract.

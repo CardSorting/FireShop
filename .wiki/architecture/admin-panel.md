@@ -53,6 +53,20 @@ Powerful marketing tools to drive conversion.
 - **Usage Tracking**: Real-time metrics on promotion performance and total discounted value.
 - **Scheduling**: Ability to set start and end dates for promotional campaigns.
 
+### 6.1 Concierge Lifecycle Marketing
+The admin Concierge workspace includes a **Recovery Funnels** tab backed by `/api/admin/concierge/marketing-strategy`.
+
+Operators can:
+- inspect lifecycle playbook coverage
+- create missing lifecycle campaign drafts
+- activate or pause individual playbooks
+- activate or pause all lifecycle playbooks
+- run the lifecycle automation pulse
+- generate an optimization report
+- review strategy guardrails and autonomous operating policies
+
+The full architecture is documented in [Concierge Lifecycle Marketing & Campaign Automation](./lifecycle-marketing-concierge.md).
+
 ### 7. Navigation Taxonomy & Route Coverage
 The admin shell centralizes merchant navigation in `src/ui/navigation/adminNavigation.ts` so the sidebar, command palette, utility settings link, and quick-create actions share the same labels, descriptions, aliases, and route targets. The operator-facing groups are intentionally familiar to Shopify/Stripe users: **Home**, **Sales**, **Catalog**, **Marketing**, **Insights**, **Settings**, and **Sales Channels**.
 
