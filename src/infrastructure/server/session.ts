@@ -128,12 +128,29 @@ async function decodeSession(value: string): Promise<SessionPayload | null> {
     }
 
     try {
-        const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as unknown;
+        const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as any;
         if (!isValidSessionPayload(parsed)) {
+            const user = parsed?.user;
+            const reasons = [
+                !parsed?.sid && 'missing sid',
+                parsed?.version !== SESSION_VERSION && 'version mismatch',
+                typeof parsed?.issuedAt !== 'number' && 'issuedAt not number',
+                typeof parsed?.expiresAt !== 'number' && 'expiresAt not number',
+                typeof parsed?.lastVerified !== 'number' && 'lastVerified not number',
+                parsed?.expiresAt <= Date.now() && 'expired',
+                !user && 'missing user',
+                user && typeof user.id !== 'string' && 'user.id not string',
+                user && typeof user.email !== 'string' && 'user.email not string',
+                user && typeof user.displayName !== 'string' && 'user.displayName not string',
+                user && (user.role !== 'customer' && user.role !== 'admin') && 'invalid role',
+                user && typeof user.createdAt !== 'string' && 'user.createdAt not string'
+            ].filter(Boolean);
+
             logger.warn('Session payload invalid or expired', { 
                 hasPayload: !!parsed,
-                version: (parsed as any)?.version,
-                isExpired: (parsed as any)?.expiresAt < Date.now()
+                version: parsed?.version,
+                isExpired: parsed?.expiresAt < Date.now(),
+                reasons
             });
             return null;
         }
