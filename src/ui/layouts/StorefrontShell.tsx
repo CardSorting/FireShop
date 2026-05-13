@@ -25,6 +25,13 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const { cart } = useCart();
     const isAdmin = pathname.startsWith('/admin');
 
+    // Scroll to top on pathname change - must be called before early returns
+    useEffect(() => {
+        if (!isAdmin) {
+            window.scrollTo(0, 0);
+        }
+    }, [pathname, isAdmin]);
+
     if (isAdmin) {
         return <>{children}</>;
     }
@@ -48,10 +55,6 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const isProductPage = pathname.startsWith('/products/');
     const productHandle = isProductPage ? pathname.split('/').pop() : undefined;
 
-    // Scroll to top on pathname change
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, [pathname]);
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 relative">

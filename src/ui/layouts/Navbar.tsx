@@ -26,7 +26,6 @@ export function Navbar() {
   const pathname = usePathname();
   
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -43,11 +42,6 @@ export function Navbar() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     setIsMenuOpen(false);
@@ -71,8 +65,8 @@ export function Navbar() {
 
   return (
     <>
-      <nav className={`sticky top-0 left-0 right-0 z-nav transition-all duration-500 ${isScrolled ? 'py-3 bg-white/80 backdrop-blur-2xl shadow-xs border-b border-gray-100/50' : 'py-5 bg-white'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-4 lg:gap-8">
+      <nav className="relative z-nav py-6 bg-white border-b border-gray-100/50">
+        <div className="w-full px-6 lg:px-16 xl:px-24 flex items-center gap-6 lg:gap-12">
           
           {/* Brand */}
           <Link href={STORE_PATHS.HOME} className={`flex items-center group shrink-0 transition-all duration-300 ${isSearchFocused ? 'hidden md:flex' : 'flex'}`}>
@@ -83,15 +77,15 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Links - Hidden when search is focused on smaller screens */}
-          <div className={`hidden lg:flex items-center gap-6 shrink-0 transition-all duration-300 ${isSearchFocused ? 'opacity-0 scale-95 pointer-events-none w-0 overflow-hidden' : 'opacity-100 scale-100'}`}>
-            <Link href="/products" className="text-[11px] font-black uppercase tracking-widest text-gray-400 hover:text-primary-600">Shop</Link>
-            <Link href="/blog" className="text-[11px] font-black uppercase tracking-widest text-gray-400 hover:text-primary-600">Journal</Link>
+          <div className={`hidden lg:flex items-center gap-10 shrink-0 transition-all duration-500 ${isSearchFocused ? 'opacity-0 -translate-x-4 pointer-events-none w-0 overflow-hidden' : 'opacity-100 translate-x-0'}`}>
+            <Link href="/products" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Shop</Link>
+            <Link href="/blog" className="text-[12px] font-black uppercase tracking-[0.2em] text-gray-400 hover:text-primary-600 transition-colors">Journal</Link>
           </div>
 
           {/* Responsive Inline Search */}
           <form 
             onSubmit={handleSearchSubmit}
-            className={`flex-1 relative transition-all duration-500 ease-in-out ${isSearchFocused ? 'max-w-2xl' : 'max-w-[240px] md:max-w-xs'}`}
+            className={`flex-1 relative transition-all duration-700 cubic-bezier(0.4, 0, 0.2, 1) ${isSearchFocused ? 'max-w-4xl' : 'max-w-[280px] md:max-w-md'}`}
           >
             <div className={`absolute inset-y-0 left-3 flex items-center pointer-events-none transition-colors ${isSearchFocused ? 'text-primary-600' : 'text-gray-400'}`}>
               <Search className="w-4 h-4" />
@@ -108,7 +102,7 @@ export function Navbar() {
           </form>
 
           {/* Actions */}
-          <div className={`flex items-center gap-1 sm:gap-2 transition-all duration-300 ${isSearchFocused ? 'hidden sm:flex' : 'flex'}`}>
+          <div className={`flex items-center gap-2 sm:gap-4 transition-all duration-500 ${isSearchFocused ? 'hidden sm:flex' : 'flex'}`}>
             
             {/* History - Desktop only */}
             <div className="relative hidden md:block" onMouseEnter={() => setShowHistory(true)} onMouseLeave={() => setShowHistory(false)}>
