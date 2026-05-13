@@ -1,5 +1,6 @@
 import { BrevoClient } from '@getbrevo/brevo';
 import type { IEmailService } from '@domain/repositories';
+import { logger } from '@utils/logger';
 
 export class BrevoEmailService implements IEmailService {
   private client: BrevoClient;
@@ -31,7 +32,7 @@ export class BrevoEmailService implements IEmailService {
     if (params.idempotencyKey) {
       const alreadySent = await this.checkEmailIdempotency(params.idempotencyKey);
       if (alreadySent) {
-        console.log(`Email with idempotency key ${params.idempotencyKey} already sent. Skipping.`);
+        logger.info(`Email with idempotency key ${params.idempotencyKey} already sent. Skipping.`);
         return;
       }
     }
@@ -49,7 +50,7 @@ export class BrevoEmailService implements IEmailService {
         await this.markEmailSent(params.idempotencyKey, params.to, params.subject);
       }
       
-      console.log('Email sent successfully via Brevo API:', result);
+      logger.info('Email sent successfully via Brevo API:', result);
     } catch (error: any) {
       console.error('Failed to send email via Brevo API:', error.message);
       throw new Error('Email delivery failed');
@@ -188,7 +189,7 @@ export class BrevoEmailService implements IEmailService {
         to: [{ email }],
       });
       if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Reset');
-      console.log(`Password reset email sent to ${email}`);
+      logger.info(`Password reset email sent to ${email}`);
     } catch (error: any) {
       console.error('Failed to send password reset email via Brevo API:', error.message);
       throw new Error('Failed to send reset email');
@@ -241,7 +242,7 @@ export class BrevoEmailService implements IEmailService {
         to: [{ email }],
       });
       if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Changed');
-      console.log(`Password change confirmation sent to ${email}`);
+      logger.info(`Password change confirmation sent to ${email}`);
     } catch (error: any) {
       console.error('Failed to send password changed confirmation:', error.message);
     }

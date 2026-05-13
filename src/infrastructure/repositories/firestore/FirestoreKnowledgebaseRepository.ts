@@ -168,24 +168,24 @@ export class FirestoreKnowledgebaseRepository {
     try {
       const db = getUnifiedDb();
       const coll = this.articleCollection;
-      console.log(`[KB_REPO] Attempting to find article by slug: "${slug}" in collection: "${coll}"`);
+      logger.debug(`[KB_REPO] Attempting to find article by slug: "${slug}" in collection: "${coll}"`);
       
       const q = query(collection(db, coll), where('slug', '==', slug), limit(1));
       const snapshot = await getDocs(q);
       
-      console.log(`[KB_REPO] Query result for "${slug}": Found=${!snapshot.empty}, Size=${snapshot.size}`);
+      logger.debug(`[KB_REPO] Query result for "${slug}": Found=${!snapshot.empty}, Size=${snapshot.size}`);
       
       if (snapshot.empty) {
         // Forensic Fallback: Try searching for a partial match or checking if the collection exists
-        console.warn(`[KB_REPO] No article found for slug: "${slug}". Checking collection status...`);
+        logger.warn(`[KB_REPO] No article found for slug: "${slug}". Checking collection status...`);
         return null;
       }
       
       const doc = snapshot.docs[0];
-      console.log(`[KB_REPO] Article matched: ID=${doc.id}, Title=${doc.data().title}`);
+      logger.debug(`[KB_REPO] Article matched: ID=${doc.id}, Title=${doc.data().title}`);
       return this.mapDocToArticle(doc.id, doc.data() as any);
     } catch (err: any) {
-      console.error(`[KB_REPO] CRITICAL ERROR in getArticleBySlug("${slug}"):`, err);
+      logger.error(`[KB_REPO] CRITICAL ERROR in getArticleBySlug("${slug}"):`, err);
       throw err;
     }
   }

@@ -224,7 +224,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const updateQuantity = async (productId: string, quantity: number, variantId?: string) => {
     const safeQuantity = Math.max(1, Math.min(quantity, MAX_CART_QUANTITY));
-    console.log(`[useCart] updateQuantity: ID=${productId}, target=${safeQuantity}, variant=${variantId}`);
+    logger.info(`[useCart] updateQuantity: ID=${productId}, target=${safeQuantity}, variant=${variantId}`);
     
     const prevCart = cart;
     setCart(prev => {

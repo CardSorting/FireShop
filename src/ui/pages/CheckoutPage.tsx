@@ -567,15 +567,20 @@ export function CheckoutPage() {
                       ) : (
                         <div className="text-center py-8">
                           <AlertCircle className="mx-auto mb-6 h-12 w-12 text-amber-500" />
-                          <p className="text-xl font-black text-gray-900">Sandbox Environment</p>
-                          <p className="mt-2 text-sm font-medium text-gray-500 mb-8">This is a simulation. Click below to generate a test order.</p>
-                          <button 
-                            onClick={() => handleSuccess('mock_payment_method')}
-                            data-testid="mock-checkout-button"
-                            className="w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:scale-[1.02]"
-                          >
-                            Complete Test Purchase
-                          </button>
+                          <p className="mt-2 text-sm font-medium text-gray-500 mb-8">
+                            {process.env.NODE_ENV === 'production' 
+                              ? 'Checkout is temporarily unavailable. Please contact support.' 
+                              : 'This is a simulation. Click below to generate a test order.'}
+                          </p>
+                          {process.env.NODE_ENV !== 'production' && (
+                            <button 
+                              onClick={() => handleSuccess('mock_payment_method')}
+                              data-testid="mock-checkout-button"
+                              className="w-full rounded-2xl bg-gray-900 px-8 py-5 text-sm font-black text-white shadow-xl transition-all hover:bg-black hover:scale-[1.02]"
+                            >
+                              Complete Test Purchase
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

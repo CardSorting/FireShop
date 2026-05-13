@@ -126,7 +126,7 @@ export function KnowledgebaseArticleView({ article, relatedArticles, onBack, onA
     }
   };
 
-  // Simple TOC generation from headers (simulated for now, would use regex or DOM in real app)
+  // Table of Contents generation from headers
   const headers = article.content.split('\n').filter(line => line.startsWith('## ') || line.startsWith('### '));
 
   return (
