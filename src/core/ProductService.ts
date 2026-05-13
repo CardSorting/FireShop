@@ -116,42 +116,25 @@ export class ProductService {
 
   async getProductManagementOverview(): Promise<ProductManagementOverview> {
     const stats = await this.repo.getStats();
+    const detailed = await this.repo.getDetailedStats();
     
-    // For the "Needs Attention" list, we still fetch a focused subset
+    // For the "Needs Attention" list, we fetch the first page of relevant products
     const { products } = await this.repo.getAll({ 
         status: 'all', 
         setupStatus: 'needs_attention',
         limit: 25 
     });
 
-    const setupIssueCounts: Record<ProductSetupIssue, number> = {
-      missing_image: 0,
-      missing_sku: 0,
-      missing_price: 0,
-      missing_cost: 0,
-      missing_stock: 0,
-      missing_category: 0,
-      not_published: 0,
-    };
-    
-    // We estimate setup issue distribution based on a sample if not aggregateable at repo level yet
-    // but total products and low stock come from optimized stats
-    
-    const enriched = products.map((product: Product) => {
-      const setupIssues = getProductSetupIssues(product);
-      const marginHealth = classifyMarginHealth(product);
-      const grossMarginPercent = calculateGrossMarginPercent(product);
-      return this.enrichProductForManagement(product, setupIssues, marginHealth, grossMarginPercent);
-    });
+    const enriched = products.map((product: Product) => this.enrichProductForManagement(product));
 
     return {
       totalProducts: stats.totalProducts,
-      statusCounts: { active: 0, draft: 0, archived: 0 }, // Would require repo.getStatusCounts() for full hardening
-      setupIssueCounts,
-      marginHealthCounts: { unknown: 0, at_risk: 0, healthy: 0, premium: 0 },
+      statusCounts: detailed.statusCounts,
+      setupIssueCounts: detailed.setupIssueCounts,
+      marginHealthCounts: detailed.marginHealthCounts,
       lowStockCount: stats.healthCounts.low_stock,
       outOfStockCount: stats.healthCounts.out_of_stock,
-      averageMarginPercent: 45, // Target average
+      averageMarginPercent: detailed.averageMarginPercent,
       productsNeedingAttention: enriched,
     };
   }

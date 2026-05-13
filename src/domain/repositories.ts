@@ -42,6 +42,12 @@ export interface IProductRepository {
       healthy: number;
     };
   }>;
+  getDetailedStats(): Promise<{
+    statusCounts: Record<ProductStatus, number>;
+    setupIssueCounts: Record<import('./models').ProductSetupIssue, number>;
+    marginHealthCounts: Record<import('./models').MarginHealth, number>;
+    averageMarginPercent: number;
+  }>;
   getLowStockProducts(limit: number): Promise<Product[]>;
 }
 
@@ -101,6 +107,12 @@ export interface IOrderRepository {
   removeUserDiscountUsage(userId: string, discountCode: string, transaction: any): Promise<void>;
   markHeartbeat(orderId: string, userId: string, email: string): Promise<void>;
   getActiveViewers(orderId: string): Promise<Array<{ userId: string, email: string, lastActive: Date }>>;
+  getLogisticsStats(): Promise<{
+    avgFulfillmentTimeHours: number;
+    onTimeDeliveryRate: number;
+    carrierPerformance: Record<string, { avgTransitDays: number; breachRate: number }>;
+    shippingProfitability: number;
+  }>;
 }
 
 export interface IAuthProvider {

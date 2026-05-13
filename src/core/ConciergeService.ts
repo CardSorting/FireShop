@@ -6,8 +6,7 @@
 import { SupportTicket, TicketMessage } from '@domain/models';
 import { logger } from '@utils/logger';
 import { createHermesChatCompletion } from '@infrastructure/services/HermesService';
-import { getDb } from '@infrastructure/firebase/firebase';
-import { collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, query, where, orderBy, limit, getDocs } from '@infrastructure/firebase/bridge';
 
 export interface ConciergeSession {
   id?: string;
@@ -73,7 +72,7 @@ export class ConciergeService {
     try {
       logger.info('Analyzing Concierge session', { sessionId });
       
-      const db = getDb();
+      const db = getUnifiedDb();
       const sessionDoc = await getDoc(doc(db, 'conciergeSessions', sessionId));
       const sessionData = sessionDoc.data() as ConciergeSession;
 
@@ -91,7 +90,7 @@ export class ConciergeService {
         const sessionsSnap = await getDocs(sessionsQuery);
         repeatFrequency = sessionsSnap.size;
         if (!sessionsSnap.empty) {
-          const summaries = sessionsSnap.docs.map(doc => doc.data().summary).join("; ");
+          const summaries = sessionsSnap.docs.map((doc: any) => doc.data().summary).join("; ");
           memoryPrompt = `\n### CUSTOMER HISTORY\nThe customer has ${repeatFrequency} previous sessions. Recent issues: ${summaries}. Be aware of this if they mention recurring problems.\n`;
         }
       }
@@ -203,7 +202,7 @@ export class ConciergeService {
    * Escalates a chat session to a support ticket.
    */
   async escalateToTicket(userId: string, email: string, name: string, subject: string, transcript: any[], category?: string, urgency?: string, reason?: string): Promise<string> {
-    const db = getDb();
+    const db = getUnifiedDb();
     
     // Create the ticket
     const ticketData = {
@@ -222,7 +221,7 @@ export class ConciergeService {
       },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      messages: transcript.map((m, i) => ({
+      messages: transcript.map((m: any, i: number) => ({
         id: `msg_${i}`,
         senderId: m.role === 'user' ? userId : 'system',
         senderType: m.role === 'user' ? 'customer' : 'system',
@@ -244,7 +243,7 @@ export class ConciergeService {
    */
   async generateStoreDigest() {
     try {
-      const db = getDb();
+      const db = getUnifiedDb();
       // Fetch last 50 analyzed sessions
       const sessionsQuery = query(
         collection(db, 'conciergeSessions'),
@@ -253,7 +252,7 @@ export class ConciergeService {
         limit(50)
       );
       const sessionsSnap = await getDocs(sessionsQuery);
-      const summaries = sessionsSnap.docs.map(d => ({
+      const summaries = sessionsSnap.docs.map((d: any) => ({
         summary: d.data().summary,
         category: d.data().category,
         outcome: d.data().customerOutcome

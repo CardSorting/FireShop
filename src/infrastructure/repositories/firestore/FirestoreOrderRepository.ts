@@ -525,4 +525,85 @@ export class FirestoreOrderRepository implements IOrderRepository {
       };
     });
   }
+
+  async getLogisticsStats(): Promise<{
+    avgFulfillmentTimeHours: number;
+    onTimeDeliveryRate: number;
+    carrierPerformance: Record<string, { avgTransitDays: number; breachRate: number }>;
+    shippingProfitability: number;
+  }> {
+    const db = getUnifiedDb();
+    // We fetch a sample of delivered orders to calculate performance
+    const q = query(
+      collection(db, this.collectionName), 
+      where('status', '==', 'delivered'),
+      limit(500)
+    );
+    const snapshot = await getDocs(q);
+    
+    let totalFulfillmentTimeMs = 0;
+    let deliveredCount = 0;
+    let onTimeCount = 0;
+    let totalShippingRevenue = 0;
+    let totalShippingCost = 0;
+
+    const carrierStats: Record<string, { totalTransitTimeMs: number; count: number; breaches: number }> = {};
+
+    snapshot.forEach((d: any) => {
+      const data = d.data();
+      const createdAt = mapTimestamp(data.createdAt);
+      const updatedAt = mapTimestamp(data.updatedAt);
+      
+      totalFulfillmentTimeMs += (updatedAt.getTime() - createdAt.getTime());
+      deliveredCount++;
+
+      // On-time calculation
+      if (data.estimatedDeliveryDate) {
+        const estimated = mapTimestamp(data.estimatedDeliveryDate);
+        if (updatedAt <= estimated) onTimeCount++;
+      }
+
+      totalShippingRevenue += data.shippingAmount || 0;
+      // In a real app, costs would be tracked in fulfillments
+      const totalCost = (data.fulfillments || []).reduce((sum: number, f: any) => sum + (f.cost || 0), 0);
+      totalShippingCost += totalCost;
+
+      // Carrier stats
+      (data.fulfillments || []).forEach((f: any) => {
+        const carrier = f.shippingCarrier || 'Unknown';
+        if (!carrierStats[carrier]) {
+          carrierStats[carrier] = { totalTransitTimeMs: 0, count: 0, breaches: 0 };
+        }
+        
+        const fEvents = data.fulfillmentEvents || [];
+        const shippedEvent = fEvents.find((e: any) => e.type === 'shipped');
+        const deliveredEvent = fEvents.find((e: any) => e.type === 'delivered');
+        
+        if (shippedEvent && deliveredEvent) {
+          const transitTime = mapTimestamp(deliveredEvent.at).getTime() - mapTimestamp(shippedEvent.at).getTime();
+          carrierStats[carrier].totalTransitTimeMs += transitTime;
+          carrierStats[carrier].count++;
+          
+          if (data.estimatedDeliveryDate && mapTimestamp(deliveredEvent.at) > mapTimestamp(data.estimatedDeliveryDate)) {
+            carrierStats[carrier].breaches++;
+          }
+        }
+      });
+    });
+
+    const performance: Record<string, { avgTransitDays: number; breachRate: number }> = {};
+    for (const [carrier, stats] of Object.entries(carrierStats)) {
+      performance[carrier] = {
+        avgTransitDays: stats.count > 0 ? (stats.totalTransitTimeMs / stats.count) / (1000 * 60 * 60 * 24) : 0,
+        breachRate: stats.count > 0 ? stats.breaches / stats.count : 0
+      };
+    }
+
+    return {
+      avgFulfillmentTimeHours: deliveredCount > 0 ? (totalFulfillmentTimeMs / deliveredCount) / (1000 * 60 * 60) : 0,
+      onTimeDeliveryRate: deliveredCount > 0 ? (onTimeCount / deliveredCount) * 100 : 100,
+      carrierPerformance: performance,
+      shippingProfitability: totalShippingRevenue - totalShippingCost
+    };
+  }
 }

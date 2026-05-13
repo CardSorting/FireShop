@@ -516,18 +516,35 @@ export function deriveEstimatedDeliveryDate(order: Order): Date | null {
   if (order.status === 'cancelled') return null;
   const base = new Date(order.createdAt);
   
-  // Production Lead Times based on Shipping Class (approximate mapping)
+  // Production Lead Times based on Shipping Class
   let days = 5;
   const classId = order.shippingClassId?.toLowerCase();
   
-  if (classId?.includes('expedited') || classId?.includes('priority')) days = 2;
-  else if (classId?.includes('overnight')) days = 1;
-  else if (classId?.includes('economy') || classId?.includes('saver')) days = 8;
+  if (classId?.includes('expedited') || classId?.includes('priority')) days = 3;
+  else if (classId?.includes('overnight') || classId?.includes('next_day')) days = 1;
+  else if (classId?.includes('economy') || classId?.includes('saver')) days = 7;
+  else if (classId?.includes('standard')) days = 5;
   
-  if (order.status === 'delivered') days = 0; // Already delivered
+  if (order.status === 'delivered') days = 0; 
 
   base.setDate(base.getDate() + days);
   return base;
+}
+
+/**
+ * Calculates a realistic shipping cost based on weight and service.
+ * Used for logistical auditing and profitability tracking.
+ */
+export function calculateShippingCost(weightLbs: number, carrier: string, service: string): number {
+  let baseRate = 500; // $5.00 base
+  
+  if (carrier === 'UPS') baseRate = 750;
+  if (carrier === 'FedEx') baseRate = 900;
+  
+  const weightSurcharge = Math.ceil(weightLbs) * 50; // $0.50 per lb
+  const serviceSurcharge = service.toLowerCase().includes('priority') || service.toLowerCase().includes('expedited') ? 400 : 0;
+  
+  return baseRate + weightSurcharge + serviceSurcharge;
 }
 
 export function deriveTrackingUrl(order: Order): string | null {

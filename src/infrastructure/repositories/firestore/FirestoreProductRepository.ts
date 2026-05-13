@@ -37,7 +37,7 @@ import type {
 import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
 
 import { mapDoc } from './utils';
-import { classifyInventoryHealth, classifyProductSetupStatus } from '@domain/rules';
+import { classifyInventoryHealth, classifyProductSetupStatus, calculateGrossMarginPercent, classifyMarginHealth, getProductSetupIssues } from '@domain/rules';
 
 export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
@@ -183,6 +183,8 @@ export class FirestoreProductRepository implements IProductRepository {
         searchKeywords: this.generateSearchKeywords(product.name, handle, product.sku),
         inventoryHealth: classifyInventoryHealth(product.stock),
         setupStatus: classifyProductSetupStatus(product as Product),
+        setupIssues: getProductSetupIssues(product as Product),
+        marginHealth: classifyMarginHealth(product as Product),
       };
 
       transaction.set(doc(getUnifiedDb(), this.collectionName, id), productData);
@@ -213,6 +215,8 @@ export class FirestoreProductRepository implements IProductRepository {
           }
           firestoreUpdates.inventoryHealth = classifyInventoryHealth(merged.stock);
           firestoreUpdates.setupStatus = classifyProductSetupStatus(merged);
+          firestoreUpdates.setupIssues = getProductSetupIssues(merged);
+          firestoreUpdates.marginHealth = classifyMarginHealth(merged);
         }
       }
 
@@ -422,6 +426,71 @@ export class FirestoreProductRepository implements IProductRepository {
     });
 
     return stats;
+  }
+
+  async getDetailedStats(): Promise<{
+    statusCounts: Record<ProductStatus, number>;
+    setupIssueCounts: Record<import('@domain/models').ProductSetupIssue, number>;
+    marginHealthCounts: Record<import('@domain/models').MarginHealth, number>;
+    averageMarginPercent: number;
+  }> {
+    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
+    
+    const stats: any = {
+      statusCounts: { active: 0, draft: 0, archived: 0 },
+      setupIssueCounts: {
+        missing_image: 0,
+        missing_sku: 0,
+        missing_price: 0,
+        missing_cost: 0,
+        missing_stock: 0,
+        missing_category: 0,
+        not_published: 0,
+      },
+      marginHealthCounts: { unknown: 0, at_risk: 0, healthy: 0, premium: 0 },
+      totalMarginPercent: 0,
+      productWithMarginCount: 0,
+    };
+
+    snapshot.forEach((d: any) => {
+      const data = d.data();
+      
+      // Status
+      const status = data.status as ProductStatus;
+      if (stats.statusCounts[status] !== undefined) {
+        stats.statusCounts[status]++;
+      }
+
+      // Setup Issues
+      const issues = data.setupIssues || [];
+      issues.forEach((issue: string) => {
+        if (stats.setupIssueCounts[issue] !== undefined) {
+          stats.setupIssueCounts[issue]++;
+        }
+      });
+
+      // Margin Health
+      const margin = data.marginHealth || 'unknown';
+      if (stats.marginHealthCounts[margin] !== undefined) {
+        stats.marginHealthCounts[margin]++;
+      }
+
+      // Average Margin calculation
+      const marginPercent = calculateGrossMarginPercent(data as Product);
+      if (marginPercent !== null) {
+        stats.totalMarginPercent += marginPercent;
+        stats.productWithMarginCount++;
+      }
+    });
+
+    return {
+      statusCounts: stats.statusCounts,
+      setupIssueCounts: stats.setupIssueCounts,
+      marginHealthCounts: stats.marginHealthCounts,
+      averageMarginPercent: stats.productWithMarginCount > 0 
+        ? Math.round(stats.totalMarginPercent / stats.productWithMarginCount) 
+        : 0,
+    };
   }
 
   async getLowStockProducts(limitVal: number): Promise<Product[]> {
