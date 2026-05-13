@@ -173,29 +173,28 @@ export class AuditService {
     if (options?.signal?.aborted) return [];
 
     try {
-      const q = query(
-        collection(getUnifiedDb(), this.collectionName), 
-        orderBy('createdAt', 'desc'), 
-        limit(options?.limit || 50)
+      const { where } = await import('@infrastructure/firebase/bridge');
+      let q = query(
+        collection(getUnifiedDb(), this.collectionName),
+        orderBy('createdAt', 'desc')
       );
+
+      if (options?.userId) q = query(q, where('userId', '==', options.userId));
+      if (options?.action) q = query(q, where('action', '==', options.action));
+      if (options?.targetId) q = query(q, where('targetId', '==', options.targetId));
+
+      q = query(q, limit(options?.limit || 50));
       
       const snapshot = await getDocs(q);
       if (options?.signal?.aborted) return [];
 
-      let logs = snapshot.docs.map((d: QueryDocumentSnapshot) => {
+      return snapshot.docs.map((d: QueryDocumentSnapshot) => {
         const data = d.data() as any;
         return {
           ...data,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
         } as AuditEntry;
       });
-
-      // Secondary filtering for complex queries not indexed in Firestore
-      if (options?.userId) logs = logs.filter((l: AuditEntry) => l.userId === options.userId);
-      if (options?.action) logs = logs.filter((l: AuditEntry) => l.action === options.action);
-      if (options?.targetId) logs = logs.filter((l: AuditEntry) => l.targetId === options.targetId);
-
-      return logs;
     } catch (err) {
       logger.error('Failed to retrieve audit logs', { err });
       return [];

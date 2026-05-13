@@ -222,7 +222,13 @@ export async function POST(req: NextRequest) {
 
         const userId = context?.userSession?.id || 'anonymous';
         const userEmail = context?.userSession?.email || 'anonymous';
+        const userAgent = req.headers.get('user-agent') || 'unknown';
         const correlationId = crypto.randomUUID();
+
+        // Production Hardening: Safety Caps & Auth Gates
+        const MAX_CONCIERGE_REFUND_CENTS = 5000; // $50.00
+        const MAX_CONCIERGE_DISCOUNT_PERCENT = 20;
+        const isUserAuthenticated = userId && userId !== 'anonymous';
 
         // Payload Sanitization Helpers
         const cleanPayload = (s: string, max: number) => s.trim().slice(0, max).replace(/[<>]/g, '');
@@ -527,11 +533,20 @@ export async function POST(req: NextRequest) {
           const orderId = m[1];
           const amount = parseInt(m[2]);
           try {
+            // Production Hardening: Refund Authorization Gate
+            if (!isUserAuthenticated) throw new Error('Customer must be logged in for refund processing.');
+            if (amount > MAX_CONCIERGE_REFUND_CENTS) {
+              throw new Error(`Refund amount ($${amount/100}) exceeds concierge autonomous limit of $${MAX_CONCIERGE_REFUND_CENTS/100}. Please escalate to a manager.`);
+            }
+
             const { refundService } = getInitialServices();
+            // Production Hardening: Idempotency Key for Concierge Refund
+            const idempotencyKey = `concierge-refund-${activeSessionId}-${orderId}-${amount}`;
+            
             await refundService.processRefund(orderId, amount, {
               id: 'concierge',
-              email: 'concierge@dreambees.art'
-            });
+              email: 'concierge@dreambeesart.com'
+            }, idempotencyKey);
             sessionUpdates.events.push({
               type: 'refunded',
               timestamp: new Date().toISOString(),
@@ -544,7 +559,7 @@ export async function POST(req: NextRequest) {
               targetId: orderId,
               correlationId,
               ip, userAgent,
-              details: { amount, sessionId: activeSessionId, durationMs: Date.now() - tStart }
+              details: { amount, sessionId: activeSessionId, durationMs: Date.now() - tStart, forensicContext: 'concierge_autonomous_resolution' }
             });
           } catch (err) {
             logger.error('Failed to process refund from concierge', err);
@@ -601,6 +616,56 @@ export async function POST(req: NextRequest) {
             ip, userAgent,
             details: { type: 'human_handoff', sessionId: activeSessionId }
           });
+        }
+
+        // 10. Handle IT Support: Analyze Cart Conflicts
+        if (tokens.analyzeCartConflicts.length > 0) {
+          const tStart = Date.now();
+          try {
+            const { cartService, productService } = getInitialServices();
+            const cart = await cartService.getCart(userId);
+            const conflicts = [];
+            
+            if (cart) {
+              for (const item of cart.items) {
+                const product = await productService.getProduct(item.productId);
+                if (product.status === 'archived') {
+                  conflicts.push(`Product "${product.name}" is discontinued.`);
+                }
+                if ((product.stock || 0) < item.quantity) {
+                  conflicts.push(`Product "${product.name}" is out of stock (Requested: ${item.quantity}, Available: ${product.stock || 0}).`);
+                }
+              }
+            }
+            
+            sessionUpdates['context.cartAnalysis'] = {
+              hasConflicts: conflicts.length > 0,
+              conflicts,
+              itemCount: cart?.items.length || 0
+            };
+          } catch (err) {
+            logger.error('Failed to analyze cart conflicts from concierge', err);
+          }
+        }
+
+        // 11. Handle IT Support: Get Payment Diagnostics
+        for (const m of tokens.getPaymentDiagnostics) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          try {
+            const logs = await auditService.getRecentLogs({ targetId: orderId, action: 'order_payment_finalized' });
+            sessionUpdates['context.paymentDiagnostics'] = logs.map(l => {
+              const details = JSON.parse(l.details || '{}');
+              return {
+                timestamp: l.createdAt,
+                status: details.status,
+                error: details.error,
+                transactionId: details.transactionId
+              };
+            });
+          } catch (err) {
+            logger.error('Failed to get payment diagnostics from concierge', err);
+          }
         }
 
         // 10. Handle IT Support: Update Shipping Address
@@ -875,6 +940,12 @@ export async function POST(req: NextRequest) {
           const uId = m[1];
           const percent = parseInt(m[2]);
           try {
+            // Production Hardening: Discount Authorization Gate
+            if (!isUserAuthenticated) throw new Error('Customer must be logged in for service recovery gestures.');
+            if (percent > MAX_CONCIERGE_DISCOUNT_PERCENT) {
+              throw new Error(`Discount (${percent}%) exceeds concierge autonomous limit of ${MAX_CONCIERGE_DISCOUNT_PERCENT}%. Please escalate for higher approval.`);
+            }
+
             const { discountService } = getInitialServices();
             const discount = await discountService.createBarterDiscount(percent, activeSessionId!);
             sessionUpdates['context.recoveryDiscount'] = discount.code;
@@ -922,6 +993,9 @@ export async function POST(req: NextRequest) {
           const tStart = Date.now();
           const uId = m[1];
           try {
+            // Production Hardening: Identity Match Verification
+            if (userId !== uId) throw new Error('Cannot reset session for a different user ID.');
+            
             const { cartRepo } = getInitialServices();
             await cartRepo.clear(uId);
             sessionUpdates['context.sessionReset'] = true;
@@ -933,6 +1007,8 @@ export async function POST(req: NextRequest) {
             });
           } catch (err) {
             logger.error('Failed to reset user session from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Session reset failed: ${err instanceof Error ? err.message : 'Unauthorized'}`;
           }
         }
 

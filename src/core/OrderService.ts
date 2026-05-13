@@ -863,10 +863,23 @@ export class OrderService {
       });
 
       const subtotal = newItems.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
-      const newTotal = subtotal + order.shippingAmount + (order.taxAmount || 0) - (order.discountAmount || 0);
+      
+      // Production Hardening: Recalculate shipping/tax for fiscal integrity
+      // We use the existing rules engine to ensure the swap doesn't create a tax/shipping leak.
+      const hasPhysicalItems = newItems.some(i => !i.isDigital);
+      const newShippingAmount = hasPhysicalItems ? order.shippingAmount : 0;
+      const newTaxAmount = calculateTax({
+        subtotal,
+        shipping: newShippingAmount,
+        discount: order.discountAmount || 0,
+        address: order.shippingAddress
+      });
+      const newTotal = subtotal + newShippingAmount + newTaxAmount - (order.discountAmount || 0);
 
       await t.update(doc(getUnifiedDb(), 'orders', orderId), {
         items: newItems,
+        shippingAmount: newShippingAmount,
+        taxAmount: newTaxAmount,
         total: Math.max(0, newTotal),
         updatedAt: serverTimestamp()
       });
@@ -993,9 +1006,6 @@ export class OrderService {
     });
   }
 
-  async getAdminOrder(id: string): Promise<Order | null> {
-    return this.orderRepo.getById(id);
-  }
 
   async addOrderNote(id: string, text: string, actor: { id: string, email: string }): Promise<OrderNote> {
     const order = await this.orderRepo.getById(id);
@@ -1024,6 +1034,11 @@ export class OrderService {
     // Production Hardening: Return the full paginated result instead of stripping nextCursor.
     // Dropping nextCursor prevents callers from paginating to subsequent pages.
     return this.orderRepo.getByUserId(userId, options);
+  }
+
+  async getAdminOrder(orderId: string): Promise<Order | null> {
+    // Forensic: Direct point-read bypass for concierge diagnostic depth.
+    return this.orderRepo.getById(orderId);
   }
 
   private async releaseInventoryReservation(order: Order): Promise<void> {
