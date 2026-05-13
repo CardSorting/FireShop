@@ -5,6 +5,7 @@
  * Conditionally renders storefront chrome (Navbar + Footer) on non-admin pages.
  * Admin pages have their own dedicated layout shell (AdminLayout).
  */
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from '@ui/layouts/Navbar';
 import { Footer } from '@ui/layouts/Footer';
@@ -47,11 +48,16 @@ export function StorefrontShell({ children }: { children: React.ReactNode }) {
     const isProductPage = pathname.startsWith('/products/');
     const productHandle = isProductPage ? pathname.split('/').pop() : undefined;
 
+    // Scroll to top on pathname change
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+
     return (
         <div className="min-h-screen flex flex-col bg-gray-50 relative">
             <PageProgressBar />
             <Navbar />
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="popLayout" initial={false}>
                 <motion.main 
                     key={pathname}
                     initial="initial"
