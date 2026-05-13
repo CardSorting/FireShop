@@ -297,7 +297,10 @@ export function getInitialServices() {
       if (!wishlistServiceInstance) wishlistServiceInstance = new WishlistService(wishlistRepoInstance!, productRepoInstance!, getAuditService());
       return wishlistServiceInstance;
     })(),
+    productRepo: productRepoInstance!,
+    cartRepo: cartRepoInstance!,
     orderRepo: orderRepoInstance!,
+    discountRepo: discountRepoInstance!,
     inventoryLocationRepo: inventoryLocationRepoInstance!,
     inventoryLevelRepo: inventoryLevelRepoInstance!,
     ticketRepository: ticketRepoInstance!,

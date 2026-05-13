@@ -56,7 +56,7 @@ import { DiscountService } from './DiscountService';
 import { Sanitizer } from '@utils/sanitizer';
 import { StorageService } from '@infrastructure/services/StorageService';
 import { logger } from '@utils/logger';
-import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
+import { runTransaction, getUnifiedDb, doc, serverTimestamp } from '@infrastructure/firebase/bridge';
 
 /**
  * [LAYER: CORE]
@@ -740,6 +740,257 @@ export class OrderService {
     // Admin paths pass no userId, so they see any order.
     if (order && requestingUserId && order.userId !== requestingUserId) return null;
     return order;
+  }
+
+  async applyDiscountToOrder(orderId: string, code: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+    if (order.discountCode) throw new Error('Order already has a discount applied.');
+    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
+      throw new Error(`Cannot apply discount to order in status: ${order.status}`);
+    }
+
+    const discountService = new DiscountService(this.discountRepo, this.audit, this.orderRepo);
+    const val = await discountService.validateDiscount(code, order.total + (order.discountAmount || 0), order.userId);
+    
+    if (!val.valid || !val.discount) {
+      throw new Error(`Invalid discount: ${val.message}`);
+    }
+
+    const discountAmount = val.discountAmount || 0;
+    const newTotal = Math.max(0, order.total - discountAmount);
+
+    await runTransaction(getUnifiedDb(), async (t: any) => {
+      await this.orderRepo.updateMetadata(orderId, {
+        ...(order.metadata || {}),
+        manualDiscountAppliedAt: new Date().toISOString(),
+        manualDiscountAppliedBy: actor.email,
+        originalTotal: order.total
+      }, t);
+      
+      // Update order fields
+      await t.update(doc(getUnifiedDb(), 'orders', orderId), {
+        discountCode: code,
+        discountAmount: (order.discountAmount || 0) + discountAmount,
+        total: newTotal,
+        updatedAt: serverTimestamp()
+      });
+
+      await this.discountRepo.incrementUsage(val.discount!.id, t);
+    });
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { action: 'manual_discount', code, amount: discountAmount }
+    });
+  }
+
+  async updateShippingAddress(orderId: string, address: Address, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+    if (order.status === 'shipped' || order.status === 'delivered') {
+      throw new Error('Cannot update address for an order that has already shipped.');
+    }
+
+    await runTransaction(getUnifiedDb(), async (t: any) => {
+      await t.update(doc(getUnifiedDb(), 'orders', orderId), {
+        shippingAddress: address,
+        updatedAt: serverTimestamp()
+      });
+      
+      if (this.orderRepo.addNote) {
+        await this.orderRepo.addNote(orderId, {
+          id: crypto.randomUUID(),
+          authorId: actor.id,
+          authorEmail: actor.email,
+          text: `Shipping address updated by support to: ${address.street}, ${address.city}, ${address.state} ${address.zip}, ${address.country}`,
+          createdAt: new Date()
+        }, t);
+      }
+    });
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { action: 'address_update', newAddress: address }
+    });
+  }
+
+  async swapOrderItem(orderId: string, oldProductId: string, newProductId: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
+      throw new Error('Order is in a status that cannot be modified.');
+    }
+
+    const oldItem = order.items.find(i => i.productId === oldProductId);
+    if (!oldItem) throw new Error('Item not found in order.');
+
+    const newProduct = await this.productRepo.getById(newProductId);
+    if (!newProduct) throw new ProductNotFoundError(newProductId);
+    if (newProduct.stock < oldItem.quantity) throw new Error('New product does not have sufficient stock.');
+
+    await runTransaction(getUnifiedDb(), async (t: any) => {
+      // 1. Return stock for old item
+      if (!oldItem.isDigital) {
+        await this.productRepo.updateStock(oldProductId, oldItem.quantity, t);
+      }
+
+      // 2. Deduct stock for new item
+      if (!newProduct.isDigital) {
+        await this.productRepo.updateStock(newProductId, -oldItem.quantity, t);
+      }
+
+      // 3. Update order item
+      const newItems = order.items.map(i => {
+        if (i.productId === oldProductId) {
+          return {
+            ...i,
+            productId: newProductId,
+            name: newProduct.name,
+            imageUrl: newProduct.imageUrl,
+            unitPrice: newProduct.price,
+            productHandle: newProduct.handle,
+            at: new Date()
+          };
+        }
+        return i;
+      });
+
+      const subtotal = newItems.reduce((sum, i) => sum + (i.unitPrice * i.quantity), 0);
+      const newTotal = subtotal + order.shippingAmount + (order.taxAmount || 0) - (order.discountAmount || 0);
+
+      await t.update(doc(getUnifiedDb(), 'orders', orderId), {
+        items: newItems,
+        total: Math.max(0, newTotal),
+        updatedAt: serverTimestamp()
+      });
+      
+      if (this.orderRepo.addNote) {
+        await this.orderRepo.addNote(orderId, {
+          id: crypto.randomUUID(),
+          authorId: actor.id,
+          authorEmail: actor.email,
+          text: `Swapped item: ${oldItem.name} -> ${newProduct.name}`,
+          createdAt: new Date()
+        }, t);
+      }
+    });
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { action: 'item_swap', old: oldProductId, new: newProductId }
+    });
+  }
+
+  async upgradeShipping(orderId: string, carrier: string, service: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
+      throw new Error('Order is already shipped or delivered.');
+    }
+
+    await this.orderRepo.updateFulfillment(orderId, {
+      shippingCarrier: carrier,
+    });
+    
+    await this.orderRepo.updateMetadata(orderId, {
+      ...(order.metadata || {}),
+      shippingServiceUpgrade: service,
+      upgradedBy: actor.email,
+      upgradedAt: new Date().toISOString()
+    });
+
+    if (this.orderRepo.addNote) {
+      await this.orderRepo.addNote(orderId, {
+        id: crypto.randomUUID(),
+        authorId: actor.id,
+        authorEmail: actor.email,
+        text: `Shipping upgraded to ${carrier} ${service} (Cost waived)`,
+        createdAt: new Date()
+      });
+    }
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { action: 'shipping_upgrade', carrier, service }
+    });
+  }
+
+  async setOrderHold(orderId: string, reason: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+    if (order.status !== 'confirmed' && order.status !== 'processing' && order.status !== 'pending') {
+      throw new Error('Only unfulfilled orders can be placed on hold.');
+    }
+
+    await this.orderRepo.updateMetadata(orderId, {
+      ...(order.metadata || {}),
+      onHold: true,
+      holdReason: reason,
+      heldBy: actor.email,
+      heldAt: new Date().toISOString()
+    });
+
+    if (this.orderRepo.addNote) {
+      await this.orderRepo.addNote(orderId, {
+        id: crypto.randomUUID(),
+        authorId: actor.id,
+        authorEmail: actor.email,
+        text: `Order placed on HOLD: ${reason}`,
+        createdAt: new Date()
+      });
+    }
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { action: 'hold', reason }
+    });
+  }
+
+  async releaseOrderHold(orderId: string, actor: { id: string, email: string }): Promise<void> {
+    const order = await this.orderRepo.getById(orderId);
+    if (!order) throw new OrderNotFoundError(orderId);
+
+    const metadata = { ...(order.metadata || {}) };
+    delete metadata.onHold;
+    delete metadata.holdReason;
+    delete metadata.heldBy;
+    delete metadata.heldAt;
+
+    await this.orderRepo.updateMetadata(orderId, metadata);
+
+    if (this.orderRepo.addNote) {
+      await this.orderRepo.addNote(orderId, {
+        id: crypto.randomUUID(),
+        authorId: actor.id,
+        authorEmail: actor.email,
+        text: `Order hold RELEASED. Fulfillment can resume.`,
+        createdAt: new Date()
+      });
+    }
+
+    await this.audit.record({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: 'order_status_changed',
+      targetId: orderId,
+      details: { action: 'release_hold' }
+    });
   }
 
   async getAdminOrder(id: string): Promise<Order | null> {

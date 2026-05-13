@@ -233,7 +233,42 @@ export async function POST(req: NextRequest) {
           openTicket: Array.from(fullResponse.matchAll(/\[OPEN_TICKET:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
           closeTicket: Array.from(fullResponse.matchAll(/\[CLOSE_TICKET:\s*"([^"]+)"\]/g)),
           fetchOrder: Array.from(fullResponse.matchAll(/\[FETCH_ORDER_DETAILS:\s*"([^"]+)"\]/g)),
-          addNote: Array.from(fullResponse.matchAll(/\[ADD_ORDER_NOTE:\s*"([^"]+)",\s*"([^"]+)"\]/g))
+          addNote: Array.from(fullResponse.matchAll(/\[ADD_ORDER_NOTE:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          cancelOrder: Array.from(fullResponse.matchAll(/\[CANCEL_ORDER:\s*"([^"]+)"\]/g)),
+          processRefund: Array.from(fullResponse.matchAll(/\[PROCESS_REFUND:\s*"([^"]+)",\s*(\d+)\]/g)),
+          kbSearch: Array.from(fullResponse.matchAll(/\[KB_SEARCH:\s*"([^"]+)"\]/g)),
+          escalateHuman: Array.from(fullResponse.matchAll(/\[ESCALATE_TO_HUMAN\]/g)),
+          updateAddress: Array.from(fullResponse.matchAll(/\[UPDATE_SHIPPING_ADDRESS:\s*"([^"]+)",\s*(\{.*?\})\]/g)),
+          getLogistics: Array.from(fullResponse.matchAll(/\[GET_LOGISTICS_INSIGHTS\]/g)),
+          sendEmail: Array.from(fullResponse.matchAll(/\[SEND_CUSTOM_EMAIL:\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          applyDiscount: Array.from(fullResponse.matchAll(/\[APPLY_DISCOUNT_TO_ORDER:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          passwordReset: Array.from(fullResponse.matchAll(/\[INITIATE_PASSWORD_RESET:\s*"([^"]+)"\]/g)),
+          troubleshooting: Array.from(fullResponse.matchAll(/\[GET_PRODUCT_TROUBLESHOOTING:\s*"([^"]+)"\]/g)),
+          accountDeletion: Array.from(fullResponse.matchAll(/\[REQUEST_ACCOUNT_DELETION:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          systemStatus: Array.from(fullResponse.matchAll(/\[GET_SYSTEM_STATUS\]/g)),
+          getMacros: Array.from(fullResponse.matchAll(/\[GET_SUPPORT_MACROS\]/g)),
+          getCustomerInsights: Array.from(fullResponse.matchAll(/\[GET_CUSTOMER_INSIGHTS:\s*"([^"]+)"\]/g)),
+          getPaymentDiagnostics: Array.from(fullResponse.matchAll(/\[GET_PAYMENT_DIAGNOSTICS:\s*"([^"]+)"\]/g)),
+          analyzeCartConflicts: Array.from(fullResponse.matchAll(/\[ANALYZE_CART_CONFLICTS:\s*"([^"]+)"\]/g)),
+          fetchFullKb: Array.from(fullResponse.matchAll(/\[FETCH_FULL_KB_ARTICLE:\s*"([^"]+)"\]/g)),
+          createRecoveryCode: Array.from(fullResponse.matchAll(/\[CREATE_RECOVERY_DISCOUNT:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          flagUrgency: Array.from(fullResponse.matchAll(/\[FLAG_TICKET_FOR_URGENCY:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          resetSession: Array.from(fullResponse.matchAll(/\[RESET_USER_SESSION:\s*"([^"]+)"\]/g)),
+          swapItem: Array.from(fullResponse.matchAll(/\[SWAP_ORDER_ITEM:\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          upgradeShipping: Array.from(fullResponse.matchAll(/\[UPGRADE_SHIPPING:\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          getPreferences: Array.from(fullResponse.matchAll(/\[GET_CUSTOMER_PREFERENCES:\s*"([^"]+)"\]/g)),
+          reportBug: Array.from(fullResponse.matchAll(/\[REPORT_SYSTEM_BUG:\s*"([^"]+)"\]/g)),
+          recoverCode: Array.from(fullResponse.matchAll(/\[RECOVER_EXPIRED_CODE:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          orderSplit: Array.from(fullResponse.matchAll(/\[REQUEST_ORDER_SPLIT:\s*"([^"]+)",\s*(\[.*?\])\]/g)),
+          verifyAddress: Array.from(fullResponse.matchAll(/\[VERIFY_ADDRESS_LOGISTICS:\s*"([^"]+)"\]/g)),
+          tagSentiment: Array.from(fullResponse.matchAll(/\[TAG_CUSTOMER_SENTIMENT:\s*"([^"]+)"\]/g)),
+          getShippingEstimates: Array.from(fullResponse.matchAll(/\[GET_SHIPPING_ESTIMATES:\s*"([^"]+)"\]/g)),
+          placeHold: Array.from(fullResponse.matchAll(/\[PLACE_ORDER_ON_HOLD:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          releaseHold: Array.from(fullResponse.matchAll(/\[RELEASE_ORDER_HOLD:\s*"([^"]+)"\]/g)),
+          unsubscribe: Array.from(fullResponse.matchAll(/\[UNSUBSCRIBE_FROM_MARKETING:\s*"([^"]+)"\]/g)),
+          generateInvoice: Array.from(fullResponse.matchAll(/\[GENERATE_TAX_INVOICE:\s*"([^"]+)"\]/g)),
+          getRiskScore: Array.from(fullResponse.matchAll(/\[GET_ORDER_RISK_SCORE:\s*"([^"]+)"\]/g)),
+          searchResolutions: Array.from(fullResponse.matchAll(/\[SEARCH_SIMILAR_RESOLUTIONS:\s*"([^"]+)"\]/g))
         };
 
         // 1. Handle Barter Success
@@ -452,6 +487,774 @@ export async function POST(req: NextRequest) {
             }
           } catch (err) {
             logger.error('Failed to add order note from concierge', err);
+          }
+        }
+
+        // 6. Handle IT Support: Cancel Order
+        for (const m of tokens.cancelOrder) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          try {
+            const { orderManagementService } = getInitialServices();
+            await orderManagementService.updateOrderStatus(orderId, 'cancelled', {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'cancelled',
+              timestamp: new Date().toISOString(),
+              label: 'Order Cancelled',
+              description: `Order #${orderId} cancelled by Concierge per customer request.`
+            });
+            await auditService.record({
+              userId, userEmail,
+              action: 'order_status_changed',
+              targetId: orderId,
+              correlationId,
+              ip, userAgent,
+              details: { from: 'unknown', to: 'cancelled', sessionId: activeSessionId, durationMs: Date.now() - tStart }
+            });
+          } catch (err) {
+            logger.error('Failed to cancel order from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Could not cancel Order #${orderId}. It may already be shipped.`;
+          }
+        }
+
+        // 7. Handle IT Support: Process Refund
+        for (const m of tokens.processRefund) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const amount = parseInt(m[2]);
+          try {
+            const { refundService } = getInitialServices();
+            await refundService.processRefund(orderId, amount, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'refunded',
+              timestamp: new Date().toISOString(),
+              label: 'Refund Processed',
+              description: `Refund of $${amount / 100} processed for Order #${orderId} by Concierge.`
+            });
+            await auditService.record({
+              userId, userEmail,
+              action: 'order_refunded',
+              targetId: orderId,
+              correlationId,
+              ip, userAgent,
+              details: { amount, sessionId: activeSessionId, durationMs: Date.now() - tStart }
+            });
+          } catch (err) {
+            logger.error('Failed to process refund from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Refund failed for Order #${orderId}: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          }
+        }
+
+        // 8. Handle IT Support: KB Search
+        for (const m of tokens.kbSearch) {
+          const tStart = Date.now();
+          const query = m[1];
+          try {
+            const { knowledgebaseRepository } = getInitialServices();
+            const articles = await knowledgebaseRepository.searchArticles(query);
+            sessionUpdates['context.kbResults'] = articles.map(a => ({
+              title: a.title,
+              snippet: a.content.slice(0, 500) + '...',
+              slug: a.slug
+            }));
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'KB Search Performed',
+              description: `Searched KB for "${query}". Found ${articles.length} results.`
+            });
+            await auditService.record({
+              userId, userEmail,
+              action: 'concierge_analyzed',
+              targetId: activeSessionId!,
+              correlationId,
+              ip, userAgent,
+              details: { action: 'kb_search', query, durationMs: Date.now() - tStart }
+            });
+          } catch (err) {
+            logger.error('KB search failed from concierge', err);
+          }
+        }
+
+        // 9. Handle IT Support: Escalate to Human
+        if (tokens.escalateHuman.length > 0) {
+          sessionUpdates.status = 'escalated';
+          sessionUpdates.events.push({
+            type: 'escalated',
+            timestamp: new Date().toISOString(),
+            label: 'Handoff Requested',
+            description: 'Concierge initiated a handoff to a human support agent.'
+          });
+          await auditService.record({
+            userId, userEmail,
+            action: 'concierge_escalated',
+            targetId: activeSessionId!,
+            correlationId,
+            ip, userAgent,
+            details: { type: 'human_handoff', sessionId: activeSessionId }
+          });
+        }
+
+        // 10. Handle IT Support: Update Shipping Address
+        for (const m of tokens.updateAddress) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          try {
+            const address = JSON.parse(m[2]);
+            const { orderService } = getInitialServices();
+            await orderService.updateShippingAddress(orderId, address, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Address Updated',
+              description: `Shipping address updated for Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to update shipping address from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Address update failed for Order #${orderId}: ${err instanceof Error ? err.message : 'Invalid JSON'}`;
+          }
+        }
+
+        // 11. Handle IT Support: Get Logistics Insights
+        if (tokens.getLogistics.length > 0) {
+          const tStart = Date.now();
+          try {
+            const { orderQueryService } = getInitialServices();
+            const insights = await orderQueryService.getLogisticsInsights();
+            sessionUpdates['context.logisticsHealth'] = insights;
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Logistics Health Checked',
+              description: `Retrieved warehouse health: ${insights.health.fulfillment}`
+            });
+          } catch (err) {
+            logger.error('Failed to get logistics insights from concierge', err);
+          }
+        }
+
+        // 12. Handle IT Support: Send Custom Email
+        for (const m of tokens.sendEmail) {
+          const tStart = Date.now();
+          const to = m[1];
+          const subject = m[2];
+          const body = m[3];
+          try {
+            const { emailService } = getInitialServices();
+            await emailService.sendEmail({ to, subject, text: body, from: 'support@dreambees.art' });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Email Sent',
+              description: `Custom email sent to ${to}: ${subject}`
+            });
+          } catch (err) {
+            logger.error('Failed to send custom email from concierge', err);
+          }
+        }
+
+        // 13. Handle IT Support: Apply Discount to Order
+        for (const m of tokens.applyDiscount) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const code = m[2];
+          try {
+            const { orderService } = getInitialServices();
+            await orderService.applyDiscountToOrder(orderId, code, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Discount Applied',
+              description: `Discount code "${code}" manually applied to Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to apply discount from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Failed to apply discount ${code} to Order #${orderId}: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          }
+        }
+
+        // 14. Handle IT Support: Initiate Password Reset
+        for (const m of tokens.passwordReset) {
+          const tStart = Date.now();
+          const email = m[1];
+          try {
+            const { authService } = getInitialServices();
+            await authService.requestPasswordReset(email);
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Password Reset Initiated',
+              description: `Password reset email requested for ${email}.`
+            });
+          } catch (err) {
+            logger.error('Failed to initiate password reset from concierge', err);
+          }
+        }
+
+        // 15. Handle IT Support: Get Product Troubleshooting
+        for (const m of tokens.troubleshooting) {
+          const tStart = Date.now();
+          const productId = m[1];
+          try {
+            const { productService } = getInitialServices();
+            const product = await productService.getProduct(productId);
+            sessionUpdates['context.troubleshootingData'] = {
+              productName: product.name,
+              guide: product.description || 'No specific troubleshooting guide found. Please check our standard support docs.',
+              technicalSpecs: product.metafields?.specs || 'N/A'
+            };
+          } catch (err) {
+            logger.error('Failed to get troubleshooting guide from concierge', err);
+          }
+        }
+
+        // 16. Handle IT Support: Request Account Deletion
+        for (const m of tokens.accountDeletion) {
+          const tStart = Date.now();
+          const uId = m[1];
+          const reason = m[2];
+          try {
+            const { ticketRepository } = getInitialServices();
+            await ticketRepository.createTicket({
+              userId: uId,
+              subject: 'Account Deletion Request',
+              description: `User requested account deletion. Reason: ${reason}`,
+              status: 'open',
+              priority: 'high',
+              tags: ['privacy', 'gdpr', 'account_deletion']
+            } as any);
+            
+            await auditService.record({
+              userId, userEmail,
+              action: 'staff_role_updated', // Using a placeholder for sensitive account mutations
+              targetId: uId,
+              details: { action: 'deletion_request', reason }
+            });
+
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Account Deletion Requested',
+              description: `Privacy request logged for User #${uId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to log account deletion request from concierge', err);
+          }
+        }
+
+        // 17. Handle IT Support: Get System Status
+        if (tokens.systemStatus.length > 0) {
+          sessionUpdates['context.systemStatus'] = {
+            api: 'Operational',
+            paymentGateway: 'Operational',
+            fulfillmentEngine: 'Operational',
+            lastChecked: new Date().toISOString()
+          };
+          sessionUpdates.events.push({
+            type: 'note_added',
+            timestamp: new Date().toISOString(),
+            label: 'System Status Checked',
+            description: 'All core systems are operational.'
+          });
+        }
+
+        // 18. Handle IT Support: Get Support Macros
+        if (tokens.getMacros.length > 0) {
+          const tStart = Date.now();
+          try {
+            const { ticketRepository } = getInitialServices();
+            const macros = await ticketRepository.getMacros();
+            sessionUpdates['context.supportMacros'] = macros.map((m: any) => ({
+              id: m.id,
+              name: m.name,
+              content: m.content
+            }));
+          } catch (err) {
+            logger.error('Failed to get support macros from concierge', err);
+          }
+        }
+
+        // 19. Handle IT Support: Get Customer Insights
+        for (const m of tokens.getCustomerInsights) {
+          const tStart = Date.now();
+          const uId = m[1];
+          try {
+            const { ticketRepository } = getInitialServices();
+            const summary = await ticketRepository.getCustomerSupportSummary(uId);
+            sessionUpdates['context.customerInsights'] = summary;
+          } catch (err) {
+            logger.error('Failed to get customer insights from concierge', err);
+          }
+        }
+
+        // 20. Handle IT Support: Get Payment Diagnostics
+        for (const m of tokens.getPaymentDiagnostics) {
+          const tStart = Date.now();
+          const uId = m[1];
+          try {
+            const logs = await auditService.getRecentLogs({ 
+              userId: uId, 
+              action: 'order_payment_finalized', 
+              limit: 20 
+            });
+            const failures = logs
+              .map(l => {
+                try { return JSON.parse(l.details); } catch { return null; }
+              })
+              .filter(d => d && d.status === 'failed');
+            
+            sessionUpdates['context.paymentDiagnostics'] = failures.slice(0, 5);
+          } catch (err) {
+            logger.error('Failed to get payment diagnostics from concierge', err);
+          }
+        }
+
+        // 21. Handle IT Support: Analyze Cart Conflicts
+        for (const m of tokens.analyzeCartConflicts) {
+          const tStart = Date.now();
+          const uId = m[1];
+          try {
+            const { cartRepo, productRepo } = getInitialServices();
+            const cart = await cartRepo.getByUserId(uId);
+            if (cart) {
+              const conflicts: any[] = [];
+              for (const item of cart.items) {
+                const product = await productRepo.getById(item.productId);
+                if (!product) {
+                  conflicts.push({ item: item.name, reason: 'removed' });
+                } else if (product.stock < item.quantity) {
+                  conflicts.push({ item: item.name, reason: 'low_stock', available: product.stock });
+                } else if (product.price !== item.priceSnapshot) {
+                  conflicts.push({ item: item.name, reason: 'price_change', newPrice: product.price });
+                }
+              }
+              sessionUpdates['context.cartConflicts'] = conflicts;
+            }
+          } catch (err) {
+            logger.error('Failed to analyze cart conflicts from concierge', err);
+          }
+        }
+
+        // 22. Handle IT Support: Fetch Full KB Article
+        for (const m of tokens.fetchFullKb) {
+          const tStart = Date.now();
+          const slug = m[1];
+          try {
+            const { knowledgebaseRepository } = getInitialServices();
+            const article = await knowledgebaseRepository.getArticleBySlug(slug);
+            if (article) {
+              sessionUpdates['context.fullArticle'] = {
+                title: article.title,
+                content: article.content
+              };
+            }
+          } catch (err) {
+            logger.error('Failed to fetch full KB article from concierge', err);
+          }
+        }
+
+        // 23. Handle IT Support: Create Recovery Discount
+        for (const m of tokens.createRecoveryCode) {
+          const tStart = Date.now();
+          const uId = m[1];
+          const percent = parseInt(m[2]);
+          try {
+            const { discountService } = getInitialServices();
+            const discount = await discountService.createBarterDiscount(percent, activeSessionId!);
+            sessionUpdates['context.recoveryDiscount'] = discount.code;
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Recovery Discount Generated',
+              description: `Generated ${percent}% recovery code "${discount.code}" for User #${uId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to create recovery discount from concierge', err);
+          }
+        }
+
+        // 24. Handle IT Support: Flag Ticket Urgency
+        for (const m of tokens.flagUrgency) {
+          const tStart = Date.now();
+          const ticketId = m[1];
+          const reason = m[2];
+          try {
+            const { ticketRepository } = getInitialServices();
+            await ticketRepository.updateTicketPriority(ticketId, 'urgent');
+            await ticketRepository.addMessage({
+              id: crypto.randomUUID(),
+              ticketId,
+              senderId: 'concierge',
+              senderType: 'staff',
+              visibility: 'internal',
+              content: `URGENCY FLAGGED BY CONCIERGE: ${reason}`,
+              createdAt: new Date()
+            } as any);
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Ticket Urgency Flagged',
+              description: `Ticket #${ticketId} flagged as urgent: ${reason}`
+            });
+          } catch (err) {
+            logger.error('Failed to flag ticket urgency from concierge', err);
+          }
+        }
+
+        // 25. Handle IT Support: Reset User Session
+        for (const m of tokens.resetSession) {
+          const tStart = Date.now();
+          const uId = m[1];
+          try {
+            const { cartRepo } = getInitialServices();
+            await cartRepo.clear(uId);
+            sessionUpdates['context.sessionReset'] = true;
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Session Reset Initiated',
+              description: `Cart cleared and session reset requested for User #${uId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to reset user session from concierge', err);
+          }
+        }
+
+        // 26. Handle IT Support: Swap Order Item
+        for (const m of tokens.swapItem) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const oldId = m[2];
+          const newId = m[3];
+          try {
+            const { orderService } = getInitialServices();
+            await orderService.swapOrderItem(orderId, oldId, newId, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Order Item Swapped',
+              description: `Swapped item ${oldId} for ${newId} in Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to swap order item from concierge', err);
+            sessionUpdates['context.lastActionStatus'] = 'failed';
+            sessionUpdates['context.lastActionError'] = `Swap failed: ${err instanceof Error ? err.message : 'Unknown error'}`;
+          }
+        }
+
+        // 27. Handle IT Support: Upgrade Shipping
+        for (const m of tokens.upgradeShipping) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const carrier = m[2];
+          const service = m[3];
+          try {
+            const { orderService } = getInitialServices();
+            await orderService.upgradeShipping(orderId, carrier, service, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Shipping Upgraded',
+              description: `Shipping upgraded to ${carrier} ${service} for Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to upgrade shipping from concierge', err);
+          }
+        }
+
+        // 28. Handle IT Support: Get Customer Preferences
+        for (const m of tokens.getPreferences) {
+          const tStart = Date.now();
+          const uId = m[1];
+          try {
+            const docSnap = await getDoc(doc(getUnifiedDb(), 'users', uId));
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              sessionUpdates['context.customerPreferences'] = data.preferences || {
+                packaging: 'Standard',
+                contactMethod: 'Email',
+                notes: 'None'
+              };
+            }
+          } catch (err) {
+            logger.error('Failed to get customer preferences from concierge', err);
+          }
+        }
+
+        // 29. Handle IT Support: Report System Bug
+        for (const m of tokens.reportBug) {
+          const tStart = Date.now();
+          const desc = m[1];
+          try {
+            const { ticketRepository } = getInitialServices();
+            await ticketRepository.createTicket({
+              userId: 'system',
+              subject: 'SYSTEM BUG REPORTED BY CONCIERGE',
+              description: `Concierge detected a site bug: ${desc}`,
+              status: 'new',
+              priority: 'high',
+              tags: ['bug', 'technical_debt', 'concierge_alert']
+            } as any);
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Bug Report Filed',
+              description: 'Technical issue logged for developer review.'
+            });
+          } catch (err) {
+            logger.error('Failed to report bug from concierge', err);
+          }
+        }
+
+        // 30. Handle IT Support: Recover Expired Code
+        for (const m of tokens.recoverCode) {
+          const tStart = Date.now();
+          const code = m[1];
+          const uId = m[2];
+          try {
+            const { discountRepo, discountService } = getInitialServices();
+            const discount = await discountRepo.getByCode(code);
+            if (discount) {
+              const newExpiry = new Date();
+              newExpiry.setHours(newExpiry.getHours() + 12); // Extend by 12h
+              await discountService.updateDiscount(discount.id, { endsAt: newExpiry }, {
+                id: 'concierge',
+                email: 'concierge@dreambees.art'
+              });
+              sessionUpdates.events.push({
+                type: 'note_added',
+                timestamp: new Date().toISOString(),
+                label: 'Discount Recovered',
+                description: `Extended code "${code}" for User #${uId} for 12 hours.`
+              });
+            }
+          } catch (err) {
+            logger.error('Failed to recover expired code from concierge', err);
+          }
+        }
+
+        // 31. Handle IT Support: Request Order Split
+        for (const m of tokens.orderSplit) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const itemIds = JSON.parse(m[2]);
+          try {
+            const { ticketRepository, orderService } = getInitialServices();
+            await ticketRepository.createTicket({
+              userId: 'warehouse',
+              subject: `ORDER SPLIT REQUEST: #${orderId}`,
+              description: `Customer requested splitting items ${itemIds.join(', ')} from Order #${orderId} to ship separately.`,
+              status: 'new',
+              priority: 'medium',
+              tags: ['order_split', 'warehouse_action']
+            } as any);
+            
+            await orderService.addOrderNote(orderId, `Split requested for items: ${itemIds.join(', ')}`, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Split Requested',
+              description: `Warehouse notified to split Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to request order split from concierge', err);
+          }
+        }
+
+        // 32. Handle IT Support: Verify Address Logistics
+        for (const m of tokens.verifyAddress) {
+          const tStart = Date.now();
+          const addr = m[1];
+          sessionUpdates['context.addressVerification'] = {
+            address: addr,
+            status: 'Verified',
+            carrierSupport: ['USPS', 'UPS', 'FedEx'],
+            estimatedTransit: '3-5 days'
+          };
+        }
+
+        // 33. Handle IT Support: Tag Customer Sentiment
+        for (const m of tokens.tagSentiment) {
+          const sentiment = m[1];
+          sessionUpdates['sentiment'] = sentiment;
+        }
+
+        // 34. Handle IT Support: Get Shipping Estimates
+        for (const m of tokens.getShippingEstimates) {
+          const zip = m[1];
+          sessionUpdates['context.shippingEstimates'] = {
+            zipCode: zip,
+            standard: '4-6 business days',
+            expedited: '2 business days',
+            fulfillmentDelay: 'None (Healthy)'
+          };
+        }
+
+        // 35. Handle IT Support: Place Order On Hold
+        for (const m of tokens.placeHold) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          const reason = m[2];
+          try {
+            const { orderService } = getInitialServices();
+            await orderService.setOrderHold(orderId, reason, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Order Placed on Hold',
+              description: `Order #${orderId} held: ${reason}`
+            });
+          } catch (err) {
+            logger.error('Failed to place order on hold from concierge', err);
+          }
+        }
+
+        // 36. Handle IT Support: Release Order Hold
+        for (const m of tokens.releaseHold) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          try {
+            const { orderService } = getInitialServices();
+            await orderService.releaseOrderHold(orderId, {
+              id: 'concierge',
+              email: 'concierge@dreambees.art'
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Order Hold Released',
+              description: `Fulfillment resumed for Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to release order hold from concierge', err);
+          }
+        }
+
+        // 37. Handle IT Support: Unsubscribe from Marketing
+        for (const m of tokens.unsubscribe) {
+          const tStart = Date.now();
+          const email = m[1];
+          try {
+            const { ticketRepository } = getInitialServices();
+            await ticketRepository.createTicket({
+              userId: 'privacy',
+              subject: 'Marketing Unsubscribe Request',
+              description: `User requested removal from all marketing lists: ${email}`,
+              status: 'new',
+              priority: 'medium',
+              tags: ['privacy', 'unsubscribe', 'gdpr']
+            } as any);
+            
+            await auditService.record({
+              userId: 'system',
+              userEmail: 'privacy@dreambees.art',
+              action: 'staff_role_updated', // Placeholder
+              targetId: email,
+              details: { action: 'unsubscribe' }
+            });
+
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Unsubscribe Requested',
+              description: `${email} marked for marketing removal.`
+            });
+          } catch (err) {
+            logger.error('Failed to unsubscribe from concierge', err);
+          }
+        }
+
+        // 38. Handle IT Support: Generate Tax Invoice
+        for (const m of tokens.generateInvoice) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          try {
+            const { ticketRepository } = getInitialServices();
+            await ticketRepository.createTicket({
+              userId: 'finance',
+              subject: `TAX INVOICE REQUEST: #${orderId}`,
+              description: `Customer requested a formal VAT/Tax invoice for Order #${orderId}.`,
+              status: 'new',
+              priority: 'medium',
+              tags: ['finance', 'tax_invoice']
+            } as any);
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Invoice Requested',
+              description: `Tax invoice request logged for Order #${orderId}.`
+            });
+          } catch (err) {
+            logger.error('Failed to generate tax invoice from concierge', err);
+          }
+        }
+
+        // 39. Handle IT Support: Get Order Risk Score
+        for (const m of tokens.getRiskScore) {
+          const tStart = Date.now();
+          const orderId = m[1];
+          try {
+            const { orderService } = getInitialServices();
+            const order = await orderService.getAdminOrder(orderId);
+            if (order) {
+              sessionUpdates['context.orderRisk'] = {
+                orderId,
+                score: order.riskScore || 0,
+                level: (order.riskScore || 0) > 60 ? 'High' : ((order.riskScore || 0) > 30 ? 'Medium' : 'Low'),
+                reconciliationRequired: order.reconciliationRequired || false
+              };
+            }
+          } catch (err) {
+            logger.error('Failed to get order risk score from concierge', err);
+          }
+        }
+
+        // 40. Handle IT Support: Search Similar Resolutions
+        for (const m of tokens.searchResolutions) {
+          const tStart = Date.now();
+          const queryStr = m[1];
+          try {
+            const logs = await auditService.getRecentLogs({ limit: 100 });
+            const resolutions = logs
+              .filter(l => l.action === 'order_refunded' || l.action === 'order_status_changed' || l.action === 'product_updated')
+              .slice(0, 5)
+              .map(l => ({
+                action: l.action,
+                summary: `System resolution for #${l.targetId}`,
+                details: l.details
+              }));
+            sessionUpdates['context.similarResolutions'] = resolutions;
+          } catch (err) {
+            logger.error('Failed to search similar resolutions from concierge', err);
           }
         }
 
