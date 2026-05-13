@@ -55,7 +55,7 @@ export function mapDoc<T>(id: string, data: any): T {
     }
   }
 
-  // Handle nested arrays (e.g., variants, media)
+  // Handle nested arrays recursively
   if (Array.isArray(result.variants)) {
     result.variants = result.variants.map((v: any) => mapDoc(v.id || '', v));
   }
@@ -65,8 +65,9 @@ export function mapDoc<T>(id: string, data: any): T {
   if (Array.isArray(result.items)) {
     result.items = result.items.map((i: any) => mapDoc(i.id || '', i));
   }
+  if (Array.isArray(result.digitalAssets)) {
+    result.digitalAssets = result.digitalAssets.map((a: any) => mapDoc(a.id || '', a));
+  }
 
-  // Production Hardening: Double-serialization guard to ensure absolute serializability 
-  // for Next.js Client Components and state transitions.
-  return JSON.parse(JSON.stringify(result)) as T;
+  return result as T;
 }

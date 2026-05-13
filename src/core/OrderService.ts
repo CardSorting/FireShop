@@ -202,12 +202,11 @@ export class OrderService {
         
         const subtotal = calculateCartTotal(cart.items);
         
-        // 2. Production Hardening: Verify Prices (Prevent Stale Price Hijacking)
-        // We re-fetch current prices from the database within the transaction
-        // to ensure the user pays the actual current price, not a snapshotted one.
+        const productMap = new Map<string, any>();
         for (const item of cart.items) {
           const product = await this.productRepo.getById(item.productId, transaction);
           if (!product) throw new Error(`Product ${item.name} is no longer available.`);
+          productMap.set(item.productId, product);
           
           let currentPrice = product.price;
           if (item.variantId) {
@@ -272,20 +271,24 @@ export class OrderService {
         // risks transaction timeout (Firestore max ~15s). Payment is processed in Phase 2.
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
           userId,
-          items: cart.items.map(i => ({ 
-            productId: i.productId,
-            variantId: i.variantId,
-            variantTitle: i.variantTitle,
-            productHandle: i.productHandle,
-            name: i.name,
-            quantity: i.quantity,
-            unitPrice: i.priceSnapshot,
-            imageUrl: i.imageUrl,
-            isDigital: i.isDigital,
-            shippingClassId: i.shippingClassId,
-            fulfilledQty: 0, 
-            at: new Date() 
-          })) as any,
+          items: cart.items.map(i => {
+            const product = productMap.get(i.productId);
+            return { 
+              productId: i.productId,
+              variantId: i.variantId,
+              variantTitle: i.variantTitle,
+              productHandle: i.productHandle,
+              name: i.name,
+              quantity: i.quantity,
+              unitPrice: i.priceSnapshot,
+              imageUrl: i.imageUrl,
+              isDigital: i.isDigital,
+              digitalAssets: i.isDigital ? (product?.digitalAssets || []) : [],
+              shippingClassId: i.shippingClassId,
+              fulfilledQty: 0, 
+              at: new Date() 
+            };
+          }) as any,
           shippingAmount: shipping,
           taxAmount: taxAmount,
           discountAmount: discountAmount,
@@ -330,7 +333,8 @@ export class OrderService {
           userEmail: userEmail || 'unknown@dreambees.art',
           action: 'order_placed',
           targetId: createdOrder.id,
-          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode }
+          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode },
+          correlationId: idempotencyKey || undefined
         });
 
         return createdOrder;
@@ -461,7 +465,8 @@ export class OrderService {
             paymentIntentId,
             items: order.items.length,
             physicalItems: physicalItems.length
-          }
+          },
+          correlationId: (stripePi?.metadata?.correlationId as string) || paymentIntentId
         });
 
         // 6. Clear Cart (Transactional)
