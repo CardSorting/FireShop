@@ -12,10 +12,12 @@ import type {
 } from '@domain/ops/types';
 import { PolicyEngineService } from './PolicyEngineService';
 import { SimulationService } from './SimulationService';
+import { AuditService } from './AuditService';
 
 export class OperationalPlannerService {
   constructor(
-    private policyEngine: PolicyEngineService = new PolicyEngineService(),
+    private auditService: AuditService,
+    private policyEngine: PolicyEngineService = new PolicyEngineService(auditService),
     private simulationService: SimulationService = new SimulationService()
   ) {}
 

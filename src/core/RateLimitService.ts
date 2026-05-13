@@ -13,10 +13,16 @@ import {
   runTransaction
 } from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
+import { AuditService } from './AuditService';
 
 export class RateLimitService {
   private readonly collectionName = 'system_rate_limits';
   private readonly emergencyBuckets = new Map<string, { attempts: number; expiresAt: number }>();
+  private audit: AuditService;
+
+  constructor(auditService: AuditService) {
+    this.audit = auditService;
+  }
 
   /**
    * Checks if an action is allowed for a given key.
@@ -61,6 +67,14 @@ export class RateLimitService {
         }
 
         if (data.attempts >= limit) {
+          // Forensic: Record rate-limit breach as potential abuse
+          await this.audit.record({
+            userId: 'system',
+            userEmail: 'security-alerts@dreambees.art',
+            action: 'settings_updated', // We need a more appropriate action or just a generic one
+            targetId: key,
+            details: { type: 'rate_limit_breach', key, attempts: data.attempts, limit }
+          });
           return { allowed: false, remaining: 0, resetTime: expiresAt };
         }
 

@@ -39,6 +39,7 @@ export type AuditAction =
   | 'wishlist_created' | 'wishlist_updated' | 'wishlist_deleted'
   | 'settings_updated'
   | 'ops_plan_generated'
+  | 'concierge_analyzed' | 'concierge_escalated'
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted';
 
 export interface AuditEntry {

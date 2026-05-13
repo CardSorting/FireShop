@@ -11,6 +11,7 @@ import {
   listAll
 } from 'firebase/storage';
 import { getStorage } from '../firebase/firebase';
+import { adminStorage } from '../firebase/admin';
 import { randomUUID } from 'node:crypto';
 import { logger } from '@utils/logger';
 
@@ -157,6 +158,35 @@ export class StorageService {
       logger.info(`[Forensic] Deleted storage asset: ${storedPath}`);
     } catch (e) {
       logger.error(`[Forensic] Failed to delete file at ${storedPath}:`, e);
+    }
+  }
+
+  /**
+   * Generates a signed URL for a file using the Admin SDK.
+   * Useful for private digital assets.
+   */
+  static async getSignedUrl(storedPath: string, expiresMinutes: number = 60): Promise<string> {
+    try {
+      let objectPath = storedPath;
+      if (storedPath.startsWith('http')) {
+        const extracted = this.extractPathFromUrl(storedPath);
+        if (!extracted) throw new Error('Invalid storage URL');
+        objectPath = extracted;
+      }
+
+      const bucket = adminStorage.bucket();
+      const file = bucket.file(objectPath);
+      
+      const [url] = await file.getSignedUrl({
+        version: 'v4',
+        action: 'read',
+        expires: Date.now() + expiresMinutes * 60 * 1000,
+      });
+
+      return url;
+    } catch (e) {
+      logger.error(`[Forensic] Failed to generate signed URL for ${storedPath}:`, e);
+      throw new Error('Failed to generate secure download link.');
     }
   }
 }

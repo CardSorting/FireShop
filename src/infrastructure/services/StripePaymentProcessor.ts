@@ -1,11 +1,14 @@
 import type { IPaymentProcessor } from '@domain/repositories';
 import { PaymentFailedError } from '@domain/errors';
 import Stripe from 'stripe';
+import { AuditService } from '@core/AuditService';
 
 export class StripePaymentProcessor implements IPaymentProcessor {
   private stripe: Stripe;
+  private audit: AuditService;
 
-  constructor() {
+  constructor(auditService?: AuditService) {
+    this.audit = auditService || new AuditService();
     const secretKey = process.env.STRIPE_SECRET_KEY?.trim() || '';
     this.stripe = new Stripe(secretKey, {
       apiVersion: '2025-02-11-preview' as any,
@@ -44,6 +47,13 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       });
 
       if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
+        await this.audit.record({
+          userId: 'system',
+          userEmail: 'payments@dreambees.art',
+          action: 'order_payment_finalized',
+          targetId: params.orderId,
+          details: { transactionId: paymentIntent.id, amount: params.amount, status: paymentIntent.status }
+        });
         return { success: true, transactionId: paymentIntent.id };
       }
 
@@ -52,6 +62,14 @@ export class StripePaymentProcessor implements IPaymentProcessor {
       );
     } catch (error: any) {
       const message = error.message || 'Stripe payment request failed.';
+      // Forensic: Record payment failure
+      await this.audit.record({
+        userId: 'system',
+        userEmail: 'payments-alerts@dreambees.art',
+        action: 'order_payment_finalized', // Reusing for failed attempts
+        targetId: params.orderId,
+        details: { error: message, amount: params.amount, status: 'failed' }
+      });
       throw new PaymentFailedError(message);
     }
   }
@@ -69,7 +87,15 @@ export class StripePaymentProcessor implements IPaymentProcessor {
         idempotencyKey,
       });
 
-      return { success: refund.status === 'succeeded' || refund.status === 'pending' };
+      const success = refund.status === 'succeeded' || refund.status === 'pending';
+      await this.audit.record({
+        userId: 'system',
+        userEmail: 'refunds@dreambees.art',
+        action: 'order_refunded',
+        targetId: transactionId,
+        details: { amount, status: refund.status, success }
+      });
+      return { success };
     } catch (error: any) {
       const message = error.message || 'Stripe refund request failed.';
       throw new PaymentFailedError(message);

@@ -7,6 +7,7 @@ import { SupportTicket, TicketMessage } from '@domain/models';
 import { logger } from '@utils/logger';
 import { createHermesChatCompletion } from '@infrastructure/services/HermesService';
 import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, getDoc, query, where, orderBy, limit, getDocs } from '@infrastructure/firebase/bridge';
+import { AuditService } from './AuditService';
 
 export interface ConciergeSession {
   id?: string;
@@ -64,6 +65,12 @@ export interface ConciergeSession {
 }
 
 export class ConciergeService {
+  private audit: AuditService;
+
+  constructor(auditService?: AuditService) {
+    this.audit = auditService || new AuditService();
+  }
+
   /**
    * Finalizes a concierge session by analyzing it for insights and suggestions.
    * This is Layer 2 & 3 of the architecture.
@@ -190,6 +197,14 @@ export class ConciergeService {
         }
       }
 
+      await this.audit.record({
+        userId: sessionData?.userId || 'anonymous',
+        userEmail: sessionData?.customerEmail || 'unknown@dreambees.art',
+        action: 'concierge_analyzed',
+        targetId: sessionId,
+        details: { category: parsedResult.category, urgency: parsedResult.urgency, escalationNeeded: parsedResult.escalationNeeded }
+      });
+
       logger.info('Concierge session analyzed successfully', { sessionId });
       return parsedResult;
     } catch (error: any) {
@@ -232,6 +247,15 @@ export class ConciergeService {
     };
 
     const ticketRef = await addDoc(collection(db, 'tickets'), ticketData);
+    
+    await this.audit.record({
+      userId: userId || 'anonymous',
+      userEmail: email || 'unknown@dreambees.art',
+      action: 'concierge_escalated',
+      targetId: ticketRef.id,
+      details: { originalSessionId: 'concierge_session', reason }
+    });
+
     logger.info('Escalated Concierge session to ticket', { ticketId: ticketRef.id, userId });
     
     return ticketRef.id;

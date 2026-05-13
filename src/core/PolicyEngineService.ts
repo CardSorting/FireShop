@@ -1,11 +1,10 @@
-/**
- * [LAYER: CORE]
- * Applies governance policy to compiled operational operations.
- */
 import type { ApprovalRequirement, PolicyRisk, ProposedOperation } from '@domain/ops/types';
 import { DEFAULT_OPERATIONAL_POLICIES, RISK_ORDER } from '@domain/ops/policies';
+import { AuditService } from './AuditService';
 
 export class PolicyEngineService {
+  constructor(private audit: AuditService) {}
+
   evaluateOperations(operations: ProposedOperation[]): {
     operations: ProposedOperation[];
     risks: PolicyRisk[];
@@ -42,6 +41,17 @@ export class PolicyEngineService {
             status: 'required',
           });
         }
+      }
+
+      if (requiresApproval) {
+        // Forensic: Record policy intervention
+        this.audit.record({
+          userId: 'system',
+          userEmail: 'policy-engine@dreambees.art',
+          action: 'settings_updated', // We can use a more specific action if we add it to AuditAction
+          targetId: operation.id,
+          details: { type: 'policy_intervention', tool: operation.tool, target: operation.target, risks: risks.filter(r => r.operationId === operation.id) }
+        });
       }
 
       return { ...operation, requiresApproval };

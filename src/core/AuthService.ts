@@ -22,16 +22,29 @@ export class AuthService {
     const emailValidation = validateEmail(email);
     if (!emailValidation.valid) throw new AuthError(emailValidation.message);
     if (!password) throw new AuthError('Password is required');
-    const user = await this.provider.signIn(email.trim().toLowerCase(), password);
     
-    await this.audit.record({
-      userId: user.id,
-      userEmail: user.email,
-      action: 'auth_signin',
-      targetId: user.id
-    });
-    
-    return user;
+    try {
+      const user = await this.provider.signIn(email.trim().toLowerCase(), password);
+      
+      await this.audit.record({
+        userId: user.id,
+        userEmail: user.email,
+        action: 'auth_signin',
+        targetId: user.id
+      });
+      
+      return user;
+    } catch (error: any) {
+      // Forensic: Record failed attempt to detect brute-force
+      await this.audit.record({
+        userId: 'anonymous',
+        userEmail: email,
+        action: 'auth_signin', // Or a new 'auth_signin_failed' action
+        targetId: 'system',
+        details: { error: error.message, status: 'failed' }
+      });
+      throw error;
+    }
   }
 
   async signInWithGoogle(): Promise<User> {
@@ -59,11 +72,21 @@ export class AuthService {
     if (!nameValidation.valid) throw new AuthError(nameValidation.message);
     
     const user = await this.provider.signUp(email.trim().toLowerCase(), password, displayName.trim());
+    
+    // Industrialized: Force customer role for self-signup
+    if (user.role !== 'admin') {
+      user.role = 'customer';
+      if (this.provider.updateUser) {
+        await this.provider.updateUser(user.id, { role: 'customer' });
+      }
+    }
+
     await this.audit.record({
       userId: user.id,
       userEmail: user.email,
       action: 'auth_signup',
-      targetId: user.id
+      targetId: user.id,
+      details: { role: 'customer' }
     });
     return user;
   }

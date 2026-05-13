@@ -54,6 +54,7 @@ import {
 import { AuditService } from './AuditService';
 import { DiscountService } from './DiscountService';
 import { Sanitizer } from '@utils/sanitizer';
+import { StorageService } from '@infrastructure/services/StorageService';
 import { logger } from '@utils/logger';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 
@@ -701,7 +702,7 @@ export class OrderService {
       cursor = page.nextCursor;
     } while (cursor);
 
-    return allOrders
+    const digitalItems = allOrders
       .filter(o => o.status !== 'cancelled' && o.status !== 'refunded')
       .flatMap(o => o.items
         .filter(i => i.digitalAssets?.length)
@@ -714,6 +715,22 @@ export class OrderService {
           assets: i.digitalAssets
         }))
       );
+
+    // Industrialized: Generate signed URLs for all assets
+    const withSignedUrls = await Promise.all(digitalItems.map(async (item) => {
+      const signedAssets = await Promise.all((item.assets || []).map(async (asset: any) => {
+        try {
+          const urlToSign = typeof asset === 'string' ? asset : asset.url;
+          return await StorageService.getSignedUrl(urlToSign, 1440); // 24-hour window
+        } catch (err) {
+          logger.error(`[Forensic] Digital asset signing failed for ${asset}`, { err });
+          return typeof asset === 'string' ? asset : asset.url; // Fallback to original
+        }
+      }));
+      return { ...item, assets: signedAssets };
+    }));
+
+    return withSignedUrls;
   }
 
 

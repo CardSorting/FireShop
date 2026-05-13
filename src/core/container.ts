@@ -177,7 +177,7 @@ export function getServiceContainer() {
     ticketRepository: repos.ticketRepo,
     knowledgebaseRepository: repos.kbRepo,
     emailService: new BrevoEmailService(new AuditService()),
-    rateLimitService: new RateLimitService(),
+    rateLimitService: new RateLimitService(new AuditService()),
     operationsRuntimeService: new OperationsRuntimeService(
       new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService())),
       new ProductService(repos.productRepo, new AuditService()),
@@ -311,7 +311,7 @@ export function getInitialServices() {
       return emailServiceInstance;
     })(),
     rateLimitService: (() => {
-      if (!rateLimitServiceInstance) rateLimitServiceInstance = new RateLimitService();
+      if (!rateLimitServiceInstance) rateLimitServiceInstance = new RateLimitService(getAuditService());
       return rateLimitServiceInstance;
     })(),
     operationsRuntimeService: new OperationsRuntimeService(

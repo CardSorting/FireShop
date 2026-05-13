@@ -18,7 +18,7 @@ export class OperationsRuntimeService {
     private purchaseOrderService: PurchaseOrderService,
     private settingsService: SettingsService,
     private auditService: AuditService,
-    private planner: OperationalPlannerService = new OperationalPlannerService()
+    private planner: OperationalPlannerService = new OperationalPlannerService(auditService)
   ) {}
 
   getIntentCards() {
