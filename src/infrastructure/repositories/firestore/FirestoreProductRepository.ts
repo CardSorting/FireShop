@@ -47,6 +47,21 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   /**
+   * Re-calculates and applies all derived domain fields to a raw data object.
+   * Ensures Firestore records stay synchronized with domain rules after any mutation.
+   */
+  private applyDerivedFields(data: any): any {
+    const product = this.mapDocToProduct(data.id || 'temp', data);
+    return {
+      ...data,
+      inventoryHealth: classifyInventoryHealth(product.stock),
+      setupStatus: classifyProductSetupStatus(product),
+      setupIssues: getProductSetupIssues(product),
+      marginHealth: classifyMarginHealth(product),
+    };
+  }
+
+  /**
    * Universal fetch with filter support.
    * Handles composite index requirements by providing fallback sorting logic.
    */
@@ -271,7 +286,8 @@ export class FirestoreProductRepository implements IProductRepository {
 
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), currentStock);
 
-      t.update(docRef, { stock: nextStock, updatedAt: serverTimestamp() });
+      const updatedData = this.applyDerivedFields({ ...data, id, stock: nextStock, updatedAt: serverTimestamp() });
+      t.update(docRef, updatedData);
     };
 
     if (transaction) {
@@ -309,11 +325,15 @@ export class FirestoreProductRepository implements IProductRepository {
 
       const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
 
-      t.update(docRef, { 
+      const updatedData = this.applyDerivedFields({ 
+        ...data, 
+        id: productId,
         variants, 
         stock: totalStock,
         updatedAt: serverTimestamp() 
       });
+
+      t.update(docRef, updatedData);
     };
 
     if (transaction) {
@@ -367,7 +387,8 @@ export class FirestoreProductRepository implements IProductRepository {
       }
 
       for (const [id, data] of finalUpdates.entries()) {
-        t.update(doc(db, this.collectionName, id), data);
+        const enriched = this.applyDerivedFields({ ...data, id });
+        t.update(doc(db, this.collectionName, id), enriched);
       }
     };
 
@@ -379,16 +400,26 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async batchUpdate(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {
-    const batch = writeBatch(getUnifiedDb());
-    const now = serverTimestamp();
+    const db = getUnifiedDb();
     
-    for (const update of updates) {
-      const docRef = doc(getUnifiedDb(), this.collectionName, update.id);
-      batch.update(docRef, { ...update.updates, updatedAt: now });
-    }
-    
-    await batch.commit();
-    return Promise.all(updates.map(u => this.getById(u.id))).then(results => results.filter(Boolean) as Product[]);
+    // Industrialization: Batch updates must re-fetch current state to re-calculate derived fields
+    // to maintain index integrity for margin health, setup status, etc.
+    return await runTransaction(db, async (t: any) => {
+      const results: Product[] = [];
+      for (const update of updates) {
+        const docRef = doc(db, this.collectionName, update.id);
+        const docSnap = await t.get(docRef);
+        if (!docSnap.exists()) continue;
+
+        const currentData = docSnap.data();
+        const mergedData = { ...currentData, ...update.updates, id: update.id, updatedAt: serverTimestamp() };
+        const enriched = this.applyDerivedFields(mergedData);
+        
+        t.update(docRef, enriched);
+        results.push(this.mapDocToProduct(update.id, enriched));
+      }
+      return results;
+    });
   }
 
   async getStats(): Promise<{

@@ -15,10 +15,14 @@ import {
   User,
   AdminActionItem
 } from '@domain/models';
+import type { ProductService } from './ProductService';
 import { Sanitizer } from '@utils/sanitizer';
 
 export class OrderQueryService {
-  constructor(private orderRepo: IOrderRepository) {}
+  constructor(
+    private orderRepo: IOrderRepository,
+    private productService?: ProductService
+  ) {}
 
   async getOrder(id: string): Promise<Order | null> {
     const order = await this.orderRepo.getById(id);
@@ -70,10 +74,12 @@ export class OrderQueryService {
 
     const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
     
+    const productStats = this.productService ? await this.productService.getProductManagementOverview() : null;
+
     return {
-      productCount: 0, 
-      lowStockCount: 0, 
-      outOfStockCount: 0, 
+      productCount: productStats?.totalProducts || 0, 
+      lowStockCount: productStats?.lowStockCount || 0, 
+      outOfStockCount: productStats?.outOfStockCount || 0, 
       totalRevenue: stats.totalRevenue, 
       averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0, 
       dailyRevenue: stats.dailyRevenue.slice(7), // Consistent with WoW expansion
@@ -88,7 +94,7 @@ export class OrderQueryService {
       activeTasks, 
       attentionItems, 
       recentOrders: recent, 
-      lowStockProducts: []
+      lowStockProducts: productStats?.productsNeedingAttention.slice(0, 5) || []
     };
   }
 

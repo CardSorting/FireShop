@@ -1,6 +1,6 @@
 /**
  * [LAYER: CORE]
- * Deterministic operational simulation heuristics.
+ * Data-driven operational strategy and predictive analytics.
  */
 import type { OperationalIntentIR, OperationalStateSnapshot, ProposedOperation, SimulationResult } from '@domain/ops/types';
 import { SIMULATION_COPY } from '@domain/ops/simulations';

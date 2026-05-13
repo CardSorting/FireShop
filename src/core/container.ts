@@ -158,7 +158,7 @@ export function getServiceContainer() {
     ),
     fulfillmentService: new FulfillmentService(repos.orderRepo, repos.shippingRepo),
     orderManagementService: new OrderManagementService(repos.orderRepo, new AuditService()),
-    orderQueryService: new OrderQueryService(repos.orderRepo),
+    orderQueryService: new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService())),
     refundService: new RefundService(repos.orderRepo, new StripePaymentProcessor(), new AuditService(), repos.productRepo, repos.discountRepo, new FirestoreLocker()),
     discountService: new DiscountService(repos.discountRepo, new AuditService(), repos.orderRepo),
     settingsService: new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
@@ -176,10 +176,10 @@ export function getServiceContainer() {
     inventoryLevelRepo: repos.inventoryLevelRepo,
     ticketRepository: repos.ticketRepo,
     knowledgebaseRepository: repos.kbRepo,
-    emailService: new BrevoEmailService(),
+    emailService: new BrevoEmailService(new AuditService()),
     rateLimitService: new RateLimitService(),
     operationsRuntimeService: new OperationsRuntimeService(
-      new OrderQueryService(repos.orderRepo),
+      new OrderQueryService(repos.orderRepo, new ProductService(repos.productRepo, new AuditService())),
       new ProductService(repos.productRepo, new AuditService()),
       new PurchaseOrderService(repos.purchaseOrderRepo, repos.productRepo, repos.inventoryLevelRepo, new AuditService()),
       new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
@@ -267,7 +267,7 @@ export function getInitialServices() {
     ),
     fulfillmentService: new FulfillmentService(orderRepoInstance!, shippingRepoInstance!),
     orderManagementService: new OrderManagementService(orderRepoInstance!, getAuditService()),
-    orderQueryService: new OrderQueryService(orderRepoInstance!),
+    orderQueryService: new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),
     refundService: new RefundService(orderRepoInstance!, paymentProcessorInstance!, getAuditService(), productRepoInstance!, discountRepoInstance!, lockProviderInstance!),
     discountService: new DiscountService(discountRepoInstance!, getAuditService(), orderRepoInstance!),
     settingsService: new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),
@@ -307,7 +307,7 @@ export function getInitialServices() {
       return stripeServiceInstance;
     })(),
     emailService: (() => {
-      if (!emailServiceInstance) emailServiceInstance = new BrevoEmailService();
+      if (!emailServiceInstance) emailServiceInstance = new BrevoEmailService(getAuditService());
       return emailServiceInstance;
     })(),
     rateLimitService: (() => {
@@ -315,7 +315,7 @@ export function getInitialServices() {
       return rateLimitServiceInstance;
     })(),
     operationsRuntimeService: new OperationsRuntimeService(
-      new OrderQueryService(orderRepoInstance!),
+      new OrderQueryService(orderRepoInstance!, new ProductService(productRepoInstance!, getAuditService())),
       new ProductService(productRepoInstance!, getAuditService()),
       getPurchaseOrderService(),
       new SettingsService(settingsRepoInstance!, productRepoInstance!, discountRepoInstance!, getAuditService()),

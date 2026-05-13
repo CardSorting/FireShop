@@ -645,7 +645,7 @@ export function calculateShipping(
   address: Address,
   allRates: ShippingRate[],
   allZones: ShippingZone[]
-): { amount: number; rateName: string; shippingClassId?: string } {
+): { amount: number; rateName: string; shippingClassId?: string; carrier?: string; serviceCode?: string } {
   const subtotal = cartItems.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0);
   
   // 1. Find matching zone
@@ -683,7 +683,9 @@ export function calculateShipping(
     return { 
       amount: matchedRate.amount, 
       rateName: matchedRate.name,
-      shippingClassId: matchedRate.shippingClassId
+      shippingClassId: matchedRate.shippingClassId,
+      carrier: matchedRate.carrier,
+      serviceCode: matchedRate.serviceCode
     };
   }
 

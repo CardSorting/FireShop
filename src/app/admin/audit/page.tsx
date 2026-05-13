@@ -34,6 +34,23 @@ export default function AuditLogsPage() {
     log.targetId.toLowerCase().includes(filter.toLowerCase())
   );
 
+  async function verifyIntegrity() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/audit', { method: 'POST' });
+      const result = await res.json();
+      if (result.valid) {
+        alert(`Forensic Integrity Verified: Successfully validated ${result.total} blocks. Zero corruption detected.`);
+      } else {
+        alert(`CRITICAL CORRUPTION DETECTED: ${result.reason} at block ${result.corruptedId}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Verification failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <AdminPageHeader 
@@ -41,14 +58,24 @@ export default function AuditLogsPage() {
         subtitle="System-wide activity and forensic logs"
         category="Security"
         actions={
-          <button 
-            onClick={loadLogs}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={verifyIntegrity}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-lg border border-primary-100 bg-primary-50 px-4 py-2 text-sm font-bold text-primary-700 hover:bg-primary-100 disabled:opacity-50"
+            >
+              <Shield className="h-4 w-4" />
+              Verify Integrity
+            </button>
+            <button 
+              onClick={loadLogs}
+              disabled={loading}
+              className="flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         }
       />
 

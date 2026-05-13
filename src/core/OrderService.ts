@@ -53,8 +53,8 @@ import {
 } from '@domain/rules';
 import { AuditService } from './AuditService';
 import { DiscountService } from './DiscountService';
-import { logger } from '@utils/logger';
 import { Sanitizer } from '@utils/sanitizer';
+import { logger } from '@utils/logger';
 import { runTransaction, getUnifiedDb } from '@infrastructure/firebase/bridge';
 
 /**
@@ -249,7 +249,12 @@ export class OrderService {
         }
 
         // 3. Calculate Final Logistics
-        const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : 599;
+        const [allRates, allZones] = this.shippingRepo 
+          ? await Promise.all([this.shippingRepo.getAllRates(), this.shippingRepo.getAllZones()])
+          : [[], []];
+
+        const shippingResult = calculateShipping(cart.items, shippingAddress, allRates, allZones);
+        const shipping = (subtotal >= 10000 || isFreeShipping || fulfillmentMethod === 'pickup') ? 0 : shippingResult.amount;
         const taxAmount = calculateTax({ subtotal, shipping, discount: discountAmount, address: shippingAddress });
         const total = Math.max(0, subtotal + shipping + taxAmount - discountAmount);
 
@@ -296,6 +301,8 @@ export class OrderService {
           total,
           status: 'pending',
           shippingAddress,
+          shippingClassId: shippingResult.shippingClassId,
+          shippingCarrier: shippingResult.carrier,
           customerEmail: userEmail,
           customerName: userName,
           paymentTransactionId: null,
@@ -304,6 +311,15 @@ export class OrderService {
           fulfillmentLocationId: 'primary',
           fulfillments: [],
           notes: [],
+          metadata: {
+            shippingRateName: shippingResult.rateName,
+            shippingServiceCode: shippingResult.serviceCode,
+            inventoryReserved: stockUpdates.length > 0,
+            inventoryReservationReleased: false,
+            inventoryReservationFinalized: false,
+            inventoryReservationExpiresAt: reservationExpiresAt,
+            fencingToken: fencingToken,
+          },
           riskScore: 0,
           estimatedDeliveryDate: deriveEstimatedDeliveryDate({ createdAt: new Date() } as any),
           fulfillmentEvents: [{ 
@@ -313,13 +329,6 @@ export class OrderService {
             description: 'Order received, pending payment verification.', 
             at: new Date() 
           }],
-          metadata: {
-            inventoryReserved: stockUpdates.length > 0,
-            inventoryReservationReleased: false,
-            inventoryReservationFinalized: false,
-            inventoryReservationExpiresAt: reservationExpiresAt,
-            fencingToken: fencingToken,
-          }
         };
 
         const createdOrder = await this.orderRepo.create(orderData, transaction);

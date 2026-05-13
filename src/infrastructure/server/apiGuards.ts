@@ -542,8 +542,8 @@ export function parseCheckoutRequest(body: Record<string, unknown>): {
     };
 }
 
-export function jsonError(error: unknown, fallback = 'Request failed'): NextResponse {
-    const traceId = randomUUID();
+export function jsonError(error: unknown, fallback = 'Request failed', request?: Request): NextResponse {
+    const traceId = request?.headers.get('x-trace-id') || request?.headers.get('x-correlation-id') || randomUUID();
     const isExpected = error instanceof AuthError
         || error instanceof UnauthorizedError
         || error instanceof OrderNotFoundError
@@ -574,9 +574,12 @@ export function jsonError(error: unknown, fallback = 'Request failed'): NextResp
                     ? 400
                     : 500;
 
-    const headers = error instanceof RateLimitError
-        ? { 'Retry-After': String(error.retryAfterSeconds) }
-        : undefined;
+    const headers: Record<string, string> = {
+        'X-Trace-ID': traceId
+    };
+    if (error instanceof RateLimitError) {
+        headers['Retry-After'] = String(error.retryAfterSeconds);
+    }
 
     const body: Record<string, any> = { error: message };
     if (!isExpected || status === 500) {

@@ -1101,6 +1101,8 @@ export interface ShippingRate {
   minLimit?: number; // grams or cents
   maxLimit?: number; // grams or cents
   amount: number; // cents
+  carrier?: string; // e.g. 'UPS', 'USPS', 'FedEx'
+  serviceCode?: string; // e.g. 'ground', 'priority'
   createdAt: Date;
   updatedAt: Date;
 }

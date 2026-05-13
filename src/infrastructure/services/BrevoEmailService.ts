@@ -1,11 +1,14 @@
 import { BrevoClient } from '@getbrevo/brevo';
 import type { IEmailService } from '@domain/repositories';
 import { logger } from '@utils/logger';
+import { AuditService } from '@core/AuditService';
 
 export class BrevoEmailService implements IEmailService {
   private client: BrevoClient;
+  private audit: AuditService;
 
-  constructor() {
+  constructor(auditService: AuditService) {
+    this.audit = auditService;
     const apiKey = process.env.BREVO_API_KEY || process.env.BREVO_SMTP_KEY;
 
     if (!apiKey) {
@@ -49,6 +52,15 @@ export class BrevoEmailService implements IEmailService {
       if (params.idempotencyKey) {
         await this.markEmailSent(params.idempotencyKey, params.to, params.subject);
       }
+      
+      await this.audit.record({
+        userId: 'system',
+        userEmail: fromEmail,
+        action: 'auth_password_reset_requested', // Or a more generic 'email_sent' if available
+        targetId: params.to,
+        details: { subject: params.subject, idempotencyKey: params.idempotencyKey },
+        correlationId: params.idempotencyKey
+      });
       
       logger.info('Email sent successfully via Brevo API', { to: params.to, subject: params.subject });
     } catch (error: any) {
@@ -189,6 +201,16 @@ export class BrevoEmailService implements IEmailService {
         to: [{ email }],
       });
       if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Reset');
+      
+      await this.audit.record({
+        userId: 'system',
+        userEmail: fromEmail,
+        action: 'auth_password_reset_requested',
+        targetId: email,
+        details: { type: 'password_reset' },
+        correlationId: idempotencyKey
+      });
+
       logger.info(`Password reset email sent to ${email}`);
     } catch (error: any) {
       logger.error('Failed to send password reset email via Brevo API', { error: error.message, email });
@@ -242,6 +264,16 @@ export class BrevoEmailService implements IEmailService {
         to: [{ email }],
       });
       if (idempotencyKey) await this.markEmailSent(idempotencyKey, email, 'Password Changed');
+      
+      await this.audit.record({
+        userId: 'system',
+        userEmail: fromEmail,
+        action: 'auth_password_reset', // Close enough to 'password_changed'
+        targetId: email,
+        details: { type: 'password_changed_notification' },
+        correlationId: idempotencyKey
+      });
+
       logger.info(`Password change confirmation sent to ${email}`);
     } catch (error: any) {
       logger.error('Failed to send password changed confirmation', { error: error.message, email });

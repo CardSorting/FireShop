@@ -86,17 +86,68 @@ export class FulfillmentService {
   }
 
   async getLogisticsPerformanceReport(): Promise<LogisticsPerformance> {
-    const stats = await this.orderRepo.getDashboardStats();
-    return {
-      avgFulfillmentTimeHours: 18.5,
-      onTimeDeliveryRate: 98.2,
-      carrierPerformance: {
-         'USPS': { avgTransitDays: 3.2, breachRate: 0.05 },
-         'UPS': { avgTransitDays: 2.1, breachRate: 0.01 },
-         'FedEx': { avgTransitDays: 2.4, breachRate: 0.02 }
-      },
-      shippingProfitability: stats.totalRevenue * 0.15
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    // Industrialized: Fetch recent orders to calculate real performance
+    const { orders } = await this.orderRepo.getAll({ from: ninetyDaysAgo, limit: 1000 });
+    
+    let totalFulfillmentHours = 0;
+    let fulfilledCount = 0;
+    let onTimeCount = 0;
+    let shippingRevenue = 0;
+    let estimatedCost = 0;
+
+    const carrierStats: Record<string, { totalTransitDays: number; count: number; breaches: number }> = {};
+
+    for (const order of orders) {
+      shippingRevenue += (order.shippingAmount || 0);
+      
+      const placedAt = order.createdAt.getTime();
+      const confirmedEvent = order.fulfillmentEvents?.find(e => e.type === 'payment_confirmed');
+      const shippedEvent = order.fulfillmentEvents?.find(e => e.type === 'in_transit');
+      const deliveredEvent = order.fulfillmentEvents?.find(e => e.type === 'delivered');
+
+      if (shippedEvent && confirmedEvent) {
+        const diffHours = (shippedEvent.at.getTime() - confirmedEvent.at.getTime()) / (1000 * 60 * 60);
+        totalFulfillmentHours += diffHours;
+        fulfilledCount++;
+      }
+
+      if (deliveredEvent && order.estimatedDeliveryDate) {
+        if (deliveredEvent.at.getTime() <= order.estimatedDeliveryDate.getTime()) {
+          onTimeCount++;
+        }
+      }
+
+      if (order.shippingCarrier) {
+        const carrier = order.shippingCarrier;
+        if (!carrierStats[carrier]) carrierStats[carrier] = { totalTransitDays: 0, count: 0, breaches: 0 };
+        
+        if (shippedEvent && deliveredEvent) {
+          const transitDays = (deliveredEvent.at.getTime() - shippedEvent.at.getTime()) / (1000 * 60 * 60 * 24);
+          carrierStats[carrier].totalTransitDays += transitDays;
+          carrierStats[carrier].count++;
+          if (transitDays > 5) carrierStats[carrier].breaches++; // Industrialized threshold
+        }
+      }
+    }
+
+    const performance: LogisticsPerformance = {
+      avgFulfillmentTimeHours: fulfilledCount > 0 ? Math.round(totalFulfillmentHours / fulfilledCount * 10) / 10 : 24,
+      onTimeDeliveryRate: orders.length > 0 ? Math.round((onTimeCount / orders.length) * 1000) / 10 : 100,
+      carrierPerformance: {},
+      shippingProfitability: shippingRevenue - estimatedCost // In a real app, estimatedCost would come from a carrier API
     };
+
+    for (const [carrier, stats] of Object.entries(carrierStats)) {
+      performance.carrierPerformance[carrier] = {
+        avgTransitDays: stats.count > 0 ? Math.round(stats.totalTransitDays / stats.count * 10) / 10 : 0,
+        breachRate: stats.count > 0 ? Math.round((stats.breaches / stats.count) * 1000) / 10 : 0
+      };
+    }
+
+    return performance;
   }
 
   async advanceFulfillment(orderId: string, trackingNumber?: string): Promise<void> {
@@ -116,7 +167,7 @@ export class FulfillmentService {
        await this.orderRepo.updateStatus(orderId, 'shipped');
        await this.orderRepo.updateFulfillment(orderId, {
          trackingNumber,
-         shippingCarrier: 'Carrier',
+         shippingCarrier: order.shippingCarrier || 'Standard',
        });
        await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Track: ${trackingNumber}`);
        return;
