@@ -5,17 +5,17 @@ import { logger } from '@utils/logger';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const sessionId = params.id;
+    const { id: sessionId } = await params;
     const body = await req.json();
     const { action, payload, operator } = body;
 
     const db = getDb();
     const sessionRef = doc(db, 'conciergeSessions', sessionId);
 
-    let updates: any = {
+    const updates: any = {
       updatedAt: serverTimestamp(),
     };
 

@@ -33,7 +33,29 @@ import { ConciergeSettings } from '@domain/concierge/settings';
 import { useCart } from '@ui/hooks/useCart';
 import { useAuth } from '@ui/hooks/useAuth';
 
-export function ConciergeBubble() {
+interface ConciergeBubbleProps {
+  initialContext?: {
+    userSession?: {
+      id: string;
+      email: string;
+      name?: string;
+    };
+    cartContents: {
+      productId: string;
+      name: string;
+      quantity: number;
+      price: number;
+    }[];
+    shippingPolicy: string;
+    returnPolicy: string;
+  };
+  productInfo?: {
+    name: string;
+    id: string;
+  };
+}
+
+export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubbleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ClientChatMessage[]>([
     { 
@@ -219,7 +241,7 @@ export function ConciergeBubble() {
       // Handle Streaming
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
-      let assistantMsg = '';
+      const chunks: string[] = [];
       
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
@@ -228,11 +250,12 @@ export function ConciergeBubble() {
         if (done) break;
         
         const chunk = decoder.decode(value);
-        assistantMsg += chunk;
+        chunks.push(chunk);
+        const fullContent = chunks.join('');
 
         // Detect Barter Success in stream (for immediate UI feedback)
-        if (assistantMsg.includes('[BARTER_SUCCESS:')) {
-          const match = assistantMsg.match(/\[BARTER_SUCCESS:\s*(\d+)%\]/);
+        if (fullContent.includes('[BARTER_SUCCESS:')) {
+          const match = fullContent.match(/\[BARTER_SUCCESS:\s*(\d+)%\]/);
           if (match) {
             setAgreedPercentage(parseInt(match[1]));
             setIsDealReached(true);
@@ -243,7 +266,7 @@ export function ConciergeBubble() {
           const last = [...prev];
           last[last.length - 1] = { 
             role: 'assistant', 
-            content: assistantMsg.replace(/\[BARTER_SUCCESS:.*?\]/g, '') 
+            content: fullContent.replace(/\[BARTER_SUCCESS:.*?\]/g, '') 
           };
           return last;
         });

@@ -11,10 +11,12 @@ describe('Discount Lifecycle Standalone Logic Proof', () => {
     const hasUsed = await checkUserDiscountUsage(userId, discount.code);
     
     expect(hasUsed).toBe(true);
+    let valid = true;
+    let message = '';
     if (discount.oncePerCustomer && hasUsed) {
         // This is the logic in DiscountService.ts:86
-        var valid = false;
-        var message = 'You have already used this discount code.';
+        valid = false;
+        message = 'You have already used this discount code.';
     }
     
     expect(valid).toBe(false);
