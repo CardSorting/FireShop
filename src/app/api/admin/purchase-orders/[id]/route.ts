@@ -55,7 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         notes: body.notes,
         locationId: body.locationId,
         idempotencyKey: body.idempotencyKey,
-      });
+      }, { id: user.id, email: user.email });
       return NextResponse.json(result);
     }
 

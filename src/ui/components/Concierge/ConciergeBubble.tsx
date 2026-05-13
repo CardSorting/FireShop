@@ -223,7 +223,9 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
                   <h3 className="text-[11px] font-black leading-none">Sarah</h3>
                   <span className="text-[6px] font-black text-primary-300 uppercase bg-primary-900/40 px-1 py-0.5 rounded-sm">Live</span>
                 </div>
-                <span className="text-[6px] font-black uppercase text-gray-500 tracking-tighter">100% Rate • 9-6 Studio</span>
+                <span className="text-[6px] font-black uppercase text-gray-500 tracking-tighter">
+                  {settings?.responseRate || '100%'} Rate • {settings?.studioHours || '9-6 Studio'}
+                </span>
               </div>
             </div>
             <button onClick={toggleOpen} className="p-1 hover:bg-white/10 rounded-full transition-colors relative z-10">

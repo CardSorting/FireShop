@@ -365,7 +365,7 @@ export class PurchaseOrderService {
   // Receiving Workflow
   // ─────────────────────────────────────────────
 
-  async receiveItems(input: ReceiveItemsInput): Promise<{
+  async receiveItems(input: ReceiveItemsInput, actor: { id: string, email: string }): Promise<{
     purchaseOrder: PurchaseOrder;
     session: ReceivingSession;
     inventoryUpdates: InventoryLevel[];
@@ -518,8 +518,8 @@ export class PurchaseOrderService {
 
         // 5. Record Audit (Transactional)
         await this.auditService.recordWithTransaction(transaction, {
-          userId: input.receivedBy,
-          userEmail: 'admin@dreambees.art',
+          userId: actor.id,
+          userEmail: actor.email,
           action: 'purchase_order.items_received',
           targetId: input.purchaseOrderId,
           details: { 

@@ -149,12 +149,12 @@ export class AuditService {
     } catch (err) {
       // Critical Failure: Audit log failed. In a strict system, we might roll back the primary operation,
       // but here we log a high-priority error for forensic recovery.
-      logger.error('CRITICAL: Audit log failure', { 
+      // Potential improvement: Write to a secondary failover sink (e.g. local storage or a fallback API)
+      console.error('[CRITICAL_AUDIT_FAILOVER]', JSON.stringify({ 
+        timestamp: new Date().toISOString(),
         params, 
         error: err instanceof Error ? err.message : String(err) 
-      });
-      
-      // Potential improvement: Write to a secondary failover sink (e.g. local storage or a fallback API)
+      }));
     }
   }
 
