@@ -1108,3 +1108,174 @@ export interface ShippingRate {
   updatedAt: Date;
 }
 
+
+// ─────────────────────────────────────────────
+// Marketing & Campaigns
+// ─────────────────────────────────────────────
+
+export type CampaignType =
+  | 'welcome_series'
+  | 'abandoned_cart'
+  | 'browse_abandonment'
+  | 'site_abandonment'
+  | 'post_purchase'
+  | 'replenishment'
+  | 'review_request'
+  | 'comeback_offer'
+  | 'product_upsell'
+  | 'loyalty_reward'
+  | 'cross_sell'
+  | 'win_back'
+  | 'sunset';
+export type CampaignStatus = 'draft' | 'active' | 'paused' | 'archived' | 'completed';
+export type CampaignChannel = 'email' | 'sms' | 'concierge_push' | 'store_notice';
+export type CampaignLifecycleStage = 'reach' | 'acquisition' | 'intent_capture' | 'consideration' | 'conversion' | 'retention' | 'winback' | 'loyalty' | 'sunset';
+export type CampaignOfferStrategy = 'none' | 'social_proof' | 'help_first' | 'free_shipping' | 'tiered_discount' | 'bundle_value' | 'vip_access';
+
+export interface MarketingCampaign {
+  id: string;
+  name: string;
+  description: string;
+  type: CampaignType;
+  status: CampaignStatus;
+  channels: CampaignChannel[];
+  
+  // Triggers
+  triggerType: 'event' | 'segment' | 'schedule';
+  triggerConfig: {
+    delayHours?: number;
+    inactivityDays?: number;
+    minimumCartValue?: number;
+    specificProductIds?: string[];
+    specificCollectionIds?: string[];
+    segmentId?: string;
+  };
+
+  // Content & AI
+  aiPersonalizationEnabled: boolean;
+  baseTemplateId?: string;
+  subjectTemplate?: string;
+  bodyTemplate?: string;
+  discountCode?: string; // LINK to Discount
+  
+  // Goals & Metrics
+  goalType: 'purchase' | 'visit' | 'click';
+  conversionWindowDays: number;
+  lifecycleStage?: CampaignLifecycleStage;
+  offerStrategy?: CampaignOfferStrategy;
+  suppressionRules?: {
+    excludeRecentPurchasersDays?: number;
+    excludeActiveTicket?: boolean;
+    excludeRecentCampaignDays?: number;
+    requireConsent?: boolean;
+  };
+  learningObjective?: string;
+
+  // Multi-step Sequence
+  isSequence: boolean;
+  steps: CampaignStep[];
+  
+  // Frequency & Governance
+  frequencyCapDays?: number; // Min days between ANY marketing message
+  priority: number; // 1-10 (10 is highest)
+  
+  // Dynamic Incentives
+  dynamicIncentivesEnabled: boolean;
+  incentiveRules?: Array<{
+    minRfmScore: number;
+    discountCode: string;
+  }>;
+
+  // Analytics (Denormalized for list views)
+  sentCount: number;
+  clickCount: number;
+  conversionCount: number;
+  revenueGenerated: number; // cents
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CampaignEvent {
+  id: string;
+  campaignId: string;
+  userId: string;
+  customerEmail: string;
+  channel: CampaignChannel;
+  status: 'pending' | 'sent' | 'delivered' | 'failed' | 'clicked' | 'converted' | 'bounced' | 'complained';
+  
+  // Sequence context
+  stepIndex?: number; // 0-indexed step in the campaign sequence
+  variantId?: string; // If split test
+  nextStepDueAt?: Date;
+
+  // Content (Snapshot of what was actually sent)
+  subject: string;
+  body: string;
+  personalizedMetadata?: Record<string, any>;
+  
+  // Transactional context
+  relatedOrderId?: string;
+  conversionValue?: number; // cents
+  
+  error?: string;
+  sentAt?: Date;
+  clickedAt?: Date;
+  convertedAt?: Date;
+  createdAt: Date;
+}
+
+export interface CustomerSegment {
+  id: string;
+  name: string;
+  description: string;
+  queryType: 'manual' | 'dynamic';
+  rules: SegmentRule[];
+  customerCount: number;
+  lastCalculatedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SegmentRule {
+  field: 'total_spent' | 'order_count' | 'last_order_days' | 'tags' | 'category_interest' | 'location' | 'loyalty_tier';
+  operator: 'gt' | 'lt' | 'eq' | 'contains' | 'not_contains';
+  value: any;
+}
+
+export interface CampaignStep {
+  id: string;
+  delayHours: number;
+  subjectTemplate?: string;
+  bodyTemplate?: string;
+  discountCode?: string;
+  channel: CampaignChannel;
+  objective?: 'reminder' | 'objection_handling' | 'social_proof' | 'incentive' | 'concierge_assist' | 'last_call';
+  offerStrategy?: CampaignOfferStrategy;
+  
+  // A/B Testing
+  isSplitTest: boolean;
+  variants?: CampaignVariant[];
+}
+
+export interface CampaignVariant {
+  id: string;
+  weight: number; // 0-100
+  subjectTemplate: string;
+  bodyTemplate: string;
+  
+  // Metrics
+  sentCount: number;
+  conversionCount: number;
+}
+
+export interface MarketingOverview {
+  activeCampaigns: number;
+  totalCampaignRevenue: number; // cents
+  avgConversionRate: number;
+  topPerformingCampaigns: MarketingCampaign[];
+  recentCampaignEvents: CampaignEvent[];
+}
+
+export type MarketingCampaignDraft = Omit<MarketingCampaign, 'id' | 'sentCount' | 'clickCount' | 'conversionCount' | 'revenueGenerated' | 'createdAt' | 'updatedAt'>;
+export type MarketingCampaignUpdate = Partial<MarketingCampaignDraft>;

@@ -126,7 +126,7 @@ export function AdminConciergeInsights() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedSession, setSelectedSession] = useState<ConciergeSession | null>(null);
-  const [activeTab, setActiveTab] = useState<'inbox' | 'patterns' | 'digest' | 'settings'>('inbox');
+  const [activeTab, setActiveTab] = useState<'inbox' | 'patterns' | 'digest' | 'funnels' | 'settings'>('inbox');
   const [filter, setFilter] = useState('all');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     'findings': true,
@@ -144,6 +144,11 @@ export function AdminConciergeInsights() {
     minOrderValueForBarter: 50
   });
   const [storeDigest, setStoreDigest] = useState<any>(null);
+  const [marketingStrategy, setMarketingStrategy] = useState<any>(null);
+  const [isCreatingPlaybook, setIsCreatingPlaybook] = useState<string | null>(null);
+  const [isCreatingLifecycle, setIsCreatingLifecycle] = useState(false);
+  const [strategyAction, setStrategyAction] = useState<string | null>(null);
+  const [optimizationReport, setOptimizationReport] = useState<any>(null);
 
   const fetchSessions = async () => {
     setIsLoading(true);
@@ -238,6 +243,116 @@ export function AdminConciergeInsights() {
       fetchDigest();
     }
   }, [activeTab]);
+
+  const fetchMarketingStrategy = async () => {
+    try {
+      const res = await fetch('/api/admin/concierge/marketing-strategy');
+      if (res.ok) {
+        const data = await res.json();
+        setMarketingStrategy(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch marketing strategy');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'funnels') {
+      fetchMarketingStrategy();
+    }
+  }, [activeTab]);
+
+  const handleCreatePlaybook = async (playbookId: string) => {
+    setIsCreatingPlaybook(playbookId);
+    try {
+      const res = await fetch('/api/admin/concierge/marketing-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playbookId })
+      });
+      if (!res.ok) throw new Error('Failed to create playbook');
+      toast('success', 'Recovery playbook created as a draft');
+      await fetchMarketingStrategy();
+    } catch (error) {
+      toast('error', 'Failed to create recovery playbook');
+    } finally {
+      setIsCreatingPlaybook(null);
+    }
+  };
+
+  const handlePlaybookStatus = async (playbookId: string, action: 'activate_playbook' | 'pause_playbook') => {
+    setIsCreatingPlaybook(playbookId);
+    try {
+      const res = await fetch('/api/admin/concierge/marketing-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, playbookId })
+      });
+      if (!res.ok) throw new Error('Failed to update playbook');
+      toast('success', action === 'activate_playbook' ? 'Lifecycle playbook activated' : 'Lifecycle playbook paused');
+      await fetchMarketingStrategy();
+    } catch (error) {
+      toast('error', 'Failed to update lifecycle playbook');
+    } finally {
+      setIsCreatingPlaybook(null);
+    }
+  };
+
+  const handleCreateMissingLifecycle = async () => {
+    setIsCreatingLifecycle(true);
+    try {
+      const res = await fetch('/api/admin/concierge/marketing-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_missing_lifecycle_playbooks' })
+      });
+      if (!res.ok) throw new Error('Failed to create lifecycle drafts');
+      const data = await res.json();
+      toast('success', `Created ${data.created?.length || 0} lifecycle campaign drafts`);
+      await fetchMarketingStrategy();
+    } catch (error) {
+      toast('error', 'Failed to create lifecycle campaign drafts');
+    } finally {
+      setIsCreatingLifecycle(false);
+    }
+  };
+
+  const handleStrategyAction = async (action: 'run_lifecycle_automation_pulse' | 'activate_all_lifecycle_playbooks' | 'pause_all_lifecycle_playbooks') => {
+    setStrategyAction(action);
+    try {
+      const res = await fetch('/api/admin/concierge/marketing-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      if (!res.ok) throw new Error('Failed to run strategy action');
+      toast('success', action === 'run_lifecycle_automation_pulse' ? 'Lifecycle automation pulse completed' : 'Lifecycle strategy updated');
+      await fetchMarketingStrategy();
+    } catch (error) {
+      toast('error', 'Failed to run lifecycle strategy action');
+    } finally {
+      setStrategyAction(null);
+    }
+  };
+
+  const handleOptimizeStrategy = async () => {
+    setStrategyAction('optimize_lifecycle_strategy');
+    try {
+      const res = await fetch('/api/admin/concierge/marketing-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'optimize_lifecycle_strategy' })
+      });
+      if (!res.ok) throw new Error('Failed to optimize lifecycle strategy');
+      const report = await res.json();
+      setOptimizationReport(report);
+      toast('success', 'Lifecycle strategy optimization completed');
+    } catch (error) {
+      toast('error', 'Failed to optimize lifecycle strategy');
+    } finally {
+      setStrategyAction(null);
+    }
+  };
 
   const handleAnalyze = async (sessionId: string) => {
     setIsAnalyzing(true);
@@ -339,6 +454,7 @@ export function AdminConciergeInsights() {
             { id: 'inbox', label: 'Inbox', icon: Inbox },
             { id: 'patterns', label: 'Suggested Fixes', icon: Zap },
             { id: 'digest', label: 'Operational Digest', icon: FileText },
+            { id: 'funnels', label: 'Recovery Funnels', icon: Target },
             { id: 'settings', label: 'Settings', icon: Lock },
           ].map((tab) => (
             <button
@@ -821,6 +937,232 @@ export function AdminConciergeInsights() {
                  <button className="px-8 py-4 bg-primary-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-primary-800 transition-all">Review Impact</button>
               </div>
            </div>
+        </div>
+      )}
+
+      {activeTab === 'funnels' && (
+        <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 rounded-3xl border border-gray-100 bg-white p-10 shadow-sm">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <h3 className="text-2xl font-black text-gray-900">Autonomous Lifetime Strategy</h3>
+                  <p className="mt-3 max-w-2xl text-sm font-bold leading-relaxed text-gray-500">
+                    {marketingStrategy?.summary || 'Loading lifecycle coverage and concierge recovery playbooks...'}
+                  </p>
+                </div>
+                <button
+                  onClick={fetchMarketingStrategy}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-500 shadow-sm transition hover:bg-gray-50"
+                >
+                  <RefreshCcw className="h-4 w-4" />
+                  Refresh
+                </button>
+                <button
+                  onClick={handleCreateMissingLifecycle}
+                  disabled={isCreatingLifecycle}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-sm transition hover:bg-black disabled:opacity-50"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {isCreatingLifecycle ? 'Creating' : 'Create Missing'}
+                </button>
+                <button
+                  onClick={() => handleStrategyAction('run_lifecycle_automation_pulse')}
+                  disabled={Boolean(strategyAction)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <Activity className="h-4 w-4" />
+                  {strategyAction === 'run_lifecycle_automation_pulse' ? 'Running' : 'Run Pulse'}
+                </button>
+                <button
+                  onClick={handleOptimizeStrategy}
+                  disabled={Boolean(strategyAction)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-100 bg-white px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-gray-600 shadow-sm transition hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  {strategyAction === 'optimize_lifecycle_strategy' ? 'Optimizing' : 'Optimize'}
+                </button>
+              </div>
+
+              <div className="mt-10 grid gap-3 md:grid-cols-2">
+                {(marketingStrategy?.funnelMap || []).map((stage: any) => (
+                  <div key={stage.stage} className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-primary-600">{stage.stage?.replace('_', ' ')}</p>
+                    <h4 className="mt-2 text-sm font-black text-gray-900">{stage.goal}</h4>
+                    <p className="mt-2 text-xs font-bold leading-relaxed text-gray-500">{stage.conciergeAction}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-gray-100 bg-gray-900 p-10 text-white shadow-xl">
+              <div className="flex items-center gap-3">
+                <ShieldCheck className="h-5 w-5 text-green-400" />
+                <h4 className="text-sm font-black uppercase tracking-widest">Guardrails</h4>
+              </div>
+              <div className="mt-8 space-y-4">
+                {(marketingStrategy?.guardrails || []).slice(0, 5).map((rule: string, i: number) => (
+                  <div key={i} className="flex gap-3">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+                    <p className="text-xs font-bold leading-relaxed text-gray-300">{rule}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            {(marketingStrategy?.playbooks || []).map((playbook: any) => {
+              const coverage = marketingStrategy?.coverage?.find((item: any) => item.playbookId === playbook.id);
+              const isActive = coverage?.status === 'active';
+              const isDraft = coverage?.status === 'draft';
+
+              return (
+                <div key={playbook.id} className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
+                  <div className="flex items-start justify-between gap-6">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <AdminBadge
+                          label={coverage?.status || 'missing'}
+                          type={isActive ? 'green' : isDraft ? 'amber' : 'gray'}
+                        />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+                          {playbook.lifecycleStage?.replace('_', ' ')}
+                        </span>
+                      </div>
+                      <h4 className="mt-4 text-xl font-black text-gray-900">{playbook.name}</h4>
+                      <p className="mt-3 text-sm font-bold leading-relaxed text-gray-500">{playbook.description}</p>
+                    </div>
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-600">
+                      <Target className="h-7 w-7" />
+                    </div>
+                  </div>
+
+                  <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-2xl bg-gray-50 p-4">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Trigger</p>
+                      <p className="mt-2 text-xs font-black text-gray-900">{playbook.triggerSummary}</p>
+                    </div>
+                    <div className="rounded-2xl bg-gray-50 p-4">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Offer</p>
+                      <p className="mt-2 text-xs font-black text-gray-900">{playbook.offerStrategy?.replace('_', ' ')}</p>
+                    </div>
+                    <div className="rounded-2xl bg-gray-50 p-4">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Cadence</p>
+                      <p className="mt-2 text-xs font-black text-gray-900">{playbook.steps?.length || 0} touches</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-8 space-y-3">
+                    {(playbook.steps || []).map((step: any, i: number) => (
+                      <div key={`${playbook.id}-${i}`} className="flex items-center gap-4 rounded-2xl border border-gray-100 p-4">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gray-900 text-[11px] font-black text-white">{i + 1}</div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-black text-gray-900">{step.subjectTemplate}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                            {step.delayHours}h delay · {step.objective?.replace('_', ' ')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 flex items-center justify-between gap-6 border-t border-gray-50 pt-6">
+                    <p className="text-xs font-bold leading-relaxed text-gray-500">{coverage?.recommendation || playbook.expectedOutcome}</p>
+                    {isActive ? (
+                      <button
+                        onClick={() => handlePlaybookStatus(playbook.id, 'pause_playbook')}
+                        disabled={isCreatingPlaybook === playbook.id}
+                        className="shrink-0 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-gray-700 shadow-sm transition hover:border-gray-900 disabled:opacity-40"
+                      >
+                        {isCreatingPlaybook === playbook.id ? 'Pausing...' : 'Pause'}
+                      </button>
+                    ) : isDraft ? (
+                      <button
+                        onClick={() => handlePlaybookStatus(playbook.id, 'activate_playbook')}
+                        disabled={isCreatingPlaybook === playbook.id}
+                        className="shrink-0 rounded-2xl bg-gray-900 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition hover:bg-black disabled:opacity-40"
+                      >
+                        {isCreatingPlaybook === playbook.id ? 'Activating...' : 'Activate'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleCreatePlaybook(playbook.id)}
+                        disabled={isCreatingPlaybook === playbook.id}
+                        className="shrink-0 rounded-2xl bg-gray-900 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition hover:bg-black disabled:opacity-40"
+                      >
+                        {isCreatingPlaybook === playbook.id ? 'Creating...' : 'Create Draft'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
+            <h4 className="text-sm font-black uppercase tracking-widest text-gray-900">World-Class Lifecycle Patterns Mirrored</h4>
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              {(marketingStrategy?.industryPatterns || []).map((pattern: string, i: number) => (
+                <div key={i} className="flex gap-3 rounded-2xl bg-gray-50 p-4">
+                  <BarChart3 className="mt-0.5 h-4 w-4 shrink-0 text-primary-600" />
+                  <p className="text-xs font-bold leading-relaxed text-gray-600">{pattern}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {optimizationReport && (
+            <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
+              <div className="flex items-start justify-between gap-6">
+                <div>
+                  <h4 className="text-sm font-black uppercase tracking-widest text-gray-900">Optimization Report</h4>
+                  <p className="mt-2 text-xs font-bold text-gray-500">
+                    Coverage {optimizationReport.scorecard?.coverageScore}% · Activation {optimizationReport.scorecard?.activationScore}% · Revenue/recipient ${((optimizationReport.scorecard?.revenuePerRecipient || 0) / 100).toFixed(2)}
+                  </p>
+                </div>
+                <AdminBadge label={`${optimizationReport.recommendations?.length || 0} actions`} type="blue" />
+              </div>
+              <div className="mt-6 grid gap-3 md:grid-cols-2">
+                {(optimizationReport.recommendations || []).slice(0, 6).map((item: any, i: number) => (
+                  <div key={i} className="rounded-2xl bg-gray-50 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[9px] font-black uppercase tracking-widest text-primary-600">{item.action?.replace(/_/g, ' ')}</p>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{item.priority}</span>
+                    </div>
+                    <p className="mt-2 text-xs font-bold leading-relaxed text-gray-600">{item.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-sm">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h4 className="text-sm font-black uppercase tracking-widest text-gray-900">Strategy-Wide Controls</h4>
+                <p className="mt-2 max-w-2xl text-xs font-bold leading-relaxed text-gray-500">
+                  Use these only after reviewing coverage, guardrails, and suppression rules.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => handleStrategyAction('activate_all_lifecycle_playbooks')}
+                  disabled={Boolean(strategyAction)}
+                  className="rounded-2xl bg-gray-900 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition hover:bg-black disabled:opacity-40"
+                >
+                  {strategyAction === 'activate_all_lifecycle_playbooks' ? 'Activating...' : 'Activate All'}
+                </button>
+                <button
+                  onClick={() => handleStrategyAction('pause_all_lifecycle_playbooks')}
+                  disabled={Boolean(strategyAction)}
+                  className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-gray-700 shadow-sm transition hover:border-gray-900 disabled:opacity-40"
+                >
+                  {strategyAction === 'pause_all_lifecycle_playbooks' ? 'Pausing...' : 'Pause All'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

@@ -42,6 +42,7 @@ export type AuditAction =
   | 'concierge_analyzed' | 'concierge_escalated'
   | 'security_alert'
   | 'ticket_updated' | 'ticket_status_changed' | 'ticket_batch_updated'
+  | 'campaign_created' | 'campaign_executed' | 'campaign_converted'
   | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted';
 
 export interface AuditEntry {

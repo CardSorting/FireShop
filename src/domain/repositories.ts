@@ -347,3 +347,33 @@ export interface IEmailService {
   sendPasswordResetEmail(email: string, resetLink: string, idempotencyKey?: string): Promise<void>;
   sendPasswordChangedEmail(email: string, idempotencyKey?: string): Promise<void>;
 }
+
+export interface ICampaignRepository {
+  getAll(options?: { status?: import('./models').CampaignStatus; type?: import('./models').CampaignType; limit?: number }): Promise<import('./models').MarketingCampaign[]>;
+  getById(id: string): Promise<import('./models').MarketingCampaign | null>;
+  create(campaign: import('./models').MarketingCampaignDraft): Promise<import('./models').MarketingCampaign>;
+  update(id: string, updates: import('./models').MarketingCampaignUpdate): Promise<import('./models').MarketingCampaign>;
+  delete(id: string): Promise<void>;
+  incrementMetrics(id: string, metrics: { sent?: number; clicked?: number; converted?: number; revenue?: number }): Promise<void>;
+  getOverview(): Promise<import('./models').MarketingOverview>;
+}
+
+export interface ICampaignEventRepository {
+  create(event: Omit<import('./models').CampaignEvent, 'id' | 'createdAt'>): Promise<import('./models').CampaignEvent>;
+  getById(id: string): Promise<import('./models').CampaignEvent | null>;
+  getByUserId(userId: string, limit?: number): Promise<import('./models').CampaignEvent[]>;
+  getByCampaignId(campaignId: string, limit?: number): Promise<import('./models').CampaignEvent[]>;
+  updateStatus(id: string, status: import('./models').CampaignEvent['status'], metadata?: Record<string, any>): Promise<void>;
+  recordConversion(id: string, orderId: string, value: number): Promise<void>;
+  getPendingEvents(limit?: number): Promise<import('./models').CampaignEvent[]>;
+  getScheduledStepsDue(limit?: number): Promise<import('./models').CampaignEvent[]>;
+}
+
+export interface ICustomerSegmentRepository {
+  getAll(): Promise<import('./models').CustomerSegment[]>;
+  getById(id: string): Promise<import('./models').CustomerSegment | null>;
+  create(segment: Omit<import('./models').CustomerSegment, 'id' | 'createdAt' | 'updatedAt' | 'customerCount'>): Promise<import('./models').CustomerSegment>;
+  update(id: string, updates: Partial<import('./models').CustomerSegment>): Promise<import('./models').CustomerSegment>;
+  delete(id: string): Promise<void>;
+  updateCustomerCount(id: string, count: number): Promise<void>;
+}

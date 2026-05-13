@@ -26,6 +26,9 @@ import { FirestoreTicketRepository } from '@infrastructure/repositories/firestor
 import { FirestoreKnowledgebaseRepository } from '@infrastructure/repositories/firestore/FirestoreKnowledgebaseRepository';
 import { FirestoreShippingRepository } from '@infrastructure/repositories/firestore/FirestoreShippingRepository';
 import { FirestoreLocker } from '@infrastructure/repositories/firestore/FirestoreLocker';
+import { FirestoreCampaignRepository } from '@infrastructure/repositories/firestore/FirestoreCampaignRepository';
+import { FirestoreCampaignEventRepository } from '@infrastructure/repositories/firestore/FirestoreCampaignEventRepository';
+import { FirestoreCustomerSegmentRepository } from '@infrastructure/repositories/firestore/FirestoreCustomerSegmentRepository';
 import { ProductService } from './ProductService';
 import { CartService } from './CartService';
 import { OrderService } from './OrderService';
@@ -47,6 +50,7 @@ import { RefundService } from './RefundService';
 import { RateLimitService } from './RateLimitService';
 import { OperationsRuntimeService } from './OperationsRuntimeService';
 import { ConciergeService } from './ConciergeService';
+import { CampaignService } from './marketing';
 import { assertMultiStoreNotEnabled, SINGLE_STORE_ID } from './TenantContext';
 import type {
   IProductRepository,
@@ -106,6 +110,10 @@ let shippingServiceInstance: ShippingService | null = null;
 let emailServiceInstance: IEmailService | null = null;
 let rateLimitServiceInstance: RateLimitService | null = null;
 let conciergeServiceInstance: any | null = null;
+let campaignServiceInstance: CampaignService | null = null;
+let campaignRepoInstance: any | null = null;
+let campaignEventRepoInstance: any | null = null;
+let segmentRepoInstance: any | null = null;
 
 function createCheckoutGateway(): ICheckoutGateway | undefined {
   return process.env.CHECKOUT_ENDPOINT ? new TrustedCheckoutGateway() : undefined;
@@ -129,6 +137,9 @@ function createRepositories() {
     ticketRepo: new FirestoreTicketRepository(),
     kbRepo: new FirestoreKnowledgebaseRepository(),
     shippingRepo: new FirestoreShippingRepository(),
+    campaignRepo: new FirestoreCampaignRepository(),
+    campaignEventRepo: new FirestoreCampaignEventRepository(),
+    segmentRepo: new FirestoreCustomerSegmentRepository(),
   };
 }
 
@@ -187,6 +198,16 @@ export function getServiceContainer() {
       new SettingsService(repos.settingsRepo, repos.productRepo, repos.discountRepo, new AuditService()),
       new AuditService()
     ),
+    campaignService: new CampaignService(
+      repos.campaignRepo,
+      repos.campaignEventRepo,
+      repos.segmentRepo,
+      new BrevoEmailService(new AuditService()),
+      new AuditService(),
+      repos.orderRepo,
+      repos.cartRepo,
+      repos.productRepo
+    ),
     tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };
 }
@@ -217,6 +238,9 @@ export function getInitialServices() {
     ticketRepoInstance = repos.ticketRepo;
     kbRepoInstance = repos.kbRepo;
     shippingRepoInstance = repos.shippingRepo;
+    campaignRepoInstance = repos.campaignRepo;
+    campaignEventRepoInstance = repos.campaignEventRepo;
+    segmentRepoInstance = repos.segmentRepo;
   }
 
   if (!authProviderInstance) {
@@ -329,6 +353,21 @@ export function getInitialServices() {
     conciergeService: (() => {
       if (!conciergeServiceInstance) conciergeServiceInstance = new ConciergeService(getAuditService());
       return conciergeServiceInstance;
+    })(),
+    campaignService: (() => {
+      if (!campaignServiceInstance) {
+        campaignServiceInstance = new CampaignService(
+          campaignRepoInstance!,
+          campaignEventRepoInstance!,
+          segmentRepoInstance!,
+          emailServiceInstance || new BrevoEmailService(getAuditService()),
+          getAuditService(),
+          orderRepoInstance!,
+          cartRepoInstance!,
+          productRepoInstance!
+        );
+      }
+      return campaignServiceInstance;
     })(),
     tenantContext: { storeId: SINGLE_STORE_ID, multiStoreEnabled: false },
   };

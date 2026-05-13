@@ -37,6 +37,15 @@ export interface ConciergeSession {
     confidence: string;
     source: string;
   }>;
+  recaptureOpportunities?: Array<{
+    campaignType: 'abandoned_cart' | 'browse_abandonment' | 'comeback_offer' | 'win_back' | 'loyalty_reward' | 'service_recovery';
+    triggerSignal: string;
+    audienceFit: string;
+    recommendedMessageAngle: string;
+    offerGuidance: string;
+    suppressionReason?: string;
+    confidence: 'low' | 'medium' | 'high';
+  }>;
   ticketId?: string;
   status: 'active' | 'completed' | 'analyzed' | 'resolved' | 'failed';
   responseStatus?: 'waiting_on_store' | 'waiting_on_customer' | 'handled_by_concierge';
@@ -111,6 +120,8 @@ export class ConciergeService {
         3. HONESTY: Never guess inventory or policy. If uncertain, flag it for manual review.
         4. CONVERSION: Identify high-intent signals like "does this run large" or "how fast is shipping to X".
         5. TONE: Avoid "AI certainty". Use "Customers frequently mentioned..." or "A recurring pattern was detected...".
+        6. RECAPTURE: Identify whether the concierge should autonomously enroll this customer into a recovery campaign after the conversation.
+        7. INDUSTRY PATTERNS: Mirror familiar ecommerce lifecycle patterns: abandoned cart reminder, browse assist, comeback/win-back, loyalty protection, and service-recovery suppression before marketing.
 
         Return the result in JSON format:
         {
@@ -138,6 +149,17 @@ export class ConciergeService {
               "source": "Supporting signal",
               "impact": "conversion" | "support_burden" | "loyalty",
               "isAssumption": boolean
+            }
+          ],
+          "recaptureOpportunities": [
+            {
+              "campaignType": "abandoned_cart" | "browse_abandonment" | "comeback_offer" | "win_back" | "loyalty_reward" | "service_recovery",
+              "triggerSignal": "Observed customer behavior or phrase that justifies this flow",
+              "audienceFit": "Why this person belongs or should be excluded",
+              "recommendedMessageAngle": "Personalized angle Sarah should use",
+              "offerGuidance": "No discount, help-first, small tiered discount, bundle value, VIP access, or service recovery",
+              "suppressionReason": "Why not to market yet, if applicable",
+              "confidence": "low" | "medium" | "high"
             }
           ]
         }
@@ -173,6 +195,7 @@ export class ConciergeService {
         evidenceQuotes: parsedResult.evidenceQuotes,
         insights: parsedResult.insights,
         suggestions: parsedResult.suggestions,
+        recaptureOpportunities: parsedResult.recaptureOpportunities || [],
         status: 'analyzed',
         isRepeatIssue: repeatFrequency > 0,
         repeatFrequency: repeatFrequency,

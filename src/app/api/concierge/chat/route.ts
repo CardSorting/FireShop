@@ -394,6 +394,18 @@ export async function POST(req: NextRequest) {
           systemStatus: Array.from(fullResponse.matchAll(/\[GET_SYSTEM_STATUS\]/g)),
           getMacros: Array.from(fullResponse.matchAll(/\[GET_SUPPORT_MACROS\]/g)),
           getCustomerInsights: Array.from(fullResponse.matchAll(/\[GET_CUSTOMER_INSIGHTS:\s*"([^"]+)"\]/g)),
+          getLifecycleStrategy: Array.from(fullResponse.matchAll(/\[GET_LIFECYCLE_STRATEGY\]/g)),
+          deepCustomerLifecycle: Array.from(fullResponse.matchAll(/\[DEEP_CUSTOMER_LIFECYCLE:\s*"([^"]+)"\]/g)),
+          createLifecyclePlaybook: Array.from(fullResponse.matchAll(/\[CREATE_LIFECYCLE_PLAYBOOK:\s*"([^"]+)"\]/g)),
+          createAllLifecyclePlaybooks: Array.from(fullResponse.matchAll(/\[CREATE_ALL_LIFECYCLE_PLAYBOOKS\]/g)),
+          runLifecycleAutomationPulse: Array.from(fullResponse.matchAll(/\[RUN_LIFECYCLE_AUTOMATION_PULSE\]/g)),
+          optimizeLifecycleStrategy: Array.from(fullResponse.matchAll(/\[OPTIMIZE_LIFECYCLE_STRATEGY\]/g)),
+          activateAllLifecyclePlaybooks: Array.from(fullResponse.matchAll(/\[ACTIVATE_ALL_LIFECYCLE_PLAYBOOKS\]/g)),
+          pauseAllLifecyclePlaybooks: Array.from(fullResponse.matchAll(/\[PAUSE_ALL_LIFECYCLE_PLAYBOOKS\]/g)),
+          activateLifecyclePlaybook: Array.from(fullResponse.matchAll(/\[ACTIVATE_LIFECYCLE_PLAYBOOK:\s*"([^"]+)"\]/g)),
+          pauseLifecyclePlaybook: Array.from(fullResponse.matchAll(/\[PAUSE_LIFECYCLE_PLAYBOOK:\s*"([^"]+)"\]/g)),
+          enrollCustomerLifecycle: Array.from(fullResponse.matchAll(/\[ENROLL_CUSTOMER_LIFECYCLE:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
+          suppressCustomerMarketing: Array.from(fullResponse.matchAll(/\[SUPPRESS_CUSTOMER_MARKETING:\s*"([^"]+)",\s*"([^"]+)"\]/g)),
           getPaymentDiagnostics: Array.from(fullResponse.matchAll(/\[GET_PAYMENT_DIAGNOSTICS:\s*"([^"]+)"\]/g)),
           analyzeCartConflicts: Array.from(fullResponse.matchAll(/\[ANALYZE_CART_CONFLICTS:\s*"([^"]+)"\]/g)),
           fetchFullKb: Array.from(fullResponse.matchAll(/\[FETCH_FULL_KB_ARTICLE:\s*"([^"]+)"\]/g)),
@@ -1073,6 +1085,248 @@ export async function POST(req: NextRequest) {
             sessionUpdates['context.customerInsights'] = summary;
           } catch (err) {
             logger.error('Failed to get customer insights from concierge', err);
+          }
+        }
+
+        // 19b. Lifecycle Marketing: Strategy Map
+        if (tokens.getLifecycleStrategy.length > 0) {
+          try {
+            const { campaignService } = getInitialServices();
+            const strategy = await campaignService.getConciergeMarketingStrategy();
+            sessionUpdates['context.lifecycleStrategy'] = strategy;
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Strategy Inspected',
+              description: `Concierge reviewed ${strategy.playbooks.length} lifecycle playbooks and ${strategy.coverage.filter((item: any) => item.status === 'missing').length} missing flows.`
+            });
+          } catch (err) {
+            logger.error('Failed to get lifecycle strategy from concierge', err);
+          }
+        }
+
+        // 19c. Lifecycle Marketing: Customer Deep Investigation
+        for (const m of tokens.deepCustomerLifecycle) {
+          const uId = m[1];
+          try {
+            if (!validateToolCall('deepCustomerLifecycle', { userId: uId }, finalizedContext)) continue;
+            const { campaignService } = getInitialServices();
+            const investigation = await campaignService.deepInvestigateCustomer(uId);
+            sessionUpdates['context.customerLifecycleInvestigation'] = investigation;
+            sessionUpdates.events.push({
+              type: 'analyzed',
+              timestamp: new Date().toISOString(),
+              label: 'Customer Lifecycle Investigated',
+              description: `${investigation.summary} Evidence score: ${investigation.evidenceScore}/100.`
+            });
+          } catch (err) {
+            logger.error('Failed to deep investigate customer lifecycle from concierge', err);
+          }
+        }
+
+        // 19d. Lifecycle Marketing: Create One Playbook Draft
+        for (const m of tokens.createLifecyclePlaybook) {
+          const tStart = Date.now();
+          const playbookId = cleanPayload(m[1], 80);
+          try {
+            const { campaignService } = getInitialServices();
+            const campaign = await campaignService.createCampaignFromPlaybook(playbookId);
+            sessionUpdates['context.lastCreatedCampaign'] = campaign;
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Campaign Draft Created',
+              description: `Created draft campaign "${campaign.name}" from ${playbookId}.`
+            });
+            await auditService.record({
+              userId, userEmail,
+              action: 'campaign_created',
+              targetId: campaign.id,
+              correlationId,
+              ip, userAgent,
+              details: { playbookId, source: 'concierge_chat_tool', durationMs: Date.now() - tStart }
+            });
+          } catch (err) {
+            logger.error('Failed to create lifecycle playbook from concierge', err);
+          }
+        }
+
+        // 19e. Lifecycle Marketing: Create Missing Strategy Drafts
+        if (tokens.createAllLifecyclePlaybooks.length > 0) {
+          const tStart = Date.now();
+          try {
+            const { campaignService } = getInitialServices();
+            const campaigns = await campaignService.createMissingLifecyclePlaybooks();
+            sessionUpdates['context.createdLifecycleCampaigns'] = campaigns.map((campaign: any) => ({
+              id: campaign.id,
+              name: campaign.name,
+              type: campaign.type,
+              lifecycleStage: campaign.lifecycleStage
+            }));
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Strategy Drafted',
+              description: `Created ${campaigns.length} missing lifecycle campaign drafts.`
+            });
+            await auditService.record({
+              userId, userEmail,
+              action: 'campaign_created',
+              targetId: 'lifecycle_strategy',
+              correlationId,
+              ip, userAgent,
+              details: { createdCount: campaigns.length, source: 'concierge_chat_tool', durationMs: Date.now() - tStart }
+            });
+          } catch (err) {
+            logger.error('Failed to create lifecycle strategy from concierge', err);
+          }
+        }
+
+        if (tokens.activateAllLifecyclePlaybooks.length > 0) {
+          try {
+            const { campaignService } = getInitialServices();
+            const campaigns = await campaignService.activateAllLifecyclePlaybooks();
+            sessionUpdates['context.activatedLifecycleCampaigns'] = campaigns.map((campaign: any) => ({
+              id: campaign.id,
+              name: campaign.name,
+              status: campaign.status
+            }));
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Strategy Activated',
+              description: `Activated ${campaigns.length} lifecycle campaign playbooks.`
+            });
+          } catch (err) {
+            logger.error('Failed to activate all lifecycle playbooks from concierge', err);
+          }
+        }
+
+        if (tokens.pauseAllLifecyclePlaybooks.length > 0) {
+          try {
+            const { campaignService } = getInitialServices();
+            const campaigns = await campaignService.pauseAllLifecyclePlaybooks();
+            sessionUpdates['context.pausedLifecycleCampaigns'] = campaigns.map((campaign: any) => ({
+              id: campaign.id,
+              name: campaign.name,
+              status: campaign.status
+            }));
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Strategy Paused',
+              description: `Paused ${campaigns.length} active lifecycle campaign playbooks.`
+            });
+          } catch (err) {
+            logger.error('Failed to pause all lifecycle playbooks from concierge', err);
+          }
+        }
+
+        if (tokens.runLifecycleAutomationPulse.length > 0) {
+          try {
+            const { campaignService } = getInitialServices();
+            await campaignService.runAutomationPulse();
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Automation Pulse Ran',
+              description: 'Concierge evaluated active lifecycle campaigns and eligible customer triggers.'
+            });
+          } catch (err) {
+            logger.error('Failed to run lifecycle automation pulse from concierge', err);
+          }
+        }
+
+        if (tokens.optimizeLifecycleStrategy.length > 0) {
+          try {
+            const { campaignService } = getInitialServices();
+            const report = await campaignService.optimizeLifecycleStrategy();
+            sessionUpdates['context.lifecycleOptimizationReport'] = report;
+            sessionUpdates.events.push({
+              type: 'analyzed',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Strategy Optimized',
+              description: `Coverage ${report.scorecard.coverageScore}%, activation ${report.scorecard.activationScore}%, ${report.recommendations.length} recommendations.`
+            });
+          } catch (err) {
+            logger.error('Failed to optimize lifecycle strategy from concierge', err);
+          }
+        }
+
+        // 19f. Lifecycle Marketing: Activate/Pause Playbooks
+        for (const m of tokens.activateLifecyclePlaybook) {
+          const playbookId = cleanPayload(m[1], 80);
+          try {
+            const { campaignService } = getInitialServices();
+            const campaign = await campaignService.activatePlaybook(playbookId);
+            sessionUpdates['context.lastLifecycleCampaignStatus'] = { id: campaign.id, name: campaign.name, status: campaign.status };
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Playbook Activated',
+              description: `Activated "${campaign.name}".`
+            });
+          } catch (err) {
+            logger.error('Failed to activate lifecycle playbook from concierge', err);
+          }
+        }
+
+        for (const m of tokens.pauseLifecyclePlaybook) {
+          const playbookId = cleanPayload(m[1], 80);
+          try {
+            const { campaignService } = getInitialServices();
+            const campaign = await campaignService.pausePlaybook(playbookId);
+            sessionUpdates['context.lastLifecycleCampaignStatus'] = { id: campaign.id, name: campaign.name, status: campaign.status };
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Playbook Paused',
+              description: `Paused "${campaign.name}".`
+            });
+          } catch (err) {
+            logger.error('Failed to pause lifecycle playbook from concierge', err);
+          }
+        }
+
+        // 19g. Lifecycle Marketing: Enroll or Suppress Customer
+        for (const m of tokens.enrollCustomerLifecycle) {
+          const uId = m[1];
+          const playbookId = cleanPayload(m[2], 80);
+          try {
+            if (!validateToolCall('enrollCustomerLifecycle', { userId: uId }, finalizedContext)) continue;
+            const { campaignService } = getInitialServices();
+            const result = await campaignService.enrollCustomerInLifecycle(uId, playbookId);
+            sessionUpdates['context.lifecycleEnrollment'] = result;
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Lifecycle Enrollment Attempted',
+              description: `Enrollment result: ${result.status}.`
+            });
+          } catch (err) {
+            logger.error('Failed to enroll customer in lifecycle from concierge', err);
+          }
+        }
+
+        for (const m of tokens.suppressCustomerMarketing) {
+          const uId = m[1];
+          const reason = cleanPayload(m[2], 240);
+          try {
+            if (!validateToolCall('suppressCustomerMarketing', { userId: uId }, finalizedContext)) continue;
+            await updateDoc(doc(db, 'users', uId), {
+              marketingSuppressed: true,
+              marketingSuppressionReason: reason,
+              marketingSuppressedAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
+            });
+            sessionUpdates.events.push({
+              type: 'note_added',
+              timestamp: new Date().toISOString(),
+              label: 'Marketing Suppressed',
+              description: `Suppressed promotional lifecycle outreach. Reason: ${reason}`
+            });
+          } catch (err) {
+            logger.error('Failed to suppress customer marketing from concierge', err);
           }
         }
 
