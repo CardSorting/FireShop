@@ -191,7 +191,13 @@ export function ConciergeBubble({ initialContext, productInfo }: ConciergeBubble
           const last = [...prev];
           last[last.length - 1] = { 
             role: 'assistant', 
-            content: fullContent.replace(/\[BARTER_SUCCESS:.*?\]/g, '') 
+            content: fullContent
+              .replace(/\[BARTER_SUCCESS:.*?\]/g, '')
+              .replace(/\[OPEN_TICKET:.*?\]/g, '')
+              .replace(/\[CLOSE_TICKET:.*?\]/g, '')
+              .replace(/\[FETCH_ORDER_DETAILS:.*?\]/g, '')
+              .replace(/\[ADD_ORDER_NOTE:.*?\]/g, '')
+              .trim()
           };
           return last;
         });
