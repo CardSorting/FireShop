@@ -39,6 +39,15 @@ export interface Product {
   digitalAssets?: DigitalAsset[];
   shippingClassId?: string;
   hsCode?: string;
+  publishedAt?: Date | null;
+  templateSuffix?: string;
+  standardizedProductType?: string;
+  inventoryTracker?: string;
+  inventoryPolicy?: 'deny' | 'continue';
+  fulfillmentService?: string;
+  taxable?: boolean;
+  taxCode?: string;
+  isGiftCard?: boolean;
   
   // Variations
   hasVariants?: boolean;
@@ -62,7 +71,6 @@ export interface ProductVariant {
   productId: string;
   title: string;
   sku?: string;
-  barcode?: string;
   price: number; // cents
   compareAtPrice?: number; // cents
   cost?: number; // cents
@@ -73,6 +81,10 @@ export interface ProductVariant {
   imageUrl?: string;
   weightGrams?: number;
   hsCode?: string;
+  inventoryPolicy?: 'deny' | 'continue';
+  fulfillmentService?: string;
+  taxable?: boolean;
+  barcode?: string;
   createdAt: Date;
   updatedAt: Date;
 }

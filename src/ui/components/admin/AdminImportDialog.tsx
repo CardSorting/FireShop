@@ -53,7 +53,7 @@ export function AdminImportDialog({
     if (lines.length < 2) return [];
 
     // Industrialized Header Mapping (Case-insensitive, allows spaces/underscores)
-    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[\s_]+/g, ''));
+    const rawHeaders = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
     const data = [];
 
     for (let i = 1; i < lines.length; i++) {
@@ -78,20 +78,12 @@ export function AdminImportDialog({
       values.push(current.trim());
 
       const obj: any = {};
-      headers.forEach((header, index) => {
+      rawHeaders.forEach((header, index) => {
         let val = values[index];
         if (val && val.startsWith('"') && val.endsWith('"')) {
           val = val.substring(1, val.length - 1);
         }
-        
-        // Data Type Normalization
-        if (header === 'price' || header === 'cost' || header === 'stock' || header === 'weightgrams') {
-          obj[header] = val ? Math.round(parseFloat(val)) : 0;
-        } else if (header === 'isdigital' || header === 'hasvariants') {
-          obj[header] = val?.toLowerCase() === 'true' || val === '1';
-        } else {
-          obj[header] = val || '';
-        }
+        obj[header] = val || '';
       });
       data.push(obj);
     }
@@ -101,9 +93,7 @@ export function AdminImportDialog({
   const validateData = (data: any[]): string[] => {
     const errors: string[] = [];
     data.forEach((row, index) => {
-      if (!row.name) errors.push(`Row ${index + 1}: Name is required`);
-      if (row.price === undefined || isNaN(row.price)) errors.push(`Row ${index + 1}: Valid price is required`);
-      if (row.stock === undefined || isNaN(row.stock)) errors.push(`Row ${index + 1}: Valid stock is required`);
+      if (!row.Title && !row.name) errors.push(`Row ${index + 1}: Title is required`);
     });
     return errors;
   };
@@ -131,19 +121,78 @@ export function AdminImportDialog({
         return;
       }
 
-      // Convert to Domain Models
-      const drafts = rawData.map(row => ({
-        name: row.name,
-        description: row.description || 'No description provided.',
-        imageUrl: row.imageurl || row.image || 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=500',
-        price: row.price || 0,
-        cost: row.cost || 0,
-        stock: row.stock || 0,
-        category: row.category || 'Uncategorized',
-        rarity: row.rarity || 'Common',
-        sku: row.sku || '',
-        isDigital: row.isdigital || false,
-        status: 'draft',
+      // Convert to Domain Models (Shopify Multi-Row Variant Grouping)
+      const productMap = new Map<string, any>();
+
+      rawData.forEach(row => {
+        const handle = row.Handle || row.handle || `temp-${Math.random().toString(36).slice(2, 9)}`;
+        
+        const price = parseFloat(row['Variant Price'] || row.price || '0');
+        const compareAtPrice = parseFloat(row['Variant Compare At Price'] || row.compareAtPrice || '0');
+        const cost = parseFloat(row.cost || '0');
+        const stock = parseInt(row['Variant Inventory Qty'] || row.stock || '0', 10);
+        const weight = parseInt(row['Variant Grams'] || row.weightGrams || '0', 10);
+        const isDigital = (row['Variant Requires Shipping']?.toLowerCase() === 'false') || (row.isdigital?.toLowerCase() === 'true');
+
+        const variant = {
+          sku: row['Variant SKU'] || row.sku || '',
+          price: isNaN(price) ? 0 : price,
+          compareAtPrice: isNaN(compareAtPrice) ? 0 : compareAtPrice,
+          cost: isNaN(cost) ? 0 : cost,
+          stock: isNaN(stock) ? 0 : stock,
+          weightGrams: isNaN(weight) ? 0 : weight,
+          inventoryPolicy: row['Variant Inventory Policy']?.toLowerCase() === 'continue' ? 'continue' : 'deny',
+          fulfillmentService: row['Variant Fulfillment Service'] || 'manual',
+          taxable: row['Variant Taxable']?.toLowerCase() !== 'false',
+          barcode: row['Variant Barcode'] || '',
+          option1: row['Option1 Value'] || '',
+          option2: row['Option2 Value'] || '',
+          option3: row['Option3 Value'] || '',
+          imageUrl: row['Variant Image'] || row['Image Src'] || '',
+        };
+
+        if (!productMap.has(handle)) {
+          productMap.set(handle, {
+            handle,
+            name: row.Title || row.name || 'Unnamed Product',
+            description: row['Body (HTML)'] || row.description || 'No description provided.',
+            vendor: row.Vendor || row.vendor || '',
+            standardizedProductType: row['Standardized Product Type'] || '',
+            productType: row['Custom Product Type'] || row.Type || row.productType || '',
+            tags: row.Tags || row.tags || '',
+            status: (row.Published?.toLowerCase() === 'true' || row.status === 'active') ? 'active' : 'draft',
+            imageUrl: row['Image Src'] || row.imageurl || row.image || '',
+            isDigital,
+            inventoryTracker: row['Variant Inventory Tracker'] || 'shopify',
+            isGiftCard: row['Gift Card']?.toLowerCase() === 'true',
+            seoTitle: row['SEO Title'] || row.seoTitle || '',
+            seoDescription: row['SEO Description'] || row.seoDescription || '',
+            publishedAt: row['Published At'] ? new Date(row['Published At']) : null,
+            options: [],
+            variants: [variant],
+          });
+
+          // Extract Options if present
+          const options = [];
+          if (row['Option1 Name']) options.push({ name: row['Option1 Name'], position: 1, values: [] });
+          if (row['Option2 Name']) options.push({ name: row['Option2 Name'], position: 2, values: [] });
+          if (row['Option3 Name']) options.push({ name: row['Option3 Name'], position: 3, values: [] });
+          productMap.get(handle).options = options;
+        } else {
+          const product = productMap.get(handle);
+          product.variants.push(variant);
+        }
+
+        // Collect unique values for options
+        const product = productMap.get(handle);
+        if (variant.option1 && product.options[0]) if (!product.options[0].values.includes(variant.option1)) product.options[0].values.push(variant.option1);
+        if (variant.option2 && product.options[1]) if (!product.options[1].values.includes(variant.option2)) product.options[1].values.push(variant.option2);
+        if (variant.option3 && product.options[2]) if (!product.options[2].values.includes(variant.option3)) product.options[2].values.push(variant.option3);
+      });
+
+      const drafts = Array.from(productMap.values()).map(p => ({
+        ...p,
+        hasVariants: p.variants.length > 1 || p.options.length > 0,
       }));
 
       await onImport(drafts);
