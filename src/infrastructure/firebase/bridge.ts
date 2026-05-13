@@ -263,6 +263,26 @@ export async function deleteDoc(docRef: any) {
 }
 
 /**
+ * Environment-aware 'addDoc' helper
+ */
+export async function addDoc(collectionRef: any, data: any) {
+  return withRetry(async () => {
+    if (isServer) {
+      const docRef = await collectionRef.add(data);
+      return {
+        id: docRef.id,
+        __native: docRef
+      };
+    }
+    const snap = await client.addDoc(collectionRef, data);
+    return {
+      id: snap.id,
+      __native: snap
+    };
+  }, { ...DEFAULT_RETRY_OPTIONS, operationName: 'addDoc' });
+}
+
+/**
  * Environment-aware 'query' helper
  */
 export function query(collectionRef: any, ...queryConstraints: any[]) {

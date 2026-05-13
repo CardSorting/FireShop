@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@infrastructure/firebase/firebase';
-import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { getUnifiedDb, doc, updateDoc, arrayUnion, serverTimestamp } from '@infrastructure/firebase/bridge';
+// import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
 import { logger } from '@utils/logger';
 
 export async function POST(
@@ -12,7 +12,7 @@ export async function POST(
     const body = await req.json();
     const { action, payload, operator } = body;
 
-    const db = getDb();
+    const db = getUnifiedDb();
     const sessionRef = doc(db, 'conciergeSessions', sessionId);
 
     const updates: any = {

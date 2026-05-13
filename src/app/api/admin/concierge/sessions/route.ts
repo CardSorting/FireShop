@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@infrastructure/firebase/firebase';
-import { collection, query, orderBy, limit, getDocs, doc, getDoc } from 'firebase/firestore';
+import { getUnifiedDb, collection, query, orderBy, limit, getDocs, doc, getDoc } from '@infrastructure/firebase/bridge';
 import { logger } from '@utils/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
-    const db = getDb();
+    const db = getUnifiedDb();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -17,11 +16,12 @@ export async function GET(req: NextRequest) {
       if (!docSnap.exists()) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
+      const data = docSnap.data();
       return NextResponse.json({
         id: docSnap.id,
-        ...docSnap.data(),
-        createdAt: docSnap.data().createdAt?.toDate()?.toISOString(),
-        updatedAt: docSnap.data().updatedAt?.toDate()?.toISOString(),
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
       });
     }
 
@@ -29,12 +29,15 @@ export async function GET(req: NextRequest) {
     const q = query(sessionsRef, orderBy('createdAt', 'desc'), limit(50));
     const querySnapshot = await getDocs(q);
 
-    const sessions = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate()?.toISOString(),
-      updatedAt: doc.data().updatedAt?.toDate()?.toISOString(),
-    }));
+    const sessions = querySnapshot.docs.map((d: any) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt?.toDate?.()?.toISOString() || data.createdAt,
+        updatedAt: data.updatedAt?.toDate?.()?.toISOString() || data.updatedAt,
+      };
+    });
 
     return NextResponse.json(sessions);
   } catch (error: any) {

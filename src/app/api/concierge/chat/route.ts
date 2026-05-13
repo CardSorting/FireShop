@@ -8,8 +8,8 @@ import { DEFAULT_CONCIERGE_SETTINGS } from '@domain/concierge/settings';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-import { getDb } from '@infrastructure/firebase/firebase';
-import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { getUnifiedDb, collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from '@infrastructure/firebase/bridge';
+// import { collection, addDoc, serverTimestamp, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import { getInitialServices } from '@core/container';
 
 const ChatSchema = z.object({
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     const lastMessage = sanitizedMessages[sanitizedMessages.length - 1];
 
     // Persist session to Firestore
-    const db = getDb();
+    const db = getUnifiedDb();
     let activeSessionId = sessionId;
 
     if (!activeSessionId) {
@@ -152,10 +152,6 @@ export async function POST(req: NextRequest) {
 
     const hermesRes = await createHermesChatCompletionStream(sanitizedMessages, undefined, contextString);
 
-    // Add session ID to headers so client can track it
-    const responseHeaders = new Headers(hermesRes.headers);
-    responseHeaders.set('X-Concierge-Session-Id', activeSessionId);
-
     // Create a transform stream to detect barter success tokens
     const { discountService } = getInitialServices();
     let fullResponse = '';
@@ -173,7 +169,7 @@ export async function POST(req: NextRequest) {
           const percentage = parseInt(barterMatch[1]);
           try {
             const discount = await discountService.createBarterDiscount(percentage, activeSessionId);
-            const db = getDb();
+            const db = getUnifiedDb();
             const sessionRef = doc(db, 'conciergeSessions', activeSessionId);
             await updateDoc(sessionRef, {
               status: 'analyzed',
@@ -187,9 +183,6 @@ export async function POST(req: NextRequest) {
               })
             });
             
-            // Note: Since the stream is already finished, we can't easily "inject" into the middle.
-            // But we can append a final message or have the client handle the replacement.
-            // For now, we'll append the success confirmation to the session transcript.
             await updateDoc(sessionRef, {
               transcript: arrayUnion({ 
                 role: 'assistant', 
@@ -203,14 +196,17 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return new Response(hermesRes.body?.pipeThrough(transformer), {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-        'X-Concierge-Session-Id': activeSessionId
-      },
-    });
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+    };
+
+    if (activeSessionId) {
+      headers['X-Concierge-Session-Id'] = activeSessionId;
+    }
+
+    return new Response(hermesRes.body?.pipeThrough(transformer), { headers });
   } catch (error: any) {
     logger.error('Concierge chat error', { error: error.message, stack: error.stack });
     

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { conciergeService } from '@core/ConciergeService';
 import { logger } from '@utils/logger';
-import { getDb } from '@infrastructure/firebase/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { getUnifiedDb, doc, getDoc } from '@infrastructure/firebase/bridge';
+// import { doc, getDoc } from 'firebase/firestore';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = getUnifiedDb();
     const sessionDoc = await getDoc(doc(db, 'conciergeSessions', sessionId));
 
     if (!sessionDoc.exists()) {

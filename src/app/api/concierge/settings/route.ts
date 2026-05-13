@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { DEFAULT_CONCIERGE_SETTINGS } from '@domain/concierge/settings';
 
-import { getDb } from '@infrastructure/firebase/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getUnifiedDb, doc, getDoc, setDoc } from '@infrastructure/firebase/bridge';
+// import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export async function GET() {
   try {
-    const db = getDb();
+    const db = getUnifiedDb();
     const settingsRef = doc(db, 'storeSettings', 'concierge');
     const settingsSnap = await getDoc(settingsRef);
 
@@ -22,7 +22,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const db = getDb();
+    const db = getUnifiedDb();
     const settings = await req.json();
     const settingsRef = doc(db, 'storeSettings', 'concierge');
     
