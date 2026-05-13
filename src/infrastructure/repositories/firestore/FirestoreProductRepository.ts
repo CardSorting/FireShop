@@ -108,7 +108,11 @@ export class FirestoreProductRepository implements IProductRepository {
 
       // 2. Build Query with Order
       // Note: Adding orderBy here requires composite indexes for any active filters.
-      const queryWithOrder = query(baseColl, ...constraints, orderBy('createdAt', 'desc'));
+      // Optimization: If only 1 result is requested, skip ordering to avoid index requirements.
+      const shouldOrder = options.limit !== 1;
+      const queryWithOrder = shouldOrder 
+        ? query(baseColl, ...constraints, orderBy('createdAt', 'desc'))
+        : query(baseColl, ...constraints);
       
       let snapshot;
       try {
