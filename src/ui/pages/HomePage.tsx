@@ -435,28 +435,71 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Industrial Content Anchor: Topical Relevance */}
-      <section className="py-24 bg-white border-t border-gray-100">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-50 mb-8">
-            <HiveCell className="w-8 h-8 text-primary-600" />
-          </div>
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-6 uppercase">The Heart of the Hive</h2>
-          <div className="space-y-6 text-gray-600 font-medium leading-relaxed text-lg">
-            <p>
-              At <strong className="text-gray-900">DreamBeesArt</strong>, we believe that art should be more than just a digital file. Our mission is to bridge the gap between digital creativity and physical collectability through premium <Link href="/collections/artist-cards" className="text-primary-600 hover:underline">Artist Trading Cards (ATC)</Link>, high-fidelity art prints, and professional-grade TCG accessories.
-            </p>
-            <p>
-              Every piece in our marketplace is vetted for quality and originality. From limited-edition fandom-inspired prints to hand-drawn one-of-a-kind trading cards, we provide independent artists with a platform to reach collectors who value craftsmanship and archival quality. Whether you are looking to protect your most valuable cards or find the next centerpiece for your gallery wall, the Hive is your home for premium artistic expression.
-            </p>
-            <p className="text-sm text-gray-400">
-              Specializing in: Handcrafted Artist Trading Cards, Museum-Grade Art Prints, TCG Deck Boxes, Custom Card Sleeves, and Independent Artist Merch.
-            </p>
-          </div>
-          <div className="mt-12 flex flex-wrap justify-center gap-8 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-             <span className="text-xs font-black uppercase tracking-[0.3em]">Indie Artist Collective</span>
-             <span className="text-xs font-black uppercase tracking-[0.3em]">Archival Quality Guaranteed</span>
-             <span className="text-xs font-black uppercase tracking-[0.3em]">Global Collector Network</span>
+      {/* The Heart of the Hive - Redesigned CTA */}
+      <section className="py-32 bg-gray-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 hero-pattern"></div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-xs font-black uppercase tracking-widest">
+                <Sparkles className="w-3 h-3" /> The Heart of the Hive
+              </div>
+              <h2 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
+                Art That Lasts <br />
+                <span className="text-transparent bg-clip-text bg-linear-to-r from-primary-400 to-primary-200">Beyond the Screen</span>
+              </h2>
+              <div className="space-y-6 text-gray-300 text-lg font-medium leading-relaxed">
+                <p>
+                  At <strong className="text-white">DreamBeesArt</strong>, we believe that art should be more than just a digital file. Our mission is to bridge the gap between digital creativity and physical collectability through premium Artist Trading Cards (ATC), high-fidelity art prints, and professional-grade TCG accessories.
+                </p>
+                <p>
+                  Every piece in our marketplace is vetted for quality and originality. From limited-edition fandom-inspired prints to hand-drawn one-of-a-kind trading cards, we provide independent artists with a platform to reach collectors who value craftsmanship and archival quality. Whether you are looking to protect your most valuable cards or find the next centerpiece for your gallery wall, the Hive is your home for premium artistic expression.
+                </p>
+                <p className="text-sm border-l-2 border-primary-500 pl-6 italic text-gray-400">
+                  Specializing in: Handcrafted Artist Trading Cards, Museum-Grade Art Prints, TCG Deck Boxes, Custom Card Sleeves, and Independent Artist Merch.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-x-12 gap-y-6 pt-10 border-t border-white/10">
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-white tracking-tighter">Indie Artist</span>
+                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Collective</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-white tracking-tighter">Archival</span>
+                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Quality Guaranteed</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-2xl font-black text-white tracking-tighter">Global</span>
+                  <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.2em]">Collector Network</span>
+                </div>
+              </div>
+            </div>
+            <div className="relative">
+              <div className="aspect-square rounded-4xl bg-linear-to-br from-primary-600 to-primary-800 p-px">
+                <div className="h-full w-full rounded-[calc(2.5rem-1px)] bg-gray-950 flex flex-col items-center justify-center text-center p-8 md:p-16 relative overflow-hidden">
+                   {/* Background Glow */}
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 blur-3xl rounded-full"></div>
+                   
+                   <div className="w-20 h-20 rounded-2xl bg-primary-500/10 flex items-center justify-center mb-10 rotate-3 hover:rotate-0 transition-transform duration-500">
+                     <HiveCell className="w-10 h-10 text-primary-500" />
+                   </div>
+                   <h3 className="text-3xl md:text-4xl font-black mb-4 uppercase tracking-tight">Start Your Collection</h3>
+                   <p className="text-gray-400 mb-12 font-medium">Discover hand-inspected art pieces from independent creators worldwide.</p>
+                   <Link 
+                    href="/products" 
+                    className="w-full inline-flex justify-center items-center gap-2 btn-honey-glazed text-white px-10 py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-primary-500/20"
+                   >
+                     Shop the Collection
+                     <ArrowRight className="w-4 h-4" />
+                   </Link>
+                </div>
+              </div>
+              {/* Decorative elements */}
+              <div className="absolute -top-12 -right-12 w-64 h-64 bg-primary-500/20 blur-3xl rounded-full -z-10"></div>
+              <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-blue-500/10 blur-3xl rounded-full -z-10"></div>
+            </div>
           </div>
         </div>
       </section>
