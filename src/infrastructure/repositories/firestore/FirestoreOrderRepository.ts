@@ -360,24 +360,25 @@ export class FirestoreOrderRepository implements IOrderRepository {
       return acc;
     }, {} as Record<OrderStatus, number>);
 
-    // 2. Get recent orders for revenue trends (Last 30 days window)
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const recentQ = query(ordersCol, where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo)));
+    // 2. Get recent orders for revenue trends (Last 14 days window for WoW growth)
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const recentQ = query(ordersCol, where('createdAt', '>=', Timestamp.fromDate(fourteenDaysAgo)));
     const snapshot = await getDocs(recentQ);
 
     let recentRevenue = 0;
-    const dailyRevenue = new Array(7).fill(0);
+    const dailyRevenue = new Array(14).fill(0); // [13, 12...7 (Prev Week), 6...0 (Current Week)]
     const now = new Date();
 
     snapshot.forEach((d: any) => {
       const data = d.data();
       const status = data.status as OrderStatus;
-      if (status !== 'cancelled') {
+      // Industrialized Revenue: Exclude cancelled/refunded from growth metrics
+      if (status !== 'cancelled' && status !== 'refunded') {
         recentRevenue += data.total || 0;
         const createdAt = mapTimestamp(data.createdAt);
         const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays >= 0 && diffDays < 7) {
-          dailyRevenue[6 - diffDays] += data.total || 0;
+        if (diffDays >= 0 && diffDays < 14) {
+          dailyRevenue[13 - diffDays] += data.total || 0;
         }
       }
     });

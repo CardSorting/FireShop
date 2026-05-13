@@ -12,7 +12,8 @@ import {
   AnalyticsData,
   CustomerSummary,
   AdministrativeTask,
-  User
+  User,
+  AdminActionItem
 } from '@domain/models';
 import { Sanitizer } from '@utils/sanitizer';
 
@@ -44,15 +45,50 @@ export class OrderQueryService {
   async getAdminDashboardSummary(): Promise<AdminDashboardSummary> {
     const stats = await this.orderRepo.getDashboardStats();
     const { orders: recent } = await this.orderRepo.getAll({ limit: 10 });
-    const activeTasks: AdministrativeTask[] = [
-      { id: 'ship', label: 'Pick & Pack', count: stats.orderCountsByStatus.processing || 0, priority: 'high', category: 'fulfillment' },
-      { id: 'pickup', label: 'In-Store Pickups', count: stats.orderCountsByStatus.ready_for_pickup || 0, priority: 'medium', category: 'fulfillment' }
-    ];
+    const activeTasks: AdministrativeTask[] = [];
+    
+    if ((stats.orderCountsByStatus.processing || 0) > 0) {
+      activeTasks.push({ id: 'ship', label: 'Pick & Pack', count: stats.orderCountsByStatus.processing, priority: 'high', category: 'fulfillment' });
+    }
+    if ((stats.orderCountsByStatus.confirmed || 0) > 0) {
+      activeTasks.push({ id: 'confirm', label: 'Await Fulfillment', count: stats.orderCountsByStatus.confirmed, priority: 'medium', category: 'fulfillment' });
+    }
+    if ((stats.orderCountsByStatus.ready_for_pickup || 0) > 0) {
+      activeTasks.push({ id: 'pickup', label: 'In-Store Pickups', count: stats.orderCountsByStatus.ready_for_pickup, priority: 'medium', category: 'fulfillment' });
+    }
+
+    const attentionItems: AdminActionItem[] = [];
+    if ((stats.orderCountsByStatus.pending || 0) > 10) {
+      attentionItems.push({ 
+        id: 'backlog', 
+        label: 'Pending Backlog', 
+        description: 'High volume of orders awaiting confirmation.', 
+        href: '/admin/orders?status=pending',
+        priority: 'high'
+      });
+    }
+
     const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
+    
     return {
-      productCount: 0, lowStockCount: 0, outOfStockCount: 0, totalRevenue: stats.totalRevenue, averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0, dailyRevenue: stats.dailyRevenue, orderCountsByStatus: stats.orderCountsByStatus,
-      fulfillmentCounts: { to_review: stats.orderCountsByStatus.pending, ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), completed: stats.orderCountsByStatus.delivered, cancelled: stats.orderCountsByStatus.cancelled },
-      activeTasks, attentionItems: [], recentOrders: recent, lowStockProducts: []
+      productCount: 0, 
+      lowStockCount: 0, 
+      outOfStockCount: 0, 
+      totalRevenue: stats.totalRevenue, 
+      averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0, 
+      dailyRevenue: stats.dailyRevenue.slice(7), // Consistent with WoW expansion
+      orderCountsByStatus: stats.orderCountsByStatus,
+      fulfillmentCounts: { 
+        to_review: stats.orderCountsByStatus.pending || 0, 
+        ready_to_ship: (stats.orderCountsByStatus.confirmed || 0) + (stats.orderCountsByStatus.processing || 0), 
+        in_transit: (stats.orderCountsByStatus.shipped || 0) + (stats.orderCountsByStatus.delivery_started || 0), 
+        completed: stats.orderCountsByStatus.delivered || 0, 
+        cancelled: (stats.orderCountsByStatus.cancelled || 0) + (stats.orderCountsByStatus.refunded || 0) 
+      },
+      activeTasks, 
+      attentionItems, 
+      recentOrders: recent, 
+      lowStockProducts: []
     };
   }
 
@@ -61,17 +97,17 @@ export class OrderQueryService {
     const topProducts = await this.orderRepo.getTopProducts(5);
     const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
     
-    // Industrialized Growth Calculation (W/W)
-    // stats.dailyRevenue is 7 days: [D-6, D-5, D-4, D-3, D-2, D-1, D-0]
-    const currentPeriod = stats.dailyRevenue.slice(-3).reduce((a, b) => a + b, 0);
-    const previousPeriod = stats.dailyRevenue.slice(0, 3).reduce((a, b) => a + b, 0);
-    const revenueGrowth = previousPeriod > 0 
-      ? Math.round(((currentPeriod - previousPeriod) / previousPeriod) * 1000) / 10 
+    // Industrialized Growth Calculation (Week over Week)
+    // stats.dailyRevenue is 14 days: [D-13...D-7 (Prev), D-6...D-0 (Current)]
+    const currentWeekRevenue = stats.dailyRevenue.slice(7).reduce((a, b) => a + b, 0);
+    const previousWeekRevenue = stats.dailyRevenue.slice(0, 7).reduce((a, b) => a + b, 0);
+    const revenueGrowth = previousWeekRevenue > 0 
+      ? Math.round(((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 1000) / 10 
       : 0;
 
     return {
       totalRevenue: stats.totalRevenue,
-      dailyRevenue: stats.dailyRevenue,
+      dailyRevenue: stats.dailyRevenue.slice(7), // Return only the current week for UI display
       revenueGrowth,
       averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0,
       topProducts: topProducts.map(p => ({ 
@@ -82,7 +118,14 @@ export class OrderQueryService {
   }
 
   async getCustomerSummaries(users?: User[]): Promise<CustomerSummary[]> {
-    const { orders } = await this.orderRepo.getAll({ limit: 1000 });
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    // Industrialized: Fetch orders within a specific window to prevent OOM on legacy stores
+    const { orders } = await this.orderRepo.getAll({ 
+      from: ninetyDaysAgo, 
+      limit: 2000 
+    });
     const customerMap = new Map<string, CustomerSummary>();
     
     if (users) {
@@ -123,9 +166,7 @@ export class OrderQueryService {
       if (o.createdAt < c.joined) c.joined = o.createdAt;
     }
 
-    // Industrialized Segmentation
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    // Industrialized Segmentation (reusing ninetyDaysAgo from above)
 
     for (const c of customerMap.values()) {
       if (c.orders === 0) {
@@ -144,5 +185,20 @@ export class OrderQueryService {
     }
     
     return Array.from(customerMap.values());
+  }
+
+  async getLogisticsInsights() {
+    const stats = await this.orderRepo.getLogisticsStats();
+    
+    // Industrialized Insight Mapping
+    return {
+      ...stats,
+      health: {
+        fulfillment: stats.avgFulfillmentTimeHours < 24 ? 'healthy' : stats.avgFulfillmentTimeHours < 48 ? 'warning' : 'critical',
+        delivery: stats.onTimeDeliveryRate > 95 ? 'healthy' : stats.onTimeDeliveryRate > 85 ? 'warning' : 'critical',
+        profitability: stats.shippingProfitability >= 0 ? 'healthy' : 'warning'
+      },
+      recommendations: stats.onTimeDeliveryRate < 90 ? ['Audit carrier performance for breach patterns', 'Adjust estimated delivery windows'] : []
+    };
   }
 }

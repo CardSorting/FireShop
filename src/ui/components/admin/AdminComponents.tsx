@@ -833,6 +833,75 @@ export function AdminNotificationBell() {
   );
 }
 
+/**
+ * PRODUCTION COMPONENT: Logistics Health Card
+ */
+export function LogisticsHealthCard({ stats }: { stats: any }) {
+  const getStatusColor = (health: string) => {
+    switch (health) {
+      case 'healthy': return 'bg-green-100 text-green-700';
+      case 'warning': return 'bg-amber-100 text-amber-700';
+      case 'critical': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Logistics Health</h3>
+        <span className="text-[10px] font-bold text-gray-400">Last 500 orders</span>
+      </div>
+      
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-lg p-1.5 ${getStatusColor(stats.health.fulfillment)}`}>
+              <Clock className="h-4 w-4" />
+            </div>
+            <span className="text-xs font-bold text-gray-900">Fulfillment</span>
+          </div>
+          <span className="text-xs font-black">{Math.round(stats.avgFulfillmentTimeHours)}h</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-lg p-1.5 ${getStatusColor(stats.health.delivery)}`}>
+              <Truck className="h-4 w-4" />
+            </div>
+            <span className="text-xs font-bold text-gray-900">On-Time Delivery</span>
+          </div>
+          <span className="text-xs font-black">{Math.round(stats.onTimeDeliveryRate)}%</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`rounded-lg p-1.5 ${getStatusColor(stats.health.profitability)}`}>
+              <DollarSign className="h-4 w-4" />
+            </div>
+            <span className="text-xs font-bold text-gray-900">Shipping Profit</span>
+          </div>
+          <span className="text-xs font-black">{stats.shippingProfitability >= 0 ? '+' : ''}${Math.round(stats.shippingProfitability)}</span>
+        </div>
+      </div>
+
+      {stats.recommendations.length > 0 && (
+        <div className="mt-6 border-t pt-4">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Recommendations</p>
+          <div className="space-y-2">
+            {stats.recommendations.map((rec: string, i: number) => (
+              <div key={i} className="flex items-start gap-2 text-[10px] font-medium text-amber-700">
+                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                <span>{rec}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ═══════════════════════════════════════════════════════
    AREA CHART — High-fidelity data visualization

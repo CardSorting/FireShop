@@ -37,7 +37,8 @@ import {
   SkeletonPage, 
   useAdminPageTitle, 
   AdminSparkline, 
-  HelpTooltip 
+  HelpTooltip,
+  LogisticsHealthCard
 } from '../../components/admin/AdminComponents';
 
 function getGreeting(): string {
@@ -58,6 +59,7 @@ export function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [customerCount, setCustomerCount] = useState(0);
+  const [logisticsStats, setLogisticsStats] = useState<any>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const isMounted = useRef(true);
 
@@ -69,17 +71,19 @@ export function AdminDashboard() {
     if (isMounted.current) setLoading(true);
     setError(null);
     try {
-      const [dashSummary, users, progress, mediaRes] = await Promise.all([
+      const [dashSummary, users, progress, mediaRes, logistics] = await Promise.all([
         services.orderQueryService.getAdminDashboardSummary(controller.signal),
         services.authService.getAllUsers(controller.signal),
         services.settingsService.getSetupProgress(controller.signal),
-        fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json())
+        fetch('/api/admin/media', { signal: controller.signal }).then(r => r.json()),
+        services.orderQueryService.getLogisticsInsights(controller.signal)
       ]);
       
       if (!controller.signal.aborted && isMounted.current) {
         setSummary(dashSummary);
         setCustomerCount(users.length);
         setSetupProgress(progress);
+        setLogisticsStats(logistics);
         if (mediaRes.files) {
           setMediaStats({
             count: mediaRes.files.length,
@@ -231,6 +235,8 @@ export function AdminDashboard() {
               })}
             </div>
           </section>
+
+          {logisticsStats && <LogisticsHealthCard stats={logisticsStats} />}
         </div>
 
         {/* ── Right Column: Insights ── */}

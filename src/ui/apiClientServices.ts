@@ -180,6 +180,7 @@ export function createApiClientServices() {
             getAdminDashboardSummary: (signal?: AbortSignal) => request<AdminDashboardSummary>('/api/admin/dashboard', { signal }),
             getAnalyticsData: (signal?: AbortSignal) => request<any>('/api/admin/analytics', { signal }),
             getCustomerSummaries: (users: User[]) => request<any[]>('/api/admin/customers', { method: 'POST', body: JSON.stringify({ users }) }),
+            getLogisticsInsights: (signal?: AbortSignal) => request<any>('/api/admin/logistics', { signal }),
         },
         orderService: {
             finalizeTrustedCheckout: (userId: string, shippingAddress: Address, paymentMethodId: string, idempotencyKey?: string, discountCode?: string) => (sessionScoped(userId), request<Order>('/api/orders', { method: 'POST', body: JSON.stringify({ shippingAddress, paymentMethodId, idempotencyKey, discountCode }) })),
