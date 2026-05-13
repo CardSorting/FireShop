@@ -56,6 +56,8 @@ export interface ConciergeMarketingStrategy {
     decisioning: string[];
     frequencyPolicy: string[];
     suppressionPolicy: string[];
+    journeyConflictPolicy: string[];
+    measurementPolicy: string[];
     experimentation: string[];
     lifecycleHealthChecks: string[];
   };
@@ -557,6 +559,20 @@ export function buildConciergeMarketingStrategy(campaigns: MarketingCampaign[]):
         risk: 'medium',
       },
       {
+        id: 'plan_customer_lifecycle',
+        label: 'Plan Customer Lifecycle',
+        description: 'Rank next-best actions, channel mix, holdout assignment, and 90-day lifecycle routing for one customer.',
+        scope: 'customer',
+        risk: 'low',
+      },
+      {
+        id: 'enroll_customer_lifecycle',
+        label: 'Enroll Eligible Customer',
+        description: 'Enroll a consented, unsuppressed customer into the active highest-priority lifecycle playbook.',
+        scope: 'customer',
+        risk: 'medium',
+      },
+      {
         id: 'run_lifecycle_automation_pulse',
         label: 'Run Lifecycle Automation Pulse',
         description: 'Evaluate active playbooks now and let the concierge process eligible customers.',
@@ -586,6 +602,16 @@ export function buildConciergeMarketingStrategy(campaigns: MarketingCampaign[]):
         'Suppress unsubscribed, marketing-suppressed, angry, unresolved support, recent purchaser, and active sequence customers.',
         'Suppress browse abandonment when a cart exists; suppress cart recovery after purchase.',
         'Route sunset and inactive customers to preference reset before permanent promotional suppression.',
+      ],
+      journeyConflictPolicy: [
+        'Rank concurrent journeys by service recovery, cart recovery, post-purchase, VIP retention, win-back, replenishment, browse, welcome, then sunset.',
+        'Allow only the highest-priority promotional journey to advance when a customer has an active sequence lock.',
+        'Use customer-level lifecycle planning before manual enrollment so explicit playbook choices cannot bypass suppression rules.',
+      ],
+      measurementPolicy: [
+        'Assign stable treatment versus holdout groups for incremental lift measurement.',
+        'Measure revenue per recipient, conversion margin, unsubscribe risk, and retention together.',
+        'Keep conversion windows specific to each lifecycle playbook instead of using one global attribution window.',
       ],
       experimentation: [
         'Test one variable at a time: delay, subject, offer, CTA, or channel.',

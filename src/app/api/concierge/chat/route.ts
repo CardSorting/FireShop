@@ -396,6 +396,7 @@ export async function POST(req: NextRequest) {
           getCustomerInsights: Array.from(fullResponse.matchAll(/\[GET_CUSTOMER_INSIGHTS:\s*"([^"]+)"\]/g)),
           getLifecycleStrategy: Array.from(fullResponse.matchAll(/\[GET_LIFECYCLE_STRATEGY\]/g)),
           deepCustomerLifecycle: Array.from(fullResponse.matchAll(/\[DEEP_CUSTOMER_LIFECYCLE:\s*"([^"]+)"\]/g)),
+          planCustomerLifecycle: Array.from(fullResponse.matchAll(/\[PLAN_CUSTOMER_LIFECYCLE:\s*"([^"]+)"\]/g)),
           createLifecyclePlaybook: Array.from(fullResponse.matchAll(/\[CREATE_LIFECYCLE_PLAYBOOK:\s*"([^"]+)"\]/g)),
           createAllLifecyclePlaybooks: Array.from(fullResponse.matchAll(/\[CREATE_ALL_LIFECYCLE_PLAYBOOKS\]/g)),
           runLifecycleAutomationPulse: Array.from(fullResponse.matchAll(/\[RUN_LIFECYCLE_AUTOMATION_PULSE\]/g)),
@@ -1124,7 +1125,26 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 19d. Lifecycle Marketing: Create One Playbook Draft
+        // 19d. Lifecycle Marketing: Customer Decision Plan
+        for (const m of tokens.planCustomerLifecycle) {
+          const uId = m[1];
+          try {
+            if (!validateToolCall('planCustomerLifecycle', { userId: uId }, finalizedContext)) continue;
+            const { campaignService } = getInitialServices();
+            const plan = await campaignService.planCustomerLifecycle(uId);
+            sessionUpdates['context.customerLifecyclePlan'] = plan;
+            sessionUpdates.events.push({
+              type: 'analyzed',
+              timestamp: new Date().toISOString(),
+              label: 'Customer Lifecycle Planned',
+              description: `Recommended ${plan.recommendedPlaybookId || 'no playbook'} with coverage ${plan.coverage?.status || 'missing'} and ${plan.actions.filter((action: any) => action.enabled).length} available actions.`
+            });
+          } catch (err) {
+            logger.error('Failed to plan customer lifecycle from concierge', err);
+          }
+        }
+
+        // 19e. Lifecycle Marketing: Create One Playbook Draft
         for (const m of tokens.createLifecyclePlaybook) {
           const tStart = Date.now();
           const playbookId = cleanPayload(m[1], 80);
@@ -1151,7 +1171,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 19e. Lifecycle Marketing: Create Missing Strategy Drafts
+        // 19f. Lifecycle Marketing: Create Missing Strategy Drafts
         if (tokens.createAllLifecyclePlaybooks.length > 0) {
           const tStart = Date.now();
           try {
@@ -1253,7 +1273,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 19f. Lifecycle Marketing: Activate/Pause Playbooks
+        // 19g. Lifecycle Marketing: Activate/Pause Playbooks
         for (const m of tokens.activateLifecyclePlaybook) {
           const playbookId = cleanPayload(m[1], 80);
           try {
@@ -1288,7 +1308,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 19g. Lifecycle Marketing: Enroll or Suppress Customer
+        // 19h. Lifecycle Marketing: Enroll or Suppress Customer
         for (const m of tokens.enrollCustomerLifecycle) {
           const uId = m[1];
           const playbookId = cleanPayload(m[2], 80);

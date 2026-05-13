@@ -390,6 +390,11 @@ export class CampaignService {
         scorecard: investigation.lifecycleScorecard,
         campaignBrief: investigation.campaignBrief,
         frequencyPolicy: investigation.frequencyPolicy,
+        channelMix: investigation.channelMix,
+        holdoutPlan: investigation.holdoutPlan,
+        journeyConflictResolution: investigation.journeyConflictResolution,
+        nextBestActionQueue: investigation.nextBestActionQueue,
+        lifecycleCalendar: investigation.lifecycleCalendar,
         experimentationPlan: investigation.experimentationPlan,
       },
       actions: [
@@ -413,6 +418,12 @@ export class CampaignService {
           enabled: Boolean(investigation.automationAuthority?.requiresHumanReview),
           reason: investigation.automationAuthority?.reason,
         },
+        {
+          id: 'hold_lower_priority_journeys',
+          label: 'Hold lower-priority journeys',
+          enabled: investigation.journeyConflictResolution?.suppressionDecision === 'hold_lower_priority_journeys',
+          reason: investigation.journeyConflictResolution?.policy,
+        },
       ],
     };
   }
@@ -423,7 +434,7 @@ export class CampaignService {
     if (!targetPlaybookId) {
       return { status: 'no_recommendation' as const, plan };
     }
-    if (!plan.investigation.automationAuthority?.canEnrollCustomer && !playbookId) {
+    if (!plan.investigation.automationAuthority?.canEnrollCustomer) {
       return { status: 'suppressed' as const, plan };
     }
 

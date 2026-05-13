@@ -60,6 +60,14 @@ export class MarketingIntelligence {
     return 'low';
   }
 
+  private stableBucket(input: string, modulo: number): number {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      hash = ((hash << 5) - hash + input.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % modulo;
+  }
+
   /**
    * Forensic 360-degree customer deep-dive.
    */
@@ -143,6 +151,13 @@ export class MarketingIntelligence {
       const sentAt = event.sentAt || event.createdAt;
       return sentAt && (Date.now() - sentAt.getTime()) < 7 * 24 * 60 * 60 * 1000;
     }).length;
+    const activeJourneyLocks = campaignEvents
+      .filter((event) => event.nextStepDueAt && event.nextStepDueAt > new Date())
+      .map((event) => ({
+        campaignId: event.campaignId,
+        stepIndex: event.stepIndex,
+        nextStepDueAt: event.nextStepDueAt,
+      }));
 
     let psychographic = 'Window Shopper';
     if (engagementRate > 0.7 && churnProbability < 30) psychographic = 'Impulsive / Brand Fan';
@@ -200,26 +215,31 @@ export class MarketingIntelligence {
       if (activeSupportRisk) return {
         type: 'service_recovery',
         playbookId: 'support_resolution_first',
+        priorityScore: 100,
         rationale: 'Resolve the support blocker before sending marketing automation.',
       };
       if (cart && cart.items.length > 0) return {
         type: 'abandoned_cart',
         playbookId: 'cart_recovery_three_touch',
+        priorityScore: 95,
         rationale: 'Active cart is the highest-intent recovery opportunity.',
       };
       if (rfm.monetaryScore >= 4 && churnProbability >= 40) return {
         type: 'loyalty_reward',
         playbookId: 'vip_loyalty_reactivation',
+        priorityScore: 88,
         rationale: 'High-value customer is cooling and should receive concierge-first outreach.',
       };
       if (churnProbability >= 60 || rfm.recencyScore <= 2) return {
         type: 'comeback_offer',
         playbookId: 'comeback_offer_segmented',
+        priorityScore: 82,
         rationale: 'Customer is outside the healthy reorder window.',
       };
       return {
         type: 'browse_abandonment',
         playbookId: 'browse_abandonment_light_touch',
+        priorityScore: 62,
         rationale: 'Use a lighter recommendation flow until stronger purchase intent appears.',
       };
     })();
@@ -343,9 +363,32 @@ export class MarketingIntelligence {
       },
     ];
 
+    const holdoutBucket = this.stableBucket(`${userId}:${nextBestCampaign.playbookId}`, 100);
+    const holdoutPlan = {
+      assignment: holdoutBucket < 10 ? 'holdout' : 'treatment',
+      holdoutPercent: 10,
+      bucket: holdoutBucket,
+      measurementWindowDays: nextBestCampaign.type === 'abandoned_cart' ? 7 : nextBestCampaign.type === 'comeback_offer' ? 21 : 14,
+      primaryMetric: nextBestCampaign.type === 'service_recovery' ? 'support_resolution_rate' : 'revenue_per_recipient',
+      reason: 'Stable customer-level holdouts let the concierge measure incremental lift instead of only attributed conversions.',
+    };
+
+    const channelMix = {
+      primary: activeSupportRisk ? 'email_service_recovery' : cart && cart.items.length > 0 ? 'email' : engagementRate > 0.5 ? 'email' : 'concierge_store_notice',
+      secondary: cart && cart.items.length > 0 ? 'concierge_push' : 'store_notice',
+      avoid: [
+        lifecycleScorecard.messageTolerance === 'low' ? 'extra_follow_up' : '',
+        activeSupportRisk ? 'promotional_discount' : '',
+        historicalSentiment.includes('angry') ? 'urgent_sales_language' : '',
+      ].filter(Boolean),
+      rationale: activeSupportRisk
+        ? 'Use service-first outreach until trust is repaired.'
+        : 'Match channel pressure to intent and engagement so orchestration does not collide across journeys.',
+    };
+
     const frequencyPolicy = {
       cap: lifecycleScorecard.messageTolerance === 'low' ? '1 lifecycle message / 7 days' : lifecycleScorecard.messageTolerance === 'high' ? '3 lifecycle messages / 7 days' : '2 lifecycle messages / 7 days',
-      channelPriority: activeSupportRisk ? ['email_service_recovery'] : ['email', 'concierge_push', 'store_notice'],
+      channelPriority: activeSupportRisk ? ['email_service_recovery'] : [channelMix.primary, channelMix.secondary, 'email'].filter((value, index, arr) => arr.indexOf(value) === index),
       suppression: suppressionReasons,
       reason: 'Customer-level capping should manage total brand contact across all active campaigns, not each campaign in isolation.',
     };
@@ -379,6 +422,82 @@ export class MarketingIntelligence {
         risk: 'service_trust',
         level: lifecycleScorecard.serviceRisk,
         mitigation: activeSupportRisk ? 'Suppress promotional outreach until support is resolved.' : 'Keep support-aware tone and invite replies.',
+      },
+    ];
+
+    const decisioningReasons = [
+      cart && cart.items.length > 0 ? 'active_cart_signal' : '',
+      pathToPurchase.includes('Checkout') ? 'checkout_hesitation' : '',
+      rfm.monetaryScore >= 4 ? 'high_value_customer' : '',
+      churnProbability >= 60 ? 'elevated_churn_risk' : '',
+      recentCampaignTouches >= 2 ? 'recent_message_pressure' : '',
+      activeSupportRisk ? 'open_support_risk' : '',
+      discountAffinity > 0.5 ? 'discount_sensitive_history' : '',
+      evidenceScore < 40 ? 'low_evidence_confidence' : '',
+    ].filter(Boolean);
+
+    const nextBestActionQueue = [
+      {
+        id: activeSupportRisk ? 'resolve_support_before_marketing' : 'enroll_next_best_playbook',
+        priority: activeSupportRisk ? 100 : nextBestCampaign.priorityScore,
+        playbookId: nextBestCampaign.playbookId,
+        owner: activeSupportRisk ? 'support' : 'concierge',
+        action: activeSupportRisk ? 'Resolve service risk and suppress promotional messages.' : `Enroll in ${nextBestCampaign.playbookId}.`,
+        prerequisites: activeSupportRisk ? ['support_ticket_resolved', 'customer_sentiment_neutral_or_better'] : ['playbook_active', 'marketing_consent', 'frequency_cap_clear'],
+        rationale: nextBestCampaign.rationale,
+      },
+      {
+        id: 'apply_offer_governance',
+        priority: recommendedOffer.includes('discount') || recommendedOffer.includes('offer') ? 72 : 55,
+        playbookId: nextBestCampaign.playbookId,
+        owner: 'concierge',
+        action: recommendedOffer,
+        prerequisites: ['margin_check', 'discount_dependency_check'],
+        rationale: 'Offer depth should follow customer evidence and margin risk, not a blanket promotion.',
+      },
+      {
+        id: 'capture_learning',
+        priority: 45,
+        owner: 'concierge',
+        action: `Track ${holdoutPlan.primaryMetric} with ${holdoutPlan.assignment} assignment.`,
+        prerequisites: ['conversion_window_set', 'single_learning_objective'],
+        rationale: 'Every lifecycle decision should improve the next send through measurable learning.',
+      },
+    ].sort((a, b) => b.priority - a.priority);
+
+    const journeyConflictResolution = {
+      activeJourneyLocks,
+      policy: activeJourneyLocks.length > 0
+        ? 'Do not start a second promotional sequence; let the current journey finish or suppress lower-priority messaging.'
+        : 'No active sequence lock detected; customer can enter the highest-priority eligible journey.',
+      priorityOrder: ['service_recovery', 'abandoned_cart', 'post_purchase', 'vip_loyalty_reactivation', 'comeback_offer', 'replenishment', 'browse_abandonment', 'welcome_series', 'sunset'],
+      suppressionDecision: suppressionReasons.length > 0 ? 'suppress_or_service_first' : activeJourneyLocks.length > 0 ? 'hold_lower_priority_journeys' : 'eligible',
+    };
+
+    const lifecycleCalendar = [
+      {
+        horizon: 'now',
+        playbookId: nextBestCampaign.playbookId,
+        action: activeSupportRisk ? 'Resolve support issue before marketing.' : campaignBrief.messageAngle,
+        measure: holdoutPlan.primaryMetric,
+      },
+      {
+        horizon: '7_days',
+        playbookId: cart && cart.items.length > 0 ? 'cart_recovery_three_touch' : 'browse_abandonment_light_touch',
+        action: 'Re-check cart, engagement, and support state before allowing another touch.',
+        measure: 'click_to_order_rate',
+      },
+      {
+        horizon: '30_days',
+        playbookId: orders.orders.length > 0 ? 'post_purchase_care' : 'welcome_series_foundation',
+        action: orders.orders.length > 0 ? 'Move into care, review, or next-best recommendation based on delivery confidence.' : 'Continue preference capture and first-purchase education.',
+        measure: orders.orders.length > 0 ? 'repeat_purchase_rate' : 'first_purchase_rate',
+      },
+      {
+        horizon: '90_days',
+        playbookId: rfm.monetaryScore >= 4 ? 'vip_loyalty_reactivation' : 'comeback_offer_segmented',
+        action: 'Re-score RFM and buying-cycle position before win-back, VIP, or sunset routing.',
+        measure: 'retention_rate_90d',
       },
     ];
 
@@ -425,9 +544,15 @@ export class MarketingIntelligence {
       lifecycleScorecard,
       campaignBrief,
       experimentationPlan,
+      holdoutPlan,
+      channelMix,
       frequencyPolicy,
       buyingCycle,
       riskRegister,
+      decisioningReasons,
+      nextBestActionQueue,
+      journeyConflictResolution,
+      lifecycleCalendar,
       evidenceScore,
       confidenceBand: this.scoreBand(evidenceScore),
       recentCampaignTouches,
