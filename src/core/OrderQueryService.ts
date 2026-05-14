@@ -76,13 +76,16 @@ export class OrderQueryService {
     
     const productStats = this.productService ? await this.productService.getProductManagementOverview() : null;
 
+    const days = Object.keys(stats.dailyRevenue).sort().reverse().slice(0, 7).reverse();
+    const dailyRevenue = days.map(day => stats.dailyRevenue[day] || 0);
+
     return {
       productCount: productStats?.totalProducts || 0, 
       lowStockCount: productStats?.lowStockCount || 0, 
       outOfStockCount: productStats?.outOfStockCount || 0, 
       totalRevenue: stats.totalRevenue, 
       averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0, 
-      dailyRevenue: stats.dailyRevenue.slice(7), // Consistent with WoW expansion
+      dailyRevenue,
       orderCountsByStatus: stats.orderCountsByStatus,
       fulfillmentCounts: { 
         to_review: stats.orderCountsByStatus.pending || 0, 
@@ -103,19 +106,24 @@ export class OrderQueryService {
     const topProducts = await this.orderRepo.getTopProducts(5);
     const totalOrders = Object.values(stats.orderCountsByStatus).reduce((sum, c) => sum + (c || 0), 0);
     
-    // Industrialized Growth Calculation (Week over Week)
-    // stats.dailyRevenue is 14 days: [D-13...D-7 (Prev), D-6...D-0 (Current)]
-    const currentWeekRevenue = stats.dailyRevenue.slice(7).reduce((a, b) => a + b, 0);
-    const previousWeekRevenue = stats.dailyRevenue.slice(0, 7).reduce((a, b) => a + b, 0);
+    // stats.dailyRevenue is Record<string, number>: { "2026-05-14": 5000, ... }
+    const days = Object.keys(stats.dailyRevenue).sort().reverse(); // [Today, Yesterday, ...]
+    const currentWeekRevenue = days.slice(0, 7).reduce((sum, day) => sum + (stats.dailyRevenue[day] || 0), 0);
+    const previousWeekRevenue = days.slice(7, 14).reduce((sum, day) => sum + (stats.dailyRevenue[day] || 0), 0);
+    
     const revenueGrowth = previousWeekRevenue > 0 
       ? Math.round(((currentWeekRevenue - previousWeekRevenue) / previousWeekRevenue) * 1000) / 10 
       : 0;
 
+    const dailyRevenueArray = days.slice(0, 7).reverse().map(day => stats.dailyRevenue[day] || 0);
+
+
     return {
       totalRevenue: stats.totalRevenue,
-      dailyRevenue: stats.dailyRevenue.slice(7), // Return only the current week for UI display
+      dailyRevenue: dailyRevenueArray,
       revenueGrowth,
       averageOrderValue: totalOrders > 0 ? Math.round(stats.totalRevenue / totalOrders) : 0,
+
       topProducts: topProducts.map(p => ({ 
         ...p, 
         growth: 0 // In high-velocity production, growth is calculated via time-series analysis (e.g. InfluxDB/Prometheus)

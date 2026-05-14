@@ -124,8 +124,9 @@ export function AdminImportDialog({
       // Convert to Domain Models (Shopify Multi-Row Variant Grouping)
       const productMap = new Map<string, any>();
 
-      rawData.forEach(row => {
-        const handle = row.Handle || row.handle || `temp-${Math.random().toString(36).slice(2, 9)}`;
+      rawData.forEach((row, rowIndex) => {
+        const handle = row.Handle || row.handle || '';
+        const mapKey = handle || `row-${rowIndex}`;
         
         const price = parseFloat(row['Variant Price'] || row.price || '0');
         const compareAtPrice = parseFloat(row['Variant Compare At Price'] || row.compareAtPrice || '0');
@@ -151,8 +152,8 @@ export function AdminImportDialog({
           imageUrl: row['Variant Image'] || row['Image Src'] || '',
         };
 
-        if (!productMap.has(handle)) {
-          productMap.set(handle, {
+        if (!productMap.has(mapKey)) {
+          productMap.set(mapKey, {
             handle,
             name: row.Title || row.name || 'Unnamed Product',
             description: row['Body (HTML)'] || row.description || 'No description provided.',
@@ -177,14 +178,14 @@ export function AdminImportDialog({
           if (row['Option1 Name']) options.push({ name: row['Option1 Name'], position: 1, values: [] });
           if (row['Option2 Name']) options.push({ name: row['Option2 Name'], position: 2, values: [] });
           if (row['Option3 Name']) options.push({ name: row['Option3 Name'], position: 3, values: [] });
-          productMap.get(handle).options = options;
+          productMap.get(mapKey).options = options;
         } else {
-          const product = productMap.get(handle);
+          const product = productMap.get(mapKey);
           product.variants.push(variant);
         }
 
         // Collect unique values for options
-        const product = productMap.get(handle);
+        const product = productMap.get(mapKey);
         if (variant.option1 && product.options[0]) if (!product.options[0].values.includes(variant.option1)) product.options[0].values.push(variant.option1);
         if (variant.option2 && product.options[1]) if (!product.options[1].values.includes(variant.option2)) product.options[1].values.push(variant.option2);
         if (variant.option3 && product.options[2]) if (!product.options[2].values.includes(variant.option3)) product.options[2].values.push(variant.option3);

@@ -33,22 +33,8 @@ export interface IProductRepository {
   batchDelete?(ids: string[]): Promise<void>;
   batchUpdate?(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]>;
   batchCreate?(products: ProductDraft[]): Promise<Product[]>;
-  getStats(): Promise<{
-    totalProducts: number;
-    totalUnits: number;
-    inventoryValue: number;
-    healthCounts: {
-      out_of_stock: number;
-      low_stock: number;
-      healthy: number;
-    };
-  }>;
-  getDetailedStats(): Promise<{
-    statusCounts: Record<ProductStatus, number>;
-    setupIssueCounts: Record<import('./models').ProductSetupIssue, number>;
-    marginHealthCounts: Record<import('./models').MarginHealth, number>;
-    averageMarginPercent: number;
-  }>;
+  getStats(): Promise<import('./models').ProductStats>;
+  getDetailedStats(): Promise<import('./models').ProductStats>; // Keep for compatibility but can alias
   getLowStockProducts(limit: number): Promise<Product[]>;
 }
 
@@ -91,11 +77,9 @@ export interface IOrderRepository {
   updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
 
-  getDashboardStats(): Promise<{
-    totalRevenue: number;
-    dailyRevenue: number[]; // Last 7 days, index 0 is 6 days ago, index 6 is today
-    orderCountsByStatus: Record<OrderStatus, number>;
-  }>;
+  getOrderStats(): Promise<import('./models').OrderStats>;
+  getDashboardStats(): Promise<import('./models').OrderStats>; // Keep for compatibility but can alias
+
   getTopProducts(limit: number): Promise<Array<{
     id: string;
     name: string;
@@ -280,6 +264,8 @@ export interface IKnowledgebaseRepository {
   getArticles(options?: { categoryId?: string; type?: 'article' | 'blog'; status?: 'published' | 'draft' | 'all'; limit?: number; cursor?: string }): Promise<{ articles: import('./models').KnowledgebaseArticle[]; nextCursor?: string }>;
   getArticleById(id: string): Promise<import('./models').KnowledgebaseArticle | null>;
   getArticleBySlug(slug: string): Promise<import('./models').KnowledgebaseArticle | null>;
+  ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string>;
+
 
   searchArticles(queryString: string): Promise<import('./models').KnowledgebaseArticle[]>;
   getPopularArticles(limitVal?: number): Promise<import('./models').KnowledgebaseArticle[]>;

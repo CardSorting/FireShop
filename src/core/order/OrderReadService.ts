@@ -70,12 +70,14 @@ export class OrderReadService {
     fulfillmentCount: number;
     reconcilingCount: number;
   }> {
-    const orders = await this.orderRepo.getAll({ limit: 1000 }); // Simple implementation
+    const stats = await this.orderRepo.getStats();
+    const counts = stats.orderCountsByStatus || {};
+    
     return {
-      totalCount: orders.orders.length,
-      pendingCount: orders.orders.filter(o => o.status === 'confirmed').length,
-      fulfillmentCount: orders.orders.filter(o => o.status === 'processing').length,
-      reconcilingCount: orders.orders.filter(o => o.status === 'reconciling').length,
+      totalCount: stats.totalOrders || 0,
+      pendingCount: (counts['confirmed'] || 0) + (counts['pending'] || 0),
+      fulfillmentCount: counts['processing'] || 0,
+      reconcilingCount: counts['reconciling'] || 0,
     };
   }
 }

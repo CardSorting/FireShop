@@ -27,12 +27,15 @@ import {
 } from '../../firebase/bridge';
 import { logger } from '@utils/logger';
 import type { IOrderRepository } from '@domain/repositories';
-import type { Address, Order, OrderItem, OrderStatus } from '@domain/models';
+import type { Address, Order, OrderItem, OrderStatus, OrderStats } from '@domain/models';
+
 
 import { mapDoc, mapTimestamp } from './utils';
 
 export class FirestoreOrderRepository implements IOrderRepository {
   private readonly collectionName = 'orders';
+  private readonly statsDocPath = 'system_state/order_stats';
+
 
   private mapDocToOrder(id: string, data: DocumentData): Order {
     return mapDoc<Order>(id, data);
@@ -83,6 +86,14 @@ export class FirestoreOrderRepository implements IOrderRepository {
         const payRef = doc(db, 'order_payment_intent_map', order.paymentTransactionId);
         t.set(payRef, { orderId: id, createdAt: serverTimestamp() });
       }
+
+      // 4. Update Sovereign Stats (Atomic)
+      this.applyOrderStatsDeltas(t, {
+        revenueDelta: order.total,
+        orderDelta: 1,
+        statusChanges: [{ to: order.status }]
+      });
+
 
       return {
         ...order,
@@ -237,30 +248,56 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async updateStatus(id: string, status: OrderStatus, transaction?: any): Promise<void> {
-    const docRef = doc(getUnifiedDb(), this.collectionName, id);
-    const updateData = { 
-      status, 
-      updatedAt: serverTimestamp() 
+    const db = getUnifiedDb();
+    const docRef = doc(db, this.collectionName, id);
+    
+    const operation = async (t: any) => {
+      const snap = await t.get(docRef);
+      if (!snap.exists()) return;
+      const oldStatus = snap.data().status as OrderStatus;
+      
+      t.update(docRef, { 
+        status, 
+        updatedAt: serverTimestamp() 
+      });
+
+      if (oldStatus !== status) {
+        this.applyOrderStatsDeltas(t, {
+          statusChanges: [{ from: oldStatus, to: status }]
+        });
+      }
     };
 
     if (transaction) {
-      transaction.update(docRef, updateData);
+      await operation(transaction);
     } else {
-      await updateDoc(docRef, updateData);
+      await runTransaction(db, operation);
     }
   }
 
   async batchUpdateStatus(ids: string[], status: OrderStatus): Promise<void> {
     const db = getUnifiedDb();
-    const batch = writeBatch(db);
-    for (const id of ids) {
-      batch.update(doc(db, this.collectionName, id), {
-        status,
-        updatedAt: serverTimestamp()
-      });
-    }
-    await batch.commit();
+    await runTransaction(db, async (t: any) => {
+      const statusChanges: { from: OrderStatus; to: OrderStatus }[] = [];
+      
+      for (const id of ids) {
+        const docRef = doc(db, this.collectionName, id);
+        const snap = await t.get(docRef);
+        if (snap.exists()) {
+          const oldStatus = snap.data().status as OrderStatus;
+          if (oldStatus !== status) {
+            t.update(docRef, { status, updatedAt: serverTimestamp() });
+            statusChanges.push({ from: oldStatus, to: status });
+          }
+        }
+      }
+
+      if (statusChanges.length > 0) {
+        this.applyOrderStatsDeltas(t, { statusChanges });
+      }
+    });
   }
+
 
   async updatePaymentTransactionId(id: string, paymentTransactionId: string): Promise<void> {
     const db = getUnifiedDb();
@@ -356,54 +393,91 @@ export class FirestoreOrderRepository implements IOrderRepository {
     else await updateDoc(docRef, data);
   }
 
-  async getDashboardStats(): Promise<{
-    totalRevenue: number;
-    dailyRevenue: number[];
-    orderCountsByStatus: Record<OrderStatus, number>;
-  }> {
+  async getOrderStats(): Promise<OrderStats> {
     const db = getUnifiedDb();
-    const ordersCol = collection(db, this.collectionName);
+    const statsSnap = await getDoc(doc(db, this.statsDocPath));
+    if (!statsSnap.exists()) {
+      // Fallback to manual aggregation for initialization (First run)
+      return this.initializeOrderStats();
+    }
+    return statsSnap.data() as OrderStats;
+  }
 
-    // 1. Get status counts using atomic aggregations (High Performance)
-    const statuses: OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'partially_refunded', 'ready_for_pickup', 'delivery_started'];
-    const countPromises = statuses.map(async (status) => {
-      const count = await getCount(query(ordersCol, where('status', '==', status)));
-      return { status, count };
-    });
-    const countResults = await Promise.all(countPromises);
-    const orderCountsByStatus = countResults.reduce((acc, res) => {
-      acc[res.status] = res.count;
-      return acc;
-    }, {} as Record<OrderStatus, number>);
+  async getDashboardStats(): Promise<OrderStats> {
+    return this.getOrderStats();
+  }
 
-    // 2. Get recent orders for revenue trends (Last 14 days window for WoW growth)
-    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const recentQ = query(ordersCol, where('createdAt', '>=', Timestamp.fromDate(fourteenDaysAgo)));
-    const snapshot = await getDocs(recentQ);
-
-    let recentRevenue = 0;
-    const dailyRevenue = new Array(14).fill(0); // [13, 12...7 (Prev Week), 6...0 (Current Week)]
-    const now = new Date();
+  private async initializeOrderStats(): Promise<OrderStats> {
+    logger.info('[Stats] Initializing order stats via collection scan...');
+    const db = getUnifiedDb();
+    const snapshot = await getDocs(collection(db, this.collectionName));
+    
+    const stats: OrderStats = {
+      totalRevenue: 0,
+      totalOrders: 0,
+      orderCountsByStatus: {} as any,
+      dailyRevenue: {},
+      updatedAt: new Date()
+    };
 
     snapshot.forEach((d: any) => {
       const data = d.data();
       const status = data.status as OrderStatus;
-      // Industrialized Revenue: Exclude cancelled/refunded from growth metrics
       if (status !== 'cancelled' && status !== 'refunded') {
-        recentRevenue += data.total || 0;
+        stats.totalRevenue += data.total || 0;
         const createdAt = mapTimestamp(data.createdAt);
-        const diffDays = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays >= 0 && diffDays < 14) {
-          dailyRevenue[13 - diffDays] += data.total || 0;
-        }
+        const day = createdAt.toISOString().split('T')[0];
+        stats.dailyRevenue[day] = (stats.dailyRevenue[day] || 0) + (data.total || 0);
       }
+      stats.totalOrders++;
+      stats.orderCountsByStatus[status] = (stats.orderCountsByStatus[status] || 0) + 1;
     });
 
-    // 3. For Total Revenue (Forensic Truth), we'd ideally use a summary doc. 
-    // For now, we'll return recentRevenue as a floor, but in a real production app, 
-    // this would be served from a 'stats/global' document updated by Cloud Functions.
-    return { totalRevenue: recentRevenue, dailyRevenue, orderCountsByStatus };
+    await setDoc(doc(db, this.statsDocPath), stats);
+    return stats;
   }
+
+  private applyOrderStatsDeltas(t: any, updates: { 
+    revenueDelta?: number; 
+    orderDelta?: number; 
+    statusChanges?: { from?: OrderStatus; to: OrderStatus }[] 
+  }) {
+    const db = getUnifiedDb();
+    const statsRef = doc(db, this.statsDocPath);
+    
+    const firestoreUpdates: any = {
+      updatedAt: serverTimestamp()
+    };
+
+    if (updates.revenueDelta) {
+      firestoreUpdates.totalRevenue = increment(updates.revenueDelta);
+      const today = new Date().toISOString().split('T')[0];
+      firestoreUpdates[`dailyRevenue.${today}`] = increment(updates.revenueDelta);
+    }
+    
+    if (updates.orderDelta) {
+      firestoreUpdates.totalOrders = increment(updates.orderDelta);
+    }
+
+    if (updates.statusChanges) {
+      const increments: Record<string, number> = {};
+      for (const change of updates.statusChanges) {
+        if (change.from) {
+          increments[change.from] = (increments[change.from] || 0) - 1;
+        }
+        increments[change.to] = (increments[change.to] || 0) + 1;
+      }
+
+      for (const [status, delta] of Object.entries(increments)) {
+        if (delta !== 0) {
+          firestoreUpdates[`orderCountsByStatus.${status}`] = increment(delta);
+        }
+      }
+    }
+
+    t.set(statsRef, firestoreUpdates, { merge: true });
+  }
+
 
   async getTopProducts(limitVal: number): Promise<Array<{ id: string; name: string; revenue: number; sales: number }>> {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -437,7 +511,14 @@ export class FirestoreOrderRepository implements IOrderRepository {
   private async calculateRiskScore(order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {
     let score = 5; // Base score
 
-    // Velocity Check: Rapid successive orders from same user
+    // 1. Stripe Radar Integration (Primary Signal)
+    // If Stripe has already performed advanced ML risk analysis, we weight it heavily.
+    const stripeRisk = order.metadata?.stripe_risk_score; // 0-100
+    if (typeof stripeRisk === 'number') {
+      return stripeRisk; // Trust Stripe's ML substrate
+    }
+
+    // 2. Velocity Check: Rapid successive orders from same user
     if (order.userId) {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       const recent = await this.getByUserId(order.userId, { from: fiveMinutesAgo, limit: 10 });
@@ -445,28 +526,32 @@ export class FirestoreOrderRepository implements IOrderRepository {
       if (recent.orders.length >= 1) score += 5;
     }
 
-    // Threshold Checks
+    // 3. Email Reputation (Forensic Discovery)
+    const disposableDomains = ['tempmail.com', '10minutemail.com', 'guerrillamail.com', 'sharklasers.com', 'mailinator.com'];
+    const email = (order.customerEmail || '').toLowerCase();
+    if (disposableDomains.some(domain => email.endsWith(domain))) {
+      score += 50; // Extremely high risk signal
+    }
+
+    // 4. Threshold & Volume Checks
     if (order.total > 50000) score += 10; // >$500
     if (order.total > 150000) score += 25; // >$1500
+    if (!order.userId && order.total > 20000) score += 20; // Unauthenticated high-value
 
-    // Volume Checks
     const totalQty = order.items.reduce((sum, i) => sum + i.quantity, 0);
     if (totalQty > 20) score += 15;
     
-    // Geographical Checks
-    const country = order.shippingAddress.country.toUpperCase();
-    if (country !== 'US' && country !== 'CA' && country !== 'GB') {
+    // 5. Geographical Signals
+    const country = (order.shippingAddress.country || '').toUpperCase();
+    if (country !== 'US' && country !== 'CA' && country !== 'GB' && country !== 'AU') {
       score += 20; // International non-primary markets
     }
 
-    // Heuristics: High-risk item combinations
+    // 6. Heuristics: High-risk item combinations
     const hasDigital = order.items.some(i => i.isDigital);
     const hasPhysical = order.items.some(i => !i.isDigital);
-    if (hasDigital && hasPhysical) {
-      score += 10; // Mixed orders can be harder to verify
-    }
+    if (hasDigital && hasPhysical) score += 10;
 
-    // Heuristics: High-value items
     const hasExpensiveItem = order.items.some(i => i.unitPrice > 30000); // >$300 item
     if (hasExpensiveItem) score += 15;
 

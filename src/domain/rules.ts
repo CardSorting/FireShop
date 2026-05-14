@@ -594,6 +594,7 @@ export function addCartItem(
   let price = product.price;
   let variantTitle = undefined;
   let imageUrl = product.imageUrl;
+  let weightGrams = product.weightGrams;
 
   if (variantId && product.variants) {
     const variant = product.variants.find(v => v.id === variantId);
@@ -601,6 +602,7 @@ export function addCartItem(
       price = variant.price;
       variantTitle = variant.title;
       if (variant.imageUrl) imageUrl = variant.imageUrl;
+      if (variant.weightGrams !== undefined) weightGrams = variant.weightGrams;
     }
   }
 
@@ -615,6 +617,7 @@ export function addCartItem(
     imageUrl,
     isDigital: product.isDigital,
     shippingClassId: product.shippingClassId,
+    weightGrams,
   };
 
   if (existingIndex >= 0) {
@@ -652,9 +655,13 @@ export function calculateShipping(
   const zone = allZones.find(z => z.countries.includes(address.country)) || allZones.find(z => z.name.toLowerCase() === 'rest of world');
   if (!zone) return { amount: 0, rateName: 'Shipping calculation failed: No matching zone' }; // Production Hardening: Fail explicitly if no zone matched
 
-  // 2. Identify the classes in the cart
+  // 2. Identify the classes and total weight in the cart
   const classesInCart = new Set(cartItems.map(item => item.shippingClassId).filter(Boolean));
   
+  // Industrialization: Fetch weights if available (requires weightGrams to be passed in cartItems)
+  const totalWeightGrams = (cartItems as any[]).reduce((sum, item) => sum + (item.weightGrams || 0) * item.quantity, 0);
+  const totalWeightLbs = totalWeightGrams / 453.592;
+
   // Find rates for the zone
   const zoneRates = allRates.filter(r => r.shippingZoneId === zone.id);
   
@@ -674,7 +681,11 @@ export function calculateShipping(
         const max = r.maxLimit ?? Infinity;
         return subtotal >= min && subtotal <= max;
       }
-      // Weight based fallback: in a full app, we'd calculate total weight here.
+      if (r.type === 'weight_based') {
+        const min = r.minLimit ?? 0;
+        const max = r.maxLimit ?? Infinity;
+        return totalWeightLbs >= min && totalWeightLbs <= max;
+      }
       return r.type === 'flat';
     })
     .sort((a, b) => a.amount - b.amount)[0];

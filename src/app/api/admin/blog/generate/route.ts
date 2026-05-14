@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getInitialServices } from '@core/container';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { logger } from '@utils/logger';
 import { assertRateLimit, hasValidBearerToken, jsonError, readJsonObject, requireAdminSession, requireString } from '@infrastructure/server/apiGuards';
+
 
 async function requireBlogGeneratorAccess(req: Request): Promise<void> {
   if (hasValidBearerToken(req, process.env.CRON_SECRET)) return;
@@ -91,7 +93,7 @@ export async function POST(req: Request) {
           return contentResponse.candidates?.[0].content.parts[0].text || '';
         }
       } catch (err: any) {
-        console.warn(`[AI] Model ${modelName} failed: ${err.message}. Trying fallback...`);
+        logger.warn(`[AI] Model ${modelName} failed: ${err.message}. Trying fallback...`);
         return null;
       }
     };
@@ -104,7 +106,7 @@ export async function POST(req: Request) {
     // 1. Generate Article Content
     text = await tryGenerate(preferredModel, isVertex) || '';
     if (!text) {
-      console.log(`[AI] Falling back to ${fallbackModel} for content`);
+      logger.info(`[AI] Falling back to ${fallbackModel} for content`);
       text = await tryGenerate(fallbackModel, isVertex) || '';
     }
 
@@ -113,7 +115,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Generate Feature Image (using the new image-preview model)
-    console.log(`[AI] Generating feature image using ${imageModelName}...`);
+    logger.info(`[AI] Generating feature image using ${imageModelName}...`);
     const imagePrompt = `Generate a high-quality, professional feature image for a blog post titled: "${topic}". The style should be high-end tech photography or epic digital art, optimized for TCG collectors. Return ONLY the image URL or a base64 string.`;
     const featureImageResult = await tryGenerate(imageModelName, isVertex);
     const featuredImageUrl = featureImageResult || '/assets/generated/generic_tcg_strategy_1778177431609.png'; // High-quality fallback
@@ -127,11 +129,13 @@ export async function POST(req: Request) {
     const data = JSON.parse(jsonString);
 
     const articleId = crypto.randomUUID();
+    const resolvedSlug = await services.knowledgebaseRepository.ensureUniqueSlug(data.slug || topic.toLowerCase().replace(/[^\w-]/g, '-'));
+
     const article = {
       id: articleId,
       categoryId: categoryId || 'general',
       title: data.title,
-      slug: data.slug + '-' + Math.floor(Math.random() * 1000), // Ensure uniqueness
+      slug: resolvedSlug,
       excerpt: data.excerpt,
       content: data.content, // We will sanitize this below
       tags: data.tags,

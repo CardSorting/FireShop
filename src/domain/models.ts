@@ -301,6 +301,7 @@ export interface CartItem {
   imageUrl: string;
   isDigital?: boolean;
   shippingClassId?: string;
+  weightGrams?: number;
 }
 
 export interface Order {
@@ -1291,3 +1292,30 @@ export interface MarketingOverview {
 
 export type MarketingCampaignDraft = Omit<MarketingCampaign, 'id' | 'sentCount' | 'clickCount' | 'conversionCount' | 'revenueGenerated' | 'createdAt' | 'updatedAt'>;
 export type MarketingCampaignUpdate = Partial<MarketingCampaignDraft>;
+
+// ─────────────────────────────────────────────
+// Statistics & Dashboard Aggregations
+// ─────────────────────────────────────────────
+
+export interface OrderStats {
+  totalRevenue: number;
+  totalOrders: number;
+  orderCountsByStatus: Record<OrderStatus, number>;
+  dailyRevenue: Record<string, number>; // YYYY-MM-DD -> cents
+  updatedAt: Date;
+}
+
+export interface ProductStats {
+  totalProducts: number;
+  totalUnits: number;
+  inventoryValue: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  statusCounts: Record<ProductStatus, number>;
+  marginHealthCounts: Record<MarginHealth, number>;
+  totalMarginPercent: number; // Sum for average calculation
+  productWithMarginCount: number;
+  updatedAt: Date;
+}
+
+

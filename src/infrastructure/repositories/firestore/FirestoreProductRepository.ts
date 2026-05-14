@@ -29,11 +29,11 @@ import {
 import { logger } from '@utils/logger';
 import type { IProductRepository } from '@domain/repositories';
 import type { 
-  Product, 
-  ProductDraft, 
   ProductUpdate, 
-  ProductStatus 
+  ProductStatus,
+  ProductStats
 } from '@domain/models';
+
 import { ProductNotFoundError, InsufficientStockError } from '@domain/errors';
 
 import { mapDoc } from './utils';
@@ -41,6 +41,8 @@ import { classifyInventoryHealth, classifyProductSetupStatus, calculateGrossMarg
 
 export class FirestoreProductRepository implements IProductRepository {
   private readonly collectionName = 'products';
+  private readonly statsDocPath = 'system_state/product_stats';
+
 
   private mapDocToProduct(id: string, data: DocumentData): Product {
     return mapDoc<Product>(id, data);
@@ -206,10 +208,17 @@ export class FirestoreProductRepository implements IProductRepository {
         marginHealth: classifyMarginHealth(product as Product),
       };
 
-      transaction.set(doc(getUnifiedDb(), this.collectionName, id), productData);
-      return { ...productData, id, createdAt: new Date(), updatedAt: new Date() } as any as Product;
+      const productRef = doc(getUnifiedDb(), this.collectionName, id);
+      transaction.set(productRef, productData);
+      
+      const createdProduct = { ...productData, id, createdAt: new Date(), updatedAt: new Date() } as any as Product;
+      const deltas = this.getProductStatsDeltas(null, createdProduct);
+      this.applyStatsDeltas(transaction, deltas);
+      
+      return createdProduct;
     });
   }
+
 
   async batchCreate(products: ProductDraft[]): Promise<Product[]> {
     const db = getUnifiedDb();
@@ -246,12 +255,21 @@ export class FirestoreProductRepository implements IProductRepository {
           marginHealth: classifyMarginHealth(draft as Product),
         };
 
-        transaction.set(doc(db, this.collectionName, id), productData);
-        results.push({ ...productData, id, createdAt: new Date(), updatedAt: new Date() } as any as Product);
+        const productRef = doc(db, this.collectionName, id);
+        transaction.set(productRef, productData);
+        
+        const createdProduct = { ...productData, id, createdAt: new Date(), updatedAt: new Date() } as any as Product;
+        const deltas = this.getProductStatsDeltas(null, createdProduct);
+        Object.entries(deltas).forEach(([path, delta]) => {
+          accumulatedDeltas[path] = (accumulatedDeltas[path] || 0) + delta;
+        });
+        results.push(createdProduct);
       }
+      this.applyStatsDeltas(transaction, accumulatedDeltas);
       return results;
     });
   }
+
 
   async update(id: string, updates: ProductUpdate, transaction?: any): Promise<Product> {
     const docRef = doc(getUnifiedDb(), this.collectionName, id);
@@ -321,6 +339,12 @@ export class FirestoreProductRepository implements IProductRepository {
       }
 
       t.update(docRef, firestoreUpdates);
+
+      // Re-map to get the final product state for stats update
+      const updatedProduct = this.mapDocToProduct(id, { ...currentData, ...firestoreUpdates });
+      await this.updateProductStats(t, current, updatedProduct);
+    };
+
     };
 
     if (transaction) {
@@ -333,8 +357,18 @@ export class FirestoreProductRepository implements IProductRepository {
   }
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(getUnifiedDb(), this.collectionName, id));
+    const db = getUnifiedDb();
+    await runTransaction(db, async (t) => {
+      const docRef = doc(db, this.collectionName, id);
+      const snap = await t.get(docRef);
+      if (snap.exists()) {
+        const product = this.mapDocToProduct(id, snap.data());
+        t.delete(docRef);
+        this.applyStatsDeltas(t, this.getProductStatsDeltas(product, null));
+      }
+    });
   }
+
 
   async updateStock(id: string, delta: number, transaction?: any): Promise<void> {
     const db = getUnifiedDb();
@@ -349,8 +383,12 @@ export class FirestoreProductRepository implements IProductRepository {
 
       if (nextStock < 0) throw new InsufficientStockError(id, Math.abs(delta), currentStock);
 
+      const oldProduct = this.mapDocToProduct(id, data);
       const updatedData = this.applyDerivedFields({ ...data, id, stock: nextStock, updatedAt: serverTimestamp() });
       t.update(docRef, updatedData);
+      
+      const newProduct = this.mapDocToProduct(id, updatedData);
+      this.applyStatsDeltas(t, this.getProductStatsDeltas(oldProduct, newProduct));
     };
 
     if (transaction) {
@@ -387,6 +425,7 @@ export class FirestoreProductRepository implements IProductRepository {
       variants[variantIndex].updatedAt = serverTimestamp();
 
       const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      const oldProduct = this.mapDocToProduct(productId, data);
 
       const updatedData = this.applyDerivedFields({ 
         ...data, 
@@ -397,6 +436,9 @@ export class FirestoreProductRepository implements IProductRepository {
       });
 
       t.update(docRef, updatedData);
+      
+      const newProduct = this.mapDocToProduct(productId, updatedData);
+      this.applyStatsDeltas(t, this.getProductStatsDeltas(oldProduct, newProduct));
     };
 
     if (transaction) {
@@ -419,11 +461,13 @@ export class FirestoreProductRepository implements IProductRepository {
       });
 
       const finalUpdates = new Map<string, any>();
+      const accumulatedDeltas: Record<string, number> = {};
       
       for (const update of updates) {
         const data = finalUpdates.get(update.id) || productDataMap.get(update.id);
         if (!data) throw new Error(`Product ${update.id} not found for stock update`);
 
+        const oldProduct = this.mapDocToProduct(update.id, data);
         const workingData = { ...data };
 
         if (update.variantId) {
@@ -447,12 +491,17 @@ export class FirestoreProductRepository implements IProductRepository {
         
         workingData.updatedAt = serverTimestamp();
         finalUpdates.set(update.id, workingData);
-      }
 
-      for (const [id, data] of finalUpdates.entries()) {
-        const enriched = this.applyDerivedFields({ ...data, id });
-        t.update(doc(db, this.collectionName, id), enriched);
+        const enriched = this.applyDerivedFields({ ...workingData, id: update.id });
+        t.update(doc(db, this.collectionName, update.id), enriched);
+        
+        const newProduct = this.mapDocToProduct(update.id, enriched);
+        const deltas = this.getProductStatsDeltas(oldProduct, newProduct);
+        Object.entries(deltas).forEach(([path, delta]) => {
+          accumulatedDeltas[path] = (accumulatedDeltas[path] || 0) + delta;
+        });
       }
+      this.applyStatsDeltas(t, accumulatedDeltas);
     };
 
     if (transaction) {
@@ -465,19 +514,19 @@ export class FirestoreProductRepository implements IProductRepository {
   async batchUpdate(updates: { id: string; updates: ProductUpdate }[]): Promise<Product[]> {
     const db = getUnifiedDb();
     
-    // Industrialization: Batch updates must re-fetch current state to re-calculate derived fields
-    // to maintain index integrity for margin health, setup status, etc.
     return await runTransaction(db, async (t: any) => {
       const results: Product[] = [];
+      const accumulatedDeltas: Record<string, number> = {};
+
       for (const update of updates) {
         const docRef = doc(db, this.collectionName, update.id);
         const docSnap = await t.get(docRef);
         if (!docSnap.exists()) continue;
 
         const currentData = docSnap.data() as any;
+        const currentProduct = this.mapDocToProduct(update.id, currentData);
         const mergedData = { ...currentData, ...update.updates, id: update.id, updatedAt: serverTimestamp() };
         
-        // PRODUCTION HARDENING: Handle internal variant stock update signal
         const variantUpdate = (update.updates as any)._variantStockUpdate;
         if (variantUpdate) {
           const variants = [...(currentData.variants || [])];
@@ -492,115 +541,185 @@ export class FirestoreProductRepository implements IProductRepository {
         }
 
         const enriched = this.applyDerivedFields(mergedData);
-        
         t.update(docRef, enriched);
-        results.push(this.mapDocToProduct(update.id, enriched));
+        
+        const updatedProduct = this.mapDocToProduct(update.id, enriched);
+        const deltas = this.getProductStatsDeltas(currentProduct, updatedProduct);
+        Object.entries(deltas).forEach(([path, delta]) => {
+          accumulatedDeltas[path] = (accumulatedDeltas[path] || 0) + delta;
+        });
+        
+        results.push(updatedProduct);
       }
+      this.applyStatsDeltas(t, accumulatedDeltas);
       return results;
     });
   }
 
-  async getStats(): Promise<{
-    totalProducts: number;
-    totalUnits: number;
-    inventoryValue: number;
-    healthCounts: {
-      out_of_stock: number;
-      low_stock: number;
-      healthy: number;
-    };
-  }> {
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
-    const stats = {
+  async getStats(): Promise<ProductStats> {
+    const db = getUnifiedDb();
+    const statsSnap = await getDoc(doc(db, this.statsDocPath));
+    if (!statsSnap.exists()) {
+      return this.initializeProductStats();
+    }
+    return statsSnap.data() as ProductStats;
+  }
+
+  async getDetailedStats(): Promise<ProductStats> {
+    return this.getStats();
+  }
+
+  private async initializeProductStats(): Promise<ProductStats> {
+    logger.info('[Stats] Initializing product stats via collection scan...');
+    const db = getUnifiedDb();
+    const snapshot = await getDocs(collection(db, this.collectionName));
+    
+    const stats: ProductStats = {
       totalProducts: 0,
       totalUnits: 0,
       inventoryValue: 0,
-      healthCounts: {
-        out_of_stock: 0,
-        low_stock: 0,
-        healthy: 0,
-      }
-    };
-
-    snapshot.forEach((d: any) => {
-      const data = d.data();
-      stats.totalProducts++;
-      const stock = data.stock || 0;
-      stats.totalUnits += stock;
-      stats.inventoryValue += stock * (data.price || 0);
-
-      if (stock <= 0) stats.healthCounts.out_of_stock++;
-      else if (stock < 10) stats.healthCounts.low_stock++;
-      else stats.healthCounts.healthy++;
-    });
-
-    return stats;
-  }
-
-  async getDetailedStats(): Promise<{
-    statusCounts: Record<ProductStatus, number>;
-    setupIssueCounts: Record<import('@domain/models').ProductSetupIssue, number>;
-    marginHealthCounts: Record<import('@domain/models').MarginHealth, number>;
-    averageMarginPercent: number;
-  }> {
-    const snapshot = await getDocs(collection(getUnifiedDb(), this.collectionName));
-    
-    const stats: any = {
+      lowStockCount: 0,
+      outOfStockCount: 0,
       statusCounts: { active: 0, draft: 0, archived: 0 },
-      setupIssueCounts: {
-        missing_image: 0,
-        missing_sku: 0,
-        missing_price: 0,
-        missing_cost: 0,
-        missing_stock: 0,
-        missing_category: 0,
-        not_published: 0,
-      },
       marginHealthCounts: { unknown: 0, at_risk: 0, healthy: 0, premium: 0 },
       totalMarginPercent: 0,
       productWithMarginCount: 0,
+      updatedAt: new Date()
     };
 
     snapshot.forEach((d: any) => {
       const data = d.data();
+      const product = this.mapDocToProduct(d.id, data);
       
-      // Status
-      const status = data.status as ProductStatus;
-      if (stats.statusCounts[status] !== undefined) {
-        stats.statusCounts[status]++;
-      }
+      stats.totalProducts++;
+      stats.totalUnits += product.stock || 0;
+      stats.inventoryValue += (product.stock || 0) * (product.price || 0);
 
-      // Setup Issues
-      const issues = data.setupIssues || [];
-      issues.forEach((issue: string) => {
-        if (stats.setupIssueCounts[issue] !== undefined) {
-          stats.setupIssueCounts[issue]++;
-        }
-      });
+      if (product.stock <= 0) stats.outOfStockCount++;
+      else if (product.stock < 10) stats.lowStockCount++;
 
-      // Margin Health
-      const margin = data.marginHealth || 'unknown';
-      if (stats.marginHealthCounts[margin] !== undefined) {
-        stats.marginHealthCounts[margin]++;
-      }
-
-      // Average Margin calculation
-      const marginPercent = calculateGrossMarginPercent(data as Product);
+      
+      stats.statusCounts[product.status] = (stats.statusCounts[product.status] || 0) + 1;
+      
+      const marginHealth = product.marginHealth || 'unknown';
+      stats.marginHealthCounts[marginHealth] = (stats.marginHealthCounts[marginHealth] || 0) + 1;
+      
+      const marginPercent = calculateGrossMarginPercent(product);
       if (marginPercent !== null) {
         stats.totalMarginPercent += marginPercent;
         stats.productWithMarginCount++;
       }
     });
 
-    return {
-      statusCounts: stats.statusCounts,
-      setupIssueCounts: stats.setupIssueCounts,
-      marginHealthCounts: stats.marginHealthCounts,
-      averageMarginPercent: stats.productWithMarginCount > 0 
-        ? Math.round(stats.totalMarginPercent / stats.productWithMarginCount) 
-        : 0,
-    };
+    await setDoc(doc(db, this.statsDocPath), stats);
+    return stats;
   }
+
+  private getProductStatsDeltas(oldProduct: Product | null, newProduct: Product | null): Record<string, number> {
+    const deltas: Record<string, number> = {};
+    
+    const getStockHealth = (stock: number) => {
+      if (stock <= 0) return 'out';
+      if (stock < 10) return 'low';
+      return 'healthy';
+    };
+
+    if (oldProduct && !newProduct) {
+      // Deletion
+      deltas['totalProducts'] = -1;
+      deltas['totalUnits'] = -(oldProduct.stock || 0);
+      deltas['inventoryValue'] = -((oldProduct.stock || 0) * (oldProduct.price || 0));
+      deltas[`statusCounts.${oldProduct.status}`] = -1;
+      deltas[`marginHealthCounts.${oldProduct.marginHealth || 'unknown'}`] = -1;
+      
+      const health = getStockHealth(oldProduct.stock);
+      if (health === 'low') deltas['lowStockCount'] = -1;
+      if (health === 'out') deltas['outOfStockCount'] = -1;
+      
+      const margin = calculateGrossMarginPercent(oldProduct);
+      if (margin !== null) {
+        deltas['totalMarginPercent'] = -margin;
+        deltas['productWithMarginCount'] = -1;
+      }
+    } else if (!oldProduct && newProduct) {
+      // Creation
+      deltas['totalProducts'] = 1;
+      deltas['totalUnits'] = newProduct.stock || 0;
+      deltas['inventoryValue'] = (newProduct.stock || 0) * (newProduct.price || 0);
+      deltas[`statusCounts.${newProduct.status}`] = 1;
+      deltas[`marginHealthCounts.${newProduct.marginHealth || 'unknown'}`] = 1;
+      
+      const health = getStockHealth(newProduct.stock);
+      if (health === 'low') deltas['lowStockCount'] = 1;
+      if (health === 'out') deltas['outOfStockCount'] = 1;
+      
+      const margin = calculateGrossMarginPercent(newProduct);
+      if (margin !== null) {
+        deltas['totalMarginPercent'] = margin;
+        deltas['productWithMarginCount'] = 1;
+      }
+    } else if (oldProduct && newProduct) {
+      // Update
+      if (oldProduct.stock !== newProduct.stock || oldProduct.price !== newProduct.price) {
+        deltas['totalUnits'] = (newProduct.stock || 0) - (oldProduct.stock || 0);
+        deltas['inventoryValue'] = 
+          ((newProduct.stock || 0) * (newProduct.price || 0)) - 
+          ((oldProduct.stock || 0) * (oldProduct.price || 0));
+      }
+
+      if (oldProduct.status !== newProduct.status) {
+        deltas[`statusCounts.${oldProduct.status}`] = (deltas[`statusCounts.${oldProduct.status}`] || 0) - 1;
+        deltas[`statusCounts.${newProduct.status}`] = (deltas[`statusCounts.${newProduct.status}`] || 0) + 1;
+      }
+      
+      if (oldProduct.marginHealth !== newProduct.marginHealth) {
+        deltas[`marginHealthCounts.${oldProduct.marginHealth || 'unknown'}`] = (deltas[`marginHealthCounts.${oldProduct.marginHealth || 'unknown'}`] || 0) - 1;
+        deltas[`marginHealthCounts.${newProduct.marginHealth || 'unknown'}`] = (deltas[`marginHealthCounts.${newProduct.marginHealth || 'unknown'}`] || 0) + 1;
+      }
+      
+      const oldHealth = getStockHealth(oldProduct.stock);
+      const newHealth = getStockHealth(newProduct.stock);
+      if (oldHealth !== newHealth) {
+        if (oldHealth === 'low') deltas['lowStockCount'] = (deltas['lowStockCount'] || 0) - 1;
+        if (oldHealth === 'out') deltas['outOfStockCount'] = (deltas['outOfStockCount'] || 0) - 1;
+        if (newHealth === 'low') deltas['lowStockCount'] = (deltas['lowStockCount'] || 0) + 1;
+        if (newHealth === 'out') deltas['outOfStockCount'] = (deltas['outOfStockCount'] || 0) + 1;
+      }
+      
+      const oldMargin = calculateGrossMarginPercent(oldProduct);
+      const newMargin = calculateGrossMarginPercent(newProduct);
+      if (oldMargin !== newMargin) {
+        if (oldMargin !== null) {
+          deltas['totalMarginPercent'] = (deltas['totalMarginPercent'] || 0) - oldMargin;
+          deltas['productWithMarginCount'] = (deltas['productWithMarginCount'] || 0) - 1;
+        }
+        if (newMargin !== null) {
+          deltas['totalMarginPercent'] = (deltas['totalMarginPercent'] || 0) + newMargin;
+          deltas['productWithMarginCount'] = (deltas['productWithMarginCount'] || 0) + 1;
+        }
+      }
+    }
+
+    return deltas;
+  }
+
+  private applyStatsDeltas(t: Transaction, deltas: Record<string, number>) {
+    const statsRef = doc(getUnifiedDb(), this.statsDocPath);
+    const updates: any = { updatedAt: serverTimestamp() };
+    let hasUpdates = false;
+
+    for (const [path, delta] of Object.entries(deltas)) {
+      if (delta !== 0) {
+        updates[path] = increment(delta);
+        hasUpdates = true;
+      }
+    }
+
+    if (hasUpdates) {
+      t.set(statsRef, updates, { merge: true });
+    }
+  }
+
 
   async getLowStockProducts(limitVal: number): Promise<Product[]> {
     // Note: status + stock index is required for this query.

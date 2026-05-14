@@ -454,7 +454,30 @@ export class FirestoreKnowledgebaseRepository {
     
     await batch.commit();
   }
+  async ensureUniqueSlug(baseSlug: string, excludeId?: string): Promise<string> {
+    const db = getUnifiedDb();
+    let currentSlug = baseSlug.toLowerCase().trim().replace(/[^\w-]/g, '-').replace(/-+/g, '-');
+    const originalSlug = currentSlug;
+    let attempts = 0;
+    const maxAttempts = 10;
 
+    while (attempts < maxAttempts) {
+      const q = query(
+        collection(db, this.articleCollection),
+        where('slug', '==', currentSlug),
+        limit(1)
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return currentSlug;
+      if (excludeId && snapshot.docs[0].id === excludeId) return currentSlug;
+
+      attempts++;
+      currentSlug = `${originalSlug}-${attempts}`;
+    }
+
+    return `${originalSlug}-${crypto.randomUUID().slice(0, 8)}`;
+  }
 }
 
 export const knowledgebaseRepository = new FirestoreKnowledgebaseRepository();

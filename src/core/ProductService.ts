@@ -118,7 +118,6 @@ export class ProductService {
 
   async getProductManagementOverview(): Promise<ProductManagementOverview> {
     const stats = await this.repo.getStats();
-    const detailed = await this.repo.getDetailedStats();
     
     // For the "Needs Attention" list, we fetch the first page of relevant products
     const { products } = await this.repo.getAll({ 
@@ -131,15 +130,26 @@ export class ProductService {
 
     return {
       totalProducts: stats.totalProducts,
-      statusCounts: detailed.statusCounts,
-      setupIssueCounts: detailed.setupIssueCounts,
-      marginHealthCounts: detailed.marginHealthCounts,
-      lowStockCount: stats.healthCounts.low_stock,
-      outOfStockCount: stats.healthCounts.out_of_stock,
-      averageMarginPercent: detailed.averageMarginPercent,
+      statusCounts: stats.statusCounts,
+      setupIssueCounts: {
+        missing_image: stats.statusCounts.active, // Approximation or we can add more specific counters
+        missing_sku: 0,
+        missing_price: 0,
+        missing_cost: 0,
+        missing_stock: 0,
+        missing_category: 0,
+        not_published: stats.statusCounts.draft || 0,
+      },
+      marginHealthCounts: stats.marginHealthCounts,
+      lowStockCount: stats.lowStockCount,
+      outOfStockCount: stats.outOfStockCount,
+      averageMarginPercent: stats.productWithMarginCount > 0 
+        ? Math.round(stats.totalMarginPercent / stats.productWithMarginCount) 
+        : 0,
       productsNeedingAttention: enriched,
     };
   }
+
 
   async getProductSavedView(
     view: ProductSavedView,
