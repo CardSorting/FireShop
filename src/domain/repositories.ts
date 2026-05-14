@@ -76,6 +76,7 @@ export interface IOrderRepository {
   clearReconciliationFlag(orderId: string, transaction?: any): Promise<void>;
   updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
+  update(id: string, updates: Partial<Omit<Order, 'id' | 'createdAt'>>, transaction?: any): Promise<Order>;
 
   getStats(): Promise<import('./models').OrderStats>;
   getDashboardStats(): Promise<import('./models').OrderStats>; // Keep for compatibility but can alias

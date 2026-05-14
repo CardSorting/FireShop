@@ -96,6 +96,7 @@ export function AdminOpsCommandCenter() {
   const [plan, setPlan] = useState<OperationalPlan | null>(null);
   const [loadingIntents, setLoadingIntents] = useState(true);
   const [compiling, setCompiling] = useState(false);
+  const [executing, setExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedCard = useMemo(
@@ -137,6 +138,41 @@ export function AdminOpsCommandCenter() {
       setCompiling(false);
     }
   }, [selectedIntent, toast]);
+
+  const executePlan = useCallback(async () => {
+    if (!plan) return;
+    setExecuting(true);
+    setError(null);
+    try {
+      const result = await requestJson<OperationalPlan>('/api/admin/ops/plans/execute', {
+        method: 'POST',
+        body: JSON.stringify(plan),
+      });
+      setPlan(result);
+      const executed = result.proposedOperations.filter(o => o.status === 'executed').length;
+      const failed = result.proposedOperations.filter(o => o.status === 'failed').length;
+      if (failed > 0) {
+        toast('info', `Plan partially completed: ${executed} succeeded, ${failed} failed.`);
+      } else {
+        toast('success', `Plan executed successfully: ${executed} operations completed.`);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to execute plan';
+      setError(message);
+      toast('error', message);
+    } finally {
+      setExecuting(false);
+    }
+  }, [plan, toast]);
+
+  const approveOperation = useCallback((operationId: string) => {
+    if (!plan) return;
+    const updatedOperations = plan.proposedOperations.map(op => 
+      op.id === operationId ? { ...op, status: 'approved' as const } : op
+    );
+    setPlan({ ...plan, proposedOperations: updatedOperations });
+    toast('success', 'Operation approved for execution');
+  }, [plan, toast]);
 
   useEffect(() => {
     void loadIntents();
@@ -228,14 +264,26 @@ export function AdminOpsCommandCenter() {
                   <h2 className="mt-2 text-2xl font-black tracking-tight">{plan.intent.desiredState.goal}</h2>
                   <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-gray-300">{plan.diagnosis.summary}</p>
                 </div>
-                <button
-                  onClick={() => void compilePlan(plan.intent.desiredState.intentType)}
-                  disabled={compiling}
-                  className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-white/15 transition hover:bg-white/15 disabled:opacity-50"
-                >
-                  <RotateCcw className={`h-4 w-4 ${compiling ? 'animate-spin' : ''}`} />
-                  Refresh plan
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => void compilePlan(plan.intent.desiredState.intentType)}
+                    disabled={compiling || executing}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-widest text-white ring-1 ring-white/15 transition hover:bg-white/15 disabled:opacity-50"
+                  >
+                    <RotateCcw className={`h-4 w-4 ${compiling ? 'animate-spin' : ''}`} />
+                    Refresh plan
+                  </button>
+                  {plan.status !== 'executed' && (
+                    <button
+                      onClick={() => void executePlan()}
+                      disabled={compiling || executing || !plan.proposedOperations.some(op => op.status === 'proposed' || op.status === 'approved')}
+                      className="inline-flex items-center gap-2 rounded-xl bg-primary-500 px-6 py-2 text-xs font-black uppercase tracking-widest text-white shadow-xl shadow-primary-500/20 transition hover:bg-primary-600 active:scale-95 disabled:opacity-50"
+                    >
+                      {executing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                      Execute Plan
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -253,12 +301,30 @@ export function AdminOpsCommandCenter() {
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className="text-sm font-black text-gray-900">{operation.title}</h4>
                             <AdminBadge label={operation.riskLevel} type={RISK_BADGE[operation.riskLevel]} />
-                            {operation.requiresApproval && <AdminBadge label="approval" type="amber" />}
+                            {operation.requiresApproval && operation.status === 'proposed' && <AdminBadge label="needs approval" type="amber" />}
+                            {operation.status === 'approved' && <AdminBadge label="approved" type="green" />}
+                            {operation.status === 'executed' && <AdminBadge label="executed" type="blue" />}
+                            {operation.status === 'failed' && <AdminBadge label="failed" type="red" />}
                           </div>
                           <p className="mt-1 text-xs font-medium leading-relaxed text-gray-500">{operation.description}</p>
                         </div>
-                        <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-black uppercase tracking-widest text-gray-400 ring-1 ring-gray-200">{operation.target}</span>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="rounded-lg bg-white px-2 py-1 text-[10px] font-black uppercase tracking-widest text-gray-400 ring-1 ring-gray-200">{operation.target}</span>
+                          {operation.requiresApproval && operation.status === 'proposed' && (
+                            <button 
+                              onClick={() => approveOperation(operation.id)}
+                              className="text-[10px] font-black uppercase tracking-widest text-primary-600 hover:text-primary-700 transition-colors"
+                            >
+                              Approve Operation
+                            </button>
+                          )}
+                        </div>
                       </div>
+                      {operation.error && (
+                        <div className="mt-3 rounded-xl bg-red-50 p-3 text-[10px] font-bold text-red-700 border border-red-100">
+                          Error: {operation.error}
+                        </div>
+                      )}
                       <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-gray-950 p-4 text-xs font-semibold leading-relaxed text-green-300">{operation.diff}</pre>
                       <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2">
                         <div className="rounded-xl bg-white p-3 ring-1 ring-gray-100">

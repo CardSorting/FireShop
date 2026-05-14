@@ -132,8 +132,7 @@ export function ProductsPage({ resolvedType, resolvedSlug }: { resolvedType?: 'c
       }
       try {
         if (resolvedType === 'category') {
-          const cats = await services.taxonomyService.getCategories(controller.signal);
-          const cat = cats.find((c: any) => c.slug === collectionSlug);
+          const cat = await services.taxonomyService.getCategoryBySlug(collectionSlug);
           if (!controller.signal.aborted && cat) {
             setCollectionInfo({ name: cat.name, description: cat.description || '' });
           }

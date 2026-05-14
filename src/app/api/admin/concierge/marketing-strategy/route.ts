@@ -1,30 +1,24 @@
 import { NextResponse } from 'next/server';
-import { getInitialServices } from '@core/container';
+import { getServerServices } from '@infrastructure/server/services';
+import { jsonError, requireAdminSession } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { campaignService, authService } = getInitialServices();
-    const user = await authService.getCurrentUser();
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const strategy = await campaignService.getConciergeMarketingStrategy();
+    await requireAdminSession(request);
+    const services = await getServerServices();
+    const strategy = await services.campaignService.getConciergeMarketingStrategy();
     return NextResponse.json(strategy);
   } catch (error: any) {
-    logger.error('Failed to build concierge marketing strategy', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(error, 'Failed to build concierge marketing strategy');
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const { campaignService, authService, auditService } = getInitialServices();
-    const user = await authService.getCurrentUser();
-    if (!user || user.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireAdminSession(request);
+    const services = await getServerServices();
+    const { campaignService, auditService } = services;
 
     const body = await request.json();
     if (body?.action === 'create_missing_lifecycle_playbooks') {
@@ -37,7 +31,7 @@ export async function POST(request: Request) {
         details: {
           source: 'concierge_marketing_strategy',
           createdCount: campaigns.length,
-          campaignIds: campaigns.map((campaign) => campaign.id),
+          campaignIds: campaigns.map((campaign: any) => campaign.id),
         },
       });
 
@@ -113,7 +107,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(campaign);
   } catch (error: any) {
-    logger.error('Failed to create concierge marketing playbook', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return jsonError(error, 'Failed to process concierge marketing action');
   }
 }

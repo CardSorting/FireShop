@@ -97,4 +97,11 @@ export class SettingsService {
   async updateNavigationMenu(menuId: string, menu: NavigationMenu, actor: { id: string, email: string }): Promise<void> {
     await this.updateSetting(`navigation_${menuId}`, menu as unknown as JsonValue, actor);
   }
+
+  /**
+   * Operations tool: Create a discount draft for store operator review.
+   */
+  async createDiscountDraft(discount: any): Promise<void> {
+    await this.discountRepo.create(discount);
+  }
 }

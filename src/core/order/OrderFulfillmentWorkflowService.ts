@@ -14,13 +14,22 @@ export class OrderFulfillmentWorkflowService {
 
     if (order.fulfillmentMethod === 'shipping' && trackingNumber) {
       assertValidOrderStatusTransition(order.status, 'shipped');
+      
+      // Determine carrier from tracking number pattern
+      const tn = trackingNumber.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let carrier = 'Other';
+      if (/^\d{12}$|^\d{15}$/.test(tn)) carrier = 'FedEx';
+      else if (/^1Z[A-Z0-9]{16}$/.test(tn)) carrier = 'UPS';
+      else if (/^\d{20,22}$|^[A-Z]{2}\d{9}[A-Z]{2}$/.test(tn)) carrier = 'USPS';
+      else if (/^\d{10}$/.test(tn)) carrier = 'DHL';
+
       await this.orderRepo.updateStatus(orderId, 'shipped');
       await this.orderRepo.updateFulfillment(orderId, {
         trackingNumber,
-        shippingCarrier: 'Carrier',
+        shippingCarrier: carrier,
         trackingUrl: deriveTrackingUrl({ ...order, trackingNumber } as Order) || ''
       });
-      await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Track: ${trackingNumber}`);
+      await this.recordFulfillmentEvent(orderId, 'in_transit', 'Dispatched', `Tracked via ${carrier}: ${trackingNumber}`);
       return;
     }
 

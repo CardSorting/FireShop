@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUnifiedDb, doc, updateDoc, arrayUnion, serverTimestamp } from '@infrastructure/firebase/bridge';
-// import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { requireAdminSession } from '@infrastructure/server/apiGuards';
 import { logger } from '@utils/logger';
 
 export async function POST(
@@ -8,9 +8,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await requireAdminSession(req);
     const { id: sessionId } = await params;
     const body = await req.json();
-    const { action, payload, operator } = body;
+    const { action, payload } = body;
+    const operator = user.email;
 
     const db = getUnifiedDb();
     const sessionRef = doc(db, 'conciergeSessions', sessionId);

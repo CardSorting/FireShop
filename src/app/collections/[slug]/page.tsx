@@ -11,8 +11,7 @@ import { absoluteUrl, breadcrumbJsonLd, seoDescription } from '@utils/seo';
 async function getCategoryOrCollection(slug: string) {
   const services = await getServerServices();
   try {
-    const categories = await services.taxonomyService.getAllCategories();
-    const category = categories.find((c: ProductCategory) => c.slug === slug);
+    const category = await services.taxonomyService.getCategoryBySlug(slug);
     if (category) return { type: 'category' as const, data: category };
     
     // Also check collections

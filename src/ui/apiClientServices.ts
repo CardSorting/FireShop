@@ -329,6 +329,7 @@ export function createApiClientServices() {
         },
         taxonomyService: {
             getCategories: (signal?: AbortSignal) => request<ProductCategory[]>('/api/taxonomy/categories', { signal }),
+            getCategoryBySlug: (slug: string, signal?: AbortSignal) => request<ProductCategory>(`/api/taxonomy/categories/${slug}`, { signal }),
             saveCategory: (category: Partial<ProductCategory>, _actor: { id: string; email: string }) => request<ProductCategory>('/api/admin/taxonomy/categories', { method: 'POST', body: JSON.stringify(category) }),
             deleteCategory: (id: string, _actor: { id: string; email: string }) => request<void>(`/api/admin/taxonomy/categories/${id}`, { method: 'DELETE' }),
             getTypes: () => request<ProductType[]>('/api/taxonomy/types'),

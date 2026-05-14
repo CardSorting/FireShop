@@ -36,6 +36,7 @@ export interface ProductFormState {
   isDigital: boolean;
   digitalAssets: DigitalAsset[];
   shippingClassId: string;
+  metafields: Record<string, string | number | boolean | null>;
   
   // Variations
   hasVariants: boolean;
@@ -79,6 +80,7 @@ export const INITIAL_FORM_STATE: ProductFormState = {
   isDigital: false,
   digitalAssets: [],
   shippingClassId: '',
+  metafields: {},
   hasVariants: false,
   options: [],
   variants: [],

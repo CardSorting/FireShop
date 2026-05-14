@@ -162,6 +162,7 @@ export interface ProposedOperation {
   beforeSummary?: string;
   afterSummary?: string;
   status: ProposedOperationStatus;
+  error?: string;
 }
 
 export interface PolicyRisk {

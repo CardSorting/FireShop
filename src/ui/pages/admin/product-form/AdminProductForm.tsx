@@ -32,6 +32,7 @@ import { DigitalAssetManager } from '@ui/components/admin/DigitalAssetManager';
 import { useProductForm } from './hooks/useProductForm';
 import { TextInput, MoneyInput, Checkbox } from './components/FormInputs';
 import { ProductVariations } from './components/ProductVariations';
+import { MetafieldsManager } from './components/MetafieldsManager';
 import { CLASSIFICATIONS, SALES_CHANNELS } from './types';
 import { centsFromInput, csvToList } from './utils';
 
@@ -297,21 +298,13 @@ export function AdminProductForm() {
               <TextInput label="Supplier / wholesaler" name="supplier" value={form.supplier} onChange={handleChange} />
               <TextInput label="Manufacturer SKU" name="manufacturerSku" value={form.manufacturerSku} onChange={handleChange} />
             </div>
-            <textarea name="adminNotes" value={form.adminNotes} onChange={handleChange} rows={3} placeholder="Admin notes/history placeholder: invoice notes, supplier terms, receiving context…" className="mt-4 w-full rounded-lg border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500" />
+            <textarea name="adminNotes" value={form.adminNotes} onChange={handleChange} rows={3} placeholder="Internal staff notes, supplier communication history, or intake specific details..." className="mt-4 w-full rounded-lg border bg-gray-50 px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-primary-500" />
           </section>
 
-          <section className="rounded-xl border bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Custom Attributes (Metafields)</h2>
-              <span className="rounded-full bg-primary-100 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary-600">Extensible</span>
-            </div>
-            <p className="rounded-lg border-2 border-dashed bg-gray-50 p-6 text-center text-xs font-medium text-gray-500">
-              Define custom fields like "Material", "Color", or "Internal ID" using the Metafields engine.
-            </p>
-            <div className="mt-4 flex justify-center">
-              <button type="button" className="text-[10px] font-bold uppercase tracking-widest text-primary-600 hover:underline">Add custom field</button>
-            </div>
-          </section>
+          <MetafieldsManager 
+            metafields={form.metafields} 
+            onChange={(metafields) => setFieldValue('metafields', metafields)} 
+          />
 
           <SeoSettings
             name={form.name}

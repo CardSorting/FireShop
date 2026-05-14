@@ -38,12 +38,13 @@ export type AuditAction =
   | 'product_type_created' | 'product_type_updated' | 'product_type_deleted'
   | 'wishlist_created' | 'wishlist_updated' | 'wishlist_deleted'
   | 'settings_updated'
-  | 'ops_plan_generated'
+  | 'ops_plan_generated' | 'ops_plan_executed' | 'merchandising_review_triggered'
   | 'concierge_analyzed' | 'concierge_escalated'
   | 'security_alert'
   | 'ticket_updated' | 'ticket_status_changed' | 'ticket_batch_updated'
   | 'campaign_created' | 'campaign_executed' | 'campaign_converted'
-  | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted';
+  | 'shipping_class_saved' | 'shipping_class_deleted' | 'shipping_zone_saved' | 'shipping_zone_deleted' | 'shipping_rate_saved' | 'shipping_rate_deleted'
+  | 'account_deletion_requested' | 'marketing_unsubscribe_requested';
 
 export interface AuditEntry {
   id: string;

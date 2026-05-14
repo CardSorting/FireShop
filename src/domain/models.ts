@@ -341,6 +341,7 @@ export interface Order {
   reconciliationRequired?: boolean;
   reconciliationNotes?: string[];
   refundedAmount?: number; // cents (Atomic tracking to prevent overflow)
+  adminTags?: string[];
   metadata?: Record<string, any>;
   createdAt: Date;
   updatedAt: Date;

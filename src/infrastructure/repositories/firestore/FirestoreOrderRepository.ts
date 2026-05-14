@@ -133,6 +133,45 @@ export class FirestoreOrderRepository implements IOrderRepository {
     }
   }
 
+  async update(id: string, updates: Partial<Omit<Order, 'id' | 'createdAt'>>, transaction?: any): Promise<Order> {
+    const db = getUnifiedDb();
+    const docRef = doc(db, this.collectionName, id);
+
+    const operation = async (t: any) => {
+      const snap = await t.get(docRef);
+      if (!snap.exists()) {
+        throw new Error(`Order ${id} not found`);
+      }
+
+      const existing = this.mapDocToOrder(snap.id, snap.data());
+      const payload = {
+        ...updates,
+        updatedAt: serverTimestamp()
+      };
+
+      t.update(docRef, payload);
+      
+      // If status is changed, update stats (Atomic)
+      if (updates.status && updates.status !== existing.status) {
+        this.applyOrderStatsDeltas(t, {
+          statusChanges: [{ from: existing.status, to: updates.status }]
+        });
+      }
+
+      return {
+        ...existing,
+        ...updates,
+        updatedAt: new Date()
+      } as Order;
+    };
+
+    if (transaction) {
+      return await operation(transaction);
+    } else {
+      return await runTransaction(db, operation);
+    }
+  }
+
   async getByIdempotencyKey(key: string): Promise<Order | null> {
     const q = query(collection(getUnifiedDb(), this.collectionName), where('idempotencyKey', '==', key), limit(1));
     const snapshot = await getDocs(q);

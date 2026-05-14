@@ -25,6 +25,10 @@ export class TaxonomyService {
     return this.repository.getCategoryById(id);
   }
 
+  async getCategoryBySlug(slug: string): Promise<ProductCategory | null> {
+    return this.repository.getCategoryBySlug(slug);
+  }
+
   async saveCategory(category: Partial<ProductCategory>, actor: { id: string; email: string }): Promise<ProductCategory> {
     const isNew = !category.id;
     const id = category.id || crypto.randomUUID();

@@ -215,4 +215,17 @@ export class OrderQueryService {
       recommendations: stats.onTimeDeliveryRate < 90 ? ['Audit carrier performance for breach patterns', 'Adjust estimated delivery windows'] : []
     };
   }
+
+  /**
+   * Operations tool: Automatically tag pending orders for high-priority review.
+   */
+  async prioritizeFulfillmentQueue(): Promise<void> {
+    const { orders } = await this.orderRepo.getAll({ status: 'pending', limit: 100 });
+    for (const order of orders) {
+      await this.orderRepo.update(order.id, { 
+        adminTags: [...(order.adminTags || []), 'OPS_PRIORITY'],
+        updatedAt: new Date()
+      } as any);
+    }
+  }
 }

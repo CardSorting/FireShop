@@ -1028,7 +1028,7 @@ export async function POST(req: NextRequest) {
             
             await auditService.record({
               userId, userEmail,
-              action: 'staff_role_updated', // Using a placeholder for sensitive account mutations
+              action: 'account_deletion_requested',
               targetId: uId,
               details: { action: 'deletion_request', reason }
             });
@@ -1739,7 +1739,7 @@ export async function POST(req: NextRequest) {
             await auditService.record({
               userId: 'system',
               userEmail: 'privacy@dreambees.art',
-              action: 'staff_role_updated', // Placeholder
+              action: 'marketing_unsubscribe_requested',
               targetId: email,
               details: { action: 'unsubscribe' }
             });

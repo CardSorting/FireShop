@@ -527,4 +527,34 @@ export class ProductService {
     logger.info(`[Forensic] Reconciliation complete. Found ${anomalies.length} anomalies.`);
     return anomalies;
   }
+
+  /**
+   * [FORENSIC] Batch Re-verification
+   * Performs a fresh setup and health pass for a list of products.
+   */
+  async batchReverify(ids: string[]): Promise<void> {
+    logger.info(`[Forensic] Re-verifying setup status for ${ids.length} products...`);
+    
+    await runTransaction(getUnifiedDb(), async (transaction: any) => {
+      for (const id of ids) {
+        const product = await this.repo.getById(id, transaction);
+        if (!product) continue;
+        
+        const setupIssues = getProductSetupIssues(product);
+        const setupStatus = classifyProductSetupStatus(product);
+        const inventoryHealth = classifyInventoryHealth(product.stock);
+        const marginHealth = classifyMarginHealth(product);
+
+        // This effectively 'touches' the record and ensures derived fields are up to date
+        // even if they were added after the product was created.
+        await this.repo.update(id, {
+          setupStatus,
+          setupIssues,
+          inventoryHealth,
+          marginHealth,
+          updatedAt: new Date(),
+        } as any, transaction);
+      }
+    });
+  }
 }

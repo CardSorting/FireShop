@@ -177,6 +177,36 @@ export class PurchaseOrderService {
     return saved;
   }
 
+  /**
+   * Simplified draft creation for operational automation.
+   */
+  async createDraft(input: { supplier: string; referenceNumber: string; items: any[] }): Promise<PurchaseOrder> {
+    const items: PurchaseOrderItem[] = input.items.map(item => ({
+      id: crypto.randomUUID(),
+      productId: item.productId,
+      sku: item.sku,
+      productName: item.productName,
+      orderedQty: item.orderedQty,
+      receivedQty: 0,
+      unitCost: item.unitCost,
+      totalCost: item.orderedQty * item.unitCost,
+      notes: item.notes,
+    }));
+
+    const order: PurchaseOrder = {
+      id: '',
+      supplier: input.supplier,
+      referenceNumber: input.referenceNumber,
+      status: 'draft',
+      items,
+      totalCost: purchaseOrderRules.calculateTotalCost(items),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    return await this.purchaseOrderRepo.save(order);
+  }
+
 
   async getPurchaseOrder(id: string): Promise<PurchaseOrder> {
     const order = await this.purchaseOrderRepo.findById(id);
