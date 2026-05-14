@@ -5,10 +5,12 @@
  * Pattern: Amazon/Shopify — "You may also like" + "Recently viewed"
  */
 import Link from 'next/link';
+import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import type { Product } from '@domain/models';
 import { formatCurrency } from '@utils/formatters';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 interface RelatedProductsProps {
   products: Product[];
@@ -54,11 +56,12 @@ export function RelatedProducts({ products, loading, title = 'You May Also Like'
             href={getProductUrl(product)}
             className="group block space-y-4"
           >
-            <div className="aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-1">
-              <img
-                src={product.imageUrl}
+            <div className="relative aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-1">
+              <Image
+                src={sanitizeImageUrl(product.imageUrl)}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                fill
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
               />
             </div>
             <div>
@@ -92,11 +95,12 @@ export function RecentlyViewed({ products, currentProductId }: RecentlyViewedPro
             href={getProductUrl(product)}
             className="group shrink-0 w-40 space-y-3"
           >
-            <div className="aspect-4/5 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5">
-              <img
-                src={product.imageUrl}
+            <div className="relative aspect-4/5 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 transition-all duration-300 group-hover:shadow-lg group-hover:-translate-y-0.5">
+              <Image
+                src={sanitizeImageUrl(product.imageUrl)}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
               />
             </div>
             <div>

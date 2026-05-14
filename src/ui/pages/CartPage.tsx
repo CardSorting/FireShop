@@ -10,12 +10,14 @@ import {
   ShieldCheck, ShoppingBag, Trash2, Truck, Minus, Plus, CreditCard,
   ArrowLeft, Info, Shield
 } from 'lucide-react';
+import Image from 'next/image';
 import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
 import type { Product } from '@domain/models';
 import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 
 function formatMoney(cents: number): string {
@@ -163,8 +165,8 @@ export function CartPage() {
                 <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
                   {featuredProducts.map((p) => (
                     <article key={p.id} className="group bg-white rounded-3xl border border-gray-100 p-4 shadow-sm transition-all duration-500 hover:shadow-2xl hover:-translate-y-2">
-                      <Link href={getProductUrl(p)} className="block aspect-square overflow-hidden rounded-2xl bg-gray-50 mb-6">
-                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                      <Link href={getProductUrl(p)} className="relative block aspect-square overflow-hidden rounded-2xl bg-gray-50 mb-6">
+                        <Image src={sanitizeImageUrl(p.imageUrl)} alt={p.name} fill className="object-cover transition-transform group-hover:scale-110" />
                       </Link>
                       <div>
                         <h4 className="text-xs font-black text-gray-900 group-hover:text-primary-600 transition-colors truncate">
@@ -196,7 +198,7 @@ export function CartPage() {
                   <div className="flex flex-col sm:flex-row gap-8">
                     <div className="relative w-full sm:w-40 aspect-square shrink-0">
                       <Link href={getProductUrl({ id: item.productId, handle: item.productHandle })}>
-                        <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover rounded-2xl ring-1 ring-gray-100 group-hover:scale-[1.02] transition-transform duration-500" />
+                        <Image src={sanitizeImageUrl(item.imageUrl)} alt={item.name} fill className="object-cover rounded-2xl ring-1 ring-gray-100 group-hover:scale-[1.02] transition-transform duration-500" />
                       </Link>
                     </div>
 

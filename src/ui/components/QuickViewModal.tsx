@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { X, ShoppingBag, Heart, Star, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import type { Product } from '@domain/models';
@@ -77,10 +78,11 @@ export function QuickViewModal({
 
         {/* Gallery Area */}
         <div className="lg:w-1/2 relative bg-gray-50 h-64 lg:h-auto">
-          <img 
+          <Image 
             src={sanitizeImageUrl(product.imageUrl)} 
             alt={product.name}
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
           />
           <button 
             onClick={() => onToggleFavorite(product.id)}

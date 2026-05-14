@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { 
   Star, ThumbsUp, CheckCircle2, User, Filter, 
   ChevronDown, Camera, X, MessageSquare, 
@@ -111,9 +112,8 @@ export function ProductReviews({ productId }: { productId: string }) {
                   <div 
                     key={i} 
                     onClick={() => setSelectedImage(img)}
-                    className="w-20 h-20 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 group cursor-zoom-in relative"
-                  >
-                     <img src={img} alt="User photo" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                    >
+                     <Image src={img} alt="User photo" fill className="object-cover transition-transform duration-500 group-hover:scale-110" />
                   </div>
                 ))
               ) : (
@@ -167,7 +167,7 @@ export function ProductReviews({ productId }: { productId: string }) {
              </div>
              {spotlightReview.images?.[0] && (
                <div className="relative aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-500">
-                  <img src={spotlightReview.images[0]} alt="Featured review photo" className="w-full h-full object-cover" />
+                  <Image src={spotlightReview.images[0]} alt="Featured review photo" fill className="object-cover" />
                   <button 
                     onClick={() => setSelectedImage(spotlightReview.images?.[0] || null)}
                     className="absolute bottom-4 right-4 p-3 bg-white/20 backdrop-blur-md rounded-xl hover:bg-white/40 transition-all text-white"
@@ -294,7 +294,7 @@ export function ProductReviews({ productId }: { productId: string }) {
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4 sm:p-12">
            <div className="absolute inset-0 bg-gray-900/95 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setSelectedImage(null)} />
            <div className="relative max-w-5xl w-full aspect-square sm:aspect-video rounded-4xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-500">
-              <img src={selectedImage} alt="Fullscreen preview" className="w-full h-full object-contain bg-black" />
+              <Image src={selectedImage} alt="Fullscreen preview" fill className="object-contain bg-black" />
               <button 
                 onClick={() => setSelectedImage(null)}
                 className="absolute top-8 right-8 p-4 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-2xl text-white transition-all"
@@ -368,9 +368,9 @@ function ReviewItem({ review, onVote, onImageClick }: { review: any; onVote: (id
                 <div 
                   key={i} 
                   onClick={() => onImageClick(img)}
-                  className="w-24 h-24 rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:border-gray-300 transition-all cursor-zoom-in"
+                  className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:border-gray-300 transition-all cursor-zoom-in"
                 >
-                  <img src={img} alt="User photo" className="w-full h-full object-cover" />
+                  <Image src={img} alt="User photo" fill className="object-cover" />
                 </div>
               ))}
             </div>

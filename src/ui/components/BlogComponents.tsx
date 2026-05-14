@@ -111,14 +111,12 @@ export function BlogCard({ post, variant = 'standard' }: {
         <div className="mt-6 flex items-center justify-between pt-4 border-t border-gray-100/50">
           <div className="flex items-center gap-2">
              <div className="h-6 w-6 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden grayscale group-hover:grayscale-0 transition-all">
-               <img 
-                 src={`https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || 'DreamBees Editorial')}&background=random&color=fff`} 
-                 alt="Author" 
-                 className="h-full w-full object-cover"
-                 onError={(e) => {
-                   (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=DE&background=000&color=fff`;
-                 }}
-               />
+                <Image 
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || 'DreamBees Editorial')}&background=random&color=fff`} 
+                  alt="Author" 
+                  fill
+                  className="object-cover"
+                />
              </div>
              <span className="text-[9px] font-black text-gray-400 group-hover:text-gray-900 uppercase tracking-widest transition-colors">{post.authorName || 'DreamBees Editorial'}</span>
           </div>
@@ -144,10 +142,11 @@ export function TrendingPostItem({ post, index }: { post: KnowledgebaseArticle, 
       <div className="space-y-2">
         <div className="flex items-center gap-3">
           <div className="h-5 w-5 rounded-lg overflow-hidden border border-gray-100">
-            <img 
+            <Image 
               src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${post.authorName || 'Staff'}`} 
               alt="Author" 
-              className="h-full w-full object-cover"
+              fill
+              className="object-cover"
             />
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-gray-900">{post.authorName}</span>
@@ -216,7 +215,7 @@ export function SeriesCard({ series }: { series: BlogSeries }) {
     >
       <div className="relative h-48 overflow-hidden">
         {series.featuredImageUrl ? (
-          <img src={series.featuredImageUrl} alt={series.title} className="w-full h-full object-cover transition-transform duration-[10s] group-hover:scale-110" />
+          <Image src={series.featuredImageUrl} alt={series.title} fill className="object-cover transition-transform duration-[10s] group-hover:scale-110" />
         ) : (
           <div className="w-full h-full bg-gray-100" />
         )}
@@ -387,7 +386,7 @@ export function CommentSection({ postId, comments, onAddComment }: {
           <div key={comment.id} className="flex gap-6 group animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="shrink-0 pt-2">
               {comment.userAvatar ? (
-                <img src={comment.userAvatar} alt={comment.userName} className="h-12 w-12 rounded-2xl object-cover shadow-sm" />
+                <Image src={comment.userAvatar} alt={comment.userName} fill className="rounded-2xl object-cover shadow-sm" />
               ) : (
                 <div className="h-12 w-12 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-primary-50 group-hover:text-primary-600 transition-colors">
                   <User className="h-6 w-6" />
@@ -522,7 +521,7 @@ export function RelatedProducts({ products }: { products: Product[] }) {
             className="group bg-white rounded-4xl p-6 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500"
           >
             <div className="relative h-48 overflow-hidden rounded-3xl mb-6 bg-gray-50">
-              <img src={sanitizeImageUrl(product.imageUrl)} alt={product.name} className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
+              <Image src={sanitizeImageUrl(product.imageUrl)} alt={product.name} fill className="object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
               <div className="absolute top-4 right-4">
                  <span className="px-4 py-2 rounded-2xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest shadow-xl">
                    ${(product.price / 100).toFixed(2)}

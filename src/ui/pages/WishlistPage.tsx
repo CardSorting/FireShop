@@ -4,10 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useWishlist } from '../hooks/useWishlist';
 import { Heart, Trash2, ShoppingBag, Plus, MoreVertical, Edit2, ChevronRight, PackageSearch } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useCart } from '../hooks/useCart';
 import type { Product, Wishlist } from '@domain/models';
 import { useServices } from '../hooks/useServices';
 import { getProductUrl, STORE_PATHS } from '@utils/navigation';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 
 export function WishlistPage() {
@@ -270,8 +272,8 @@ export function WishlistPage() {
               {recentlyViewed.slice(0, 5).map(p => (
                 <Link key={p.id} href={getProductUrl(p)} className="group block space-y-4">
 
-                  <div className="aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
-                    <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <div className="relative aspect-4/5 rounded-3xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-500 group-hover:shadow-2xl group-hover:-translate-y-2">
+                    <Image src={sanitizeImageUrl(p.imageUrl)} alt={p.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-gray-900 group-hover:text-primary-600 transition-colors line-clamp-1">{p.name}</h3>
@@ -313,9 +315,8 @@ function WishlistItemCard({ product, onRemove }: { product: Product, onRemove: (
   return (
     <div className="group bg-white rounded-5xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden">
       <div className="relative aspect-4/5 overflow-hidden bg-gray-50">
-        <Link href={getProductUrl(product)} className="block h-full w-full">
-
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+        <Link href={getProductUrl(product)} className="relative block h-full w-full">
+          <Image src={sanitizeImageUrl(product.imageUrl)} alt={product.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
         </Link>
         
         <div className="absolute top-5 right-5 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">

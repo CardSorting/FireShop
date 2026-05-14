@@ -5,6 +5,7 @@
  */
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
   X, ShoppingBag, Trash2, ChevronRight, LockKeyhole, Truck, 
   ShieldCheck, ArrowRight, Minus, Plus, CreditCard, Shield 
@@ -173,7 +174,7 @@ export function CartDrawer() {
                 return (
                   <div key={itemId} data-testid="cart-item" className={`flex gap-6 group transition-opacity duration-300 ${isUpdating ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-3xl bg-gray-50 border border-gray-100 shadow-sm group-hover:shadow-md transition-shadow">
-                      <img src={sanitizeImageUrl(item.imageUrl)} alt={item.name} className="h-full w-full object-cover" />
+                      <Image src={sanitizeImageUrl(item.imageUrl)} alt={item.name} fill className="object-cover" />
                       {isUpdating && (
                         <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center">
                           <div className="h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />

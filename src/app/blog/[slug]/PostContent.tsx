@@ -9,6 +9,7 @@ import {
   Share2, Heart, MessageSquare, ChevronLeft, ChevronRight, Sparkles 
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -150,7 +151,7 @@ export default function PostContent({ post, initialComments, initialAuthor, init
             style={{ y: (scrollProgress / 100) * 150 }}
             className="absolute inset-0 z-0"
           >
-             <img src={post.featuredImageUrl} alt={post.featuredImageAlt || post.title} className="w-full h-full object-cover scale-110" />
+             <Image src={post.featuredImageUrl} alt={post.featuredImageAlt || post.title} fill className="object-cover scale-110" priority />
              <div className="absolute inset-0 bg-linear-to-t from-gray-950 via-gray-950/60 to-transparent" />
              <div className="absolute inset-0 backdrop-blur-[2px] opacity-20" />
           </motion.div>
@@ -188,13 +189,11 @@ export default function PostContent({ post, initialComments, initialAuthor, init
              <div className="flex flex-wrap items-center gap-8 text-white/60 pt-4">
                 <div className="flex items-center gap-3">
                    <div className="h-12 w-12 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-md overflow-hidden border border-white/20">
-                     <img 
+                     <Image 
                        src={author?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.authorName || 'DreamBees Editorial')}&background=random&color=fff`} 
                        alt={post.authorName || 'DreamBees Editorial'} 
-                       className="h-full w-full object-cover opacity-80"
-                       onError={(e) => {
-                         (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=DE&background=000&color=fff`;
-                       }}
+                       fill
+                       className="object-cover opacity-80"
                      />
                    </div>
                    <div>
@@ -299,8 +298,8 @@ export default function PostContent({ post, initialComments, initialAuthor, init
                       transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
                       className="my-24 space-y-6"
                     >
-                      <div className="relative group overflow-hidden rounded-[3rem] shadow-2xl border border-gray-100">
-                        <img {...safeProps} className="w-full transition-transform duration-700 group-hover:scale-105" />
+                      <div className="relative group overflow-hidden rounded-[3rem] shadow-2xl border border-gray-100 min-h-[400px]">
+                        <Image {...safeProps} fill className="object-contain transition-transform duration-700 group-hover:scale-105" />
                         <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-[3rem]" />
                       </div>
                       {props.alt && (

@@ -22,10 +22,12 @@ import {
   Download,
   FileText,
 } from 'lucide-react';
+import Image from 'next/image';
 import type { Order, OrderStatus } from '@domain/models';
 import { formatDate, formatMoney, estimateDelivery } from '@utils/formatters';
 import { useCart } from '../hooks/useCart';
 import { logger } from '@utils/logger';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 import { useState } from 'react';
 
 interface OrderConfirmationProps {
@@ -215,8 +217,8 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                     {digitalItems.map((item) => (
                       <div key={item.productId} className="space-y-4">
                         <div className="flex items-center gap-4">
-                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white">
-                            <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white">
+                            <Image src={sanitizeImageUrl(item.imageUrl)} alt="" fill className="object-cover" />
                           </div>
                           <h3 className="text-sm font-black text-gray-900">{item.name}</h3>
                         </div>
@@ -279,9 +281,9 @@ export function OrderConfirmation({ order, userEmail, userName, context = 'confi
                     href={`/products/${item.productHandle || item.productId}`}
                     className="flex items-center gap-6 py-6 group"
                   >
-                    <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
+                    <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center shadow-sm transition-transform group-hover:scale-105 group-hover:shadow-md">
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                        <Image src={sanitizeImageUrl(item.imageUrl)} alt={item.name} fill className="object-cover" />
                       ) : (
                         <Package className="h-8 w-8 text-gray-300" />
                       )}

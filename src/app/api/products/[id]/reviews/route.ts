@@ -46,7 +46,7 @@ export async function GET(
       [key: string]: any;
     }
 
-    let reviews: Review[] = snapshot.docs.map((doc: any) => {
+    const reviews: Review[] = snapshot.docs.map((doc: any) => {
       const data = doc.data();
       return {
         ...data,

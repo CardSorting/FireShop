@@ -5,6 +5,7 @@
  * Pattern: Shopify Dawn — sticky gallery, thumbnail strip, zoom on hover.
  */
 import { useState } from 'react';
+import Image from 'next/image';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
@@ -35,10 +36,11 @@ export function ProductImageGallery({ images, selectedIndex, onSelect, productNa
         onMouseLeave={() => setIsZooming(false)}
         onMouseMove={handleMouseMove}
       >
-        <img
+        <Image
           src={sanitizeImageUrl(images[selectedIndex]?.url)}
           alt={images[selectedIndex]?.alt || productName}
-          className="w-full h-full object-cover transition-transform duration-500"
+          fill
+          className="object-cover transition-transform duration-500"
           style={isZooming ? {
             transform: 'scale(2)',
             transformOrigin: `${zoomPosition.x}% ${zoomPosition.y}%`,
@@ -87,10 +89,11 @@ export function ProductImageGallery({ images, selectedIndex, onSelect, productNa
               }`}
               aria-label={`View image ${index + 1}`}
             >
-              <img
+              <Image
                 src={sanitizeImageUrl(img.url)}
                 alt={img.alt}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             </button>
           ))}
