@@ -97,21 +97,16 @@ export function ProductBuyBox({
       {/* Availability & Urgency */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <div className={`h-2.5 w-2.5 rounded-full ${currentStock === 0 ? 'bg-red-500' : currentStock <= 5 ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`} />
-          <span className={`text-sm font-black ${currentStock === 0 ? 'text-red-600' : currentStock <= 5 ? 'text-amber-600' : 'text-green-600'}`}>
-            {currentStock === 0 ? 'Sold Out' : currentStock <= 5 ? `Hurry! Only ${currentStock} left in stock` : 'Ready to Ship'}
+          <Check className="w-5 h-5 text-green-500" />
+          <span className="text-sm font-black text-green-600">
+            {currentStock === 0 ? 'Sold Out' : 'Ready to Ship'}
           </span>
         </div>
 
         {/* Social Proof Metric */}
-        <div className="flex items-center gap-3 p-3.5 bg-primary-50/50 rounded-2xl border border-primary-100/50">
-          <div className="h-8 w-8 rounded-full bg-white flex items-center justify-center shadow-sm">
-            <ShoppingCart className="w-4 h-4 text-primary-600" />
-          </div>
-          <p className="text-[11px] font-bold text-gray-700 leading-tight">
-            <span className="text-primary-700">12 people</span> have this in their cart right now.
-          </p>
-        </div>
+        <p className="text-[13px] font-bold text-gray-500 leading-tight">
+          <span className="text-primary-600">12 people</span> have this in their cart right now.
+        </p>
       </div>
 
       {/* Quantity */}
@@ -207,24 +202,6 @@ export function ProductBuyBox({
         <p className="text-sm text-red-600 font-medium bg-red-50 rounded-xl px-4 py-3">{cartError}</p>
       )}
 
-      {/* Trust Signals */}
-      <div className="border-t border-gray-100 pt-6 space-y-4">
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <Truck className="w-4 h-4 text-gray-400 shrink-0" />
-          <div>
-            <span className="font-bold text-gray-700">Free shipping</span> on orders over $50
-            <span className="block text-[11px] text-gray-400">Estimated delivery: {deliveryStr}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <RefreshCcw className="w-4 h-4 text-gray-400 shrink-0" />
-          <span><span className="font-bold text-gray-700">30-day returns</span> — no questions asked</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <ShieldCheck className="w-4 h-4 text-gray-400 shrink-0" />
-          <span><span className="font-bold text-gray-700">Secure checkout</span> — powered by Stripe</span>
-        </div>
-      </div>
     </div>
   );
 }

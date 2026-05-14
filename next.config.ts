@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
             {
                 protocol: 'https',
                 hostname: 'www.transparenttextures.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'm.media-amazon.com',
             }
         ],
     },
@@ -68,7 +72,7 @@ const nextConfig: NextConfig = {
                     },
                     {
                         key: 'Content-Security-Policy',
-                        value: `default-src 'self'; script-src ${scriptSrc.join(' ')}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https://firebasestorage.googleapis.com https://images.unsplash.com https://api.dicebear.com https://ui-avatars.com https://www.transparenttextures.com; connect-src 'self' https://vitals.vercel-insights.com https://*.firebaseio.com https://*.googleapis.com https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self';`,
+                        value: `default-src 'self'; script-src ${scriptSrc.join(' ')}; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' blob: data: https://firebasestorage.googleapis.com https://images.unsplash.com https://api.dicebear.com https://ui-avatars.com https://www.transparenttextures.com https://m.media-amazon.com; connect-src 'self' https://vitals.vercel-insights.com https://*.firebaseio.com https://*.googleapis.com https://api.stripe.com; frame-src https://js.stripe.com; object-src 'none'; base-uri 'self'; form-action 'self';`,
                     }
                 ],
             },

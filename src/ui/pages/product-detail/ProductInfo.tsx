@@ -1,10 +1,11 @@
+
 'use client';
 
 /**
- * Product Info: title, artist, rating, and social proof.
- * Pattern: Etsy — artist-first attribution, star ratings, share button.
+ * [LAYER: UI]
+ * ProductInfo — Compressed Boutique Header
  */
-import { Star, Share2 } from 'lucide-react';
+import { Star, Share2, Truck, RefreshCcw, ShieldCheck } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import { useEffect, useRef, useState } from 'react';
 
@@ -14,6 +15,8 @@ interface ProductInfoProps {
   category: string;
   currentPrice: number;
   compareAtPrice: number | null;
+  description: string;
+  seoDescription?: string;
 }
 
 export function ProductInfo({ name, vendor, category, currentPrice, compareAtPrice }: ProductInfoProps) {
@@ -48,54 +51,93 @@ export function ProductInfo({ name, vendor, category, currentPrice, compareAtPri
     ? Math.round((1 - currentPrice / compareAtPrice) * 100)
     : null;
 
+  // Clean title
+  const simplifiedName = name.split('|')[0].split(' - ')[0].split(' – ')[0].trim();
+
+  // Delivery calculation
+  const deliveryDate = new Date();
+  deliveryDate.setDate(deliveryDate.getDate() + 3);
+  const deliveryEnd = new Date();
+  deliveryEnd.setDate(deliveryEnd.getDate() + 5);
+  const deliveryStr = `${deliveryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${deliveryEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
   return (
-    <section className="space-y-5">
+    <section className="space-y-4">
       {/* Category & Share Row */}
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-600">
-          {category}
-        </span>
+      <div className="flex items-center justify-between pb-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase tracking-widest text-primary-600 bg-primary-50/50 px-1.5 py-0.5 rounded">
+            {category}
+          </span>
+          {vendor && (
+            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">
+              {vendor}
+            </span>
+          )}
+        </div>
         <button
           onClick={handleShare}
-          className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
-          aria-label="Share this product"
+          className="text-[9px] font-black uppercase tracking-widest text-gray-300 hover:text-gray-900 transition-colors"
         >
-          <Share2 className="w-3.5 h-3.5" />
-          {copied ? 'Copied!' : 'Share'}
+          Share
         </button>
       </div>
 
       {/* Product Title */}
-      <h1 className="text-3xl lg:text-5xl font-black text-gray-900 leading-[1.1] tracking-[-0.03em]">
-        {name}
+      <h1 className="text-2xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight">
+        {simplifiedName}
       </h1>
-
-      {/* Artist Attribution */}
-      {vendor && (
-        <p className="text-sm text-gray-500 font-medium">
-          by <span className="text-primary-600 font-bold">{vendor}</span>
-        </p>
-      )}
 
       {/* Rating Row */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1">
-          {[1, 2, 3, 4, 5].map(i => (
-            <Star key={i} className={`w-4 h-4 ${i <= 4 ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
-          ))}
-          <span className="ml-1.5 text-sm font-bold text-gray-900">4.8</span>
+        <div className="flex items-center gap-0.5">
+          <Star className="w-3 h-3 text-amber-400 fill-current" />
+          <span className="ml-1 text-[11px] font-black text-gray-900">4.8</span>
         </div>
-        <span className="text-xs text-gray-400 font-medium">128 reviews</span>
+        <span className="text-[10px] text-gray-300 font-bold uppercase tracking-tighter">128 reviews</span>
       </div>
 
-      {/* Price (visible on mobile, hidden on desktop where buy box shows it) */}
+      {/* Trust Signals (Moved from Buy Box) */}
+      <div className="mt-6 pt-6 border-t border-gray-50 space-y-4">
+        <div className="flex items-start gap-3 text-sm">
+          <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+            <Truck className="w-4 h-4 text-primary-600" />
+          </div>
+          <div>
+            <p className="text-[11px] font-black text-gray-900 leading-none">Free shipping on orders over $50</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Delivery: {deliveryStr}</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 text-sm">
+          <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+            <RefreshCcw className="w-4 h-4 text-primary-600" />
+          </div>
+          <div>
+            <p className="text-[11px] font-black text-gray-900 leading-none">30-day returns — no questions asked</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Shop with 100% confidence</p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 text-sm">
+          <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4 text-primary-600" />
+          </div>
+          <div>
+            <p className="text-[11px] font-black text-gray-900 leading-none">Secure checkout — powered by Stripe</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide mt-1">Encrypted & PCI Compliant</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Price (Mobile Only) */}
       <div className="lg:hidden flex items-baseline gap-3 pt-2">
         <span className="text-3xl font-black text-gray-900 tracking-tight">
           {formatCurrency(currentPrice)}
         </span>
         {compareAtPrice && (
           <span className="text-lg text-gray-300 line-through font-bold">
-            {formatCurrency(compareAtPrice)}
+            {formatCurrency(compareAtPrice!)}
           </span>
         )}
         {discountPercent && (

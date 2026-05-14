@@ -86,7 +86,7 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
 
   return (
     <div className="min-h-screen bg-white pb-24 lg:pb-0">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Breadcrumbs */}
         <Breadcrumbs
           items={[
@@ -96,29 +96,10 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
           ]}
         />
 
-        {/* Sub-Navigation (Non-sticky) */}
-        <nav className="bg-white border-b border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex gap-8 py-4 overflow-x-auto no-scrollbar">
-              {[
-                { label: 'Overview', href: '#overview' },
-                { label: 'Details', href: '#details' },
-                { label: 'Reviews', href: '#reviews' }
-              ].map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 whitespace-nowrap transition-colors"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </div>
-          </div>
-        </nav>
+        {/* Main 3-Column Layout: Gallery | Info | Buy Box */}
 
         {/* Main 3-Column Layout: Gallery | Info | Buy Box */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left: Image Gallery */}
           <div className="lg:col-span-6">
             <ProductImageGallery
@@ -138,6 +119,8 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
                 category={product.category}
                 currentPrice={pdp.currentPrice}
                 compareAtPrice={pdp.currentCompareAtPrice}
+                description={product.description}
+                seoDescription={product.seoDescription}
               />
             </div>
 
@@ -150,10 +133,7 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
               />
             )}
 
-            {/* Accordion: Description, Specs, Shipping */}
-            <div id="details" className="scroll-mt-32">
-              <ProductDetails product={product} />
-            </div>
+            {/* Accordion: Description, Specs, Shipping (MOVED) */}
           </div>
 
           {/* Right: Buy Box */}
@@ -183,9 +163,14 @@ export function ProductDetailPage({ initialProduct }: ProductDetailPageProps) {
             />
           </div>
         </div>
-
+        
+        {/* Full-width Product Details (MOVED HERE) */}
+        <div id="details" className="mt-12 pt-8 border-t border-gray-100 scroll-mt-32">
+           <ProductDetails product={product} />
+        </div>
+        
         {/* Reviews Section */}
-        <div id="reviews" className="mt-24 pt-16 border-t border-gray-100 scroll-mt-32">
+        <div id="reviews" className="mt-12 pt-8 border-t border-gray-100 scroll-mt-32">
           <ProductReviews productId={product.id} />
         </div>
 
