@@ -174,6 +174,7 @@ export function createApiClientServices() {
             addToCart: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'POST', body: JSON.stringify({ productId, quantity, variantId }) })),
             removeFromCart: (userId: string, productId: string, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'DELETE', body: JSON.stringify({ productId, variantId }) })),
             updateQuantity: (userId: string, productId: string, quantity: number, variantId?: string) => (sessionScoped(userId), request<Cart>('/api/cart/items', { method: 'PATCH', body: JSON.stringify({ productId, quantity, variantId }) })),
+            updateNote: (userId: string, note: string) => (sessionScoped(userId), request<Cart>('/api/cart/note', { method: 'POST', body: JSON.stringify({ note }) })),
             clearCart: (userId: string) => (sessionScoped(userId), request<void>('/api/cart', { method: 'DELETE' })),
             getCartTotal: (items: { priceSnapshot: number; quantity: number }[]) => items.reduce((sum, item) => sum + item.priceSnapshot * item.quantity, 0),
         },
