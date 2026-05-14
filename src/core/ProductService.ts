@@ -106,7 +106,13 @@ export class ProductService {
       totalProducts: stats.totalProducts,
       totalUnits: stats.totalUnits,
       inventoryValue: stats.inventoryValue,
-      healthCounts: stats.healthCounts,
+      lowStockCount: stats.lowStockCount,
+      outOfStockCount: stats.outOfStockCount,
+      healthCounts: {
+        low_stock: stats.lowStockCount,
+        out_of_stock: stats.outOfStockCount,
+        healthy: stats.totalProducts - stats.lowStockCount - stats.outOfStockCount
+      },
       products: enrichedProducts.sort((a, b) => {
         const rank = { out_of_stock: 0, low_stock: 1, healthy: 2 } as const;
         const rankA = rank[a.inventoryHealth as keyof typeof rank] ?? 0;

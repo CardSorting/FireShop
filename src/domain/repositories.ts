@@ -77,7 +77,7 @@ export interface IOrderRepository {
   updateMetadata(orderId: string, metadata: Record<string, any>, transaction?: any): Promise<void>;
   addFulfillmentEvent(orderId: string, event: import('./models').OrderFulfillmentEvent, transaction?: any): Promise<void>;
 
-  getOrderStats(): Promise<import('./models').OrderStats>;
+  getStats(): Promise<import('./models').OrderStats>;
   getDashboardStats(): Promise<import('./models').OrderStats>; // Keep for compatibility but can alias
 
   getTopProducts(limit: number): Promise<Array<{

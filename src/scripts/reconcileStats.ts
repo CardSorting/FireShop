@@ -37,7 +37,7 @@ async function reconcile() {
         else if (stock < 5) lowStockCount++;
         else healthyStockCount++;
 
-        const margin = p.marginHealth || 'unknown';
+        const margin = (p as any).marginHealth || 'unknown';
         if (margin === 'premium') premiumMarginCount++;
         else if (margin === 'healthy') healthyMarginCount++;
         else if (margin === 'at_risk') atRiskMarginCount++;

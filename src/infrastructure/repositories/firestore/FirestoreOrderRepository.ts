@@ -393,7 +393,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
     else await updateDoc(docRef, data);
   }
 
-  async getOrderStats(): Promise<OrderStats> {
+  async getStats(): Promise<OrderStats> {
     const db = getUnifiedDb();
     const statsSnap = await getDoc(doc(db, this.statsDocPath));
     if (!statsSnap.exists()) {
@@ -404,7 +404,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
   }
 
   async getDashboardStats(): Promise<OrderStats> {
-    return this.getOrderStats();
+    return this.getStats();
   }
 
   private async initializeOrderStats(): Promise<OrderStats> {

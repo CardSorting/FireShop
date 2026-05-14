@@ -56,6 +56,12 @@ export interface Product {
 
   createdAt: Date;
   updatedAt: Date;
+
+  // Derived / Operational fields (Industrialized Substrate)
+  inventoryHealth?: 'out_of_stock' | 'low_stock' | 'healthy';
+  setupStatus?: 'ready' | 'needs_attention';
+  setupIssues?: string[];
+  marginHealth?: 'unknown' | 'at_risk' | 'healthy' | 'premium';
 }
 
 export interface ProductOption {
@@ -614,8 +620,10 @@ export interface InventoryOverview {
   totalProducts: number;
   totalUnits: number;
   inventoryValue: number;
-  healthCounts: Record<InventoryHealth, number>;
-  products: Array<Product & { inventoryHealth: InventoryHealth }>;
+  lowStockCount: number;
+  outOfStockCount: number;
+  healthCounts: Record<string, number>;
+  products: Array<Product & { inventoryHealth: string }>;
 }
 
 export type JsonPrimitive = string | number | boolean | null;
