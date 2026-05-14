@@ -88,3 +88,20 @@ export class Sanitizer {
     };
   }
 }
+
+/**
+ * Sanitizes and validates an image URL.
+ * Returns a fallback placeholder if the URL is missing or clearly invalid.
+ */
+export function sanitizeImageUrl(url?: string | null): string {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return '/placeholders/product-image.webp';
+  }
+  
+  // Basic validation - ensure it starts with http, https, or relative path /
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+  
+  return '/placeholders/product-image.webp';
+}

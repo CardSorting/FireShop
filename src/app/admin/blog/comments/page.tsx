@@ -8,6 +8,8 @@ import {
   AlertTriangle, Loader2, Search
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { BlogComment } from '@domain/models';
 
 export default function CommentModerationPage() {
@@ -113,9 +115,15 @@ export default function CommentModerationPage() {
           filteredComments.map(comment => (
             <div key={comment.id} className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all group">
                <div className="flex flex-col md:flex-row gap-8">
-                  <div className="shrink-0">
+                  <div className="shrink-0 relative">
                      {comment.userAvatar ? (
-                       <img src={comment.userAvatar} alt="" className="h-14 w-14 rounded-2xl object-cover" />
+                       <Image 
+                         src={sanitizeImageUrl(comment.userAvatar)} 
+                         alt="" 
+                         width={56}
+                         height={56}
+                         className="h-14 w-14 rounded-2xl object-cover" 
+                       />
                      ) : (
                        <div className="h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-300">
                          <User className="h-6 w-6" />

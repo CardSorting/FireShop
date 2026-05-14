@@ -34,6 +34,8 @@ import {
   useAdminPageTitle, 
   AdminTab 
 } from '../../components/admin/AdminComponents';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { InventoryOverview, InventoryHealth, Transfer, Product } from '@domain/models';
 
 type HealthFilter = InventoryHealth | 'all';
@@ -328,7 +330,15 @@ export function AdminInventory() {
                           </td>
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-3">
-                              <img src={p.imageUrl} alt="" className="h-10 w-10 rounded border object-cover bg-gray-50" />
+                              <div className="h-10 w-10 shrink-0 overflow-hidden rounded border bg-gray-50 relative">
+                                <Image 
+                                  src={sanitizeImageUrl(p.imageUrl)} 
+                                  alt="" 
+                                  fill 
+                                  className="object-cover" 
+                                  sizes="40px"
+                                />
+                              </div>
                               <div className="min-w-0">
                                 <p className="font-bold text-gray-900 truncate tracking-tight">{p.name}</p>
                                 <div className="flex items-center gap-2 mt-0.5">

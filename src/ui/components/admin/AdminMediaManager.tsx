@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { ProductMedia } from '@domain/models';
 import { formatBytes } from '@utils/formatters';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 
 interface AdminMediaManagerProps {
   media: ProductMedia[];
@@ -202,7 +204,13 @@ export function AdminMediaManager({ media, onChange, folder = 'products' }: Admi
                 ${draggedIdx === idx ? 'opacity-40 scale-95' : ''}
               `}
             >
-              <img src={m.url} alt={m.altText || ''} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+              <Image 
+                src={sanitizeImageUrl(m.url)} 
+                alt={m.altText || ''} 
+                fill 
+                className="object-cover transition duration-500 group-hover:scale-110" 
+                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
+              />
               
               {idx === 0 && (
                 <div className="absolute left-2 top-2 rounded-full bg-primary-600 px-2 py-0.5 text-[8px] font-black uppercase tracking-tight text-white shadow-lg z-10">
@@ -266,7 +274,13 @@ export function AdminMediaManager({ media, onChange, folder = 'products' }: Admi
                         className={`group relative aspect-square overflow-hidden rounded-xl border transition-all ${isSelected ? 'ring-2 ring-primary-500 ring-offset-2 opacity-50 grayscale' : 'hover:border-primary-400'}`}
                         disabled={isSelected}
                       >
-                        <img src={file.url} alt="" className="h-full w-full object-cover" />
+                        <Image 
+                          src={sanitizeImageUrl(file.url)} 
+                          alt="" 
+                          fill 
+                          className="object-cover" 
+                          sizes="120px"
+                        />
                         {isSelected && (
                           <div className="absolute inset-0 flex items-center justify-center bg-primary-500/20">
                             <Check className="h-6 w-6 text-white" />

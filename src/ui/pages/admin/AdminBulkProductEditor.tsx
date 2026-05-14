@@ -26,6 +26,8 @@ import {
   useToast, 
   useAdminPageTitle
 } from '../../components/admin/AdminComponents';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 
 export function AdminBulkProductEditor() {
   useAdminPageTitle('Bulk Edit Products');
@@ -142,7 +144,15 @@ export function AdminBulkProductEditor() {
                   <tr key={p.id} className="group hover:bg-gray-50/50 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <img src={p.imageUrl} alt="" className="h-12 w-12 rounded-lg border object-cover shadow-sm bg-gray-50" />
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border bg-gray-50 shadow-sm relative">
+                          <Image 
+                            src={sanitizeImageUrl(p.imageUrl)} 
+                            alt="" 
+                            fill 
+                            className="object-cover" 
+                            sizes="48px"
+                          />
+                        </div>
                         <div className="min-w-0">
                           <p className="text-sm font-bold text-gray-900 truncate">{p.name}</p>
                           <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest">{p.category}</p>

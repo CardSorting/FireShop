@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { formatBytes } from '@utils/formatters';
 import { useToast } from '@ui/components/admin/AdminComponents';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 
 interface MediaFile {
   id: string;
@@ -194,7 +196,13 @@ export default function AdminFilesPage() {
                 className={`group relative flex flex-col rounded-2xl border bg-white p-2 transition-all cursor-pointer ${isSelected ? 'ring-2 ring-primary-500 ring-offset-4' : 'hover:border-gray-300 hover:shadow-md'}`}
               >
                 <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-50">
-                  <img src={file.url} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                  <Image 
+                    src={sanitizeImageUrl(file.url)} 
+                    alt="" 
+                    fill 
+                    className="object-cover transition duration-500 group-hover:scale-110" 
+                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 200px"
+                  />
                   <div className={`absolute left-2 top-2 h-5 w-5 rounded-md border bg-white transition flex items-center justify-center ${isSelected ? 'bg-primary-600 border-primary-600' : 'opacity-0 group-hover:opacity-100'}`}>
                     {isSelected && <Check className="h-3.5 w-3.5 text-white" />}
                   </div>
@@ -236,8 +244,14 @@ export default function AdminFilesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border bg-gray-50 shadow-sm">
-                          <img src={file.url} alt="" className="h-full w-full object-cover" />
+                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border bg-gray-50 shadow-sm relative">
+                          <Image 
+                            src={sanitizeImageUrl(file.url)} 
+                            alt="" 
+                            fill 
+                            className="object-cover" 
+                            sizes="40px"
+                          />
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-xs font-bold text-gray-900 leading-tight">{file.name}</p>

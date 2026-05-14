@@ -24,6 +24,8 @@ import {
   useAdminPageTitle,
   AdminStatusBadge
 } from '../../components/admin/AdminComponents';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import { useServices } from '../../hooks/useServices';
 import { 
   centsToDecimalInput, 
@@ -250,7 +252,15 @@ export function AdminPurchaseOrderCreate() {
                 <div key={item.product.id} className="group relative rounded-2xl border bg-white p-5 transition-all hover:shadow-md hover:border-primary-200">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <img src={item.product.imageUrl} alt="" className="h-12 w-12 rounded-xl border object-cover shadow-xs" />
+                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border bg-gray-50 shadow-xs relative">
+                        <Image 
+                          src={sanitizeImageUrl(item.product.imageUrl)} 
+                          alt="" 
+                          fill 
+                          className="object-cover" 
+                          sizes="48px"
+                        />
+                      </div>
                       <div>
                         <h4 className="text-sm font-bold text-gray-900">{item.product.name}</h4>
                         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-0.5">SKU: {item.product.sku}</p>
@@ -333,7 +343,15 @@ export function AdminPurchaseOrderCreate() {
                   className="flex items-center justify-between rounded-xl border bg-white p-3 text-left transition hover:border-primary-500 hover:shadow-sm active:scale-95"
                 >
                   <div className="flex items-center gap-3">
-                    <img src={product.imageUrl} alt="" className="h-10 w-10 rounded-lg border object-cover" />
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border bg-gray-50 relative">
+                      <Image 
+                        src={sanitizeImageUrl(product.imageUrl)} 
+                        alt="" 
+                        fill 
+                        className="object-cover" 
+                        sizes="40px"
+                      />
+                    </div>
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-gray-900">{product.name}</p>
                       <p className="text-[8px] font-black uppercase tracking-widest text-gray-400">Stock: {product.stock}</p>

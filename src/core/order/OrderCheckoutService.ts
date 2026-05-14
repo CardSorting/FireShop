@@ -173,6 +173,7 @@ export class OrderCheckoutService {
           fulfillmentLocationId: 'primary',
           fulfillments: [],
           notes: [],
+          customerNote: cart.note,
           metadata: {
             shippingRateName: shippingResult.rateName,
             shippingServiceCode: shippingResult.serviceCode,
@@ -200,7 +201,7 @@ export class OrderCheckoutService {
           userEmail: userEmail || 'unknown@dreambees.art',
           action: 'order_placed',
           targetId: createdOrder.id,
-          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode },
+          details: { total, itemCount: cart.items.length, discountCode: validDiscountCode, hasCustomerNote: !!cart.note },
           correlationId: idempotencyKey || undefined
         });
 

@@ -26,6 +26,8 @@ import {
 import type { Collection } from '@domain/models';
 import { useServices } from '../../hooks/useServices';
 import Link from 'next/link';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 
 export function AdminCollections() {
   useAdminPageTitle('Collections');
@@ -116,9 +118,15 @@ export function AdminCollections() {
           {filteredCollections.map(collection => (
             <div key={collection.id} className="group flex items-center justify-between p-4 transition hover:bg-gray-50">
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 overflow-hidden rounded-xl border bg-gray-50">
+                <div className="h-14 w-14 overflow-hidden rounded-xl border bg-gray-50 relative">
                   {collection.imageUrl ? (
-                    <img src={collection.imageUrl} alt="" className="h-full w-full object-cover" />
+                    <Image 
+                      src={sanitizeImageUrl(collection.imageUrl)} 
+                      alt="" 
+                      fill 
+                      className="object-cover" 
+                      sizes="56px"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-gray-300">
                       <LayoutGrid className="h-6 w-6" />

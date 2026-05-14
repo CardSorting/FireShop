@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency, formatShortDate, humanizeOrderStatus, formatRelativeTime } from '@utils/formatters';
 import { nextOrderActionLabel } from '@domain/rules';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import {
   AdminPageHeader,
   AdminStatusBadge,
@@ -240,8 +242,16 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
             </div>
             <div className="divide-y divide-gray-100">
               {order.items.map((item: OrderItem) => (
-                <div key={item.productId} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition">
-                  <div className="h-12 w-12 rounded-lg border bg-gray-50 shrink-0" />
+                <div className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50/50 transition">
+                  <div className="h-12 w-12 rounded-lg border bg-gray-50 shrink-0 relative overflow-hidden">
+                    <Image 
+                      src={sanitizeImageUrl(item.imageUrl)} 
+                      alt="" 
+                      fill 
+                      className="object-cover"
+                      sizes="48px"
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-bold text-gray-900 truncate">{item.name}</p>
@@ -306,8 +316,23 @@ export function AdminOrderDetail({ id }: AdminOrderDetailProps) {
                     <p className="text-sm font-bold text-gray-900">Payment captured</p>
                     <span className="text-xs font-medium text-gray-400 uppercase">{formatShortDate(order.createdAt)}</span>
                   </div>
-                  <p className="text-xs text-gray-500 font-medium mt-1">Transaction ID: {order.paymentTransactionId || 'pi_3Kj9X...'}</p>
+                  <p className="text-xs text-gray-500 font-medium mt-1">Transaction ID: {order.paymentTransactionId || 'N/A'}</p>
                 </div>
+
+                {order.customerNote && (
+                  <div className="relative animate-in slide-in-from-left-2 duration-300">
+                    <div className="absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-amber-500 shadow-sm flex items-center justify-center">
+                      <ShoppingBag className="h-2 w-2 text-white" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-black text-amber-900 uppercase tracking-tight">Customer Note (Gift/Instructions)</p>
+                      <span className="text-xs font-medium text-gray-400 uppercase">{formatShortDate(order.createdAt)}</span>
+                    </div>
+                    <div className="mt-2 rounded-xl bg-amber-50 p-4 text-sm font-bold text-amber-900 leading-relaxed border border-amber-200 shadow-sm">
+                      {order.customerNote}
+                    </div>
+                  </div>
+                )}
 
                 <div className="relative">
                   <div className="absolute left-[-2.15rem] mt-1.5 h-4 w-4 rounded-full border-2 border-white bg-blue-500 shadow-sm" />

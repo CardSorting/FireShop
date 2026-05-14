@@ -293,6 +293,7 @@ export interface Cart {
   id: string;
   userId: string;
   items: CartItem[];
+  note?: string;
   updatedAt: Date;
 }
 
@@ -329,6 +330,7 @@ export interface Order {
   estimatedDeliveryDate?: Date | null;
   fulfillmentEvents?: OrderFulfillmentEvent[];
   notes: OrderNote[];
+  customerNote?: string;
   riskScore: number; // 0-100
   shippingClassId?: string;
   shippingAmount: number; // cents

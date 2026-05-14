@@ -63,6 +63,8 @@ import {
 } from '../../components/admin/AdminComponents';
 import { AdminFilterPanel } from '../../components/admin/AdminFilterPanel';
 import { AdminImportDialog } from '../../components/admin/AdminImportDialog';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { ProductDraft } from '@domain/models';
 
 const PRODUCT_CATEGORIES: Array<string | 'all'> = [
@@ -657,7 +659,13 @@ export function AdminProducts() {
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
                             <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border bg-gray-50 shadow-xs group-hover:scale-105 transition-transform duration-200">
-                              <img src={product.imageUrl} alt="" className="h-full w-full object-cover" />
+                              <Image 
+                                src={sanitizeImageUrl(product.imageUrl)} 
+                                alt="" 
+                                fill 
+                                className="object-cover" 
+                                sizes="48px"
+                              />
                               {!product.imageUrl && <div className="flex h-full w-full items-center justify-center bg-gray-100"><ImageOff className="h-5 w-5 text-gray-300" /></div>}
                             </div>
                             <div className="min-w-0 space-y-0.5">
@@ -711,7 +719,13 @@ export function AdminProducts() {
                     className={`group relative flex flex-col rounded-2xl border bg-white p-3 transition-all duration-200 cursor-pointer hover:shadow-xl hover:border-primary-200 ${isSelected ? 'ring-2 ring-primary-500 border-transparent shadow-lg' : 'shadow-sm border-gray-100'}`}
                   >
                     <div className="relative aspect-square w-full overflow-hidden rounded-xl border bg-gray-50 mb-4">
-                      <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                      <Image 
+                        src={sanitizeImageUrl(product.imageUrl)} 
+                        alt={product.name} 
+                        fill 
+                        className="object-cover transition duration-500 group-hover:scale-110" 
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 200px"
+                      />
                       <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
                         <AdminStatusBadge status={product.status} type="order" />
                         {product.stock === 0 && <span className="rounded bg-red-600 px-1.5 py-0.5 text-[8px] font-black text-white uppercase tracking-tighter shadow-sm">Sold Out</span>}

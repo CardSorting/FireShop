@@ -2,6 +2,8 @@
 import React from 'react';
 import { Plus, User, ArrowUpRight, Search, Edit2, Trash2, Sparkles, NotebookPen, TrendingUp, Clock } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { DashboardState } from '../types';
 import type { KnowledgebaseArticle } from '@domain/models';
 
@@ -63,7 +65,13 @@ export const BlogTable: React.FC<Pick<DashboardState,
                   <div className="flex items-center gap-6">
                     <div className="h-16 w-16 rounded-2xl bg-gray-50 overflow-hidden shrink-0 border border-gray-100 group-hover:scale-105 group-hover:shadow-lg transition-all duration-500">
                       {post.featuredImageUrl ? (
-                        <img src={post.featuredImageUrl} alt="" className="w-full h-full object-cover" />
+                        <Image 
+                          src={sanitizeImageUrl(post.featuredImageUrl)} 
+                          alt="" 
+                          fill 
+                          className="object-cover" 
+                          sizes="64px"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-200 bg-white">
                           <Sparkles className="h-6 w-6" />

@@ -21,6 +21,7 @@ export interface CartContextValue {
   updateQuantity: (productId: string, quantity: number, variantId?: string) => Promise<void>;
   removeItem: (productId: string, variantId?: string) => Promise<void>;
   clearCart: () => Promise<void>;
+  updateNote: (note: string) => Promise<void>;
   subtotal: number;
   totalItems: number;
 }
@@ -312,6 +313,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateNote = async (note: string) => {
+    setCart(prev => prev ? { ...prev, note } : prev);
+    
+    try {
+      if (user) {
+        const updated = await services.cartService.updateNote(user.id, note);
+        if (isMounted.current) setCart(updated);
+      } else {
+        const currentCart = getGuestCart();
+        if (currentCart) {
+          currentCart.note = note;
+          currentCart.updatedAt = new Date();
+          if (isMounted.current) {
+            setCart({ ...currentCart });
+            saveGuestCart(currentCart);
+          }
+        }
+      }
+    } catch (err) {
+      logger.error('Failed to update note', err);
+    }
+  };
+
   const value: CartContextValue = {
     cart,
     loading,
@@ -322,6 +346,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     updateQuantity,
     removeItem,
     clearCart,
+    updateNote,
     subtotal,
     totalItems,
   };

@@ -154,7 +154,7 @@ export class OrderLogisticsService {
         hsCode,
         `#${order.id.slice(0, 8).toUpperCase()}`,
         shippingChoice, // Stamp 2: Tell the merchant what service to buy
-        order.notes.length > 0 ? order.notes[order.notes.length - 1].text : ''
+        (order.customerNote || '').slice(0, 100)
       ].map(val => {
         const s = String(val ?? '');
         if (s.includes(',') || s.includes('"') || s.includes('\n')) {

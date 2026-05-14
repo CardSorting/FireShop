@@ -1,7 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { User, Tag, Plus, Trash2, Edit2, Shield, Globe, Bell } from 'lucide-react';
+import Image from 'next/image';
 import { useServices } from '@ui/hooks/useServices';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { Author, KnowledgebaseCategory } from '@domain/models';
 
 export function SettingsView() {
@@ -51,8 +53,18 @@ export function SettingsView() {
               {authors.map(author => (
                 <div key={author.id} className="p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border border-gray-200">
-                      {author.avatarUrl ? <img src={author.avatarUrl} alt="" className="h-full w-full object-cover" /> : <User className="h-6 w-6" />}
+                    <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 overflow-hidden border border-gray-200 relative">
+                      {author.avatarUrl ? (
+                        <Image 
+                          src={sanitizeImageUrl(author.avatarUrl)} 
+                          alt="" 
+                          fill 
+                          className="object-cover" 
+                          sizes="48px"
+                        />
+                      ) : (
+                        <User className="h-6 w-6" />
+                      )}
                     </div>
                     <div>
                       <h4 className="text-sm font-black text-gray-900">{author.name}</h4>

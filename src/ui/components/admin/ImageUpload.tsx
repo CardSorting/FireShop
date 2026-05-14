@@ -2,6 +2,8 @@
 
 import React, { useState, useRef } from 'react';
 import { Upload, X, ImageIcon, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 
 interface ImageUploadProps {
   value: string;
@@ -140,10 +142,12 @@ export function ImageUpload({ value, onChange, folder = 'products', label = 'Med
           <div className="group relative aspect-square w-full overflow-hidden rounded-xl border bg-gray-100 shadow-inner">
             {value ? (
               <>
-                <img 
-                  src={value} 
+                <Image 
+                  src={sanitizeImageUrl(value)} 
                   alt="Preview" 
-                  className="h-full w-full object-contain transition duration-500 group-hover:scale-110" 
+                  fill
+                  className="object-contain transition duration-500 group-hover:scale-110" 
+                  sizes="160px"
                 />
                 <button
                   type="button"

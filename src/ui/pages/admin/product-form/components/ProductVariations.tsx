@@ -22,6 +22,8 @@ import type { ProductOption, ProductVariant } from '@domain/models';
 import { TextInput, MoneyInput } from './FormInputs';
 import { centsFromInput } from '../utils';
 import { formatCurrency } from '@utils/formatters';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 
 interface ProductVariationsProps {
   hasVariants: boolean;
@@ -413,9 +415,15 @@ export function ProductVariations({
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-3">
-                            <button className="h-10 w-10 rounded-lg bg-white border-2 border-dashed flex items-center justify-center overflow-hidden hover:border-primary-300 transition-colors">
+                            <button className="h-10 w-10 rounded-lg bg-white border-2 border-dashed flex items-center justify-center overflow-hidden hover:border-primary-300 transition-colors relative">
                               {variant.imageUrl ? (
-                                <img src={variant.imageUrl} alt={variant.title} className="h-full w-full object-cover" />
+                                <Image 
+                                  src={sanitizeImageUrl(variant.imageUrl)} 
+                                  alt={variant.title} 
+                                  fill 
+                                  className="object-cover" 
+                                  sizes="40px"
+                                />
                               ) : (
                                 <ImageIcon className="h-4 w-4 text-gray-300" />
                               )}

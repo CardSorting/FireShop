@@ -5,6 +5,8 @@ import {
   Trash2, Edit2, Loader2, Search,
   Twitter, Instagram, Github
 } from 'lucide-react';
+import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/sanitizer';
 import type { Author } from '@domain/models';
 
 export default function AuthorManagementPage() {
@@ -66,9 +68,15 @@ export default function AuthorManagementPage() {
              </div>
              
              <div className="space-y-6">
-                <div className="h-20 w-20 rounded-4xl bg-gray-100 overflow-hidden shadow-xl">
+                <div className="h-20 w-20 rounded-4xl bg-gray-100 overflow-hidden shadow-xl relative">
                    {author.avatarUrl ? (
-                     <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+                     <Image 
+                       src={sanitizeImageUrl(author.avatarUrl)} 
+                       alt="" 
+                       fill 
+                       className="object-cover" 
+                       sizes="80px"
+                     />
                    ) : (
                      <div className="w-full h-full flex items-center justify-center text-gray-300">
                        <User className="h-10 w-10" />

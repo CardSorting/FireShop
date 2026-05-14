@@ -98,6 +98,7 @@ export class FirestoreOrderRepository implements IOrderRepository {
       return {
         ...order,
         id,
+        customerNote: order.customerNote || null,
         createdAt: now,
         updatedAt: now,
         riskScore: orderData.riskScore

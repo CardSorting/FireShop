@@ -23,7 +23,7 @@ function formatMoney(cents: number): string {
 export function CartDrawer() {
   const { 
     cart, loading, isOpen, closeCart, 
-    updateQuantity, removeItem, subtotal, totalItems 
+    updateQuantity, removeItem, updateNote, subtotal, totalItems 
   } = useCart();
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -249,7 +249,7 @@ export function CartDrawer() {
 
               {/* Order Note */}
               <div className="pt-8 border-t border-gray-50 pb-4">
-                <details className="group">
+                <details className="group" open={!!cart?.note}>
                   <summary className="flex cursor-pointer items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 select-none hover:text-gray-900 transition-colors">
                     <span>Add a gift note or instructions</span>
                     <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
@@ -259,7 +259,15 @@ export function CartDrawer() {
                       className="w-full rounded-2xl border-2 border-gray-50 p-5 text-sm focus:outline-none focus:ring-4 focus:ring-primary-500/5 focus:border-primary-500 transition-all placeholder:text-gray-300 resize-none"
                       placeholder="Enter your message here..."
                       rows={4}
+                      maxLength={100}
+                      value={cart?.note || ''}
+                      onChange={(e) => updateNote(e.target.value)}
                     />
+                    <div className="mt-2 flex justify-end">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${(cart?.note?.length || 0) >= 100 ? 'text-red-500' : 'text-gray-300'}`}>
+                        {cart?.note?.length || 0}/100
+                      </span>
+                    </div>
                   </div>
                 </details>
               </div>
