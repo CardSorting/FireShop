@@ -133,9 +133,9 @@ describe('Security Hardening Proofs', () => {
   });
 
   describe('AI Prompt Injection & Sanitization', () => {
-    it('PROVE: sanitizeHtml strips script tags from AI-generated content', () => {
+    it('PROVE: sanitizeHtml strips script tags from AI-generated content', async () => {
       const hostileContent = '<div>Safe</div><script>alert("XSS")</script><iframe></iframe>';
-      const clean = sanitizeHtml(hostileContent);
+      const clean = await sanitizeHtml(hostileContent);
       
       expect(clean).toContain('<div>Safe</div>');
       expect(clean).not.toContain('<script>');

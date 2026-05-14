@@ -100,10 +100,6 @@ export class StorageService {
       }
     });
 
-    const nodeStream = stream instanceof ReadableStream 
-      ? (require('node:stream/web').ReadableStream.toWeb ? stream : (stream as any)) // Helper for different environments
-      : stream;
-
     // We use a helper to pipe Web Stream or AsyncIterable to Node WriteStream
     if (stream instanceof ReadableStream) {
         const reader = stream.getReader();

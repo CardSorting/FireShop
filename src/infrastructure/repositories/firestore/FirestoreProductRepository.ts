@@ -266,7 +266,7 @@ export class FirestoreProductRepository implements IProductRepository {
       
       current = this.mapDocToProduct(docSnap.id, docSnap.data());
       const currentData = docSnap.data() as any;
-      let merged = { ...current, ...updates } as Product;
+      const merged = { ...current, ...updates } as Product;
       
       // PRODUCTION HARDENING: Handle internal variant stock update signal
       const variantUpdate = (updates as any)._variantStockUpdate;
@@ -475,7 +475,7 @@ export class FirestoreProductRepository implements IProductRepository {
         if (!docSnap.exists()) continue;
 
         const currentData = docSnap.data() as any;
-        let mergedData = { ...currentData, ...update.updates, id: update.id, updatedAt: serverTimestamp() };
+        const mergedData = { ...currentData, ...update.updates, id: update.id, updatedAt: serverTimestamp() };
         
         // PRODUCTION HARDENING: Handle internal variant stock update signal
         const variantUpdate = (update.updates as any)._variantStockUpdate;

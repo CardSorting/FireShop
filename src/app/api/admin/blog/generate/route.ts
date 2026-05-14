@@ -153,9 +153,9 @@ export async function POST(req: Request) {
     // This prevents XSS if the AI model generates malicious scripts or if 
     // a prompt injection attack forces it to do so.
     const { sanitizeHtml } = await import('@utils/sanitizer');
-    if (article.content) article.content = sanitizeHtml(article.content);
-    if (article.excerpt) article.excerpt = sanitizeHtml(article.excerpt);
-    if (article.title) article.title = sanitizeHtml(article.title);
+    if (article.content) article.content = await sanitizeHtml(article.content);
+    if (article.excerpt) article.excerpt = await sanitizeHtml(article.excerpt);
+    if (article.title) article.title = await sanitizeHtml(article.title);
 
     // Save using the repository
     await services.knowledgebaseRepository.saveArticle(article as any);

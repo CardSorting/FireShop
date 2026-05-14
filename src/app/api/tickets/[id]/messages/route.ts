@@ -30,7 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       senderId: user.id,
       senderType: isAdmin ? 'agent' as const : 'customer' as const,
       visibility: isAdmin ? requestedVisibility : 'public',
-      content: sanitizeHtml(requireMessageContent(data.content)),
+      content: await sanitizeHtml(requireMessageContent(data.content)),
       createdAt: new Date(),
     };
     await ticketRepository.addMessage(message);

@@ -58,7 +58,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   // Production Hardening: Sanitize post content on the server to prevent XSS
   if (post.content) {
-    post.content = sanitizeHtml(post.content);
+    post.content = await sanitizeHtml(post.content);
   }
   
   let comments: BlogComment[];

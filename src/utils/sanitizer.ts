@@ -4,20 +4,29 @@ import type { Order, Product, User } from '@domain/models';
 const isServer = typeof window === 'undefined';
 let purify: any;
 
-if (isServer) {
-  const { JSDOM } = require('jsdom');
-  const window = new JSDOM('').window;
-  purify = DOMPurify(window as any);
-} else {
-  purify = DOMPurify;
+/**
+ * [INTERNAL] Initializes DOMPurify for the current environment.
+ */
+async function getPurify() {
+  if (purify) return purify;
+  
+  if (typeof window !== 'undefined') {
+    purify = DOMPurify;
+  } else {
+    const { JSDOM } = await import('jsdom');
+    const window = new JSDOM('').window;
+    purify = DOMPurify(window as any);
+  }
+  return purify;
 }
 
 /**
  * Sanitizes HTML to prevent XSS attacks.
  * Allows common formatting tags but strips scripts and event handlers.
  */
-export function sanitizeHtml(html: string): string {
-  return purify.sanitize(html, {
+export async function sanitizeHtml(html: string): Promise<string> {
+  const p = await getPurify();
+  return p.sanitize(html, {
     ALLOWED_TAGS: [
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'p', 'a', 'ul', 'ol',
       'nl', 'li', 'b', 'i', 'strong', 'em', 'strike', 'code', 'hr', 'br', 'div',
