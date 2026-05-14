@@ -81,7 +81,7 @@ async function exportToCsv() {
     'Image Alt Text', 'Gift Card', 'SEO Title', 'SEO Description'
   ];
 
-  let csvRows = [headers.join(',')];
+  const csvRows = [headers.join(',')];
 
   for (const doc of productsSnap.docs) {
     const data = doc.data();

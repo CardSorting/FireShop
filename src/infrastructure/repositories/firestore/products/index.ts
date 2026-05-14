@@ -233,7 +233,7 @@ export class FirestoreProductRepository implements IProductRepository {
       const currentProduct = mapDocToProduct(id, currentData as DocumentData);
       
       const now = serverTimestamp();
-      let firestoreUpdates: any = { ...updates, updatedAt: now };
+      const firestoreUpdates: any = { ...updates, updatedAt: now };
 
       // Handle variant stock update signal
       const variantUpdate = (updates as any)._variantStockUpdate;
