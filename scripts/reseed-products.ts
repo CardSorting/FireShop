@@ -73,6 +73,31 @@ async function reseedProducts() {
   await clearCollection('products');
   await clearCollection('inventory_levels');
 
+  // 1b. Ensure default category exists
+  console.log('Ensuring card-games category and collection exist...');
+  const catSnap = await adminDb.collection('categories').where('slug', '==', 'card-games').get();
+  if (catSnap.empty) {
+    await adminDb.collection('categories').add({
+      name: 'Card Games',
+      slug: 'card-games',
+      description: 'Explore our collection of Card Games.',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  }
+  const collSnap = await adminDb.collection('collections').where('handle', '==', 'card-games').get();
+  if (collSnap.empty) {
+    await adminDb.collection('collections').add({
+      name: 'Card Games',
+      handle: 'card-games',
+      status: 'active',
+      productCount: 0,
+      description: 'Discover Card Games at DreamBeesArt.',
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+  }
+
   // 2. Read Enriched CSV
   if (!fs.existsSync(csvPath)) {
     console.error(`Error: CSV file not found at ${csvPath}`);
