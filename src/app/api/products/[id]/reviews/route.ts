@@ -16,14 +16,37 @@ export async function GET(
     const { id: productId } = await params;
 
     // Fetch reviews from Firestore
-    const snapshot = await adminDb
-      .collection('reviews')
-      .where('productId', '==', productId)
-      .where('status', '==', 'published')
-      .orderBy('createdAt', 'desc')
-      .get();
+    let snapshot;
+    let isFallback = false;
+    try {
+      snapshot = await adminDb
+        .collection('reviews')
+        .where('productId', '==', productId)
+        .where('status', '==', 'published')
+        .orderBy('createdAt', 'desc')
+        .get();
+    } catch (err: any) {
+      // Fallback for missing index: query without ordering and sort in-memory
+      if (err?.code === 400 || String(err).includes('index')) {
+        console.warn('Reviews query failed (missing index), falling back to in-memory sort');
+        isFallback = true;
+        snapshot = await adminDb
+          .collection('reviews')
+          .where('productId', '==', productId)
+          .where('status', '==', 'published')
+          .get();
+      } else {
+        throw err;
+      }
+    }
 
-    const reviews = snapshot.docs.map((doc: any) => {
+    interface Review {
+      id: string;
+      createdAt: string;
+      [key: string]: any;
+    }
+
+    let reviews: Review[] = snapshot.docs.map((doc: any) => {
       const data = doc.data();
       return {
         ...data,
@@ -36,6 +59,11 @@ export async function GET(
         }))
       };
     });
+
+    // Manual sort if we hit the fallback
+    if (isFallback) {
+      reviews.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
 
     return NextResponse.json({ reviews });
   } catch (error) {

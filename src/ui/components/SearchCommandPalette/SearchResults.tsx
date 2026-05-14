@@ -4,6 +4,7 @@ import React from 'react';
 import { Archive, ArrowRight, ShoppingCart, NotebookPen } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import { getCollectionUrl } from '@utils/navigation';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 import type { Product, ProductCategory, KnowledgebaseArticle } from '@domain/models';
 import type { QuickAction } from './useSearchDiscovery';
 
@@ -182,7 +183,7 @@ export function SearchResults({
                 }`}
               >
                 <div className="h-14 w-14 rounded-xl bg-gray-50 border overflow-hidden shrink-0 ring-1 ring-gray-100 group-hover:ring-primary-200 transition-all">
-                  <img src={product.imageUrl} alt="" className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
+                  <img src={sanitizeImageUrl(product.imageUrl)} alt="" className="h-full w-full object-cover group-hover:scale-110 transition duration-500" />
                 </div>
                 <div className="flex-1 text-left min-w-0">
                   <p className={`text-sm font-black truncate transition-colors ${

@@ -8,6 +8,7 @@ import { formatCurrency } from '@utils/formatters';
 import { useWishlist } from '../../hooks/useWishlist';
 import type { Product } from '@domain/models';
 import Image from 'next/image';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 interface ProductCardProps {
   product: Product;
@@ -88,7 +89,8 @@ export function ProductCard({ product, onAddToCart, onQuickView, priority = fals
       <div className="relative aspect-4/5 rounded-4xl overflow-hidden bg-gray-50 border border-gray-100 shadow-sm transition-all duration-700 group-hover:-translate-y-2 group-hover:shadow-2xl group-hover:shadow-primary-100/50">
         <Link href={`/products/${product.handle || product.id}`} className="absolute inset-0 z-10" aria-label={`View ${product.name}`}>
           <Image
-            src={product.imageUrl}
+            src={sanitizeImageUrl(product.imageUrl)}
+
             alt={`${product.name} - Handcrafted ${product.category}`}
             fill
             priority={priority}

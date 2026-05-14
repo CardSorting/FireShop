@@ -13,6 +13,7 @@ import { useWishlist } from '../../hooks/useWishlist';
 import type { Product } from '@domain/models';
 import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 function toFriendlyError(err: unknown): string {
   if (err instanceof Error && err.message) {
@@ -108,7 +109,18 @@ export function useProductDetail(initialProduct?: Product | null) {
 
   // --- Data Loading ---
   const loadProduct = useCallback(async () => {
-    if (!handle || initialProduct) return;
+    if (!handle || initialProduct) {
+      if (initialProduct) {
+        console.log('[PDP] Using initialProduct:', {
+          id: initialProduct.id,
+          handle: initialProduct.handle,
+          imageUrl: initialProduct.imageUrl,
+          mediaCount: initialProduct.media?.length,
+          variantCount: initialProduct.variants?.length
+        });
+      }
+      return;
+    }
     
     controllerRef.current?.abort();
     const controller = new AbortController();
@@ -134,6 +146,14 @@ export function useProductDetail(initialProduct?: Product | null) {
       }
 
       if (!controller.signal.aborted && loaded) {
+        console.log('[PDP] Loaded product data:', {
+          id: loaded.id,
+          handle: loaded.handle,
+          imageUrl: loaded.imageUrl,
+          media: loaded.media?.map(m => m.url),
+          variants: loaded.variants?.map(v => v.imageUrl)
+        });
+
         // 3. CANONICAL REDIRECT: If the current URL handle is actually an ID, 
         // or if it's an old handle, redirect to the official handle.
         if (loaded.handle && handle !== loaded.handle) {
@@ -225,19 +245,47 @@ export function useProductDetail(initialProduct?: Product | null) {
   const allImages = useMemo(() => {
     if (!product) return [];
     const images: { url: string; alt: string }[] = [];
-    if (product.imageUrl) images.push({ url: product.imageUrl, alt: product.name });
+    
+    // Helper to validate and normalize URLs
+    const addImage = (url: string | undefined | null, alt: string) => {
+      const sanitized = sanitizeImageUrl(url, '');
+      if (sanitized) {
+        images.push({ url: sanitized, alt });
+      }
+    };
+
+    addImage(product.imageUrl, product.name);
+    
     if (product.media) {
       product.media.forEach(m => {
-        if (m.url && m.url !== product.imageUrl) {
-          images.push({ url: m.url, alt: m.altText || product.name });
+        if (m.url !== product.imageUrl) {
+          addImage(m.url, m.altText || product.name);
         }
       });
     }
+
     // If variant has its own image, prepend it
-    if (selectedVariant?.imageUrl && !images.find(i => i.url === selectedVariant.imageUrl)) {
-      images.unshift({ url: selectedVariant.imageUrl, alt: selectedVariant.title || product.name });
+    if (selectedVariant?.imageUrl) {
+      const sanitizedVariantUrl = sanitizeImageUrl(selectedVariant.imageUrl, '');
+      if (sanitizedVariantUrl) {
+        const exists = images.find(i => i.url === sanitizedVariantUrl);
+        if (!exists) {
+          images.unshift({ url: sanitizedVariantUrl, alt: selectedVariant.title || product.name });
+        }
+      }
     }
-    return images.length > 0 ? images : [{ url: 'https://placehold.co/800x1000?text=No+Image', alt: 'No image' }];
+
+    // Deduplicate by URL
+    const seen = new Set<string>();
+    const uniqueImages = images.filter(img => {
+      if (seen.has(img.url)) return false;
+      seen.add(img.url);
+      return true;
+    });
+
+    return uniqueImages.length > 0 
+      ? uniqueImages 
+      : [{ url: 'https://placehold.co/800x1000?text=No+Image', alt: 'No image' }];
   }, [product, selectedVariant]);
 
   const currentImage = allImages[selectedImageIndex]?.url || allImages[0]?.url;

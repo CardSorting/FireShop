@@ -3,6 +3,7 @@
  */
 'use client';
 import React, { useState } from 'react';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 import { 
   Calendar, Clock, User, ChevronRight, MessageSquare, 
   Share2, Heart, Send, Sparkles, Mail, ShoppingBag
@@ -521,7 +522,7 @@ export function RelatedProducts({ products }: { products: Product[] }) {
             className="group bg-white rounded-4xl p-6 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500"
           >
             <div className="relative h-48 overflow-hidden rounded-3xl mb-6 bg-gray-50">
-              <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
+              <img src={sanitizeImageUrl(product.imageUrl)} alt={product.name} className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-500" />
               <div className="absolute top-4 right-4">
                  <span className="px-4 py-2 rounded-2xl bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest shadow-xl">
                    ${(product.price / 100).toFixed(2)}

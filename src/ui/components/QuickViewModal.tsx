@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { X, ShoppingBag, Heart, Star, ShieldCheck, Truck, RotateCcw } from 'lucide-react';
 import { formatCurrency } from '@utils/formatters';
 import type { Product } from '@domain/models';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -77,7 +78,7 @@ export function QuickViewModal({
         {/* Gallery Area */}
         <div className="lg:w-1/2 relative bg-gray-50 h-64 lg:h-auto">
           <img 
-            src={product.imageUrl} 
+            src={sanitizeImageUrl(product.imageUrl)} 
             alt={product.name}
             className="w-full h-full object-cover"
           />

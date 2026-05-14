@@ -13,6 +13,7 @@ import { useCart } from '../hooks/useCart';
 import { useServices } from '../hooks/useServices';
 import { MAX_CART_QUANTITY } from '@domain/rules';
 import { logger } from '@utils/logger';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -172,7 +173,7 @@ export function CartDrawer() {
                 return (
                   <div key={itemId} data-testid="cart-item" className={`flex gap-6 group transition-opacity duration-300 ${isUpdating ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-3xl bg-gray-50 border border-gray-100 shadow-sm group-hover:shadow-md transition-shadow">
-                      <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                      <img src={sanitizeImageUrl(item.imageUrl)} alt={item.name} className="h-full w-full object-cover" />
                       {isUpdating && (
                         <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center">
                           <div className="h-5 w-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />

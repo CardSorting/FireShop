@@ -1,4 +1,5 @@
 import type { Product, ProductOption, ProductVariant } from '@domain/models';
+import { sanitizeImageUrl } from './imageSanitizer';
 
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://dreambeesart.com';
 export const SITE_NAME = 'DreamBeesArt';
@@ -68,7 +69,9 @@ export function productImages(product: Product): string[] {
     ...(product.variants || []).map((variant) => variant.imageUrl),
   ].filter((url): url is string => Boolean(url));
 
-  return Array.from(new Set(urls)).map(absoluteUrl);
+  return Array.from(new Set(urls))
+    .map(url => sanitizeImageUrl(url))
+    .map(absoluteUrl);
 }
 
 function priceFromCents(cents: number): string {

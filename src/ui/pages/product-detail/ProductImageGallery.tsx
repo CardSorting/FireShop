@@ -6,6 +6,7 @@
  */
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { sanitizeImageUrl } from '@utils/imageSanitizer';
 
 interface ProductImageGalleryProps {
   images: { url: string; alt: string }[];
@@ -35,7 +36,7 @@ export function ProductImageGallery({ images, selectedIndex, onSelect, productNa
         onMouseMove={handleMouseMove}
       >
         <img
-          src={images[selectedIndex]?.url}
+          src={sanitizeImageUrl(images[selectedIndex]?.url)}
           alt={images[selectedIndex]?.alt || productName}
           className="w-full h-full object-cover transition-transform duration-500"
           style={isZooming ? {
@@ -87,7 +88,7 @@ export function ProductImageGallery({ images, selectedIndex, onSelect, productNa
               aria-label={`View image ${index + 1}`}
             >
               <img
-                src={img.url}
+                src={sanitizeImageUrl(img.url)}
                 alt={img.alt}
                 className="w-full h-full object-cover"
               />
