@@ -18,6 +18,22 @@ export const OPERATIONAL_INTENT_CARDS: OperationalIntentCard[] = [
     defaultPriority: 'urgent',
     targets: ['inventory', 'procurement', 'storefront'],
   },
+  {
+    type: 'improve_catalog_quality',
+    title: 'Improve catalog quality',
+    description: 'Find products missing SKU, cost, or photo data and decide which need attention before they sell.',
+    category: 'catalog',
+    defaultPriority: 'medium',
+    targets: ['catalog', 'inventory'],
+  },
+  {
+    type: 'clear_fulfillment_backlog',
+    title: 'Clear fulfillment backlog',
+    description: 'Review orders that are pending or confirmed but not yet processed to avoid shipping delays.',
+    category: 'fulfillment',
+    defaultPriority: 'high',
+    targets: ['orders', 'fulfillment'],
+  },
 ];
 
 export function getOperationalIntentCard(type: OperationalIntentType): OperationalIntentCard {
